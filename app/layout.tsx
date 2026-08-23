@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Cairo, Outfit } from "next/font/google";
 import { AppShell } from "@/components/app-shell";
 import "./globals.css";
@@ -17,6 +17,12 @@ const outfit = Outfit({
   display: "swap",
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+};
+
 export const metadata: Metadata = {
   title: "إدارة الصيانة | Phone Repair OS",
   description: "نظام متكامل لإدارة صيانة الهواتف الذكية والمبيعات والمخزون",
@@ -28,11 +34,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ar" dir="rtl" className={`${cairo.variable} ${outfit.variable}`}>
-      <body className="font-sans antialiased">
+    <html lang="ar" dir="rtl" className={`${cairo.variable} ${outfit.variable} overflow-x-hidden`}>
+      <body className="font-sans antialiased overflow-x-hidden min-h-screen max-w-full">
         <AppShell>{children}</AppShell>
       </body>
     </html>
   );
 }
-

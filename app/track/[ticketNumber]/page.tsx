@@ -25,58 +25,72 @@ type TrackPageProps = {
 
 const statusDetails: Record<
   RepairStatus,
-  { label: string; description: string; step: number; color: string }
+  { label: string; description: string; step: number; colorClass: string; bgClass: string; borderClass: string }
 > = {
   PENDING: {
     label: "قيد الانتظار والاستلام",
-    description: "تم تسجيل جهازك بنجاح وبانتظار بدء الفحص الفني.",
+    description: "تم تسجيل جهازك بنجاح وبانتظار بدء الفحص الفني من قبل المختص.",
     step: 1,
-    color: "text-amber-600 bg-amber-50 border-amber-200",
+    colorClass: "text-amber-400",
+    bgClass: "bg-amber-500/10",
+    borderClass: "border-amber-500/30",
   },
   DIAGNOSING: {
     label: "قيد الفحص والتشخيص",
     description: "يقوم الفني حالياً بفحص الجهاز وتحديد العطل وقطع الغيار المطلوبة.",
     step: 2,
-    color: "text-indigo-600 bg-indigo-50 border-indigo-200",
+    colorClass: "text-indigo-400",
+    bgClass: "bg-indigo-500/10",
+    borderClass: "border-indigo-500/30",
   },
   WAITING_PARTS: {
     label: "بانتظار وصول قطع الغيار",
-    description: "تم فحص الجهاز وتحديد القطعة وبانتظار توريدها للبدء بالتركيب.",
+    description: "تم فحص الجهاز وتحديد القطعة وبانتظار توريدها للبدء بالتركيب فوراً.",
     step: 3,
-    color: "text-orange-600 bg-orange-50 border-orange-200",
+    colorClass: "text-orange-400",
+    bgClass: "bg-orange-500/10",
+    borderClass: "border-orange-500/30",
   },
   REPAIRING: {
     label: "قيد الصيانة والإصلاح",
-    description: "جاري صيانة واستبدال القطع وفحص الجهاز بدقة.",
+    description: "جاري صيانة واستبدال القطع وفحص أداء الجهاز بدقة.",
     step: 3,
-    color: "text-teal-600 bg-teal-50 border-teal-200",
+    colorClass: "text-teal-400",
+    bgClass: "bg-teal-500/10",
+    borderClass: "border-teal-500/30",
   },
   DONE: {
     label: "مكتمل وجاهز للاستلام 🎉",
-    description: "تمت صيانة جهازك بنجاح وهو جاهز للاستلام في المحل الآن!",
+    description: "تمت صيانة جهازك بنجاح وبكفاءة، وهو جاهز للاستلام في المحل الآن!",
     step: 4,
-    color: "text-emerald-700 bg-emerald-50 border-emerald-300",
+    colorClass: "text-emerald-400",
+    bgClass: "bg-emerald-500/15",
+    borderClass: "border-emerald-500/40",
   },
   DELIVERED: {
-    label: "تم تسليم الجهاز للعميل",
-    description: "تم استلام الجهاز بنجاح. شكراً لثقتكم بنا!",
+    label: "تم تسليم الجهاز بنجاح",
+    description: "تم استلام الجهاز من قبل العميل. شكراً لثقتكم واختياركم لنا!",
     step: 5,
-    color: "text-sky-700 bg-sky-50 border-sky-200",
+    colorClass: "text-sky-400",
+    bgClass: "bg-sky-500/10",
+    borderClass: "border-sky-500/30",
   },
   CANCELLED: {
     label: "طلب صيانة ملغي",
     description: "تم إلغاء عملية الصيانة بناءً على طلب العميل أو تعذر الإصلاح.",
     step: 0,
-    color: "text-rose-600 bg-rose-50 border-rose-200",
+    colorClass: "text-rose-400",
+    bgClass: "bg-rose-500/10",
+    borderClass: "border-rose-500/30",
   },
 };
 
 const steps = [
-  { num: 1, label: "استلام الجهاز" },
-  { num: 2, label: "الفحص والتشخيص" },
-  { num: 3, label: "الإصلاح والصيانة" },
-  { num: 4, label: "جاهز للاستلام" },
-  { num: 5, label: "تم التسليم" },
+  { num: 1, label: "الاستلام" },
+  { num: 2, label: "الفحص" },
+  { num: 3, label: "الصيانة" },
+  { num: 4, label: "جاهز" },
+  { num: 5, label: "التسليم" },
 ];
 
 export default async function TrackTicketPage({ params }: TrackPageProps) {
@@ -102,14 +116,14 @@ export default async function TrackTicketPage({ params }: TrackPageProps) {
 
   if (!repairOrder) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center px-4 py-12">
-        <div className="max-w-md w-full text-center space-y-6 bg-slate-900/80 p-8 rounded-3xl border border-slate-800 backdrop-blur-xl">
-          <div className="flex h-14 w-14 mx-auto items-center justify-center rounded-2xl bg-rose-500/10 text-rose-400 border border-rose-500/20">
-            <Search className="h-7 w-7" />
+      <div className="min-h-screen w-full bg-slate-950 text-slate-100 flex flex-col justify-center items-center px-4 py-8 overflow-x-hidden">
+        <div className="w-full max-w-sm text-center space-y-5 bg-slate-900/90 p-6 rounded-3xl border border-slate-800 shadow-2xl">
+          <div className="flex h-12 w-12 mx-auto items-center justify-center rounded-2xl bg-rose-500/10 text-rose-400 border border-rose-500/20">
+            <Search className="h-6 w-6" />
           </div>
-          <h2 className="text-xl font-black text-white">لم يتم العثور على التذكرة</h2>
+          <h2 className="text-lg font-black text-white">لم يتم العثور على التذكرة</h2>
           <p className="text-xs text-slate-400 leading-relaxed font-medium">
-            تأكد من صحة رقم التذكرة المدخل: <span className="font-numeric font-bold text-white block mt-1">{decodedTicket}</span>
+            تأكد من صحة رقم التذكرة المدخل: <span className="font-numeric font-bold text-teal-400 block mt-1">{decodedTicket}</span>
           </p>
           <Button asChild className="w-full bg-teal-500 text-slate-950 font-bold hover:bg-teal-400 rounded-xl h-11">
             <Link href="/track">بحث برقم تذكرة آخر</Link>
@@ -136,60 +150,63 @@ export default async function TrackTicketPage({ params }: TrackPageProps) {
     : null;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 py-8 px-4 sm:px-6 lg:px-8 selection:bg-teal-500 selection:text-white">
-      {/* Ambient background glow */}
-      <div className="absolute top-0 right-1/3 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
-
-      <div className="max-w-2xl mx-auto space-y-6 relative z-10">
-        {/* Shop Card Header */}
-        <div className="rounded-3xl border border-slate-800 bg-slate-900/90 backdrop-blur-xl p-6 text-center shadow-xl">
-          <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-500/10 text-teal-400 border border-teal-500/20 mb-3">
-            <Smartphone className="h-6 w-6" />
+    <div className="min-h-screen w-full bg-slate-950 text-slate-100 py-4 px-3 sm:px-4 flex flex-col items-center justify-start overflow-x-hidden">
+      <div className="w-full max-w-md space-y-4">
+        {/* Shop Header Bar */}
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/95 p-4 text-center shadow-lg">
+          <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/20 mb-2">
+            <Smartphone className="h-5 w-5" />
           </div>
-          <h1 className="text-xl font-black text-white">{shop.name}</h1>
-          <p className="text-xs text-slate-400 mt-1">نظام تتبع حالة صيانة الأجهزة المباشر</p>
+          <h1 className="text-base font-black text-white tracking-tight">{shop.name}</h1>
+          <p className="text-[11px] text-slate-400 mt-0.5">تتبع حالة صيانة الأجهزة المباشر</p>
 
-          <div className="mt-4 pt-4 border-t border-slate-800/80 flex flex-wrap items-center justify-center gap-4 text-xs font-bold text-slate-400">
-            {shop.phone && (
-              <span className="flex items-center gap-1.5" dir="ltr">
-                <Phone className="h-3.5 w-3.5 text-teal-400" />
-                {shop.phone}
-              </span>
-            )}
-            {shop.address && (
-              <span className="flex items-center gap-1.5">
-                <MapPin className="h-3.5 w-3.5 text-teal-400" />
-                {shop.address}
-              </span>
-            )}
-          </div>
+          {(shop.phone || shop.address) && (
+            <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex flex-wrap items-center justify-center gap-3 text-[11px] font-bold text-slate-400">
+              {shop.phone && (
+                <span className="flex items-center gap-1" dir="ltr">
+                  <Phone className="h-3 w-3 text-teal-400" />
+                  {shop.phone}
+                </span>
+              )}
+              {shop.address && (
+                <span className="flex items-center gap-1">
+                  <MapPin className="h-3 w-3 text-teal-400" />
+                  {shop.address}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Current Status Cockpit */}
-        <div className="rounded-3xl border border-slate-800 bg-slate-900/90 backdrop-blur-xl p-6 sm:p-8 shadow-xl space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-800 pb-5">
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/95 p-4 sm:p-5 shadow-xl space-y-4">
+          {/* Header row: Ticket # & Status */}
+          <div className="flex items-center justify-between gap-2 border-b border-slate-800 pb-3">
             <div>
-              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">رقم التذكرة</span>
-              <span className="text-2xl font-black text-teal-400 font-numeric tracking-tight">{repairOrder.ticketNumber}</span>
+              <span className="text-[9px] font-extrabold text-slate-400 uppercase block">رقم التذكرة</span>
+              <span className="text-xl font-black text-teal-400 font-numeric tracking-tight">{repairOrder.ticketNumber}</span>
             </div>
-            <div className="self-start sm:self-auto">
-              <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black border ${currentStatus.color}`}>
-                <Sparkles className="h-3.5 w-3.5" />
+            <div className="text-left">
+              <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-black border ${currentStatus.colorClass} ${currentStatus.bgClass} ${currentStatus.borderClass}`}>
+                <Sparkles className="h-3 w-3" />
                 {currentStatus.label}
               </span>
             </div>
           </div>
 
-          <div className="bg-slate-950/60 rounded-2xl p-4 border border-slate-800/80">
-            <p className="text-xs sm:text-sm text-slate-200 leading-relaxed font-medium">
+          {/* Status Explanation Card */}
+          <div className="bg-slate-950/70 rounded-xl p-3 border border-slate-800/80">
+            <p className="text-xs text-slate-200 leading-relaxed font-medium">
               {currentStatus.description}
             </p>
           </div>
 
           {/* Progress Timeline Tracker */}
-          <div className="pt-2">
-            <h3 className="text-xs font-extrabold text-slate-400 uppercase tracking-wider mb-4">مراحل إنجاز الجهاز:</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+          <div className="pt-1">
+            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-2.5">
+              مراحل إنجاز جهازك:
+            </span>
+            <div className="grid grid-cols-5 gap-1">
               {steps.map((step) => {
                 const isPassed = currentStatus.step >= step.num;
                 const isCurrent = currentStatus.step === step.num;
@@ -197,52 +214,55 @@ export default async function TrackTicketPage({ params }: TrackPageProps) {
                 return (
                   <div
                     key={step.num}
-                    className={`rounded-2xl p-3 text-center border transition ${
+                    className={`rounded-xl py-2 px-1 text-center border transition-all ${
                       isCurrent
-                        ? "border-teal-500 bg-teal-500/10 text-teal-300 font-black shadow-md shadow-teal-500/10"
+                        ? "border-teal-500 bg-teal-500/20 text-teal-300 font-black shadow-sm shadow-teal-500/20"
                         : isPassed
-                        ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-400 font-bold"
-                        : "border-slate-800 bg-slate-950/40 text-slate-500 font-medium"
+                        ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400 font-bold"
+                        : "border-slate-800/80 bg-slate-950/40 text-slate-500 font-medium"
                     }`}
                   >
-                    <div className="flex items-center justify-center gap-1 text-[11px] mb-1">
-                      {isPassed ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> : <Clock className="h-3.5 w-3.5" />}
-                      <span className="font-numeric">#{step.num}</span>
+                    <div className="flex items-center justify-center text-[10px] mb-0.5">
+                      {isPassed ? (
+                        <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                      ) : (
+                        <Clock className="h-3 w-3" />
+                      )}
                     </div>
-                    <span className="text-[11px] block leading-tight">{step.label}</span>
+                    <span className="text-[9.5px] block leading-tight">{step.label}</span>
                   </div>
                 );
               })}
             </div>
           </div>
 
-          {/* Device & Ticket Details */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-            <div className="bg-slate-950/40 p-4 rounded-2xl border border-slate-800">
-              <span className="text-[10px] font-bold text-slate-400 block">الجهاز:</span>
-              <span className="text-sm font-extrabold text-white mt-1 block">
+          {/* Device & Ticket Details Grid */}
+          <div className="grid grid-cols-1 gap-2 pt-1">
+            <div className="bg-slate-950/50 p-3 rounded-xl border border-slate-800 flex justify-between items-center">
+              <span className="text-[11px] font-bold text-slate-400">الجهاز:</span>
+              <span className="text-xs font-black text-white">
                 {[repairOrder.deviceBrand, repairOrder.deviceModel].filter(Boolean).join(" ") || "غير محدد"}
               </span>
             </div>
 
-            <div className="bg-slate-950/40 p-4 rounded-2xl border border-slate-800">
-              <span className="text-[10px] font-bold text-slate-400 block">تاريخ الاستلام:</span>
-              <span className="text-sm font-extrabold text-white mt-1 block font-numeric">
+            <div className="bg-slate-950/50 p-3 rounded-xl border border-slate-800 flex justify-between items-center">
+              <span className="text-[11px] font-bold text-slate-400">تاريخ الاستلام:</span>
+              <span className="text-xs font-bold text-white font-numeric">
                 {formatDateTime(repairOrder.createdAt)}
               </span>
             </div>
 
-            <div className="bg-slate-950/40 p-4 rounded-2xl border border-slate-800">
-              <span className="text-[10px] font-bold text-slate-400 block">العطل المسجل:</span>
-              <span className="text-xs font-bold text-slate-200 mt-1 block">
+            <div className="bg-slate-950/50 p-3 rounded-xl border border-slate-800 flex justify-between items-center">
+              <span className="text-[11px] font-bold text-slate-400">العطل المسجل:</span>
+              <span className="text-xs font-extrabold text-teal-300">
                 {repairOrder.reportedIssue}
               </span>
             </div>
 
             {repairOrder.estimatedTotal !== null && (
-              <div className="bg-slate-950/40 p-4 rounded-2xl border border-slate-800">
-                <span className="text-[10px] font-bold text-slate-400 block">التكلفة التقديرية:</span>
-                <span className="text-sm font-black text-teal-400 mt-1 block font-numeric">
+              <div className="bg-slate-950/50 p-3 rounded-xl border border-slate-800 flex justify-between items-center">
+                <span className="text-[11px] font-bold text-slate-400">التكلفة التقديرية:</span>
+                <span className="text-sm font-black text-teal-400 font-numeric">
                   {formatCurrency(repairOrder.estimatedTotal, currency)}
                 </span>
               </div>
@@ -252,20 +272,20 @@ export default async function TrackTicketPage({ params }: TrackPageProps) {
           {/* Direct WhatsApp Contact Button */}
           {whatsappUrl && (
             <div className="pt-2">
-              <Button asChild className="w-full h-12 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/20 border-0">
+              <Button asChild className="w-full h-11 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/20 border-0">
                 <a href={whatsappUrl} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2">
-                  <MessageCircle className="h-4.5 w-4.5" />
-                  مراسلة المحل مباشرة عبر واتساب للاستفسار
+                  <MessageCircle className="h-4 w-4" />
+                  مراسلة المحل عبر واتساب للاستفسار
                 </a>
               </Button>
             </div>
           )}
         </div>
 
-        {/* Warranty Notice */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 text-center">
-          <p className="text-[10.5px] text-slate-400 leading-relaxed font-medium flex items-center justify-center gap-1.5">
-            <ShieldCheck className="h-4 w-4 text-teal-400 shrink-0" />
+        {/* Warranty Policy */}
+        <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-3 text-center">
+          <p className="text-[10px] text-slate-400 leading-normal font-medium flex items-center justify-center gap-1.5">
+            <ShieldCheck className="h-3.5 w-3.5 text-teal-400 shrink-0" />
             {shop.terms || "الضمان يشمل القطع المستبدلة فقط لمدة 30 يوماً. شكراً لثقتكم بنا."}
           </p>
         </div>
