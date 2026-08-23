@@ -140,18 +140,24 @@ export default async function RepairOrderStickerPage({ params }: StickerPageProp
         @media print {
           @page {
             size: 50mm 30mm;
-            margin: 0;
+            margin: 0mm;
+          }
+          *, *::before, *::after {
+            box-sizing: border-box !important;
           }
           html, body {
             width: 50mm !important;
             height: 30mm !important;
+            max-width: 50mm !important;
+            max-height: 30mm !important;
             margin: 0 !important;
             padding: 0 !important;
+            overflow: hidden !important;
             background: #ffffff !important;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
           }
-          .no-print {
+          .no-print, aside, header, nav {
             display: none !important;
           }
           .sticker-container {
@@ -163,7 +169,10 @@ export default async function RepairOrderStickerPage({ params }: StickerPageProp
             box-shadow: none !important;
             margin: 0 !important;
             padding: 1.5mm !important;
-            page-break-inside: avoid;
+            page-break-inside: avoid !important;
+            page-break-after: avoid !important;
+            page-break-before: avoid !important;
+            break-inside: avoid !important;
           }
         }
       `}} />

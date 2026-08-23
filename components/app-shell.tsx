@@ -15,6 +15,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     pathname === "/login" ||
     pathname === "/register" ||
     pathname.includes("/print") ||
+    pathname.includes("/sticker") ||
     pathname.startsWith("/track");
 
   if (isPublicPage) {

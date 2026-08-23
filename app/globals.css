@@ -123,4 +123,10 @@
   background: rgba(148, 163, 184, 0.6);
 }
 
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
+
 
