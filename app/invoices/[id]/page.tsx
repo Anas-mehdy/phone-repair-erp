@@ -274,9 +274,11 @@ export default async function InvoiceDetailsPage({
               <h3 className="font-bold text-slate-800 text-sm font-numeric">خيارات وإجراءات الفاتورة</h3>
             </div>
             <div className="grid gap-3">
-              <Button type="button" variant="outline" className="w-full font-bold shadow-sm border-slate-200/80 hover:bg-slate-50 rounded-xl h-11 text-xs justify-center" disabled>
-                <Printer className="h-4 w-4 ml-1.5 shrink-0" aria-hidden="true" />
-                طباعة الفاتورة (قريباً)
+              <Button asChild variant="outline" className="w-full font-bold shadow-sm border-slate-200/80 hover:bg-slate-50 rounded-xl h-11 text-xs justify-center">
+                <Link href={`/invoices/${invoice.id}/print`} target="_blank">
+                  <Printer className="h-4 w-4 ml-1.5 shrink-0 text-slate-700" aria-hidden="true" />
+                  طباعة الفاتورة (حراري 80mm)
+                </Link>
               </Button>
               {whatsappShare.ok ? (
                 <Button asChild variant="outline" className="w-full font-bold shadow-sm border-slate-200 hover:bg-emerald-50 hover:text-emerald-700 rounded-xl h-11 text-xs justify-center">
