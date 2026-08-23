@@ -5,7 +5,6 @@ import {
   type Payment,
 } from "@prisma/client";
 import { formatCurrency } from "@/lib/format";
-import { prisma } from "@/lib/prisma";
 
 export type WhatsAppShareResult =
   | {
@@ -36,7 +35,7 @@ export function buildWaMeLink(phone: string, message: string) {
 }
 
 function phoneFromCustomer(
-  customer: { phone?: string | null; phoneNormalized?: string | null } | null,
+  customer?: { phone?: string | null; phoneNormalized?: string | null } | null,
 ) {
   if (!customer) {
     return null;
@@ -99,34 +98,22 @@ function buildPaymentSummary(payments: Payment[]) {
   return `عدد الدفعات: ${payments.length}`;
 }
 
-export async function buildInvoiceShareLink(
-  shopId: string,
-  invoiceId: string,
-): Promise<WhatsAppShareResult> {
-  const invoice = await prisma.invoice.findFirst({
-    where: {
-      id: invoiceId,
-      shopId,
-      deletedAt: null,
-    },
-    include: {
-      customer: true,
-      shop: true,
-      payments: {
-        where: {
-          deletedAt: null,
-        },
-      },
-    },
-  });
+// --- In-memory builders that take already-loaded data (no extra DB queries) ---
 
-  if (!invoice) {
-    return {
-      ok: false,
-      message: "الفاتورة غير موجودة.",
-    };
-  }
-
+export function buildInvoiceShareLinkFromData(
+  invoice: {
+    invoiceNumber: string;
+    type: InvoiceType;
+    status: InvoiceStatus;
+    total: unknown;
+    amountPaid: unknown;
+    balanceDue: unknown;
+    customer?: { name: string; phone?: string | null; phoneNormalized?: string | null } | null;
+    shop?: { name: string } | null;
+    payments?: Payment[];
+  },
+  shopName: string,
+): WhatsAppShareResult {
   const phone = phoneFromCustomer(invoice.customer);
 
   if (!invoice.customer || !phone) {
@@ -138,14 +125,14 @@ export async function buildInvoiceShareLink(
 
   const message = [
     `مرحباً ${invoice.customer.name},`,
-    `فاتورتك من ${invoice.shop.name}`,
+    `فاتورتك من ${shopName}`,
     `رقم الفاتورة: ${invoice.invoiceNumber}`,
     `نوع الفاتورة: ${getInvoiceTypeLabel(invoice.type)}`,
     `الإجمالي: ${formatCurrency(invoice.total)}`,
     `المدفوع: ${formatCurrency(invoice.amountPaid)}`,
     `المتبقي: ${formatCurrency(invoice.balanceDue)}`,
     `الحالة: ${getInvoiceStatusLabel(invoice.status)}`,
-    `ملخص الدفع: ${buildPaymentSummary(invoice.payments)}`,
+    `ملخص الدفع: ${buildPaymentSummary(invoice.payments ?? [])}`,
     "شكراً لتعاملكم معنا.",
   ].join("\n");
 
@@ -155,29 +142,16 @@ export async function buildInvoiceShareLink(
   };
 }
 
-export async function buildRepairUpdateShareLink(
-  shopId: string,
-  repairOrderId: string,
-): Promise<WhatsAppShareResult> {
-  const repairOrder = await prisma.repairOrder.findFirst({
-    where: {
-      id: repairOrderId,
-      shopId,
-      deletedAt: null,
-    },
-    include: {
-      customer: true,
-      shop: true,
-    },
-  });
-
-  if (!repairOrder) {
-    return {
-      ok: false,
-      message: "طلب الصيانة غير موجود.",
-    };
-  }
-
+export function buildRepairUpdateShareLinkFromData(
+  repairOrder: {
+    ticketNumber: string;
+    status: RepairStatus;
+    deviceBrand?: string | null;
+    deviceModel?: string | null;
+    customer?: { name: string; phone?: string | null; phoneNormalized?: string | null } | null;
+  },
+  shopName: string,
+): WhatsAppShareResult {
   const phone = phoneFromCustomer(repairOrder.customer);
 
   if (!repairOrder.customer || !phone) {
@@ -194,7 +168,7 @@ export async function buildRepairUpdateShareLink(
 
   const message = [
     `مرحباً ${repairOrder.customer.name},`,
-    `تحديث بخصوص جهازك لدى ${repairOrder.shop.name}`,
+    `تحديث بخصوص جهازك لدى ${shopName}`,
     `رقم الطلب: ${repairOrder.ticketNumber}`,
     `الجهاز: ${device}`,
     `الحالة الحالية: ${status}`,
@@ -208,34 +182,16 @@ export async function buildRepairUpdateShareLink(
   };
 }
 
-export async function buildSaleReceiptShareLink(
-  shopId: string,
-  saleId: string,
-): Promise<WhatsAppShareResult> {
-  const sale = await prisma.sale.findFirst({
-    where: {
-      id: saleId,
-      shopId,
-      deletedAt: null,
-    },
-    include: {
-      customer: true,
-      shop: true,
-      items: {
-        orderBy: {
-          createdAt: "asc",
-        },
-      },
-    },
-  });
-
-  if (!sale) {
-    return {
-      ok: false,
-      message: "عملية البيع غير موجودة.",
-    };
-  }
-
+export function buildSaleReceiptShareLinkFromData(
+  sale: {
+    receiptNumber?: string | null;
+    total: unknown;
+    soldAt: Date | string | null;
+    customer?: { name: string; phone?: string | null; phoneNormalized?: string | null } | null;
+    items?: { description: string; quantity: number }[];
+  },
+  shopName: string,
+): WhatsAppShareResult {
   const phone = phoneFromCustomer(sale.customer);
 
   if (!sale.customer || !phone) {
@@ -245,14 +201,14 @@ export async function buildSaleReceiptShareLink(
     };
   }
 
-  const itemSummary = sale.items
+  const itemSummary = (sale.items ?? [])
     .slice(0, 5)
     .map((item) => `- ${item.description} × ${item.quantity}`)
     .join("\n");
 
   const message = [
     `مرحباً ${sale.customer.name},`,
-    `إيصالك من ${sale.shop.name}`,
+    `إيصالك من ${shopName}`,
     `رقم الإيصال: ${sale.receiptNumber ?? "-"}`,
     `تاريخ البيع: ${formatDate(sale.soldAt)}`,
     `الإجمالي: ${formatCurrency(sale.total)}`,
@@ -271,7 +227,7 @@ export async function buildSaleReceiptShareLink(
 export const whatsappService = {
   normalizePhoneForWhatsApp,
   buildWaMeLink,
-  buildInvoiceShareLink,
-  buildRepairUpdateShareLink,
-  buildSaleReceiptShareLink,
+  buildInvoiceShareLinkFromData,
+  buildRepairUpdateShareLinkFromData,
+  buildSaleReceiptShareLinkFromData,
 };

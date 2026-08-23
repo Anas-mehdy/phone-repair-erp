@@ -45,14 +45,14 @@ export default async function InvoiceDetailsPage({
   const { id } = await params;
   const query = await searchParams;
   let invoice: Awaited<ReturnType<typeof invoiceService.getInvoiceById>>;
-  let whatsappShare: Awaited<ReturnType<typeof whatsappService.buildInvoiceShareLink>>;
 
   let currency = "SAR";
+  let shopName = "";
   try {
     const context = await getCurrentShopContext();
     currency = context.currency;
+    shopName = context.shopName;
     invoice = await invoiceService.getInvoiceById(context.shopId, id);
-    whatsappShare = await whatsappService.buildInvoiceShareLink(context.shopId, id);
   } catch (error) {
     if (isDatabaseConnectionError(error)) {
       return <DatabaseUnavailable />;
@@ -64,6 +64,8 @@ export default async function InvoiceDetailsPage({
   if (!invoice) {
     notFound();
   }
+
+  const whatsappShare = whatsappService.buildInvoiceShareLinkFromData(invoice, shopName);
 
   const canAddPayment =
     invoice.status !== InvoiceStatus.VOID &&

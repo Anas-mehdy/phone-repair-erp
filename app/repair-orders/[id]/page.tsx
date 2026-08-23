@@ -1,5 +1,5 @@
 import QRCode from "qrcode";
-import { ArrowRight, FileText, MessageCircle, Printer, QrCode, Save, Wrench } from "lucide-react";
+import { ArrowRight, FileText, MessageCircle, Printer, QrCode, Wrench } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -53,14 +53,14 @@ export default async function RepairOrderDetailsPage({
   const { id } = await params;
   const query = await searchParams;
   let repairOrder: Awaited<ReturnType<typeof repairOrderService.getRepairOrderById>>;
-  let whatsappShare: Awaited<ReturnType<typeof whatsappService.buildRepairUpdateShareLink>>;
 
   let currency = "SAR";
+  let shopName = "";
   try {
     const context = await getCurrentShopContext();
     currency = context.currency;
+    shopName = context.shopName;
     repairOrder = await repairOrderService.getRepairOrderById(context.shopId, id);
-    whatsappShare = await whatsappService.buildRepairUpdateShareLink(context.shopId, id);
   } catch (error) {
     if (isDatabaseConnectionError(error)) {
       return <DatabaseUnavailable />;
@@ -73,6 +73,9 @@ export default async function RepairOrderDetailsPage({
     notFound();
   }
 
+  // Build WhatsApp link from already-loaded data — no extra DB query
+  const whatsappShare = whatsappService.buildRepairUpdateShareLinkFromData(repairOrder, shopName);
+
   const existingInvoice = repairOrder.invoices[0];
   const headersList = await headers();
   const host = headersList.get("x-forwarded-host") || headersList.get("host") || "localhost:3000";
@@ -81,7 +84,8 @@ export default async function RepairOrderDetailsPage({
 
   const qrCodeDataUrl = await QRCode.toDataURL(trackingUrl, {
     margin: 1,
-    width: 180,
+    width: 140,
+    errorCorrectionLevel: "L",
   });
 
   return (

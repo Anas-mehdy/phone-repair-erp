@@ -38,14 +38,14 @@ export default async function SaleDetailsPage({
   const { id } = await params;
   const query = await searchParams;
   let sale: Awaited<ReturnType<typeof salesService.getSaleById>>;
-  let whatsappShare: Awaited<ReturnType<typeof whatsappService.buildSaleReceiptShareLink>>;
 
   let currency = "SAR";
+  let shopName = "";
   try {
     const context = await getCurrentShopContext();
     currency = context.currency;
+    shopName = context.shopName;
     sale = await salesService.getSaleById(context.shopId, id);
-    whatsappShare = await whatsappService.buildSaleReceiptShareLink(context.shopId, id);
   } catch (error) {
     if (isDatabaseConnectionError(error)) {
       return <DatabaseUnavailable />;
@@ -58,6 +58,7 @@ export default async function SaleDetailsPage({
     notFound();
   }
 
+  const whatsappShare = whatsappService.buildSaleReceiptShareLinkFromData(sale, shopName);
   const existingInvoice = sale.invoices[0];
 
   return (

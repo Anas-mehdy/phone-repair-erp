@@ -44,8 +44,10 @@ export default async function InventoryItemDetailsPage({
   try {
     const context = await getCurrentShopContext();
     currency = context.currency;
-    item = await inventoryService.getInventoryItemById(context.shopId, id);
-    movements = await inventoryService.getInventoryMovements(context.shopId, id);
+    [item, movements] = await Promise.all([
+      inventoryService.getInventoryItemById(context.shopId, id),
+      inventoryService.getInventoryMovements(context.shopId, id),
+    ]);
   } catch (error) {
     if (isDatabaseConnectionError(error)) {
       return <DatabaseUnavailable />;
