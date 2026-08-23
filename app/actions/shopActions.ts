@@ -2,6 +2,7 @@
 
 import { getCurrentShopContext } from "@/lib/current-shop";
 import { shopService, type UpdateShopInput } from "@/lib/services/shopService";
+import { combineCountryDialWithPhone } from "@/lib/countries";
 import { getSession, setSessionCookie } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
@@ -10,7 +11,9 @@ export async function updateShopSettingsAction(formData: FormData): Promise<void
   const shopId = context.shopId;
 
   const name = formData.get("name") as string;
-  const phone = (formData.get("phone") as string) || "";
+  const rawPhone = (formData.get("phone") as string) || "";
+  const dialCode = (formData.get("dialCode") as string) || "+966";
+  const phone = rawPhone ? combineCountryDialWithPhone(dialCode, rawPhone) : "";
   const currency = (formData.get("currency") as string) || "SAR";
   const address = (formData.get("address") as string) || "";
   const taxNumber = (formData.get("taxNumber") as string) || "";

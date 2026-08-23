@@ -74,7 +74,7 @@ export default async function RepairOrderDetailsPage({
   }
 
   // Build WhatsApp link from already-loaded data — no extra DB query
-  const whatsappShare = whatsappService.buildRepairUpdateShareLinkFromData(repairOrder, shopName);
+  const whatsappShare = whatsappService.buildRepairUpdateShareLinkFromData(repairOrder, shopName, currency);
 
   const existingInvoice = repairOrder.invoices[0];
   const headersList = await headers();

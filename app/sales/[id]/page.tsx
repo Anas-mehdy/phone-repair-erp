@@ -58,7 +58,7 @@ export default async function SaleDetailsPage({
     notFound();
   }
 
-  const whatsappShare = whatsappService.buildSaleReceiptShareLinkFromData(sale, shopName);
+  const whatsappShare = whatsappService.buildSaleReceiptShareLinkFromData(sale, shopName, currency);
   const existingInvoice = sale.invoices[0];
 
   return (

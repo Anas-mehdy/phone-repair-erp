@@ -5,6 +5,7 @@ import { Store, Percent, Users, Save } from "lucide-react";
 import { updateShopSettingsAction } from "@/app/actions/shopActions";
 import { Button } from "@/components/ui/button";
 import { formatDate, CURRENCY_OPTIONS } from "@/lib/format";
+import { COUNTRY_DIAL_CODES, parseStoredPhone } from "@/lib/countries";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,7 @@ export default async function SettingsPage() {
   const shop = await shopService.getShopById(shopId);
 
   const currencies = CURRENCY_OPTIONS;
+  const phoneParts = parseStoredPhone(shop.phone, shop.currency || "SAR");
 
   return (
     <div className="space-y-6">
@@ -67,17 +69,38 @@ export default async function SettingsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-extrabold text-slate-600 mb-1.5">
-                  رقم الهاتف الموحد / الواتساب
-                </label>
-                <input
-                  type="tel"
-                  name="phone"
-                  defaultValue={shop.phone || ""}
-                  placeholder="966500000000"
-                  dir="ltr"
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-xs"
-                />
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-extrabold text-slate-600">
+                    رقم الهاتف الموحد / الواتساب
+                  </label>
+                  <span className="text-[10px] text-primary font-bold">
+                    (الرقم بدون رمز الدولة)
+                  </span>
+                </div>
+                <div className="flex items-center gap-2" dir="ltr">
+                  <div className="relative w-[130px] shrink-0">
+                    <select
+                      name="dialCode"
+                      defaultValue={phoneParts.dialCode}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-2 py-2.5 text-xs font-bold text-primary focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-xs cursor-pointer"
+                    >
+                      {COUNTRY_DIAL_CODES.map((item) => (
+                        <option key={item.code} value={item.dialCode}>
+                          {item.flag} {item.dialCode} {item.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="relative flex-1">
+                    <input
+                      type="tel"
+                      name="phone"
+                      defaultValue={phoneParts.localPhone}
+                      placeholder="501234567"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-xs font-numeric"
+                    />
+                  </div>
+                </div>
               </div>
 
               <div>

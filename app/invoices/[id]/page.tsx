@@ -66,7 +66,7 @@ export default async function InvoiceDetailsPage({
     notFound();
   }
 
-  const whatsappShare = whatsappService.buildInvoiceShareLinkFromData(invoice, shopName);
+  const whatsappShare = whatsappService.buildInvoiceShareLinkFromData(invoice, shopName, currency);
 
   const canAddPayment =
     invoice.status !== InvoiceStatus.VOID &&

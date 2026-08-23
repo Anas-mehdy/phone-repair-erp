@@ -18,10 +18,25 @@ import {
 import { registerAction } from "@/app/actions/authActions";
 import { Button } from "@/components/ui/button";
 import { CURRENCY_OPTIONS } from "@/lib/format";
+import { COUNTRY_DIAL_CODES } from "@/lib/countries";
 
 export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [selectedCurrency, setSelectedCurrency] = useState("SAR");
+  const [selectedDialCode, setSelectedDialCode] = useState("+966");
+
+  function handleCurrencyChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const newCurr = e.target.value;
+    setSelectedCurrency(newCurr);
+    const matchingCountry = COUNTRY_DIAL_CODES.find((c) => c.currency === newCurr);
+    if (matchingCountry) {
+      setSelectedDialCode(matchingCountry.dialCode);
+    }
+  }
+
+  const currentCountry =
+    COUNTRY_DIAL_CODES.find((c) => c.dialCode === selectedDialCode) || COUNTRY_DIAL_CODES[0];
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -175,7 +190,8 @@ export default function RegisterPage() {
                     </div>
                     <select
                       name="currency"
-                      defaultValue="SAR"
+                      value={selectedCurrency}
+                      onChange={handleCurrencyChange}
                       className="w-full rounded-xl border border-slate-800 bg-slate-950/60 py-2.5 pr-9 pl-3 text-sm text-white focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 transition"
                     >
                       {currencies.map((curr) => (
@@ -190,20 +206,43 @@ export default function RegisterPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-extrabold text-slate-300 mb-1.5">
-                    رقم هاتف المتجر / الواتساب
-                  </label>
-                  <div className="relative">
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-slate-500">
-                      <Phone className="h-4 w-4" />
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-extrabold text-slate-300">
+                      رقم هاتف المتجر / الواتساب
+                    </label>
+                    <span className="text-[10px] text-teal-400 font-bold">
+                      (الرقم بدون رمز الدولة)
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2" dir="ltr">
+                    {/* Country Code Selector */}
+                    <div className="relative w-[130px] shrink-0">
+                      <select
+                        name="dialCode"
+                        value={selectedDialCode}
+                        onChange={(e) => setSelectedDialCode(e.target.value)}
+                        className="w-full rounded-xl border border-slate-800 bg-slate-950/80 py-2.5 px-2 text-xs font-bold text-teal-400 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 transition cursor-pointer"
+                      >
+                        {COUNTRY_DIAL_CODES.map((item) => (
+                          <option key={item.code} value={item.dialCode} className="bg-slate-900 text-white">
+                            {item.flag} {item.dialCode} {item.name}
+                          </option>
+                        ))}
+                      </select>
                     </div>
-                    <input
-                      type="tel"
-                      name="phone"
-                      placeholder="مثال: 966500000000"
-                      dir="ltr"
-                      className="w-full rounded-xl border border-slate-800 bg-slate-950/60 py-2.5 pr-9 pl-3 text-sm text-white placeholder-slate-600 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 transition"
-                    />
+
+                    {/* Local Phone Input */}
+                    <div className="relative flex-1">
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-slate-500">
+                        <Phone className="h-4 w-4" />
+                      </div>
+                      <input
+                        type="tel"
+                        name="phone"
+                        placeholder={`مثال: ${currentCountry.placeholder}`}
+                        className="w-full rounded-xl border border-slate-800 bg-slate-950/60 py-2.5 pr-9 pl-3 text-sm font-numeric text-white placeholder-slate-600 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 transition"
+                      />
+                    </div>
                   </div>
                 </div>
 
