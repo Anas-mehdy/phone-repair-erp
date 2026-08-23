@@ -7,6 +7,7 @@ import { headers } from "next/headers";
 import { DatabaseUnavailable } from "@/components/database-unavailable";
 import { RepairStatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/submit-button";
 import { getCurrentShopContext } from "@/lib/current-shop";
 import { isDatabaseConnectionError } from "@/lib/database-errors";
 import { repairOrderService } from "@/lib/services/repairOrderService";
@@ -175,10 +176,9 @@ export default async function RepairOrderDetailsPage({
                 <Field label="ملاحظة الحالة">
                   <textarea className={textareaClassName} name="note" placeholder="اكتب ملاحظة حول تغيير الحالة..." />
                 </Field>
-                <Button type="submit" className="font-bold shadow-sm rounded-xl py-5 text-xs">
-                  <Save className="h-4.5 w-4.5 ml-1.5" aria-hidden="true" />
+                <SubmitButton className="font-bold shadow-sm rounded-xl py-5 text-xs" loadingText="جاري تحديث الحالة...">
                   حفظ وتحديث الحالة
-                </Button>
+                </SubmitButton>
               </div>
             </form>
 
@@ -224,10 +224,9 @@ export default async function RepairOrderDetailsPage({
                 </div>
               </div>
               <div className="mt-6 flex justify-end">
-                <Button type="submit" className="font-bold shadow-sm px-6 rounded-xl h-11">
-                  <Save className="h-4.5 w-4.5 ml-1.5" aria-hidden="true" />
+                <SubmitButton className="font-bold shadow-sm px-6 rounded-xl h-11" loadingText="جاري الحفظ...">
                   حفظ البيانات المحدثة
-                </Button>
+                </SubmitButton>
               </div>
             </form>
           </div>

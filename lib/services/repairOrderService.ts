@@ -319,28 +319,35 @@ export async function updateRepairOrderStatus(
   createdByUserId: string | null,
   input: UpdateRepairOrderStatusInput,
 ) {
-  return prisma.$transaction(async (tx) => {
-    const repairOrder = await tx.repairOrder.findFirst({
-      where: {
-        id: repairOrderId,
-        shopId,
-        deletedAt: null,
-      },
-    });
+  const repairOrder = await prisma.repairOrder.findFirst({
+    where: {
+      id: repairOrderId,
+      shopId,
+      deletedAt: null,
+    },
+    select: {
+      id: true,
+      status: true,
+      completedAt: true,
+      deliveredAt: true,
+    },
+  });
 
-    if (!repairOrder) {
-      throw new Error("طلب الصيانة غير موجود.");
-    }
+  if (!repairOrder) {
+    throw new Error("طلب الصيانة غير موجود.");
+  }
 
-    const oldStatus = repairOrder.status;
+  const oldStatus = repairOrder.status;
 
-    if (oldStatus === input.status) {
-      return repairOrder;
-    }
+  if (oldStatus === input.status) {
+    return repairOrder;
+  }
 
-    const now = new Date();
+  const now = new Date();
 
-    const updatedRepairOrder = await tx.repairOrder.update({
+  // Execute in a single batched network payload
+  const [updatedRepairOrder] = await prisma.$transaction([
+    prisma.repairOrder.update({
       where: {
         id: repairOrderId,
       },
@@ -358,9 +365,8 @@ export async function updateRepairOrderStatus(
           increment: 1,
         },
       },
-    });
-
-    await tx.repairStatusHistory.create({
+    }),
+    prisma.repairStatusHistory.create({
       data: {
         shopId,
         repairOrderId,
@@ -369,10 +375,10 @@ export async function updateRepairOrderStatus(
         toStatus: input.status,
         note: emptyToNull(input.note),
       },
-    });
+    }),
+  ]);
 
-    return updatedRepairOrder;
-  });
+  return updatedRepairOrder;
 }
 
 export const repairOrderService = {
