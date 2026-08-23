@@ -1,13 +1,32 @@
 "use client";
 
-import { Smartphone, LogOut } from "lucide-react";
-import type { ReactNode } from "react";
+import { Smartphone, LogOut, Menu, X } from "lucide-react";
+import { useState, useEffect, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { AppNav } from "@/components/app-nav";
 import { logoutAction } from "@/app/actions/authActions";
+import { cn } from "@/lib/utils";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Close drawer on page navigation
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
+
+  // Prevent background body scroll when mobile drawer is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [mobileMenuOpen]);
 
   // For marketing landing page, auth pages, tracking page, and printable receipts, render clean layout without dashboard sidebar
   const isPublicPage =
@@ -41,7 +60,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           </div>
 
-          <AppNav />
+          <div className="mt-4">
+            <AppNav />
+          </div>
         </div>
 
         {/* User / Logout footer in sidebar */}
@@ -60,38 +81,110 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      {/* Main Content Area */}
-      <div className="lg:pr-64">
-        {/* Header Mobile */}
-        <header className="border-b border-slate-200/60 bg-white/80 backdrop-blur-xl px-5 py-4 shadow-sm lg:hidden">
-          <div className="flex items-center justify-between">
+      {/* Mobile Drawer Backdrop */}
+      <div
+        className={cn(
+          "fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs transition-opacity duration-300 lg:hidden",
+          mobileMenuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+        )}
+        onClick={() => setMobileMenuOpen(false)}
+        aria-hidden="true"
+      />
+
+      {/* Mobile Drawer Panel (Slide-over from Right in RTL) */}
+      <aside
+        className={cn(
+          "fixed inset-y-0 right-0 z-50 w-72 max-w-[85vw] bg-white shadow-2xl border-l border-slate-200 transition-transform duration-300 ease-out flex flex-col justify-between lg:hidden",
+          mobileMenuOpen ? "translate-x-0" : "translate-x-full"
+        )}
+        aria-label="قائمة التنقل الجانبية"
+      >
+        <div className="flex flex-col h-full overflow-y-auto p-5">
+          {/* Drawer Header */}
+          <div className="flex items-center justify-between pb-4 border-b border-slate-100">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-primary/95 to-teal-800 text-primary-foreground shadow-sm shadow-primary/10">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-primary/95 to-teal-800 text-primary-foreground shadow-md shadow-primary/20">
                 <Smartphone className="h-5 w-5" aria-hidden="true" />
               </div>
               <div>
-                <h1 className="font-extrabold text-slate-800 text-sm">مصلح OS</h1>
-                <p className="text-[9px] font-bold text-slate-400">إدارة صيانة الأجهزة والـ POS</p>
+                <h2 className="text-sm font-extrabold text-slate-800">مصلح OS</h2>
+                <p className="text-[9px] font-bold text-teal-700 uppercase">منظومة إدارة الصيانة</p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition cursor-pointer"
+              aria-label="إغلاق القائمة"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          {/* Nav Items */}
+          <div className="mt-4 flex-1">
+            <AppNav onNavigate={() => setMobileMenuOpen(false)} />
+          </div>
+
+          {/* Drawer Footer */}
+          <div className="pt-4 mt-6 border-t border-slate-100">
+            <form action={logoutAction}>
+              <button
+                type="submit"
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-rose-50 border border-rose-100 py-3 text-xs font-bold text-rose-600 hover:bg-rose-100 transition cursor-pointer"
+              >
+                <LogOut className="h-4 w-4" />
+                <span>تسجيل الخروج</span>
+              </button>
+            </form>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Content Area */}
+      <div className="lg:pr-64">
+        {/* Header Mobile */}
+        <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl px-4 py-3 shadow-xs lg:hidden">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(true)}
+                className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-xs hover:bg-slate-50 hover:text-primary active:scale-95 transition cursor-pointer"
+                aria-label="فتح القائمة الجانبية"
+              >
+                <Menu className="h-5 w-5" />
+              </button>
+
+              <div className="flex items-center gap-2">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-primary/95 to-teal-800 text-primary-foreground shadow-xs shadow-primary/10">
+                  <Smartphone className="h-4.5 w-4.5" aria-hidden="true" />
+                </div>
+                <div>
+                  <h1 className="font-extrabold text-slate-800 text-sm leading-tight">مصلح OS</h1>
+                  <p className="text-[9px] font-bold text-slate-400">إدارة صيانة الأجهزة والـ POS</p>
+                </div>
               </div>
             </div>
 
             <form action={logoutAction}>
               <button
                 type="submit"
-                className="flex items-center gap-1 text-[11px] font-bold text-slate-500 hover:text-rose-600 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200"
+                className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-rose-600 bg-slate-50 hover:bg-rose-50 px-3 py-2 rounded-xl border border-slate-200 hover:border-rose-200 transition cursor-pointer"
               >
                 <LogOut className="h-3.5 w-3.5" />
                 <span>خروج</span>
               </button>
             </form>
           </div>
-          <AppNav compact />
         </header>
 
-        <main className="mx-auto min-h-screen max-w-[1600px] px-5 py-8 sm:px-6 lg:px-8">
+        <main className="mx-auto min-h-screen max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
           {children}
         </main>
       </div>
     </div>
   );
 }
+

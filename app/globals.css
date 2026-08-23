@@ -34,14 +34,14 @@
     direction: rtl;
     scroll-behavior: smooth;
     overflow-x: hidden;
-    max-width: 100vw;
+    max-width: 100%;
     width: 100%;
   }
 
   body {
     font-family: var(--font-cairo), system-ui, sans-serif;
     overflow-x: hidden;
-    max-width: 100vw;
+    max-width: 100%;
     width: 100%;
     @apply bg-background text-foreground antialiased;
     background: 

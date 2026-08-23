@@ -55,10 +55,12 @@ export default function RegisterPage() {
   const currencies = CURRENCY_OPTIONS;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden selection:bg-teal-500 selection:text-white">
+    <div className="relative min-h-screen w-full max-w-full bg-slate-950 text-slate-100 py-12 px-4 sm:px-6 lg:px-8 overflow-x-hidden selection:bg-teal-500 selection:text-white">
       {/* Ambient background glow */}
-      <div className="absolute top-10 -right-20 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-10 -left-20 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+        <div className="absolute top-10 -right-20 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-10 -left-20 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl" />
+      </div>
 
       <div className="max-w-2xl mx-auto relative z-10">
         <div className="text-center mb-8">

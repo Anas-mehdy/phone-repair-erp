@@ -34,8 +34,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ar" dir="rtl" className={`${cairo.variable} ${outfit.variable} overflow-x-hidden`}>
-      <body className="font-sans antialiased overflow-x-hidden min-h-screen max-w-full">
+    <html lang="ar" dir="rtl" className={`${cairo.variable} ${outfit.variable} overflow-x-hidden w-full max-w-full`}>
+      <body className="font-sans antialiased overflow-x-hidden min-h-screen w-full max-w-full">
         <AppShell>{children}</AppShell>
       </body>
     </html>
