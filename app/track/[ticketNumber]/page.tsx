@@ -21,6 +21,11 @@ type TrackPageProps = {
   params: Promise<{
     ticketNumber: string;
   }>;
+  searchParams?: Promise<{
+    s?: string;
+    shop?: string;
+    phone?: string;
+  }>;
 };
 
 const statusDetails: Record<
@@ -93,17 +98,38 @@ const steps = [
   { num: 5, label: "التسليم" },
 ];
 
-export default async function TrackTicketPage({ params }: TrackPageProps) {
+export default async function TrackTicketPage({ params, searchParams }: TrackPageProps) {
   const { ticketNumber } = await params;
-  const decodedTicket = decodeURIComponent(ticketNumber).trim();
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const shopId = resolvedSearchParams.s || resolvedSearchParams.shop;
+  const phone = resolvedSearchParams.phone?.trim();
+  const decodedParam = decodeURIComponent(ticketNumber).trim();
+
+  // Check if parameter is a unique UUID (direct QR scan)
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(decodedParam);
 
   const repairOrder = await prisma.repairOrder.findFirst({
     where: {
-      ticketNumber: {
-        equals: decodedTicket,
-        mode: "insensitive",
-      },
       deletedAt: null,
+      ...(isUuid
+        ? { id: decodedParam }
+        : {
+            ticketNumber: {
+              equals: decodedParam,
+              mode: "insensitive",
+            },
+            ...(shopId ? { shopId } : {}),
+            ...(phone
+              ? {
+                  customer: {
+                    OR: [
+                      { phone: { contains: phone } },
+                      { phoneNormalized: { contains: phone } },
+                    ],
+                  },
+                }
+              : {}),
+          }),
     },
     include: {
       shop: true,
@@ -111,6 +137,9 @@ export default async function TrackTicketPage({ params }: TrackPageProps) {
       statusHistory: {
         orderBy: { createdAt: "desc" },
       },
+    },
+    orderBy: {
+      createdAt: "desc",
     },
   });
 
@@ -123,7 +152,7 @@ export default async function TrackTicketPage({ params }: TrackPageProps) {
           </div>
           <h2 className="text-lg font-black text-white">لم يتم العثور على التذكرة</h2>
           <p className="text-xs text-slate-400 leading-relaxed font-medium">
-            تأكد من صحة رقم التذكرة المدخل: <span className="font-numeric font-bold text-teal-400 block mt-1">{decodedTicket}</span>
+            تأكد من صحة رقم التذكرة المدخل: <span className="font-numeric font-bold text-teal-400 block mt-1">{decodedParam}</span>
           </p>
           <Button asChild className="w-full bg-teal-500 text-slate-950 font-bold hover:bg-teal-400 rounded-xl h-11">
             <Link href="/track">بحث برقم تذكرة آخر</Link>

@@ -33,7 +33,7 @@ export default async function RepairOrderPrintPage({ params }: PrintPageProps) {
   const headersList = await headers();
   const host = headersList.get("x-forwarded-host") || headersList.get("host") || "localhost:3000";
   const protocol = headersList.get("x-forwarded-proto") || (host.includes("localhost") ? "http" : "https");
-  const trackingUrl = `${protocol}://${host}/track/${encodeURIComponent(repairOrder.ticketNumber)}`;
+  const trackingUrl = `${protocol}://${host}/track/${repairOrder.id}`;
 
   const qrCodeDataUrl = await QRCode.toDataURL(trackingUrl, {
     margin: 0,

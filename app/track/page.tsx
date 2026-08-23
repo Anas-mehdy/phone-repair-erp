@@ -1,4 +1,4 @@
-import { Smartphone, Search, ArrowLeft } from "lucide-react";
+import { Smartphone, Search, ArrowLeft, Phone } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -8,19 +8,26 @@ export const dynamic = "force-dynamic";
 export default async function TrackSearchPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ticket?: string }>;
+  searchParams: Promise<{ ticket?: string; phone?: string }>;
 }) {
   const query = await searchParams;
 
   if (query.ticket) {
-    redirect(`/track/${encodeURIComponent(query.ticket.trim())}`);
+    const url = `/track/${encodeURIComponent(query.ticket.trim())}${
+      query.phone ? `?phone=${encodeURIComponent(query.phone.trim())}` : ""
+    }`;
+    redirect(url);
   }
 
   async function handleSearch(formData: FormData) {
     "use server";
     const ticket = (formData.get("ticket") as string) || "";
+    const phone = (formData.get("phone") as string) || "";
     if (ticket.trim()) {
-      redirect(`/track/${encodeURIComponent(ticket.trim())}`);
+      const url = `/track/${encodeURIComponent(ticket.trim())}${
+        phone.trim() ? `?phone=${encodeURIComponent(phone.trim())}` : ""
+      }`;
+      redirect(url);
     }
   }
 
@@ -33,7 +40,7 @@ export default async function TrackSearchPage({
           </div>
           <h1 className="text-xl font-black text-white">تتبع حالة جهاز الصيانة</h1>
           <p className="text-xs text-slate-400 font-medium">
-            أدخل رقم التذكرة المطبوع على إيصال الاستلام
+            أدخل رقم التذكرة أو امسح الـ QR المطبوع على الإيصال
           </p>
         </div>
 
@@ -51,9 +58,27 @@ export default async function TrackSearchPage({
                   type="text"
                   name="ticket"
                   required
-                  placeholder="مثال: RO-202608-0002"
+                  placeholder="مثال: RO-202608-0001"
                   dir="ltr"
                   className="w-full rounded-xl border border-slate-800 bg-slate-950/70 py-3 pr-10 pl-3 text-sm text-white placeholder-slate-600 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 transition font-numeric uppercase"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-extrabold text-slate-300 uppercase tracking-wider mb-2">
+                رقم جوال العميل (اختياري للتأكيد)
+              </label>
+              <div className="relative">
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-500">
+                  <Phone className="h-4 w-4" />
+                </div>
+                <input
+                  type="tel"
+                  name="phone"
+                  placeholder="مثال: 05xxxxxxxx"
+                  dir="ltr"
+                  className="w-full rounded-xl border border-slate-800 bg-slate-950/70 py-3 pr-10 pl-3 text-sm text-white placeholder-slate-600 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 transition font-numeric"
                 />
               </div>
             </div>
