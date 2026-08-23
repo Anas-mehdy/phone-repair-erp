@@ -14,6 +14,7 @@ import {
 import { RepairStatus } from "@prisma/client";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { Button } from "@/components/ui/button";
+import { normalizePhoneForWhatsApp } from "@/lib/services/whatsappService";
 
 export const dynamic = "force-dynamic";
 
@@ -171,7 +172,8 @@ export default async function TrackTicketPage({ params, searchParams }: TrackPag
     (h) => h.note && h.note.trim().length > 0
   )?.note;
 
-  const whatsappPhone = shop.phone?.replace(/[^\d]/g, "") || "";
+  // Normalize shop WhatsApp phone with currency/country awareness
+  const whatsappPhone = normalizePhoneForWhatsApp(shop.phone, currency);
   const whatsappUrl = whatsappPhone
     ? `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(
         `مرحباً، أستفسر عن حالة تذكرة الصيانة رقم: ${repairOrder.ticketNumber} الخاصة بجهاز ${[
@@ -197,9 +199,9 @@ export default async function TrackTicketPage({ params, searchParams }: TrackPag
           {(shop.phone || shop.address) && (
             <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex flex-wrap items-center justify-center gap-3 text-[11px] font-bold text-slate-400">
               {shop.phone && (
-                <span className="flex items-center gap-1" dir="ltr">
+                <span className="flex items-center gap-1 font-numeric" dir="ltr">
                   <Phone className="h-3 w-3 text-teal-400" />
-                  {shop.phone}
+                  {whatsappPhone ? `+${whatsappPhone}` : shop.phone}
                 </span>
               )}
               {shop.address && (

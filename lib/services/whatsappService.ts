@@ -16,15 +16,67 @@ export type WhatsAppShareResult =
       message: string;
     };
 
-export function normalizePhoneForWhatsApp(phone: string): string | null {
+const CURRENCY_CALLING_CODES: Record<string, string> = {
+  TRY: "90",
+  SAR: "966",
+  AED: "971",
+  EGP: "20",
+  JOD: "962",
+  KWD: "965",
+  BHD: "973",
+  OMR: "968",
+  QAR: "974",
+  IQD: "964",
+  SYP: "963",
+  LBP: "961",
+  YER: "967",
+  LYD: "218",
+  TND: "216",
+  DZD: "213",
+  MAD: "212",
+  SDG: "249",
+  MRU: "222",
+  SOS: "252",
+  DJF: "253",
+  KMF: "269",
+};
+
+export function normalizePhoneForWhatsApp(
+  phone?: string | null,
+  currency?: string,
+): string | null {
+  if (!phone) return null;
   const cleaned = phone.trim().replace(/[\s\-()+]/g, "");
   const withoutInternationalPrefix = cleaned.startsWith("00")
     ? cleaned.slice(2)
     : cleaned;
-  const digits = withoutInternationalPrefix.replace(/\D/g, "");
+  let digits = withoutInternationalPrefix.replace(/\D/g, "");
 
   if (digits.length < 8) {
     return null;
+  }
+
+  // Handle common typo for Turkish numbers where '95...' is entered instead of '905...' (11 digits)
+  if (digits.startsWith("95") && digits.length === 11) {
+    digits = "90" + digits.slice(1);
+  }
+
+  // Check if it already has a valid known international calling code prefix
+  const knownPrefixes = Object.values(CURRENCY_CALLING_CODES);
+  const hasKnownPrefix = knownPrefixes.some(
+    (prefix) => digits.startsWith(prefix) && digits.length >= prefix.length + 7,
+  );
+
+  if (!hasKnownPrefix && currency && CURRENCY_CALLING_CODES[currency]) {
+    const defaultCode = CURRENCY_CALLING_CODES[currency];
+    const localDigits = digits.startsWith("0") ? digits.slice(1) : digits;
+    digits = `${defaultCode}${localDigits}`;
+  } else if (!hasKnownPrefix && digits.startsWith("0")) {
+    const localDigits = digits.slice(1);
+    // If 10 digits starting with 5 (common for Turkey 5XX XXX XX XX or Saudi 5X XXX XXXX)
+    if (localDigits.length === 10 && localDigits.startsWith("5")) {
+      digits = currency === "SAR" ? `966${localDigits}` : `90${localDigits}`;
+    }
   }
 
   return digits;
@@ -36,13 +88,14 @@ export function buildWaMeLink(phone: string, message: string) {
 
 function phoneFromCustomer(
   customer?: { phone?: string | null; phoneNormalized?: string | null } | null,
+  currency?: string,
 ) {
   if (!customer) {
     return null;
   }
 
   const preferred = customer.phoneNormalized ?? customer.phone;
-  return preferred ? normalizePhoneForWhatsApp(preferred) : null;
+  return preferred ? normalizePhoneForWhatsApp(preferred, currency) : null;
 }
 
 function formatDate(value: Date | string | null | undefined) {
