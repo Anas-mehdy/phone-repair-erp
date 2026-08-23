@@ -93,7 +93,7 @@ export async function updateRepairOrderDetailsAction(formData: FormData) {
 
   revalidatePath("/repair-orders");
   revalidatePath(`/repair-orders/${input.repairOrderId}`);
-  redirect(`/repair-orders/${input.repairOrderId}`);
+  revalidatePath("/dashboard");
 }
 
 export async function updateRepairOrderStatusAction(formData: FormData) {
@@ -117,5 +117,5 @@ export async function updateRepairOrderStatusAction(formData: FormData) {
 
   revalidatePath("/repair-orders");
   revalidatePath(`/repair-orders/${input.repairOrderId}`);
-  redirect(`/repair-orders/${input.repairOrderId}`);
+  revalidatePath("/dashboard");
 }
