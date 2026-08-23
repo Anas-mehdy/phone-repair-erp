@@ -4,6 +4,7 @@ import Image from "next/image";
 import { getCurrentShopContext } from "@/lib/current-shop";
 import { repairOrderService } from "@/lib/services/repairOrderService";
 import { shopService } from "@/lib/services/shopService";
+import { headers } from "next/headers";
 import { formatCurrency, formatDateTime, formatDate } from "@/lib/format";
 import { PrintActions } from "@/components/print-actions";
 
@@ -28,8 +29,13 @@ export default async function RepairOrderPrintPage({ params }: PrintPageProps) {
     notFound();
   }
 
-  const qrValue = repairOrder.ticketNumber || repairOrder.id;
-  const qrCodeDataUrl = await QRCode.toDataURL(qrValue, {
+  // Construct full live tracking URL for mobile camera scan
+  const headersList = await headers();
+  const host = headersList.get("x-forwarded-host") || headersList.get("host") || "localhost:3000";
+  const protocol = headersList.get("x-forwarded-proto") || (host.includes("localhost") ? "http" : "https");
+  const trackingUrl = `${protocol}://${host}/track/${encodeURIComponent(repairOrder.ticketNumber)}`;
+
+  const qrCodeDataUrl = await QRCode.toDataURL(trackingUrl, {
     margin: 0,
     width: 140,
   });

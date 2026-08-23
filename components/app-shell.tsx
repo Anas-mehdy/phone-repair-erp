@@ -9,8 +9,13 @@ import { logoutAction } from "@/app/actions/authActions";
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
-  // For marketing landing page, auth pages, and printable receipts, render clean layout without dashboard sidebar
-  const isPublicPage = pathname === "/" || pathname === "/login" || pathname === "/register" || pathname.includes("/print");
+  // For marketing landing page, auth pages, tracking page, and printable receipts, render clean layout without dashboard sidebar
+  const isPublicPage =
+    pathname === "/" ||
+    pathname === "/login" ||
+    pathname === "/register" ||
+    pathname.includes("/print") ||
+    pathname.startsWith("/track");
 
   if (isPublicPage) {
     return <>{children}</>;

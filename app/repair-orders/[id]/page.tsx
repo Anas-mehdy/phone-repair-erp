@@ -3,6 +3,7 @@ import { ArrowRight, FileText, MessageCircle, Printer, QrCode, Save, Wrench } fr
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import { DatabaseUnavailable } from "@/components/database-unavailable";
 import { RepairStatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -70,8 +71,12 @@ export default async function RepairOrderDetailsPage({
   }
 
   const existingInvoice = repairOrder.invoices[0];
-  const qrValue = repairOrder.ticketNumber || repairOrder.id;
-  const qrCodeDataUrl = await QRCode.toDataURL(qrValue, {
+  const headersList = await headers();
+  const host = headersList.get("x-forwarded-host") || headersList.get("host") || "localhost:3000";
+  const protocol = headersList.get("x-forwarded-proto") || (host.includes("localhost") ? "http" : "https");
+  const trackingUrl = `${protocol}://${host}/track/${encodeURIComponent(repairOrder.ticketNumber)}`;
+
+  const qrCodeDataUrl = await QRCode.toDataURL(trackingUrl, {
     margin: 1,
     width: 180,
   });
@@ -284,7 +289,7 @@ export default async function RepairOrderDetailsPage({
                 className="mx-auto h-full w-full rounded-xl"
               />
             </div>
-            <p className="mt-3.5 font-numeric text-xs font-extrabold text-slate-400 tracking-wide">{qrValue}</p>
+            <p className="mt-3.5 font-numeric text-xs font-extrabold text-slate-400 tracking-wide">{repairOrder.ticketNumber}</p>
           </div>
 
           {/* Business Actions Container */}
