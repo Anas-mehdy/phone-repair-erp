@@ -204,22 +204,22 @@ export async function addStock(
 ) {
   const quantityToAdd = integerOrZero(input.quantity);
 
-  return prisma.$transaction(async (tx) => {
-    const item = await tx.inventoryItem.findFirst({
-      where: {
-        id: inventoryItemId,
-        shopId,
-        deletedAt: null,
-      },
-    });
+  const item = await prisma.inventoryItem.findFirst({
+    where: {
+      id: inventoryItemId,
+      shopId,
+      deletedAt: null,
+    },
+  });
 
-    if (!item) {
-      throw new Error("قطعة المخزون غير موجودة.");
-    }
+  if (!item) {
+    throw new Error("قطعة المخزون غير موجودة.");
+  }
 
-    const quantityAfter = item.quantity + quantityToAdd;
+  const quantityAfter = item.quantity + quantityToAdd;
 
-    const updatedItem = await tx.inventoryItem.update({
+  const [updatedItem] = await prisma.$transaction([
+    prisma.inventoryItem.update({
       where: {
         id: inventoryItemId,
       },
@@ -229,9 +229,8 @@ export async function addStock(
           increment: 1,
         },
       },
-    });
-
-    await tx.inventoryMovement.create({
+    }),
+    prisma.inventoryMovement.create({
       data: {
         shopId,
         inventoryItemId,
@@ -242,10 +241,10 @@ export async function addStock(
         unitCostSnapshot: item.unitCost,
         note: emptyToNull(input.note),
       },
-    });
+    }),
+  ]);
 
-    return updatedItem;
-  });
+  return updatedItem;
 }
 
 export async function adjustStock(
@@ -256,26 +255,26 @@ export async function adjustStock(
 ) {
   const newQuantity = integerOrZero(input.newQuantity);
 
-  return prisma.$transaction(async (tx) => {
-    const item = await tx.inventoryItem.findFirst({
-      where: {
-        id: inventoryItemId,
-        shopId,
-        deletedAt: null,
-      },
-    });
+  const item = await prisma.inventoryItem.findFirst({
+    where: {
+      id: inventoryItemId,
+      shopId,
+      deletedAt: null,
+    },
+  });
 
-    if (!item) {
-      throw new Error("قطعة المخزون غير موجودة.");
-    }
+  if (!item) {
+    throw new Error("قطعة المخزون غير موجودة.");
+  }
 
-    const quantityChange = newQuantity - item.quantity;
+  const quantityChange = newQuantity - item.quantity;
 
-    if (quantityChange === 0) {
-      return item;
-    }
+  if (quantityChange === 0) {
+    return item;
+  }
 
-    const updatedItem = await tx.inventoryItem.update({
+  const [updatedItem] = await prisma.$transaction([
+    prisma.inventoryItem.update({
       where: {
         id: inventoryItemId,
       },
@@ -285,9 +284,8 @@ export async function adjustStock(
           increment: 1,
         },
       },
-    });
-
-    await tx.inventoryMovement.create({
+    }),
+    prisma.inventoryMovement.create({
       data: {
         shopId,
         inventoryItemId,
@@ -298,10 +296,10 @@ export async function adjustStock(
         unitCostSnapshot: item.unitCost,
         note: emptyToNull(input.note),
       },
-    });
+    }),
+  ]);
 
-    return updatedItem;
-  });
+  return updatedItem;
 }
 
 export const inventoryService = {

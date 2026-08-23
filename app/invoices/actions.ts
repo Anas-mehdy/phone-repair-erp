@@ -111,7 +111,6 @@ export async function addPaymentAction(formData: FormData) {
     note: readString(formData, "note"),
     paidAt: readString(formData, "paidAt"),
   });
-  let redirectTo = `/invoices/${input.invoiceId}`;
 
   try {
     const { shopId, userId } = await getCurrentShopContext();
@@ -124,31 +123,29 @@ export async function addPaymentAction(formData: FormData) {
     });
     revalidatePath("/invoices");
     revalidatePath(`/invoices/${input.invoiceId}`);
+    revalidatePath("/dashboard");
+    revalidatePath("/customers");
   } catch (error) {
-    redirectTo = `/invoices/${input.invoiceId}?paymentError=${encodeURIComponent(
+    redirect(`/invoices/${input.invoiceId}?paymentError=${encodeURIComponent(
       getErrorMessage(error),
-    )}`;
+    )}`);
   }
-
-  redirect(redirectTo);
 }
 
 export async function voidInvoiceAction(formData: FormData) {
   const input = voidInvoiceSchema.parse({
     invoiceId: readString(formData, "invoiceId"),
   });
-  let redirectTo = `/invoices/${input.invoiceId}`;
 
   try {
     const { shopId, userId } = await getCurrentShopContext();
     await invoiceService.voidInvoice(shopId, input.invoiceId, userId);
     revalidatePath("/invoices");
     revalidatePath(`/invoices/${input.invoiceId}`);
+    revalidatePath("/dashboard");
   } catch (error) {
-    redirectTo = `/invoices/${input.invoiceId}?invoiceError=${encodeURIComponent(
+    redirect(`/invoices/${input.invoiceId}?invoiceError=${encodeURIComponent(
       getErrorMessage(error),
-    )}`;
+    )}`);
   }
-
-  redirect(redirectTo);
 }

@@ -10,6 +10,7 @@ import {
   PaymentMethodBadge,
 } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/submit-button";
 import { getCurrentShopContext } from "@/lib/current-shop";
 import { isDatabaseConnectionError } from "@/lib/database-errors";
 import { invoiceService } from "@/lib/services/invoiceService";
@@ -264,9 +265,9 @@ export default async function InvoiceDetailsPage({
                   disabled={!canAddPayment}
                 />
               </Field>
-              <Button type="submit" disabled={!canAddPayment} className="font-bold shadow-sm w-full h-11 rounded-xl">
+              <SubmitButton disabled={!canAddPayment} className="font-bold shadow-sm w-full h-11 rounded-xl" loadingText="جاري تسجيل الدفعة...">
                 إضافة دفعة قبض جديدة
-              </Button>
+              </SubmitButton>
             </div>
           </form>
 

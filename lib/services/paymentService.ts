@@ -114,28 +114,39 @@ export async function addPayment(
     throw new Error("قيمة الدفعة يجب أن تكون أكبر من صفر.");
   }
 
-  return prisma.$transaction(async (tx) => {
-    const invoice = await tx.invoice.findFirst({
-      where: {
-        id: invoiceId,
-        shopId,
-        deletedAt: null,
-      },
-    });
+  const invoice = await prisma.invoice.findFirst({
+    where: {
+      id: invoiceId,
+      shopId,
+      deletedAt: null,
+    },
+  });
 
-    if (!invoice) {
-      throw new Error("الفاتورة غير موجودة.");
-    }
+  if (!invoice) {
+    throw new Error("الفاتورة غير موجودة.");
+  }
 
-    if (invoice.status === InvoiceStatus.VOID) {
-      throw new Error("لا يمكن إضافة دفعة على فاتورة ملغاة.");
-    }
+  if (invoice.status === InvoiceStatus.VOID) {
+    throw new Error("لا يمكن إضافة دفعة على فاتورة ملغاة.");
+  }
 
-    if (amount.gt(invoice.balanceDue)) {
-      throw new Error("قيمة الدفعة أكبر من الرصيد المتبقي.");
-    }
+  if (amount.gt(invoice.balanceDue)) {
+    throw new Error("قيمة الدفعة أكبر من الرصيد المتبقي.");
+  }
 
-    await tx.payment.create({
+  const newAmountPaid = invoice.amountPaid.add(amount);
+  const newBalanceDue = invoice.total.sub(newAmountPaid);
+
+  let newStatus: InvoiceStatus = InvoiceStatus.PARTIALLY_PAID;
+  let paidAt: Date | null = invoice.paidAt;
+
+  if (newBalanceDue.lte(0)) {
+    newStatus = InvoiceStatus.PAID;
+    paidAt = paidAt ?? new Date();
+  }
+
+  const [, updatedInvoice] = await prisma.$transaction([
+    prisma.payment.create({
       data: {
         shopId,
         invoiceId,
@@ -146,10 +157,24 @@ export async function addPayment(
         note: emptyToNull(input.note),
         paidAt: dateOrNow(input.paidAt),
       },
-    });
+    }),
+    prisma.invoice.update({
+      where: {
+        id: invoiceId,
+      },
+      data: {
+        amountPaid: newAmountPaid,
+        balanceDue: newBalanceDue,
+        status: newStatus,
+        paidAt,
+        version: {
+          increment: 1,
+        },
+      },
+    }),
+  ]);
 
-    return recalculateInvoicePaymentState(tx, shopId, invoiceId);
-  });
+  return updatedInvoice;
 }
 
 export const paymentService = {
