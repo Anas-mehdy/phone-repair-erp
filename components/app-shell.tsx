@@ -9,8 +9,8 @@ import { logoutAction } from "@/app/actions/authActions";
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
-  // For marketing landing page and auth pages, render clean layout without dashboard sidebar
-  const isPublicPage = pathname === "/" || pathname === "/login" || pathname === "/register";
+  // For marketing landing page, auth pages, and printable receipts, render clean layout without dashboard sidebar
+  const isPublicPage = pathname === "/" || pathname === "/login" || pathname === "/register" || pathname.includes("/print");
 
   if (isPublicPage) {
     return <>{children}</>;

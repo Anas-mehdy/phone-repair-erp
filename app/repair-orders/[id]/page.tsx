@@ -1,5 +1,5 @@
 import QRCode from "qrcode";
-import { ArrowRight, FileText, MessageCircle, QrCode, Save, Wrench } from "lucide-react";
+import { ArrowRight, FileText, MessageCircle, Printer, QrCode, Save, Wrench } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -326,8 +326,11 @@ export default async function RepairOrderDetailsPage({
                 </form>
               )}
 
-              <Button disabled variant="outline" className="w-full font-bold shadow-sm rounded-xl py-5 text-xs justify-center text-slate-400 border-slate-100 bg-slate-50/50 cursor-not-allowed">
-                طباعة إيصال الصيانة (قريباً)
+              <Button asChild variant="outline" className="w-full font-bold shadow-sm rounded-xl py-5 text-xs justify-center hover:bg-slate-50 hover:text-slate-900 border-slate-200">
+                <Link href={`/repair-orders/${repairOrder.id}/print`} target="_blank">
+                  <Printer className="h-4.5 w-4.5 ml-2 text-slate-700 shrink-0" aria-hidden="true" />
+                  طباعة إيصال استلام الصيانة
+                </Link>
               </Button>
             </div>
           </div>

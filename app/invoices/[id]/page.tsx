@@ -94,6 +94,12 @@ export default async function InvoiceDetailsPage({
           </div>
           <div className="flex flex-wrap gap-2.5">
             <Button asChild variant="outline" className="font-bold shadow-sm border-slate-200 hover:bg-slate-50 rounded-xl px-5 h-11">
+              <Link href={`/invoices/${invoice.id}/print`} target="_blank">
+                <Printer className="h-4 w-4 ml-1.5 text-slate-700" aria-hidden="true" />
+                طباعة الفاتورة
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="font-bold shadow-sm border-slate-200 hover:bg-slate-50 rounded-xl px-5 h-11">
               <Link href="/invoices">
                 <ArrowRight className="h-4 w-4 ml-1.5" aria-hidden="true" />
                 رجوع للقائمة
