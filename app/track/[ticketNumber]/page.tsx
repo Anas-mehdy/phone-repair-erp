@@ -166,6 +166,11 @@ export default async function TrackTicketPage({ params, searchParams }: TrackPag
   const currentStatus = statusDetails[repairOrder.status] || statusDetails.PENDING;
   const currency = shop.currency || "SAR";
 
+  // Find the latest status note entered by technician
+  const latestStatusNote = repairOrder.statusHistory.find(
+    (h) => h.note && h.note.trim().length > 0
+  )?.note;
+
   const whatsappPhone = shop.phone?.replace(/[^\d]/g, "") || "";
   const whatsappUrl = whatsappPhone
     ? `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(
@@ -230,6 +235,19 @@ export default async function TrackTicketPage({ params, searchParams }: TrackPag
             </p>
           </div>
 
+          {/* Technician Live Note Alert Card (If note is entered) */}
+          {latestStatusNote && (
+            <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3.5 space-y-1.5 text-right shadow-sm">
+              <div className="flex items-center gap-1.5 text-xs font-black text-amber-400">
+                <MessageCircle className="h-4 w-4 shrink-0 text-amber-400" />
+                <span>ملاحظة وتحديث من الفني المشرف:</span>
+              </div>
+              <p className="text-xs text-amber-100 font-bold leading-relaxed pr-5 whitespace-pre-wrap">
+                {latestStatusNote}
+              </p>
+            </div>
+          )}
+
           {/* Progress Timeline Tracker */}
           <div className="pt-1">
             <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block mb-2.5">
@@ -288,6 +306,24 @@ export default async function TrackTicketPage({ params, searchParams }: TrackPag
               </span>
             </div>
 
+            {repairOrder.diagnosis && (
+              <div className="bg-slate-950/50 p-3 rounded-xl border border-slate-800 flex justify-between items-start gap-3">
+                <span className="text-[11px] font-bold text-slate-400 shrink-0">التشخيص الفني:</span>
+                <span className="text-xs font-semibold text-slate-200 text-left">
+                  {repairOrder.diagnosis}
+                </span>
+              </div>
+            )}
+
+            {repairOrder.resolutionNotes && (
+              <div className="bg-slate-950/50 p-3 rounded-xl border border-slate-800 flex justify-between items-start gap-3">
+                <span className="text-[11px] font-bold text-slate-400 shrink-0">ملاحظات الإصلاح:</span>
+                <span className="text-xs font-semibold text-slate-200 text-left">
+                  {repairOrder.resolutionNotes}
+                </span>
+              </div>
+            )}
+
             {repairOrder.estimatedTotal !== null && (
               <div className="bg-slate-950/50 p-3 rounded-xl border border-slate-800 flex justify-between items-center">
                 <span className="text-[11px] font-bold text-slate-400">التكلفة التقديرية:</span>
@@ -296,7 +332,39 @@ export default async function TrackTicketPage({ params, searchParams }: TrackPag
                 </span>
               </div>
             )}
+
+            {repairOrder.finalTotal !== null && (
+              <div className="bg-slate-950/50 p-3 rounded-xl border border-slate-800 flex justify-between items-center">
+                <span className="text-[11px] font-bold text-slate-400">التكلفة النهائية:</span>
+                <span className="text-sm font-black text-emerald-400 font-numeric">
+                  {formatCurrency(repairOrder.finalTotal, currency)}
+                </span>
+              </div>
+            )}
           </div>
+
+          {/* Previous Updates History Log (if more than 1 note exists) */}
+          {repairOrder.statusHistory.filter((h) => h.note && h.note.trim()).length > 1 && (
+            <div className="pt-2 border-t border-slate-800/80 space-y-2">
+              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
+                سجل التحديثات والملاحظات السابقة:
+              </span>
+              <div className="space-y-1.5">
+                {repairOrder.statusHistory
+                  .filter((h) => h.note && h.note.trim())
+                  .slice(1)
+                  .map((h) => (
+                    <div key={h.id} className="bg-slate-950/40 p-2.5 rounded-lg border border-slate-800/60 text-xs text-right">
+                      <div className="flex justify-between items-center text-[10px] text-slate-400 mb-1">
+                        <span className="font-bold text-teal-400">{statusDetails[h.toStatus]?.label ?? h.toStatus}</span>
+                        <span className="font-numeric">{formatDateTime(h.createdAt)}</span>
+                      </div>
+                      <p className="text-slate-300 text-[11px] leading-relaxed font-medium">{h.note}</p>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
 
           {/* Direct WhatsApp Contact Button */}
           {whatsappUrl && (
