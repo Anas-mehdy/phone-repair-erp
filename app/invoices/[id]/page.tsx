@@ -47,10 +47,12 @@ export default async function InvoiceDetailsPage({
   let invoice: Awaited<ReturnType<typeof invoiceService.getInvoiceById>>;
   let whatsappShare: Awaited<ReturnType<typeof whatsappService.buildInvoiceShareLink>>;
 
+  let currency = "SAR";
   try {
-    const { shopId } = await getCurrentShopContext();
-    invoice = await invoiceService.getInvoiceById(shopId, id);
-    whatsappShare = await whatsappService.buildInvoiceShareLink(shopId, id);
+    const context = await getCurrentShopContext();
+    currency = context.currency;
+    invoice = await invoiceService.getInvoiceById(context.shopId, id);
+    whatsappShare = await whatsappService.buildInvoiceShareLink(context.shopId, id);
   } catch (error) {
     if (isDatabaseConnectionError(error)) {
       return <DatabaseUnavailable />;
@@ -126,12 +128,12 @@ export default async function InvoiceDetailsPage({
               <Info label="حالة السداد" value={<InvoiceStatusBadge status={invoice.status} />} />
               <Info label="العميل" value={invoice.customer?.name ?? "-"} />
               <Info label="الهاتف" value={<span className="font-numeric">{invoice.customer?.phone ?? "-"}</span>} />
-              <Info label="الإجمالي قبل الخصم" value={<span className="font-numeric">{formatMoney(invoice.subtotal)}</span>} />
-              <Info label="الخصم الإجمالي" value={<span className="font-numeric text-rose-600">{Number(invoice.discountTotal) > 0 ? formatMoney(-Number(invoice.discountTotal)) : formatMoney(0)}</span>} />
-              <Info label="الضريبة المضافة" value={<span className="font-numeric">{formatMoney(invoice.taxTotal)}</span>} />
-              <Info label="الإجمالي النهائي" value={<span className="font-numeric text-slate-800 font-bold">{formatMoney(invoice.total)}</span>} />
-              <Info label="المبلغ المدفوع" value={<span className="font-numeric text-emerald-600 font-bold">{formatMoney(invoice.amountPaid)}</span>} />
-              <Info label="المبلغ المتبقي" value={<span className={cn("font-numeric font-bold", Number(invoice.balanceDue) > 0 ? "text-amber-600" : "text-slate-500")}>{formatMoney(invoice.balanceDue)}</span>} />
+              <Info label="الإجمالي قبل الخصم" value={<span className="font-numeric">{formatMoney(invoice.subtotal, currency)}</span>} />
+              <Info label="الخصم الإجمالي" value={<span className="font-numeric text-rose-600">{Number(invoice.discountTotal) > 0 ? formatMoney(-Number(invoice.discountTotal), currency) : formatMoney(0, currency)}</span>} />
+              <Info label="الضريبة المضافة" value={<span className="font-numeric">{formatMoney(invoice.taxTotal, currency)}</span>} />
+              <Info label="الإجمالي النهائي" value={<span className="font-numeric text-slate-800 font-bold">{formatMoney(invoice.total, currency)}</span>} />
+              <Info label="المبلغ المدفوع" value={<span className="font-numeric text-emerald-600 font-bold">{formatMoney(invoice.amountPaid, currency)}</span>} />
+              <Info label="المبلغ المتبقي" value={<span className={cn("font-numeric font-bold", Number(invoice.balanceDue) > 0 ? "text-amber-600" : "text-slate-500")}>{formatMoney(invoice.balanceDue, currency)}</span>} />
               <Info label="تاريخ الإصدار" value={<span className="font-numeric">{formatDate(invoice.issuedAt)}</span>} />
               <Info label="تاريخ الاستحقاق" value={<span className="font-numeric">{formatDate(invoice.dueAt)}</span>} />
               <Info label="تاريخ السداد الكامل" value={<span className="font-numeric">{formatDate(invoice.paidAt)}</span>} />
@@ -183,7 +185,7 @@ export default async function InvoiceDetailsPage({
                     <tbody>
                       {invoice.payments.map((payment) => (
                         <tr key={payment.id} className="align-middle">
-                          <td className="font-extrabold font-numeric text-slate-800">{formatMoney(payment.amount)}</td>
+                          <td className="font-extrabold font-numeric text-slate-800">{formatMoney(payment.amount, currency)}</td>
                           <td>
                             <PaymentMethodBadge method={payment.method} />
                           </td>

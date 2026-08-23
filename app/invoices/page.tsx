@@ -56,12 +56,14 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
   const type = toType(params.type);
   let invoices: Awaited<ReturnType<typeof invoiceService.listInvoices>>;
 
+  let currency = "SAR";
   try {
-    const { shopId } = await getCurrentShopContext();
-    invoices = await invoiceService.listInvoices(shopId, {
-      search,
+    const context = await getCurrentShopContext();
+    currency = context.currency;
+    invoices = await invoiceService.listInvoices(context.shopId, {
       status,
       type,
+      search,
     });
   } catch (error) {
     if (isDatabaseConnectionError(error)) {
@@ -165,10 +167,10 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
                     <td className="font-black font-numeric text-slate-900">{invoice.invoiceNumber}</td>
                     <td className="font-semibold text-slate-700">{invoiceTypeLabels[invoice.type]}</td>
                     <td className="font-bold text-slate-900">{invoice.customer?.name ?? "-"}</td>
-                    <td className="font-black font-numeric text-slate-900">{formatMoney(invoice.total)}</td>
-                    <td className="font-numeric text-slate-700 font-medium">{formatMoney(invoice.amountPaid)}</td>
+                    <td className="font-black font-numeric text-slate-900">{formatMoney(invoice.total, currency)}</td>
+                    <td className="font-numeric text-slate-700 font-medium">{formatMoney(invoice.amountPaid, currency)}</td>
                     <td className={cn("font-black font-numeric", Number(invoice.balanceDue) > 0 ? "text-amber-700" : "text-slate-600")}>
-                      {formatMoney(invoice.balanceDue)}
+                      {formatMoney(invoice.balanceDue, currency)}
                     </td>
                     <td>
                       <InvoiceStatusBadge status={invoice.status} />

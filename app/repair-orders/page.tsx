@@ -44,9 +44,11 @@ export default async function RepairOrdersPage({
   const search = params.search ?? "";
   let repairOrders: Awaited<ReturnType<typeof repairOrderService.listRepairOrders>>;
 
+  let currency = "SAR";
   try {
-    const { shopId } = await getCurrentShopContext();
-    repairOrders = await repairOrderService.listRepairOrders(shopId, {
+    const context = await getCurrentShopContext();
+    currency = context.currency;
+    repairOrders = await repairOrderService.listRepairOrders(context.shopId, {
       status,
       search,
     });
@@ -165,7 +167,7 @@ export default async function RepairOrdersPage({
                     <td>
                       <RepairStatusBadge status={repairOrder.status} />
                     </td>
-                    <td className="font-black font-numeric text-slate-900">{formatMoney(repairOrder.estimatedTotal)}</td>
+                    <td className="font-black font-numeric text-slate-900">{formatMoney(repairOrder.estimatedTotal, currency)}</td>
                     <td className="font-numeric text-slate-600 font-medium">{formatDate(repairOrder.createdAt)}</td>
                     <td className="font-numeric text-slate-600 font-medium">{formatDate(repairOrder.dueAt)}</td>
                     <td className="text-center">

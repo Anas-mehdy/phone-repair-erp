@@ -13,9 +13,11 @@ export const dynamic = "force-dynamic";
 export default async function NewSalePage() {
   let inventoryItems: Awaited<ReturnType<typeof inventoryService.listInventoryItems>>;
 
+  let currency = "SAR";
   try {
-    const { shopId } = await getCurrentShopContext();
-    inventoryItems = await inventoryService.listInventoryItems(shopId);
+    const context = await getCurrentShopContext();
+    currency = context.currency;
+    inventoryItems = await inventoryService.listInventoryItems(context.shopId);
   } catch (error) {
     if (isDatabaseConnectionError(error)) {
       return <DatabaseUnavailable />;
@@ -40,6 +42,7 @@ export default async function NewSalePage() {
       />
 
       <SaleForm
+        currency={currency}
         inventoryItems={inventoryItems.map((item) => ({
           id: item.id,
           name: item.name,

@@ -40,10 +40,12 @@ export default async function InventoryItemDetailsPage({
   let item: Awaited<ReturnType<typeof inventoryService.getInventoryItemById>>;
   let movements: Awaited<ReturnType<typeof inventoryService.getInventoryMovements>>;
 
+  let currency = "SAR";
   try {
-    const { shopId } = await getCurrentShopContext();
-    item = await inventoryService.getInventoryItemById(shopId, id);
-    movements = await inventoryService.getInventoryMovements(shopId, id);
+    const context = await getCurrentShopContext();
+    currency = context.currency;
+    item = await inventoryService.getInventoryItemById(context.shopId, id);
+    movements = await inventoryService.getInventoryMovements(context.shopId, id);
   } catch (error) {
     if (isDatabaseConnectionError(error)) {
       return <DatabaseUnavailable />;
@@ -108,8 +110,8 @@ export default async function InventoryItemDetailsPage({
               <Info label="SKU / رمز التتبع" value={<span className="font-numeric">{item.sku ?? "-"}</span>} />
               <Info label="الكمية المتاحة" value={<span className={cn("font-numeric font-bold", lowStock ? "text-rose-600 animate-pulse" : "text-slate-800")}>{item.quantity}</span>} />
               <Info label="حد إعادة الطلب" value={<span className="font-numeric">{item.reorderLevel}</span>} />
-              <Info label="تكلفة الشراء" value={<span className="font-numeric">{formatMoney(item.unitCost)}</span>} />
-              <Info label="سعر البيع للعميل" value={<span className="font-numeric">{formatMoney(item.unitPrice)}</span>} />
+              <Info label="تكلفة الشراء" value={<span className="font-numeric">{formatMoney(item.unitCost, currency)}</span>} />
+              <Info label="سعر البيع للعميل" value={<span className="font-numeric">{formatMoney(item.unitPrice, currency)}</span>} />
               <Info label="آخر تحديث" value={<span className="font-numeric">{formatDate(item.updatedAt)}</span>} />
               <Info label="حالة المخزون" value={
                 <PlainBadge
@@ -198,7 +200,7 @@ export default async function InventoryItemDetailsPage({
                             {movement.quantityChange > 0 ? `+${movement.quantityChange}` : movement.quantityChange}
                           </td>
                           <td className="text-center font-numeric text-slate-500 font-medium">{movement.quantityAfter ?? "-"}</td>
-                          <td className="font-numeric text-slate-700 font-medium">{formatMoney(movement.unitCostSnapshot)}</td>
+                          <td className="font-numeric text-slate-700 font-medium">{formatMoney(movement.unitCostSnapshot, currency)}</td>
                           <td className="text-slate-500 text-xs font-medium">{movement.note ?? "-"}</td>
                           <td className="font-numeric text-slate-500 font-medium">{formatDate(movement.createdAt)}</td>
                         </tr>

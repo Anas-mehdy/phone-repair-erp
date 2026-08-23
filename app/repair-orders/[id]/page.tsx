@@ -54,10 +54,12 @@ export default async function RepairOrderDetailsPage({
   let repairOrder: Awaited<ReturnType<typeof repairOrderService.getRepairOrderById>>;
   let whatsappShare: Awaited<ReturnType<typeof whatsappService.buildRepairUpdateShareLink>>;
 
+  let currency = "SAR";
   try {
-    const { shopId } = await getCurrentShopContext();
-    repairOrder = await repairOrderService.getRepairOrderById(shopId, id);
-    whatsappShare = await whatsappService.buildRepairUpdateShareLink(shopId, id);
+    const context = await getCurrentShopContext();
+    currency = context.currency;
+    repairOrder = await repairOrderService.getRepairOrderById(context.shopId, id);
+    whatsappShare = await whatsappService.buildRepairUpdateShareLink(context.shopId, id);
   } catch (error) {
     if (isDatabaseConnectionError(error)) {
       return <DatabaseUnavailable />;
@@ -138,8 +140,8 @@ export default async function RepairOrderDetailsPage({
                 value={[repairOrder.deviceBrand, repairOrder.deviceModel].filter(Boolean).join(" ") || "-"}
               />
               <Info label="الرقم التسلسلي" value={<span className="font-numeric">{repairOrder.deviceSerial ?? "-"}</span>} />
-              <Info label="التكلفة المتوقعة" value={<span className="font-numeric">{formatMoney(repairOrder.estimatedTotal)}</span>} />
-              <Info label="التكلفة النهائية" value={<span className="font-numeric">{formatMoney(repairOrder.finalTotal)}</span>} />
+              <Info label="التكلفة المتوقعة" value={<span className="font-numeric">{formatMoney(repairOrder.estimatedTotal, currency)}</span>} />
+              <Info label="التكلفة النهائية" value={<span className="font-numeric">{formatMoney(repairOrder.finalTotal, currency)}</span>} />
               <Info label="تاريخ الاستلام" value={<span className="font-numeric">{formatDate(repairOrder.createdAt)}</span>} />
               <Info label="التسليم المتوقع" value={<span className="font-numeric">{formatDate(repairOrder.dueAt)}</span>} />
               <Info label="تاريخ الانتهاء" value={<span className="font-numeric">{formatDate(repairOrder.completedAt)}</span>} />

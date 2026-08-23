@@ -42,9 +42,11 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
   const status = toStatus(params.status);
   let sales: Awaited<ReturnType<typeof salesService.listSales>>;
 
+  let currency = "SAR";
   try {
-    const { shopId } = await getCurrentShopContext();
-    sales = await salesService.listSales(shopId, {
+    const context = await getCurrentShopContext();
+    currency = context.currency;
+    sales = await salesService.listSales(context.shopId, {
       search,
       status,
     });
@@ -150,7 +152,7 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                         ? `${sale.customer.name}${sale.customer.phone ? ` (${sale.customer.phone})` : ""}`
                         : "عميل نقدي / غير مسجل"}
                     </td>
-                    <td className="font-black font-numeric text-slate-900">{formatMoney(sale.total)}</td>
+                    <td className="font-black font-numeric text-slate-900">{formatMoney(sale.total, currency)}</td>
                     <td>
                       <SaleStatusBadge status={sale.status} />
                     </td>

@@ -74,6 +74,6 @@ export function formatDate(value: Date | string | null | undefined) {
   return sharedFormatDateTime(value);
 }
 
-export function formatMoney(value: unknown) {
-  return formatCurrency(value);
+export function formatMoney(value: unknown, currency: string = "SAR") {
+  return formatCurrency(value, currency);
 }

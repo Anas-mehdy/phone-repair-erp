@@ -31,9 +31,11 @@ export default async function CustomerDetailsPage({
   const { id } = await params;
   let customer: Awaited<ReturnType<typeof customerService.getCustomerById>>;
 
+  let currency = "SAR";
   try {
-    const { shopId } = await getCurrentShopContext();
-    customer = await customerService.getCustomerById(shopId, id);
+    const context = await getCurrentShopContext();
+    currency = context.currency;
+    customer = await customerService.getCustomerById(context.shopId, id);
   } catch (error) {
     if (isDatabaseConnectionError(error)) {
       return <DatabaseUnavailable />;
@@ -152,7 +154,7 @@ export default async function CustomerDetailsPage({
                   key={invoice.id}
                   href={`/invoices/${invoice.id}`}
                   title={invoice.invoiceNumber}
-                  description={`${formatCurrency(invoice.total)} - ${formatCurrency(invoice.balanceDue)} متبقي`}
+                  description={`${formatCurrency(invoice.total, currency)} - ${formatCurrency(invoice.balanceDue, currency)} متبقي`}
                   meta={formatDateTime(invoice.issuedAt)}
                 />
               ))}

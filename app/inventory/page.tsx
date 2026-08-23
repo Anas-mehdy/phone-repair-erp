@@ -31,9 +31,11 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
   const lowStockOnly = params.lowStockOnly === "on";
   let items: Awaited<ReturnType<typeof inventoryService.listInventoryItems>>;
 
+  let currency = "SAR";
   try {
-    const { shopId } = await getCurrentShopContext();
-    items = await inventoryService.listInventoryItems(shopId, {
+    const context = await getCurrentShopContext();
+    currency = context.currency;
+    items = await inventoryService.listInventoryItems(context.shopId, {
       search,
       lowStockOnly,
     });
@@ -147,8 +149,8 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
                         {item.quantity}
                       </td>
                       <td className="text-center font-numeric text-slate-600 font-bold">{item.reorderLevel}</td>
-                      <td className="font-numeric text-slate-700 font-medium">{formatMoney(item.unitCost)}</td>
-                      <td className="font-black font-numeric text-slate-900">{formatMoney(item.unitPrice)}</td>
+                      <td className="font-numeric text-slate-700 font-medium">{formatMoney(item.unitCost, currency)}</td>
+                      <td className="font-black font-numeric text-slate-900">{formatMoney(item.unitPrice, currency)}</td>
                       <td>
                         <PlainBadge
                           tone={lowStock ? "red" : "green"}

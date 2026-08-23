@@ -40,10 +40,12 @@ export default async function SaleDetailsPage({
   let sale: Awaited<ReturnType<typeof salesService.getSaleById>>;
   let whatsappShare: Awaited<ReturnType<typeof whatsappService.buildSaleReceiptShareLink>>;
 
+  let currency = "SAR";
   try {
-    const { shopId } = await getCurrentShopContext();
-    sale = await salesService.getSaleById(shopId, id);
-    whatsappShare = await whatsappService.buildSaleReceiptShareLink(shopId, id);
+    const context = await getCurrentShopContext();
+    currency = context.currency;
+    sale = await salesService.getSaleById(context.shopId, id);
+    whatsappShare = await whatsappService.buildSaleReceiptShareLink(context.shopId, id);
   } catch (error) {
     if (isDatabaseConnectionError(error)) {
       return <DatabaseUnavailable />;
@@ -118,10 +120,10 @@ export default async function SaleDetailsPage({
               <Info label="رقم الهاتف" value={<span className="font-numeric">{sale.customer?.phone ?? "-"}</span>} />
               <Info label="حالة العملية" value={<SaleStatusBadge status={sale.status} />} />
               <Info label="تاريخ البيع" value={<span className="font-numeric">{formatDate(sale.soldAt)}</span>} />
-              <Info label="الإجمالي قبل الخصم" value={<span className="font-numeric">{formatMoney(sale.subtotal)}</span>} />
-              <Info label="الخصم الإجمالي" value={<span className="font-numeric text-rose-600">{Number(sale.discountTotal) > 0 ? formatMoney(-Number(sale.discountTotal)) : formatMoney(0)}</span>} />
-              <Info label="الضريبة المضافة" value={<span className="font-numeric">{formatMoney(sale.taxTotal)}</span>} />
-              <Info label="الإجمالي النهائي" value={<span className="font-numeric text-primary font-bold">{formatMoney(sale.total)}</span>} />
+              <Info label="الإجمالي قبل الخصم" value={<span className="font-numeric">{formatMoney(sale.subtotal, currency)}</span>} />
+              <Info label="الخصم الإجمالي" value={<span className="font-numeric text-rose-600">{Number(sale.discountTotal) > 0 ? formatMoney(-Number(sale.discountTotal), currency) : formatMoney(0, currency)}</span>} />
+              <Info label="الضريبة المضافة" value={<span className="font-numeric">{formatMoney(sale.taxTotal, currency)}</span>} />
+              <Info label="الإجمالي النهائي" value={<span className="font-numeric text-primary font-bold">{formatMoney(sale.total, currency)}</span>} />
             </div>
           </div>
 
@@ -149,9 +151,9 @@ export default async function SaleDetailsPage({
                         <td className="font-bold text-slate-800">{item.description}</td>
                         <td className="font-semibold text-slate-500">{item.inventoryItem?.name ?? "خدمة خارجية"}</td>
                         <td className="text-center font-extrabold font-numeric text-slate-755">{item.quantity}</td>
-                        <td className="font-numeric text-slate-700 font-medium">{formatMoney(item.unitPriceSnapshot)}</td>
-                        <td className="font-numeric text-rose-500 font-medium">{Number(item.discountTotal) > 0 ? formatMoney(-Number(item.discountTotal)) : formatMoney(0)}</td>
-                        <td className="font-extrabold font-numeric text-slate-800">{formatMoney(item.lineTotal)}</td>
+                        <td className="font-numeric text-slate-700 font-medium">{formatMoney(item.unitPriceSnapshot, currency)}</td>
+                        <td className="font-numeric text-rose-500 font-medium">{Number(item.discountTotal) > 0 ? formatMoney(-Number(item.discountTotal), currency) : formatMoney(0, currency)}</td>
+                        <td className="font-extrabold font-numeric text-slate-800">{formatMoney(item.lineTotal, currency)}</td>
                       </tr>
                     ))}
                   </tbody>

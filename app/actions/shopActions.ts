@@ -2,10 +2,12 @@
 
 import { getCurrentShopContext } from "@/lib/current-shop";
 import { shopService, type UpdateShopInput } from "@/lib/services/shopService";
+import { getSession, setSessionCookie } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
 export async function updateShopSettingsAction(formData: FormData): Promise<void> {
-  const { shopId } = await getCurrentShopContext();
+  const context = await getCurrentShopContext();
+  const shopId = context.shopId;
 
   const name = formData.get("name") as string;
   const phone = (formData.get("phone") as string) || "";
@@ -25,7 +27,23 @@ export async function updateShopSettingsAction(formData: FormData): Promise<void
     terms,
   };
 
-  await shopService.updateShop(shopId, input);
+  const updatedShop = await shopService.updateShop(shopId, input);
+
+  // Update session cookie with new currency and shop name
+  const session = await getSession();
+  if (session) {
+    await setSessionCookie({
+      ...session,
+      shopName: updatedShop.name,
+      currency: updatedShop.currency || "SAR",
+    });
+  }
+
+  revalidatePath("/");
   revalidatePath("/settings");
   revalidatePath("/dashboard");
+  revalidatePath("/repair-orders");
+  revalidatePath("/invoices");
+  revalidatePath("/sales");
+  revalidatePath("/inventory");
 }

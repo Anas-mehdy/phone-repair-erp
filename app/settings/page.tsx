@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/page-header";
 import { Store, Percent, Users, Save } from "lucide-react";
 import { updateShopSettingsAction } from "@/app/actions/shopActions";
 import { Button } from "@/components/ui/button";
-import { formatDate } from "@/lib/format";
+import { formatDate, CURRENCY_OPTIONS } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -12,17 +12,7 @@ export default async function SettingsPage() {
   const { shopId } = await getCurrentShopContext();
   const shop = await shopService.getShopById(shopId);
 
-  const currencies = [
-    { code: "SAR", name: "ريال سعودي (SAR)" },
-    { code: "AED", name: "درهم إماراتي (AED)" },
-    { code: "KWD", name: "دينار كويتي (KWD)" },
-    { code: "BHD", name: "دينار بحريني (BHD)" },
-    { code: "OMR", name: "ريال عماني (OMR)" },
-    { code: "QAR", name: "ريال قطري (QAR)" },
-    { code: "EGP", name: "جنيه مصري (EGP)" },
-    { code: "JOD", name: "دينار أردني (JOD)" },
-    { code: "USD", name: "دولار أمريكي (USD)" },
-  ];
+  const currencies = CURRENCY_OPTIONS;
 
   return (
     <div className="space-y-6">

@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { registerAction } from "@/app/actions/authActions";
 import { Button } from "@/components/ui/button";
+import { CURRENCY_OPTIONS } from "@/lib/format";
 
 export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
@@ -36,17 +37,7 @@ export default function RegisterPage() {
     }
   }
 
-  const currencies = [
-    { code: "SAR", name: "ريال سعودي (SAR)" },
-    { code: "AED", name: "درهم إماراتي (AED)" },
-    { code: "KWD", name: "دينار كويتي (KWD)" },
-    { code: "BHD", name: "دينار بحريني (BHD)" },
-    { code: "OMR", name: "ريال عماني (OMR)" },
-    { code: "QAR", name: "ريال قطري (QAR)" },
-    { code: "EGP", name: "جنيه مصري (EGP)" },
-    { code: "JOD", name: "دينار أردني (JOD)" },
-    { code: "USD", name: "دولار أمريكي (USD)" },
-  ];
+  const currencies = CURRENCY_OPTIONS;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden selection:bg-teal-500 selection:text-white">

@@ -33,8 +33,8 @@ export function formatDate(value: Date | string | null | undefined) {
   return sharedFormatDate(value);
 }
 
-export function formatMoney(value: unknown) {
-  return formatCurrency(value);
+export function formatMoney(value: unknown, currency: string = "SAR") {
+  return formatCurrency(value, currency);
 }
 
 export function getMovementTypeLabel(type: InventoryMovementType) {

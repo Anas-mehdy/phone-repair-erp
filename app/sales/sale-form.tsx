@@ -37,7 +37,13 @@ function createLine(): SaleLineDraft {
   };
 }
 
-export function SaleForm({ inventoryItems }: { inventoryItems: InventoryOption[] }) {
+export function SaleForm({
+  inventoryItems,
+  currency = "SAR",
+}: {
+  inventoryItems: InventoryOption[];
+  currency?: string;
+}) {
   const [state, formAction, isPending] = useActionState(
     createSaleAction,
     initialState,
@@ -245,17 +251,17 @@ export function SaleForm({ inventoryItems }: { inventoryItems: InventoryOption[]
             <div className="space-y-3.5">
               <div className="flex justify-between text-xs text-slate-500 font-medium">
                 <span>الإجمالي الفرعي:</span>
-                <span className="font-numeric font-bold">{formatCurrency(subtotal)}</span>
+                <span className="font-numeric font-bold">{formatCurrency(subtotal, currency)}</span>
               </div>
               <div className="flex justify-between text-xs text-slate-500 font-medium">
                 <span>إجمالي الخصومات:</span>
                 <span className="font-numeric text-rose-600 font-bold">
-                  {discountTotal > 0 ? formatCurrency(-discountTotal) : formatCurrency(0)}
+                  {discountTotal > 0 ? formatCurrency(-discountTotal, currency) : formatCurrency(0, currency)}
                 </span>
               </div>
               <div className="flex justify-between text-sm font-bold text-slate-850 pt-3.5 border-t border-slate-200">
                 <span>الإجمالي النهائي:</span>
-                <span className="font-numeric text-xl text-primary font-black">{formatCurrency(total)}</span>
+                <span className="font-numeric text-xl text-primary font-black">{formatCurrency(total, currency)}</span>
               </div>
             </div>
             <div className="mt-6 pt-1">
