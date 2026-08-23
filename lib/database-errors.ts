@@ -1,13 +1,31 @@
 export function isDatabaseConnectionError(error: unknown) {
-  if (!(error instanceof Error)) {
+  if (!error || typeof error !== "object") {
     return false;
   }
 
+  const err = error as { digest?: string; message?: string; name?: string };
+
+  // Never intercept Next.js redirect or notFound errors
+  if (
+    err.digest?.includes("NEXT_REDIRECT") ||
+    err.message?.includes("NEXT_REDIRECT") ||
+    err.digest?.includes("NEXT_NOT_FOUND")
+  ) {
+    return false;
+  }
+
+  const name = err.name || "";
+  const message = err.message || "";
+
   return (
-    error.name.includes("PrismaClientInitializationError") ||
-    error.message.includes("Authentication failed") ||
-    error.message.includes("Can't reach database server") ||
-    error.message.includes("Environment variable not found") ||
-    error.message.includes("does not exist")
+    name.includes("PrismaClientInitializationError") ||
+    name.includes("PrismaClientKnownRequestError") ||
+    message.includes("Authentication failed") ||
+    message.includes("Can't reach database server") ||
+    message.includes("Environment variable not found") ||
+    message.includes("does not exist") ||
+    message.includes("Connection terminated") ||
+    message.includes("ECONNREFUSED") ||
+    message.includes("ETIMEDOUT")
   );
 }
