@@ -1,0 +1,8 @@
+export { customerService } from "./customerService";
+export { dashboardService } from "./dashboardService";
+export { inventoryService } from "./inventoryService";
+export { invoiceService } from "./invoiceService";
+export { paymentService } from "./paymentService";
+export { repairOrderService } from "./repairOrderService";
+export { salesService } from "./salesService";
+export { whatsappService } from "./whatsappService";

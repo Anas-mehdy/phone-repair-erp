@@ -1,0 +1,102 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { z } from "zod";
+import { getCurrentShopContext } from "@/lib/current-shop";
+import { salesService } from "@/lib/services/salesService";
+
+export type SaleActionState = {
+  error?: string;
+};
+
+const rawLineItemSchema = z
+  .object({
+    inventoryItemId: z.string().uuid().nullable().optional(),
+    description: z.string().trim().optional(),
+    quantity: z.coerce.number().int().positive("الكمية يجب أن تكون أكبر من صفر"),
+    unitPrice: z.coerce.number().nonnegative("سعر الوحدة يجب أن يكون صفراً أو أكثر"),
+    discountTotal: z.coerce.number().nonnegative("الخصم يجب أن يكون صفراً أو أكثر").default(0),
+  })
+  .refine((item) => item.inventoryItemId || item.description, {
+    message: "اختر قطعة مخزون أو أدخل وصف بند يدوي",
+  });
+
+const createSaleSchema = z.object({
+  customerName: z.string().optional(),
+  customerPhone: z.string().optional(),
+  items: z.array(rawLineItemSchema).min(1, "يجب إضافة بند واحد على الأقل"),
+});
+
+const cancelSaleSchema = z.object({
+  saleId: z.string().uuid(),
+});
+
+function readString(formData: FormData, key: string) {
+  const value = formData.get(key);
+  return typeof value === "string" ? value : "";
+}
+
+function getErrorMessage(error: unknown) {
+  if (error instanceof z.ZodError) {
+    return error.issues[0]?.message ?? "البيانات غير صحيحة.";
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "حدث خطأ غير متوقع.";
+}
+
+export async function createSaleAction(
+  _state: SaleActionState,
+  formData: FormData,
+): Promise<SaleActionState> {
+  let saleId = "";
+
+  try {
+    const rawItems = JSON.parse(readString(formData, "items"));
+    const parsed = createSaleSchema.parse({
+      customerName: readString(formData, "customerName"),
+      customerPhone: readString(formData, "customerPhone"),
+      items: rawItems,
+    });
+
+    const { shopId, userId } = await getCurrentShopContext();
+    const sale = await salesService.createSale(shopId, userId, {
+      customerName: parsed.customerName,
+      customerPhone: parsed.customerPhone,
+      items: parsed.items.map((item) => ({
+        inventoryItemId: item.inventoryItemId,
+        description: item.description ?? "",
+        quantity: item.quantity,
+        unitPrice: String(item.unitPrice),
+        discountTotal: String(item.discountTotal),
+      })),
+    });
+    saleId = sale.id;
+  } catch (error) {
+    return {
+      error: getErrorMessage(error),
+    };
+  }
+
+  revalidatePath("/sales");
+  revalidatePath("/inventory");
+  redirect(`/sales/${saleId}`);
+}
+
+export async function cancelSaleAction(formData: FormData) {
+  const input = cancelSaleSchema.parse({
+    saleId: readString(formData, "saleId"),
+  });
+
+  const { shopId, userId } = await getCurrentShopContext();
+  await salesService.cancelSale(shopId, input.saleId, userId);
+
+  revalidatePath("/sales");
+  revalidatePath(`/sales/${input.saleId}`);
+  revalidatePath("/inventory");
+  redirect(`/sales/${input.saleId}`);
+}
