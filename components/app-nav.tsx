@@ -2,6 +2,7 @@
 
 import {
   Boxes,
+  Headphones,
   LayoutDashboard,
   Receipt,
   Settings,
@@ -33,9 +34,10 @@ export const navGroups = [
     ],
   },
   {
-    title: "تهيئة النظام",
+    title: "المساعدة والتهيئة",
     items: [
       { href: "/settings", label: "إعدادات المتجر", icon: Settings },
+      { href: "/support", label: "الدعم الفني والواتساب", icon: Headphones },
     ],
   },
 ];
