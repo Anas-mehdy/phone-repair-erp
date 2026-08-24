@@ -16,6 +16,7 @@ import {
   repairStatusOptions,
   selectClassName,
 } from "./_components";
+import { DeleteRepairOrderButton } from "./_delete-button";
 
 export const dynamic = "force-dynamic";
 
@@ -179,12 +180,19 @@ export default async function RepairOrdersPage({
                     <td className="font-numeric text-slate-600 font-medium">{formatDate(repairOrder.createdAt)}</td>
                     <td className="font-numeric text-slate-600 font-medium">{formatDate(repairOrder.dueAt)}</td>
                     <td className="text-center">
-                      <Button asChild variant="outline" size="sm" className="font-bold shadow-xs border-slate-300 hover:bg-primary/10 hover:text-primary hover:border-primary/30 rounded-lg">
-                        <Link href={`/repair-orders/${repairOrder.id}`}>
-                          <Eye className="h-3.5 w-3.5 ml-1" aria-hidden="true" />
-                          عرض
-                        </Link>
-                      </Button>
+                      <div className="flex items-center justify-center gap-1.5">
+                        <Button asChild variant="outline" size="sm" className="font-bold shadow-xs border-slate-300 hover:bg-primary/10 hover:text-primary hover:border-primary/30 rounded-lg">
+                          <Link href={`/repair-orders/${repairOrder.id}`}>
+                            <Eye className="h-3.5 w-3.5 ml-1" aria-hidden="true" />
+                            عرض
+                          </Link>
+                        </Button>
+                        <DeleteRepairOrderButton
+                          repairOrderId={repairOrder.id}
+                          ticketNumber={repairOrder.ticketNumber}
+                          variant="icon"
+                        />
+                      </div>
                     </td>
                   </tr>
                 ))}

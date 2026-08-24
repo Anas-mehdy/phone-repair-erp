@@ -148,3 +148,22 @@ export async function updateRepairOrderStatusAction(formData: FormData) {
   revalidatePath(`/repair-orders/${input.repairOrderId}`);
   revalidatePath("/dashboard");
 }
+
+const deleteRepairOrderSchema = z.object({
+  repairOrderId: z.string().uuid("معرف طلب الصيانة غير صحيح"),
+});
+
+export async function deleteRepairOrderAction(formData: FormData) {
+  const parsed = deleteRepairOrderSchema.parse({
+    repairOrderId: readString(formData, "repairOrderId"),
+  });
+
+  const { shopId } = await getCurrentShopContext();
+
+  await repairOrderService.deleteRepairOrder(shopId, parsed.repairOrderId);
+
+  revalidatePath("/repair-orders");
+  revalidatePath("/dashboard");
+  redirect("/repair-orders");
+}
+

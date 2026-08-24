@@ -23,6 +23,7 @@ import {
 import { SupplierFields } from "../_supplier-fields";
 import { WhatsAppMessageModal } from "../_whatsapp-modal";
 import { StatusUpdateForm } from "../_status-form";
+import { DeleteRepairOrderButton } from "../_delete-button";
 import {
   updateRepairOrderDetailsAction,
 } from "../actions";
@@ -387,6 +388,13 @@ export default async function RepairOrderDetailsPage({
                   طباعة ستيكر الهاتف (50×30 مم)
                 </Link>
               </Button>
+
+              <div className="pt-2 border-t border-slate-100">
+                <DeleteRepairOrderButton
+                  repairOrderId={repairOrder.id}
+                  ticketNumber={repairOrder.ticketNumber}
+                />
+              </div>
             </div>
           </div>
         </div>

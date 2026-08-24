@@ -475,13 +475,60 @@ export async function updateRepairOrderStatus(
   return updatedRepairOrder;
 }
 
+export async function deleteRepairOrder(shopId: string, repairOrderId: string) {
+  const repairOrder = await prisma.repairOrder.findFirst({
+    where: {
+      id: repairOrderId,
+      shopId,
+      deletedAt: null,
+    },
+    include: {
+      invoices: {
+        where: {
+          deletedAt: null,
+          status: {
+            in: [InvoiceStatus.PAID, InvoiceStatus.PARTIALLY_PAID],
+          },
+        },
+      },
+    },
+  });
+
+  if (!repairOrder) {
+    throw new Error("طلب الصيانة غير موجود أو تم حذفه مسبقاً.");
+  }
+
+  if (repairOrder.invoices.length > 0) {
+    throw new Error("لا يمكن حذف طلب الصيانة لوجود فاتورة مدفوعة مرتبطة به. يرجى إلغاء أو حذف الفاتورة أولاً.");
+  }
+
+  const now = new Date();
+
+  return prisma.$transaction([
+    prisma.repairOrder.update({
+      where: { id: repairOrderId },
+      data: { deletedAt: now },
+    }),
+    prisma.invoice.updateMany({
+      where: {
+        repairOrderId,
+        shopId,
+        deletedAt: null,
+      },
+      data: { deletedAt: now },
+    }),
+  ]);
+}
+
 export const repairOrderService = {
   listRepairOrders,
   getRepairOrderById,
   createRepairOrder,
   updateRepairOrderDetails,
   updateRepairOrderStatus,
+  deleteRepairOrder,
   generateTicketNumber,
   findOrCreateCustomerForRepair,
   normalizePhone,
 };
+
