@@ -56,10 +56,12 @@ export default async function RepairOrderDetailsPage({
   let repairOrder: Awaited<ReturnType<typeof repairOrderService.getRepairOrderById>>;
   let suppliers: Awaited<ReturnType<typeof supplierService.listSuppliers>> = [];
 
+  let shopId = "";
   let currency = "SAR";
   let shopName = "";
   try {
     const context = await getCurrentShopContext();
+    shopId = context.shopId;
     currency = context.currency;
     shopName = context.shopName;
     [repairOrder, suppliers] = await Promise.all([
@@ -345,6 +347,7 @@ export default async function RepairOrderDetailsPage({
             {/* WhatsApp Updates Box */}
             <div className="space-y-2.5">
               <WhatsAppMessageModal
+                shopId={shopId}
                 customerName={repairOrder.customer?.name}
                 customerPhone={repairOrder.customer?.phone}
                 deviceBrand={repairOrder.deviceBrand}

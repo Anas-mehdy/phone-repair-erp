@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   MessageCircle,
   Sparkles,
@@ -20,11 +20,19 @@ import {
   Save,
   Pencil,
   Info,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { normalizePhoneForWhatsApp } from "@/lib/services/whatsappService";
+import {
+  getWhatsAppTemplatesAction,
+  saveWhatsAppTemplateAction,
+  deleteWhatsAppTemplateAction,
+  CustomWhatsAppTemplateDTO,
+} from "./template-actions";
 
 export type WhatsAppModalProps = {
+  shopId?: string;
   customerName?: string | null;
   customerPhone?: string | null;
   deviceBrand?: string | null;
@@ -36,15 +44,6 @@ export type WhatsAppModalProps = {
   currency?: string;
   trackingUrl: string;
 };
-
-export type CustomWhatsAppTemplate = {
-  id: string;
-  title: string;
-  templateText: string;
-  createdAt: number;
-};
-
-const STORAGE_KEY = "phone_repair_whatsapp_custom_templates_v1";
 
 // Helper to replace template variables with actual values
 function resolveVariables(
@@ -70,6 +69,7 @@ function resolveVariables(
 }
 
 export function WhatsAppMessageModal({
+  shopId: initialShopId,
   customerName = "العميل",
   customerPhone,
   deviceBrand,
@@ -86,9 +86,12 @@ export function WhatsAppMessageModal({
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("ready");
   const [phoneOverride, setPhoneOverride] = useState(customerPhone || "");
   const [activeTab, setActiveTab] = useState<"preset" | "custom">("preset");
+  const [effectiveShopId, setEffectiveShopId] = useState(initialShopId || "");
 
   // Custom templates state
-  const [customTemplates, setCustomTemplates] = useState<CustomWhatsAppTemplate[]>([]);
+  const [customTemplates, setCustomTemplates] = useState<CustomWhatsAppTemplateDTO[]>([]);
+  const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const [isTemplateEditorOpen, setIsTemplateEditorOpen] = useState(false);
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
   const [templateFormTitle, setTemplateFormTitle] = useState("");
@@ -109,20 +112,57 @@ export function WhatsAppMessageModal({
     trackingUrl,
   };
 
-  // Load custom templates from localStorage on client mount
-  useEffect(() => {
+  const getStorageKey = useCallback(
+    (shopIdKey: string) => `phone_repair_whatsapp_custom_templates_${shopIdKey || "default"}`,
+    []
+  );
+
+  // Load custom templates for this specific tenant/shop
+  const loadTemplates = useCallback(async () => {
+    setIsLoadingTemplates(true);
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          setCustomTemplates(parsed);
+      const res = await getWhatsAppTemplatesAction();
+      if (res.ok) {
+        setCustomTemplates(res.templates);
+        if (res.shopId) {
+          setEffectiveShopId(res.shopId);
+          try {
+            localStorage.setItem(getStorageKey(res.shopId), JSON.stringify(res.templates));
+          } catch {
+            // Ignore storage write errors
+          }
+        }
+      } else {
+        // Fallback to tenant-scoped localStorage if database is not reachable
+        const storageKey = getStorageKey(effectiveShopId || initialShopId || "");
+        const saved = localStorage.getItem(storageKey);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) setCustomTemplates(parsed);
         }
       }
     } catch {
-      // Ignore localStorage read errors
+      // Fallback to tenant-scoped localStorage
+      const storageKey = getStorageKey(effectiveShopId || initialShopId || "");
+      try {
+        const saved = localStorage.getItem(storageKey);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) setCustomTemplates(parsed);
+        }
+      } catch {
+        // ignore
+      }
+    } finally {
+      setIsLoadingTemplates(false);
     }
-  }, []);
+  }, [effectiveShopId, initialShopId, getStorageKey]);
+
+  useEffect(() => {
+    if (isOpen) {
+      loadTemplates();
+    }
+  }, [isOpen, loadTemplates]);
 
   // Update phone override if customerPhone prop changes
   useEffect(() => {
@@ -222,7 +262,7 @@ export function WhatsAppMessageModal({
     }
   }
 
-  function handleSelectCustomTemplate(template: CustomWhatsAppTemplate) {
+  function handleSelectCustomTemplate(template: CustomWhatsAppTemplateDTO) {
     setSelectedTemplateId(template.id);
     setMessage(resolveVariables(template.templateText, contextVariables));
   }
@@ -242,7 +282,7 @@ export function WhatsAppMessageModal({
     setIsTemplateEditorOpen(true);
   }
 
-  function openEditTemplateModal(tpl: CustomWhatsAppTemplate, e: React.MouseEvent) {
+  function openEditTemplateModal(tpl: CustomWhatsAppTemplateDTO, e: React.MouseEvent) {
     e.stopPropagation();
     setEditingTemplateId(tpl.id);
     setTemplateFormTitle(tpl.title);
@@ -250,57 +290,86 @@ export function WhatsAppMessageModal({
     setIsTemplateEditorOpen(true);
   }
 
-  function handleSaveCustomTemplate(e: React.FormEvent) {
+  async function handleSaveCustomTemplate(e: React.FormEvent) {
     e.preventDefault();
-    if (!templateFormTitle.trim() || !templateFormText.trim()) return;
+    if (!templateFormTitle.trim() || !templateFormText.trim() || isSavingTemplate) return;
 
-    let updated: CustomWhatsAppTemplate[];
-    if (editingTemplateId) {
-      updated = customTemplates.map((t) =>
-        t.id === editingTemplateId
-          ? { ...t, title: templateFormTitle.trim(), templateText: templateFormText.trim() }
-          : t
-      );
-      showToast("تم تحديث القالب بنجاح!");
-    } else {
-      const newTpl: CustomWhatsAppTemplate = {
-        id: `tpl_${Date.now()}`,
-        title: templateFormTitle.trim(),
-        templateText: templateFormText.trim(),
-        createdAt: Date.now(),
-      };
-      updated = [newTpl, ...customTemplates];
-      showToast("تم حفظ القالب الجديد بنجاح!");
-      setSelectedTemplateId(newTpl.id);
-      setMessage(resolveVariables(newTpl.templateText, contextVariables));
-      setActiveTab("custom");
-    }
+    setIsSavingTemplate(true);
+    const title = templateFormTitle.trim();
+    const templateText = templateFormText.trim();
 
-    setCustomTemplates(updated);
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-    } catch {
-      // Ignore write errors
-    }
+      const res = await saveWhatsAppTemplateAction({
+        id: editingTemplateId,
+        title,
+        templateText,
+      });
 
-    setIsTemplateEditorOpen(false);
-    setEditingTemplateId(null);
+      if (res.ok && res.template) {
+        let updated: CustomWhatsAppTemplateDTO[];
+        if (editingTemplateId) {
+          updated = customTemplates.map((t) => (t.id === editingTemplateId ? res.template! : t));
+          showToast("تم تحديث القالب الخاص بحسابك بنجاح!");
+        } else {
+          updated = [res.template, ...customTemplates];
+          showToast("تم حفظ القالب الخاص بحسابك بنجاح!");
+          setSelectedTemplateId(res.template.id);
+          setMessage(resolveVariables(res.template.templateText, contextVariables));
+          setActiveTab("custom");
+        }
+
+        setCustomTemplates(updated);
+        try {
+          const storageKey = getStorageKey(effectiveShopId || initialShopId || "");
+          localStorage.setItem(storageKey, JSON.stringify(updated));
+        } catch {
+          // ignore
+        }
+      } else {
+        // Fallback local save scoped to this tenant
+        const localId = editingTemplateId || `local_${Date.now()}`;
+        const item: CustomWhatsAppTemplateDTO = {
+          id: localId,
+          title,
+          templateText,
+          createdAt: Date.now(),
+        };
+        const updated = editingTemplateId
+          ? customTemplates.map((t) => (t.id === editingTemplateId ? item : t))
+          : [item, ...customTemplates];
+        setCustomTemplates(updated);
+        const storageKey = getStorageKey(effectiveShopId || initialShopId || "");
+        localStorage.setItem(storageKey, JSON.stringify(updated));
+        showToast("تم حفظ القالب بحسابك!");
+        setSelectedTemplateId(item.id);
+        setMessage(resolveVariables(item.templateText, contextVariables));
+        setActiveTab("custom");
+      }
+    } catch {
+      showToast("حدث خطأ أثناء حفظ القالب");
+    } finally {
+      setIsSavingTemplate(false);
+      setIsTemplateEditorOpen(false);
+      setEditingTemplateId(null);
+    }
   }
 
-  function handleDeleteCustomTemplate(id: string, e: React.MouseEvent) {
+  async function handleDeleteCustomTemplate(id: string, e: React.MouseEvent) {
     e.stopPropagation();
     if (!confirm("هل أنت متأكد من رغبتك في حذف هذا القالب؟")) return;
 
-    const updated = customTemplates.filter((t) => t.id !== id);
-    setCustomTemplates(updated);
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      await deleteWhatsAppTemplateAction(id);
+      const updated = customTemplates.filter((t) => t.id !== id);
+      setCustomTemplates(updated);
+      const storageKey = getStorageKey(effectiveShopId || initialShopId || "");
+      localStorage.setItem(storageKey, JSON.stringify(updated));
+      showToast("تم حذف القالب");
+      if (selectedTemplateId === id) {
+        handleSelectPresetTemplate("ready");
+      }
     } catch {
-      // Ignore write errors
-    }
-    showToast("تم حذف القالب");
-    if (selectedTemplateId === id) {
-      handleSelectPresetTemplate("ready");
+      showToast("تعذر حذف القالب");
     }
   }
 
@@ -341,7 +410,7 @@ export function WhatsAppMessageModal({
                     مراسلة العميل عبر واتساب
                   </h3>
                   <p className="text-xs text-slate-500 font-medium mt-0.5">
-                    اختر قالباً جاهزاً أو أنشئ قوالبك المخصصة بحرية
+                    اختر قالباً جاهزاً أو أنشئ قوالبك المخصصة المحمية لمتجرك
                   </p>
                 </div>
               </div>
@@ -409,6 +478,7 @@ export function WhatsAppMessageModal({
                     >
                       <Bookmark className="h-3 w-3 text-amber-500" />
                       قوالبي المحفوظة ({customTemplates.length})
+                      {isLoadingTemplates && <Loader2 className="h-3 w-3 animate-spin text-slate-400" />}
                     </button>
                   </div>
 
@@ -457,9 +527,9 @@ export function WhatsAppMessageModal({
                     {customTemplates.length === 0 ? (
                       <div className="p-6 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
                         <BookmarkPlus className="h-8 w-8 text-slate-300 mx-auto mb-2" />
-                        <p className="text-xs font-bold text-slate-700">لا توجد قوالب مخصصة محفوظة بعد</p>
+                        <p className="text-xs font-bold text-slate-700">لا توجد قوالب مخصصة خاصة بمتجرك بعد</p>
                         <p className="text-[11px] text-slate-500 mt-1 max-w-sm mx-auto">
-                          يمكنك حفظ نصوصك المتكررة كقوالب لتوفير الوقت واستخدامها بضغطة زر
+                          القوالب التي تحفظها هنا خاصة بحساب متجرك فقط ولا يراها أي مستخدم أو متجر آخر
                         </p>
                         <button
                           type="button"
@@ -656,10 +726,10 @@ export function WhatsAppMessageModal({
                       </div>
                       <div>
                         <h4 className="text-sm font-black text-slate-900">
-                          {editingTemplateId ? "تعديل القالب المحفوظ" : "حفظ قالب واتساب جديد"}
+                          {editingTemplateId ? "تعديل القالب الخاص بمتجرك" : "حفظ قالب واتساب خاص بمتجرك"}
                         </h4>
                         <p className="text-xs text-slate-500 font-medium">
-                          يمكنك إدراج المتغيرات التلقائية لتتغير بحسب كل عميل وجهاز
+                          هذا القالب خاص بمتجرك فقط ولن يظهر لباقي المشتركين
                         </p>
                       </div>
                     </div>
@@ -786,12 +856,16 @@ export function WhatsAppMessageModal({
                   </Button>
                   <Button
                     type="button"
-                    disabled={!templateFormTitle.trim() || !templateFormText.trim()}
+                    disabled={!templateFormTitle.trim() || !templateFormText.trim() || isSavingTemplate}
                     onClick={handleSaveCustomTemplate}
                     className="font-bold text-xs h-10 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-600/20"
                   >
-                    <Save className="h-4 w-4 ml-1.5" />
-                    {editingTemplateId ? "حفظ التعديلات" : "حفظ القالب الآن"}
+                    {isSavingTemplate ? (
+                      <Loader2 className="h-4 w-4 ml-1.5 animate-spin" />
+                    ) : (
+                      <Save className="h-4 w-4 ml-1.5" />
+                    )}
+                    {editingTemplateId ? "حفظ التعديلات" : "حفظ القالب لمتجري"}
                   </Button>
                 </div>
               </div>
@@ -802,4 +876,3 @@ export function WhatsAppMessageModal({
     </>
   );
 }
-
