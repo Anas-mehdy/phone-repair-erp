@@ -5,4 +5,5 @@ export { invoiceService } from "./invoiceService";
 export { paymentService } from "./paymentService";
 export { repairOrderService } from "./repairOrderService";
 export { salesService } from "./salesService";
+export { supplierService } from "./supplierService";
 export { whatsappService } from "./whatsappService";

@@ -6,6 +6,7 @@ import {
   Receipt,
   Settings,
   ShoppingCart,
+  Truck,
   UserRound,
   Wrench,
 } from "lucide-react";
@@ -26,6 +27,7 @@ export const navGroups = [
     title: "إدارة الأعمال",
     items: [
       { href: "/customers", label: "إدارة العملاء", icon: UserRound },
+      { href: "/suppliers", label: "الموردون وقطع الغيار", icon: Truck },
       { href: "/inventory", label: "المستودع والمخزون", icon: Boxes },
       { href: "/invoices", label: "الفواتير والمالية", icon: Receipt },
     ],

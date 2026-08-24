@@ -18,6 +18,12 @@ const createRepairOrderSchema = z.object({
   estimatedTotal: z.string().optional(),
   dueAt: z.string().optional(),
   notes: z.string().optional(),
+  supplierId: z.string().optional(),
+  supplierName: z.string().optional(),
+  partName: z.string().optional(),
+  partCost: z.string().optional(),
+  deductPartCost: z.boolean().optional(),
+  supplierNotes: z.string().optional(),
 });
 
 const updateRepairOrderDetailsSchema = z.object({
@@ -31,6 +37,12 @@ const updateRepairOrderDetailsSchema = z.object({
   estimatedTotal: z.string().optional(),
   finalTotal: z.string().optional(),
   dueAt: z.string().optional(),
+  supplierId: z.string().optional(),
+  supplierName: z.string().optional(),
+  partName: z.string().optional(),
+  partCost: z.string().optional(),
+  deductPartCost: z.boolean().optional(),
+  supplierNotes: z.string().optional(),
 });
 
 const updateRepairOrderStatusSchema = z.object({
@@ -42,6 +54,11 @@ const updateRepairOrderStatusSchema = z.object({
 function readString(formData: FormData, key: string) {
   const value = formData.get(key);
   return typeof value === "string" ? value : "";
+}
+
+function readCheckbox(formData: FormData, key: string) {
+  const value = formData.get(key);
+  return value === "on" || value === "true" || value === "1";
 }
 
 export async function createRepairOrderAction(formData: FormData) {
@@ -56,6 +73,12 @@ export async function createRepairOrderAction(formData: FormData) {
     estimatedTotal: readString(formData, "estimatedTotal"),
     dueAt: readString(formData, "dueAt"),
     notes: readString(formData, "notes"),
+    supplierId: readString(formData, "supplierId"),
+    supplierName: readString(formData, "supplierName"),
+    partName: readString(formData, "partName"),
+    partCost: readString(formData, "partCost"),
+    deductPartCost: readCheckbox(formData, "deductPartCost"),
+    supplierNotes: readString(formData, "supplierNotes"),
   });
 
   const { shopId, userId } = await getCurrentShopContext();
@@ -81,6 +104,12 @@ export async function updateRepairOrderDetailsAction(formData: FormData) {
     estimatedTotal: readString(formData, "estimatedTotal"),
     finalTotal: readString(formData, "finalTotal"),
     dueAt: readString(formData, "dueAt"),
+    supplierId: readString(formData, "supplierId"),
+    supplierName: readString(formData, "supplierName"),
+    partName: readString(formData, "partName"),
+    partCost: readString(formData, "partCost"),
+    deductPartCost: readCheckbox(formData, "deductPartCost"),
+    supplierNotes: readString(formData, "supplierNotes"),
   });
 
   const { shopId } = await getCurrentShopContext();

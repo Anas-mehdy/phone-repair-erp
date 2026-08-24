@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 
 const repairOrderInclude = {
   customer: true,
+  supplier: true,
   statusHistory: {
     orderBy: {
       createdAt: "asc",
@@ -37,6 +38,12 @@ export type CreateRepairOrderInput = {
   estimatedTotal?: string;
   dueAt?: string;
   notes?: string;
+  supplierId?: string;
+  supplierName?: string;
+  partName?: string;
+  partCost?: string;
+  deductPartCost?: boolean;
+  supplierNotes?: string;
 };
 
 export type UpdateRepairOrderDetailsInput = {
@@ -49,6 +56,12 @@ export type UpdateRepairOrderDetailsInput = {
   estimatedTotal?: string;
   finalTotal?: string;
   dueAt?: string;
+  supplierId?: string;
+  supplierName?: string;
+  partName?: string;
+  partCost?: string;
+  deductPartCost?: boolean;
+  supplierNotes?: string;
 };
 
 export type UpdateRepairOrderStatusInput = {
@@ -191,6 +204,8 @@ export async function listRepairOrders(
               { ticketNumber: { contains: search, mode: "insensitive" } },
               { deviceModel: { contains: search, mode: "insensitive" } },
               { reportedIssue: { contains: search, mode: "insensitive" } },
+              { supplierName: { contains: search, mode: "insensitive" } },
+              { partName: { contains: search, mode: "insensitive" } },
               {
                 customer: {
                   is: {
@@ -213,6 +228,7 @@ export async function listRepairOrders(
     },
     include: {
       customer: true,
+      supplier: true,
     },
     orderBy: {
       createdAt: "desc",
@@ -239,6 +255,39 @@ export async function createRepairOrder(
   const customer = await findOrCreateCustomerForRepair(shopId, input);
   const ticketNumber = await generateTicketNumber(shopId);
 
+  let supplierId = input.supplierId ? input.supplierId.trim() : null;
+  let supplierName = input.supplierName ? input.supplierName.trim() : null;
+
+  if (supplierName && !supplierId) {
+    const existingSupplier = await prisma.supplier.findFirst({
+      where: {
+        shopId,
+        deletedAt: null,
+        name: { equals: supplierName, mode: "insensitive" },
+      },
+    });
+    if (existingSupplier) {
+      supplierId = existingSupplier.id;
+      supplierName = existingSupplier.name;
+    } else {
+      const newSupplier = await prisma.supplier.create({
+        data: {
+          shopId,
+          name: supplierName,
+        },
+      });
+      supplierId = newSupplier.id;
+    }
+  } else if (supplierId && !supplierName) {
+    const existingSupplier = await prisma.supplier.findFirst({
+      where: { id: supplierId, shopId, deletedAt: null },
+      select: { name: true },
+    });
+    if (existingSupplier) {
+      supplierName = existingSupplier.name;
+    }
+  }
+
   return prisma.$transaction(async (tx) => {
     const repairOrder = await tx.repairOrder.create({
       data: {
@@ -253,6 +302,12 @@ export async function createRepairOrder(
         reportedIssue: input.reportedIssue.trim(),
         resolutionNotes: emptyToNull(input.notes),
         estimatedTotal: decimalOrNull(input.estimatedTotal),
+        supplierId: supplierId || null,
+        supplierName: supplierName || null,
+        partName: emptyToNull(input.partName),
+        partCost: decimalOrNull(input.partCost),
+        deductPartCost: input.deductPartCost ?? true,
+        supplierNotes: emptyToNull(input.supplierNotes),
         dueAt: dateOrNull(input.dueAt),
       },
     });
@@ -292,6 +347,39 @@ export async function updateRepairOrderDetails(
     throw new Error("طلب الصيانة غير موجود.");
   }
 
+  let supplierId = input.supplierId !== undefined ? (input.supplierId ? input.supplierId.trim() : null) : undefined;
+  let supplierName = input.supplierName !== undefined ? (input.supplierName ? input.supplierName.trim() : null) : undefined;
+
+  if (supplierName && !supplierId) {
+    const existingSupplier = await prisma.supplier.findFirst({
+      where: {
+        shopId,
+        deletedAt: null,
+        name: { equals: supplierName, mode: "insensitive" },
+      },
+    });
+    if (existingSupplier) {
+      supplierId = existingSupplier.id;
+      supplierName = existingSupplier.name;
+    } else {
+      const newSupplier = await prisma.supplier.create({
+        data: {
+          shopId,
+          name: supplierName,
+        },
+      });
+      supplierId = newSupplier.id;
+    }
+  } else if (supplierId && supplierName === undefined) {
+    const existingSupplier = await prisma.supplier.findFirst({
+      where: { id: supplierId, shopId, deletedAt: null },
+      select: { name: true },
+    });
+    if (existingSupplier) {
+      supplierName = existingSupplier.name;
+    }
+  }
+
   return prisma.repairOrder.update({
     where: {
       id: repairOrderId,
@@ -305,6 +393,12 @@ export async function updateRepairOrderDetails(
       resolutionNotes: emptyToNull(input.resolutionNotes),
       estimatedTotal: decimalOrNull(input.estimatedTotal),
       finalTotal: decimalOrNull(input.finalTotal),
+      supplierId: supplierId,
+      supplierName: supplierName,
+      partName: input.partName !== undefined ? emptyToNull(input.partName) : undefined,
+      partCost: input.partCost !== undefined ? decimalOrNull(input.partCost) : undefined,
+      deductPartCost: input.deductPartCost !== undefined ? input.deductPartCost : undefined,
+      supplierNotes: input.supplierNotes !== undefined ? emptyToNull(input.supplierNotes) : undefined,
       dueAt: dateOrNull(input.dueAt),
       version: {
         increment: 1,

@@ -2,15 +2,21 @@ import { ArrowRight, Save } from "lucide-react";
 import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
+import { getCurrentShopContext } from "@/lib/current-shop";
+import { supplierService } from "@/lib/services/supplierService";
 import { createRepairOrderAction } from "../actions";
 import { Field, inputClassName, textareaClassName } from "../_components";
+import { SupplierFields } from "../_supplier-fields";
 
-export default function NewRepairOrderPage() {
+export default async function NewRepairOrderPage() {
+  const { shopId, currency } = await getCurrentShopContext();
+  const suppliers = await supplierService.listSuppliers(shopId);
+
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <PageHeader
         title="طلب صيانة جديد"
-        description="أدخل بيانات العميل والجهاز لإنشاء طلب صيانة بحالة قيد الانتظار"
+        description="أدخل بيانات العميل والجهاز والمورد لإنشاء طلب صيانة بحالة قيد الانتظار"
         actions={
           <Button asChild variant="outline">
             <Link href="/repair-orders">
@@ -67,7 +73,7 @@ export default function NewRepairOrderPage() {
             <Field label="الرقم التسلسلي (SN / IMEI)">
               <input className={`${inputClassName} font-numeric`} name="deviceSerial" placeholder="أدخل الرقم التسلسلي لجهاز العميل..." />
             </Field>
-            <Field label="التكلفة المتوقعة (تقديرية)">
+            <Field label="سعر الصيانة المتوقع للعميل (تقديري)">
               <input
                 className={`${inputClassName} font-numeric`}
                 name="estimatedTotal"
@@ -96,6 +102,12 @@ export default function NewRepairOrderPage() {
           </div>
         </section>
 
+        {/* Supplier & Parts Section */}
+        <SupplierFields
+          suppliers={suppliers}
+          currency={currency}
+        />
+
         <div className="flex justify-end gap-3">
           <Button type="submit" size="lg" className="font-semibold shadow-md px-6">
             <Save className="h-4.5 w-4.5 ml-1.5" aria-hidden="true" />
@@ -103,7 +115,6 @@ export default function NewRepairOrderPage() {
           </Button>
         </div>
       </form>
-
     </div>
   );
 }

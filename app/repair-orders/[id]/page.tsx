@@ -1,5 +1,5 @@
 import QRCode from "qrcode";
-import { ArrowRight, FileText, MessageCircle, Printer, QrCode, Tag, Wrench } from "lucide-react";
+import { ArrowRight, Calculator, FileText, MessageCircle, Printer, QrCode, Tag, Truck, Wrench } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -11,6 +11,7 @@ import { SubmitButton } from "@/components/submit-button";
 import { getCurrentShopContext } from "@/lib/current-shop";
 import { isDatabaseConnectionError } from "@/lib/database-errors";
 import { repairOrderService } from "@/lib/services/repairOrderService";
+import { supplierService } from "@/lib/services/supplierService";
 import { createInvoiceFromRepairOrderAction } from "@/app/invoices/actions";
 import { whatsappService } from "@/lib/services/whatsappService";
 import {
@@ -22,6 +23,7 @@ import {
   selectClassName,
   textareaClassName,
 } from "../_components";
+import { SupplierFields } from "../_supplier-fields";
 import {
   updateRepairOrderDetailsAction,
   updateRepairOrderStatusAction,
@@ -53,6 +55,7 @@ export default async function RepairOrderDetailsPage({
   const { id } = await params;
   const query = await searchParams;
   let repairOrder: Awaited<ReturnType<typeof repairOrderService.getRepairOrderById>>;
+  let suppliers: Awaited<ReturnType<typeof supplierService.listSuppliers>> = [];
 
   let currency = "SAR";
   let shopName = "";
@@ -60,7 +63,10 @@ export default async function RepairOrderDetailsPage({
     const context = await getCurrentShopContext();
     currency = context.currency;
     shopName = context.shopName;
-    repairOrder = await repairOrderService.getRepairOrderById(context.shopId, id);
+    [repairOrder, suppliers] = await Promise.all([
+      repairOrderService.getRepairOrderById(context.shopId, id),
+      supplierService.listSuppliers(context.shopId),
+    ]);
   } catch (error) {
     if (isDatabaseConnectionError(error)) {
       return <DatabaseUnavailable />;
@@ -72,6 +78,10 @@ export default async function RepairOrderDetailsPage({
   if (!repairOrder) {
     notFound();
   }
+
+  const repairPrice = Number(repairOrder.finalTotal ?? repairOrder.estimatedTotal ?? 0);
+  const partCostNum = Number(repairOrder.partCost ?? 0);
+  const netProfit = repairOrder.deductPartCost ? Math.max(0, repairPrice - partCostNum) : repairPrice;
 
   // Build WhatsApp link from already-loaded data — no extra DB query
   const whatsappShare = whatsappService.buildRepairUpdateShareLinkFromData(repairOrder, shopName, currency);
@@ -145,13 +155,56 @@ export default async function RepairOrderDetailsPage({
                 value={[repairOrder.deviceBrand, repairOrder.deviceModel].filter(Boolean).join(" ") || "-"}
               />
               <Info label="الرقم التسلسلي" value={<span className="font-numeric">{repairOrder.deviceSerial ?? "-"}</span>} />
-              <Info label="التكلفة المتوقعة" value={<span className="font-numeric">{formatMoney(repairOrder.estimatedTotal, currency)}</span>} />
-              <Info label="التكلفة النهائية" value={<span className="font-numeric">{formatMoney(repairOrder.finalTotal, currency)}</span>} />
+              <Info label="سعر الصيانة المتوقع" value={<span className="font-numeric">{formatMoney(repairOrder.estimatedTotal, currency)}</span>} />
+              <Info label="سعر الصيانة النهائي" value={<span className="font-numeric">{formatMoney(repairOrder.finalTotal, currency)}</span>} />
               <Info label="تاريخ الاستلام" value={<span className="font-numeric">{formatDate(repairOrder.createdAt)}</span>} />
               <Info label="التسليم المتوقع" value={<span className="font-numeric">{formatDate(repairOrder.dueAt)}</span>} />
               <Info label="تاريخ الانتهاء" value={<span className="font-numeric">{formatDate(repairOrder.completedAt)}</span>} />
               <Info label="تاريخ التسليم الفعلي" value={<span className="font-numeric">{formatDate(repairOrder.deliveredAt)}</span>} />
             </div>
+
+            {/* Supplier & Parts info box (Workshop only) */}
+            {(repairOrder.supplierName || repairOrder.supplier || repairOrder.partName || repairOrder.partCost) ? (
+              <div className="mt-6 border-t border-slate-100/60 pt-5">
+                <div className="rounded-2xl border border-teal-200/80 bg-teal-50/40 p-4 space-y-4">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-2 text-xs font-bold text-teal-900">
+                      <Truck className="h-4 w-4 text-teal-700" />
+                      <span>بيانات المورد وقطع الغيار (خاص بالورشة)</span>
+                    </div>
+                    {repairPrice > 0 && partCostNum > 0 ? (
+                      <div className="flex items-center gap-2 bg-teal-900 text-white px-3 py-1 rounded-xl text-xs font-bold">
+                        <Calculator className="h-3.5 w-3.5 text-teal-300" />
+                        <span>صافي ربح الصيانة:</span>
+                        <span className="font-numeric font-black text-teal-200">{formatMoney(netProfit, currency)}</span>
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <Info label="المورد" value={repairOrder.supplier?.name ?? repairOrder.supplierName ?? "-"} />
+                    <Info label="القطعة المشتراة" value={repairOrder.partName ?? "-"} />
+                    <Info label="تكلفة شراء القطعة" value={<span className="font-numeric">{formatMoney(repairOrder.partCost, currency)}</span>} />
+                    <Info
+                      label="حالة خصم التكلفة"
+                      value={
+                        repairOrder.deductPartCost ? (
+                          <span className="text-xs font-bold text-teal-700">مخصومة من الأرباح</span>
+                        ) : (
+                          <span className="text-xs font-bold text-slate-500">غير مخصومة</span>
+                        )
+                      }
+                    />
+                  </div>
+                  {repairOrder.supplierNotes ? (
+                    <div className="text-xs font-medium text-slate-600 bg-white/80 p-2.5 rounded-xl border border-teal-100">
+                      <span className="font-bold text-slate-800 ml-1">ملاحظات الضمان والمورد:</span>
+                      {repairOrder.supplierNotes}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+
             <div className="mt-6 grid gap-4 border-t border-slate-100/60 pt-5">
               <Info label="المشكلة المبلغ عنها" value={<p className="leading-relaxed text-slate-600 text-xs font-medium">{repairOrder.reportedIssue}</p>} />
               <Info label="التشخيص الفني" value={<p className="leading-relaxed text-slate-600 text-xs font-medium">{repairOrder.diagnosis ?? "-"}</p>} />
@@ -187,9 +240,9 @@ export default async function RepairOrderDetailsPage({
             </form>
 
             {/* Edit details form */}
-            <form action={updateRepairOrderDetailsAction} className="erp-section">
+            <form action={updateRepairOrderDetailsAction} className="erp-section space-y-6">
               <input type="hidden" name="repairOrderId" value={repairOrder.id} />
-              <div className="border-b border-slate-100/60 pb-3 mb-4">
+              <div className="border-b border-slate-100/60 pb-3">
                 <h3 className="font-bold text-slate-800 text-sm">تعديل بيانات طلب الصيانة</h3>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
@@ -202,10 +255,10 @@ export default async function RepairOrderDetailsPage({
                 <Field label="الرقم التسلسلي (SN)">
                   <input className={`${inputClassName} font-numeric`} name="deviceSerial" defaultValue={repairOrder.deviceSerial ?? ""} />
                 </Field>
-                <Field label="التكلفة التقديرية">
+                <Field label="التكلفة التقديرية للعميل">
                   <input className={`${inputClassName} font-numeric`} name="estimatedTotal" defaultValue={repairOrder.estimatedTotal?.toString() ?? ""} inputMode="decimal" />
                 </Field>
-                <Field label="التكلفة النهائية">
+                <Field label="التكلفة النهائية للعميل">
                   <input className={`${inputClassName} font-numeric`} name="finalTotal" defaultValue={repairOrder.finalTotal?.toString() ?? ""} inputMode="decimal" />
                 </Field>
                 <Field label="تاريخ التسليم المتوقع">
@@ -227,7 +280,19 @@ export default async function RepairOrderDetailsPage({
                   </Field>
                 </div>
               </div>
-              <div className="mt-6 flex justify-end">
+
+              {/* Supplier & Parts in Edit Mode */}
+              <SupplierFields
+                suppliers={suppliers}
+                currency={currency}
+                defaultSupplierName={repairOrder.supplier?.name ?? repairOrder.supplierName ?? ""}
+                defaultPartName={repairOrder.partName ?? ""}
+                defaultPartCost={repairOrder.partCost?.toString() ?? ""}
+                defaultDeductPartCost={repairOrder.deductPartCost}
+                defaultSupplierNotes={repairOrder.supplierNotes ?? ""}
+              />
+
+              <div className="flex justify-end">
                 <SubmitButton className="font-bold shadow-sm px-6 rounded-xl h-11" loadingText="جاري الحفظ...">
                   حفظ البيانات المحدثة
                 </SubmitButton>

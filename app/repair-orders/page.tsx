@@ -1,5 +1,5 @@
 import { RepairStatus } from "@prisma/client";
-import { Eye, Plus, Search, Wrench } from "lucide-react";
+import { Eye, Plus, Search, Truck, Wrench } from "lucide-react";
 import Link from "next/link";
 import { DatabaseUnavailable } from "@/components/database-unavailable";
 import { EmptyState } from "@/components/empty-state";
@@ -97,7 +97,7 @@ export default async function RepairOrdersPage({
             <input
               className={`${inputClassName} pr-10`}
               name="search"
-              placeholder="ابحث برقم الطلب، اسم العميل، الهاتف، الجهاز..."
+              placeholder="ابحث برقم الطلب، اسم العميل، الهاتف، المورد، القطعة..."
               defaultValue={search}
             />
           </div>
@@ -155,9 +155,17 @@ export default async function RepairOrdersPage({
                     <td className="font-bold text-slate-900">{repairOrder.customer?.name ?? "-"}</td>
                     <td className="font-numeric text-slate-600 font-medium">{repairOrder.customer?.phone ?? "-"}</td>
                     <td className="font-semibold text-slate-800">
-                      {[repairOrder.deviceBrand, repairOrder.deviceModel]
-                        .filter(Boolean)
-                        .join(" ") || "-"}
+                      <div>
+                        {[repairOrder.deviceBrand, repairOrder.deviceModel]
+                          .filter(Boolean)
+                          .join(" ") || "-"}
+                      </div>
+                      {(repairOrder.supplierName || repairOrder.supplier || repairOrder.partName) ? (
+                        <div className="flex items-center gap-1 text-[10px] text-teal-800 bg-teal-50 px-1.5 py-0.5 rounded-md w-fit mt-1 border border-teal-100 font-bold">
+                          <Truck className="h-3 w-3 text-teal-600" />
+                          <span>{repairOrder.partName || "قطعة خارجية"} {repairOrder.supplier?.name ?? repairOrder.supplierName ? `(${repairOrder.supplier?.name ?? repairOrder.supplierName})` : ""}</span>
+                        </div>
+                      ) : null}
                     </td>
                     <td className="max-w-xs text-slate-600 font-medium">
                       <span className="line-clamp-2 leading-relaxed">
