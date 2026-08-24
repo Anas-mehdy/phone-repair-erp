@@ -5,7 +5,6 @@ import {
   LayoutDashboard,
   Receipt,
   Settings,
-  ShieldAlert,
   ShoppingCart,
   Truck,
   UserRound,
@@ -37,7 +36,6 @@ export const navGroups = [
     title: "تهيئة النظام",
     items: [
       { href: "/settings", label: "إعدادات المتجر", icon: Settings },
-      { href: "/admin", label: "الإدارة العامة (Super Admin)", icon: ShieldAlert },
     ],
   },
 ];
