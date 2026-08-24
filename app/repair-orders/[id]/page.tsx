@@ -18,15 +18,13 @@ import {
   formatDate,
   formatMoney,
   inputClassName,
-  repairStatusOptions,
-  selectClassName,
   textareaClassName,
 } from "../_components";
 import { SupplierFields } from "../_supplier-fields";
 import { WhatsAppMessageModal } from "../_whatsapp-modal";
+import { StatusUpdateForm } from "../_status-form";
 import {
   updateRepairOrderDetailsAction,
-  updateRepairOrderStatusAction,
 } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -212,29 +210,7 @@ export default async function RepairOrderDetailsPage({
           {/* Form modifications */}
           <div className="grid gap-6 md:grid-cols-[280px_1fr]">
             {/* Status Update Card */}
-            <form action={updateRepairOrderStatusAction} className="erp-section h-fit">
-              <input type="hidden" name="repairOrderId" value={repairOrder.id} />
-              <div className="border-b border-slate-100/60 pb-3 mb-4">
-                <h3 className="font-bold text-slate-800 text-sm">تحديث حالة الصيانة</h3>
-              </div>
-              <div className="grid gap-4">
-                <Field label="الحالة الجديدة">
-                  <select className={selectClassName} name="status" defaultValue={repairOrder.status}>
-                    {repairStatusOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="ملاحظة الحالة">
-                  <textarea className={textareaClassName} name="note" placeholder="اكتب ملاحظة حول تغيير الحالة..." />
-                </Field>
-                <SubmitButton className="font-bold shadow-sm rounded-xl py-5 text-xs" loadingText="جاري تحديث الحالة...">
-                  حفظ وتحديث الحالة
-                </SubmitButton>
-              </div>
-            </form>
+            <StatusUpdateForm repairOrderId={repairOrder.id} currentStatus={repairOrder.status} />
 
             {/* Edit details form */}
             <form action={updateRepairOrderDetailsAction} className="erp-section space-y-6">
