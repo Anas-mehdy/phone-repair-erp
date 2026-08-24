@@ -10,6 +10,7 @@ export interface CountryDialInfo {
 export const COUNTRY_DIAL_CODES: CountryDialInfo[] = [
   { code: "SA", name: "السعودية", dialCode: "+966", flag: "🇸🇦", currency: "SAR", placeholder: "501234567" },
   { code: "EG", name: "مصر", dialCode: "+20", flag: "🇪🇬", currency: "EGP", placeholder: "1012345678" },
+  { code: "US", name: "الولايات المتحدة (أمريكا)", dialCode: "+1", flag: "🇺🇸", currency: "USD", placeholder: "2025550143" },
   { code: "TR", name: "تركيا", dialCode: "+90", flag: "🇹🇷", currency: "TRY", placeholder: "5351234567" },
   { code: "AE", name: "الإمارات", dialCode: "+971", flag: "🇦🇪", currency: "AED", placeholder: "501234567" },
   { code: "JO", name: "الأردن", dialCode: "+962", flag: "🇯🇴", currency: "JOD", placeholder: "791234567" },

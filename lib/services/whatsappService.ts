@@ -39,6 +39,7 @@ const CURRENCY_CALLING_CODES: Record<string, string> = {
   SOS: "252", // Somalia
   DJF: "253", // Djibouti
   KMF: "269", // Comoros
+  USD: "1",   // USA
 };
 
 // Known international calling prefixes sorted by length descending
