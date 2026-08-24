@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Truck, Calculator } from "lucide-react";
 import { Field, inputClassName, textareaClassName } from "./_components";
 
-type SupplierOption = {
+export type SupplierOption = {
   id: string;
   name: string;
   phone: string | null;
