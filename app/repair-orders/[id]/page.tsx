@@ -1,11 +1,11 @@
 import QRCode from "qrcode";
-import { ArrowRight, Calculator, FileText, MessageCircle, Printer, QrCode, Tag, Truck, Wrench } from "lucide-react";
+import { ArrowRight, Calculator, FileText, Printer, QrCode, Tag, Truck, Wrench } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { DatabaseUnavailable } from "@/components/database-unavailable";
-import { RepairStatusBadge } from "@/components/status-badge";
+import { RepairStatusBadge, repairStatusLabels } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/submit-button";
 import { getCurrentShopContext } from "@/lib/current-shop";
@@ -13,7 +13,6 @@ import { isDatabaseConnectionError } from "@/lib/database-errors";
 import { repairOrderService } from "@/lib/services/repairOrderService";
 import { supplierService } from "@/lib/services/supplierService";
 import { createInvoiceFromRepairOrderAction } from "@/app/invoices/actions";
-import { whatsappService } from "@/lib/services/whatsappService";
 import {
   Field,
   formatDate,
@@ -24,6 +23,7 @@ import {
   textareaClassName,
 } from "../_components";
 import { SupplierFields } from "../_supplier-fields";
+import { WhatsAppMessageModal } from "../_whatsapp-modal";
 import {
   updateRepairOrderDetailsAction,
   updateRepairOrderStatusAction,
@@ -82,9 +82,6 @@ export default async function RepairOrderDetailsPage({
   const repairPrice = Number(repairOrder.finalTotal ?? repairOrder.estimatedTotal ?? 0);
   const partCostNum = Number(repairOrder.partCost ?? 0);
   const netProfit = repairOrder.deductPartCost ? Math.max(0, repairPrice - partCostNum) : repairPrice;
-
-  // Build WhatsApp link from already-loaded data — no extra DB query
-  const whatsappShare = whatsappService.buildRepairUpdateShareLinkFromData(repairOrder, shopName, currency);
 
   const existingInvoice = repairOrder.invoices[0];
   const headersList = await headers();
@@ -370,18 +367,18 @@ export default async function RepairOrderDetailsPage({
 
             {/* WhatsApp Updates Box */}
             <div className="space-y-2.5">
-              {whatsappShare.ok ? (
-                <Button asChild className="w-full font-bold shadow-sm rounded-xl py-5 text-xs justify-center hover:bg-emerald-50 hover:text-emerald-700 border-slate-200" variant="outline">
-                  <a href={whatsappShare.url} target="_blank" rel="noreferrer">
-                    <MessageCircle className="h-4.5 w-4.5 ml-2 text-emerald-600 shrink-0" aria-hidden="true" />
-                    مشاركة التحديث عبر واتساب
-                  </a>
-                </Button>
-              ) : (
-                <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-3.5 text-[10px] text-slate-400 font-bold leading-normal text-right">
-                  ⚠️ {whatsappShare.message}
-                </div>
-              )}
+              <WhatsAppMessageModal
+                customerName={repairOrder.customer?.name}
+                customerPhone={repairOrder.customer?.phone}
+                deviceBrand={repairOrder.deviceBrand}
+                deviceModel={repairOrder.deviceModel}
+                ticketNumber={repairOrder.ticketNumber}
+                statusLabel={repairStatusLabels[repairOrder.status] || repairOrder.status}
+                totalAmount={(repairOrder.finalTotal ?? repairOrder.estimatedTotal)?.toString() ?? null}
+                shopName={shopName}
+                currency={currency}
+                trackingUrl={trackingUrl}
+              />
 
               {/* Invoice Integration Box */}
               {existingInvoice ? (
