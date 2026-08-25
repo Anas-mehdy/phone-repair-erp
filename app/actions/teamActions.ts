@@ -4,7 +4,12 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { MembershipRole, MembershipStatus } from "@prisma/client";
-import { requirePermission } from "@/lib/auth/context";
+import {
+  requirePermission,
+  AuthorizationError,
+  AuthenticationError,
+  MembershipInactiveError,
+} from "@/lib/auth/context";
 import { teamService } from "@/lib/services/teamService";
 import { setSessionCookie } from "@/lib/auth";
 
@@ -45,21 +50,21 @@ const acceptInvitationSchema = z.object({
  * Protected by requirePermission("team:invite").
  */
 export async function inviteTeamMemberAction(formData: FormData) {
-  const auth = await requirePermission("team:invite");
-
-  const parsed = inviteSchema.safeParse({
-    email: formData.get("email"),
-    role: formData.get("role"),
-  });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error.issues[0]?.message || "بيانات الدعوة غير صالحة",
-    };
-  }
-
   try {
+    const auth = await requirePermission("team:invite");
+
+    const parsed = inviteSchema.safeParse({
+      email: formData.get("email"),
+      role: formData.get("role"),
+    });
+
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: parsed.error.issues[0]?.message || "بيانات الدعوة غير صالحة",
+      };
+    }
+
     const { invitation, rawToken } = await teamService.createInvitation(
       auth.shop.id,
       parsed.data,
@@ -75,6 +80,15 @@ export async function inviteTeamMemberAction(formData: FormData) {
       role: invitation.role,
     };
   } catch (error) {
+    if (
+      error instanceof AuthorizationError ||
+      error instanceof AuthenticationError ||
+      error instanceof MembershipInactiveError
+    ) {
+      return { success: false, error: error.message };
+    }
+
+    console.error("[TeamAction Error: inviteTeamMemberAction]", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "تعذر إرسال الدعوة",
@@ -87,21 +101,21 @@ export async function inviteTeamMemberAction(formData: FormData) {
  * Protected by requirePermission("team:manage").
  */
 export async function updateMemberRoleAction(formData: FormData) {
-  const auth = await requirePermission("team:manage");
-
-  const parsed = updateRoleSchema.safeParse({
-    membershipId: formData.get("membershipId"),
-    role: formData.get("role"),
-  });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error.issues[0]?.message || "بيانات الدور غير صالحة",
-    };
-  }
-
   try {
+    const auth = await requirePermission("team:manage");
+
+    const parsed = updateRoleSchema.safeParse({
+      membershipId: formData.get("membershipId"),
+      role: formData.get("role"),
+    });
+
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: parsed.error.issues[0]?.message || "بيانات الدور غير صالحة",
+      };
+    }
+
     await teamService.updateMemberRole(
       auth.shop.id,
       parsed.data.membershipId,
@@ -112,6 +126,15 @@ export async function updateMemberRoleAction(formData: FormData) {
     revalidatePath("/settings");
     return { success: true };
   } catch (error) {
+    if (
+      error instanceof AuthorizationError ||
+      error instanceof AuthenticationError ||
+      error instanceof MembershipInactiveError
+    ) {
+      return { success: false, error: error.message };
+    }
+
+    console.error("[TeamAction Error: updateMemberRoleAction]", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "تعذر تحديث الدور",
@@ -124,21 +147,21 @@ export async function updateMemberRoleAction(formData: FormData) {
  * Protected by requirePermission("team:manage").
  */
 export async function toggleMemberStatusAction(formData: FormData) {
-  const auth = await requirePermission("team:manage");
-
-  const parsed = toggleStatusSchema.safeParse({
-    membershipId: formData.get("membershipId"),
-    status: formData.get("status"),
-  });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error.issues[0]?.message || "الحالة غير صالحة",
-    };
-  }
-
   try {
+    const auth = await requirePermission("team:manage");
+
+    const parsed = toggleStatusSchema.safeParse({
+      membershipId: formData.get("membershipId"),
+      status: formData.get("status"),
+    });
+
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: parsed.error.issues[0]?.message || "الحالة غير صالحة",
+      };
+    }
+
     await teamService.toggleMemberStatus(
       auth.shop.id,
       parsed.data.membershipId,
@@ -149,6 +172,15 @@ export async function toggleMemberStatusAction(formData: FormData) {
     revalidatePath("/settings");
     return { success: true };
   } catch (error) {
+    if (
+      error instanceof AuthorizationError ||
+      error instanceof AuthenticationError ||
+      error instanceof MembershipInactiveError
+    ) {
+      return { success: false, error: error.message };
+    }
+
+    console.error("[TeamAction Error: toggleMemberStatusAction]", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "تعذر تغيير حالة العضوية",
@@ -161,20 +193,20 @@ export async function toggleMemberStatusAction(formData: FormData) {
  * Protected by requirePermission("team:manage").
  */
 export async function removeMemberAction(formData: FormData) {
-  const auth = await requirePermission("team:manage");
-
-  const parsed = removeMemberSchema.safeParse({
-    membershipId: formData.get("membershipId"),
-  });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error.issues[0]?.message || "معرف العضوية غير صالح",
-    };
-  }
-
   try {
+    const auth = await requirePermission("team:manage");
+
+    const parsed = removeMemberSchema.safeParse({
+      membershipId: formData.get("membershipId"),
+    });
+
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: parsed.error.issues[0]?.message || "معرف العضوية غير صالح",
+      };
+    }
+
     await teamService.removeMember(
       auth.shop.id,
       parsed.data.membershipId,
@@ -184,6 +216,15 @@ export async function removeMemberAction(formData: FormData) {
     revalidatePath("/settings");
     return { success: true };
   } catch (error) {
+    if (
+      error instanceof AuthorizationError ||
+      error instanceof AuthenticationError ||
+      error instanceof MembershipInactiveError
+    ) {
+      return { success: false, error: error.message };
+    }
+
+    console.error("[TeamAction Error: removeMemberAction]", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "تعذر إزالة العضو",
@@ -196,24 +237,33 @@ export async function removeMemberAction(formData: FormData) {
  * Protected by requirePermission("team:manage").
  */
 export async function revokeInvitationAction(formData: FormData) {
-  const auth = await requirePermission("team:manage");
-
-  const parsed = revokeInvitationSchema.safeParse({
-    invitationId: formData.get("invitationId"),
-  });
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      error: parsed.error.issues[0]?.message || "معرف الدعوة غير صالح",
-    };
-  }
-
   try {
+    const auth = await requirePermission("team:manage");
+
+    const parsed = revokeInvitationSchema.safeParse({
+      invitationId: formData.get("invitationId"),
+    });
+
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: parsed.error.issues[0]?.message || "معرف الدعوة غير صالح",
+      };
+    }
+
     await teamService.revokeInvitation(auth.shop.id, parsed.data.invitationId);
     revalidatePath("/settings");
     return { success: true };
   } catch (error) {
+    if (
+      error instanceof AuthorizationError ||
+      error instanceof AuthenticationError ||
+      error instanceof MembershipInactiveError
+    ) {
+      return { success: false, error: error.message };
+    }
+
+    console.error("[TeamAction Error: revokeInvitationAction]", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "تعذر إلغاء الدعوة",
@@ -251,6 +301,7 @@ export async function acceptInvitationAction(rawToken: string, formData: FormDat
       currency: result.shop.currency || "SAR",
     });
   } catch (error) {
+    console.error("[TeamAction Error: acceptInvitationAction]", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "تعذر قبول الدعوة",

@@ -1,13 +1,20 @@
 "use server";
 
-import { requirePermission } from "@/lib/auth/context";
+import { getAuthContext, can } from "@/lib/auth/context";
 import { shopService, type UpdateShopInput } from "@/lib/services/shopService";
 import { combineCountryDialWithPhone } from "@/lib/countries";
 import { getSession, setSessionCookie } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 export async function updateShopSettingsAction(formData: FormData): Promise<void> {
-  const auth = await requirePermission("shop:settings");
+  const auth = await getAuthContext();
+
+  // Server-side authorization check: fail-closed if caller lacks "shop:settings"
+  if (!can(auth, "shop:settings")) {
+    redirect("/dashboard?error=unauthorized");
+  }
+
   const shopId = auth.shop.id;
 
   const name = formData.get("name") as string;

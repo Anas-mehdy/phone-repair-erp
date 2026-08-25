@@ -1,4 +1,5 @@
-import { getAuthContext } from "@/lib/auth/context";
+import { getAuthContext, can } from "@/lib/auth/context";
+import { redirect } from "next/navigation";
 import { shopService } from "@/lib/services/shopService";
 import { teamService } from "@/lib/services/teamService";
 import { PageHeader } from "@/components/page-header";
@@ -13,6 +14,13 @@ export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const auth = await getAuthContext();
+
+  // Route-Level Authorization: Strictly require "shop:settings" (OWNER only)
+  // Non-authorized roles (TECHNICIAN, VIEWER, ADMIN) fail-closed with safe redirect to /dashboard
+  if (!can(auth, "shop:settings")) {
+    redirect("/dashboard?error=unauthorized");
+  }
+
   const [shop, teamData] = await Promise.all([
     shopService.getShopById(auth.shop.id),
     teamService.listTeamMembers(auth.shop.id),
