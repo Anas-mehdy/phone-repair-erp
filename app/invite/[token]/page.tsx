@@ -73,6 +73,7 @@ export default async function InviteAcceptancePage(props: {
         <AcceptInvitationForm
           token={token}
           email={invitation.email}
+          defaultName={invitation.name || ""}
         />
 
         <div className="text-center pt-2 border-t border-slate-800/80">

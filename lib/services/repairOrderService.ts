@@ -99,7 +99,7 @@ function decimalOrNull(value?: string) {
   const normalized = trimmed.replace(",", ".");
   const parsed = Number(normalized);
 
-  if (!Number.isFinite(parsed)) {
+  if (Number.isNaN(parsed)) {
     return null;
   }
 
@@ -107,42 +107,45 @@ function decimalOrNull(value?: string) {
 }
 
 function dateOrNull(value?: string) {
-  if (!value) {
+  const trimmed = value?.trim();
+  if (!trimmed) {
     return null;
   }
 
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
+  const parsed = new Date(trimmed);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+
+  return parsed;
 }
 
 export async function findOrCreateCustomerForRepair(
   shopId: string,
-  input: Pick<CreateRepairOrderInput, "customerName" | "customerPhone" | "customerNotes">,
+  input: CreateRepairOrderInput,
 ) {
-  const phone = input.customerPhone.trim();
-  const phoneNormalized = normalizePhone(phone);
+  const normalized = normalizePhone(input.customerPhone);
 
-  const existingCustomer = await prisma.customer.findFirst({
-    where: {
-      shopId,
-      deletedAt: null,
-      OR: [
-        ...(phoneNormalized ? [{ phoneNormalized }] : []),
-        { phone },
-      ],
-    },
-  });
+  if (normalized) {
+    const existing = await prisma.customer.findFirst({
+      where: {
+        shopId,
+        phoneNormalized: normalized,
+        deletedAt: null,
+      },
+    });
 
-  if (existingCustomer) {
-    return existingCustomer;
+    if (existing) {
+      return existing;
+    }
   }
 
   return prisma.customer.create({
     data: {
       shopId,
       name: input.customerName.trim(),
-      phone,
-      phoneNormalized,
+      phone: input.customerPhone.trim(),
+      phoneNormalized: normalized,
       notes: emptyToNull(input.customerNotes),
     },
   });
@@ -237,7 +240,7 @@ export async function listRepairOrders(
 }
 
 export async function getRepairOrderById(shopId: string, repairOrderId: string) {
-  return prisma.repairOrder.findFirst({
+  const repairOrder = await prisma.repairOrder.findFirst({
     where: {
       id: repairOrderId,
       shopId,
@@ -245,6 +248,77 @@ export async function getRepairOrderById(shopId: string, repairOrderId: string) 
     },
     include: repairOrderInclude,
   });
+
+  if (!repairOrder) {
+    return null;
+  }
+
+  // Safely resolve creator and updater details scoped to the current shop
+  const userIdsToFetch = [
+    repairOrder.createdByUserId,
+    repairOrder.updatedByUserId,
+    repairOrder.assignedToUserId,
+  ].filter((id): id is string => Boolean(id));
+
+  const usersMap = new Map<string, { id: string; name: string; role: string }>();
+
+  if (userIdsToFetch.length > 0) {
+    const [users, memberships] = await Promise.all([
+      prisma.user.findMany({
+        where: {
+          id: { in: userIdsToFetch },
+          deletedAt: null,
+        },
+        select: {
+          id: true,
+          name: true,
+        },
+      }),
+      prisma.membership.findMany({
+        where: {
+          shopId,
+          userId: { in: userIdsToFetch },
+          deletedAt: null,
+        },
+        select: {
+          userId: true,
+          role: true,
+        },
+      }),
+    ]);
+
+    const roleMap = new Map<string, string>();
+    for (const m of memberships) {
+      roleMap.set(m.userId, m.role);
+    }
+
+    for (const u of users) {
+      usersMap.set(u.id, {
+        id: u.id,
+        name: u.name,
+        role: roleMap.get(u.id) || "OWNER",
+      });
+    }
+  }
+
+  const createdByUser = repairOrder.createdByUserId
+    ? usersMap.get(repairOrder.createdByUserId) || null
+    : null;
+
+  const updatedByUser = repairOrder.updatedByUserId
+    ? usersMap.get(repairOrder.updatedByUserId) || null
+    : null;
+
+  const assignedToUser = repairOrder.assignedToUserId
+    ? usersMap.get(repairOrder.assignedToUserId) || null
+    : null;
+
+  return {
+    ...repairOrder,
+    createdByUser,
+    updatedByUser,
+    assignedToUser,
+  };
 }
 
 export async function createRepairOrder(
@@ -294,6 +368,7 @@ export async function createRepairOrder(
         shopId,
         customerId: customer.id,
         createdByUserId,
+        updatedByUserId: createdByUserId,
         ticketNumber,
         status: RepairStatus.PENDING,
         deviceBrand: emptyToNull(input.deviceBrand),
@@ -330,6 +405,7 @@ export async function createRepairOrder(
 export async function updateRepairOrderDetails(
   shopId: string,
   repairOrderId: string,
+  updatedByUserId: string | null,
   input: UpdateRepairOrderDetailsInput,
 ) {
   const existing = await prisma.repairOrder.findFirst({
@@ -385,6 +461,7 @@ export async function updateRepairOrderDetails(
       id: repairOrderId,
     },
     data: {
+      updatedByUserId,
       deviceBrand: emptyToNull(input.deviceBrand),
       deviceModel: emptyToNull(input.deviceModel),
       deviceSerial: emptyToNull(input.deviceSerial),
@@ -410,7 +487,7 @@ export async function updateRepairOrderDetails(
 export async function updateRepairOrderStatus(
   shopId: string,
   repairOrderId: string,
-  createdByUserId: string | null,
+  updatedByUserId: string | null,
   input: UpdateRepairOrderStatusInput,
 ) {
   const repairOrder = await prisma.repairOrder.findFirst({
@@ -447,6 +524,7 @@ export async function updateRepairOrderStatus(
       },
       data: {
         status: input.status,
+        updatedByUserId,
         completedAt:
           input.status === RepairStatus.DONE && !repairOrder.completedAt
             ? now
@@ -464,7 +542,7 @@ export async function updateRepairOrderStatus(
       data: {
         shopId,
         repairOrderId,
-        createdByUserId,
+        createdByUserId: updatedByUserId,
         fromStatus: oldStatus,
         toStatus: input.status,
         note: emptyToNull(input.note),
@@ -475,7 +553,11 @@ export async function updateRepairOrderStatus(
   return updatedRepairOrder;
 }
 
-export async function deleteRepairOrder(shopId: string, repairOrderId: string) {
+export async function deleteRepairOrder(
+  shopId: string,
+  repairOrderId: string,
+  updatedByUserId: string | null
+) {
   const repairOrder = await prisma.repairOrder.findFirst({
     where: {
       id: repairOrderId,
@@ -507,7 +589,10 @@ export async function deleteRepairOrder(shopId: string, repairOrderId: string) {
   return prisma.$transaction([
     prisma.repairOrder.update({
       where: { id: repairOrderId },
-      data: { deletedAt: now },
+      data: {
+        deletedAt: now,
+        updatedByUserId,
+      },
     }),
     prisma.invoice.updateMany({
       where: {
@@ -531,4 +616,3 @@ export const repairOrderService = {
   findOrCreateCustomerForRepair,
   normalizePhone,
 };
-

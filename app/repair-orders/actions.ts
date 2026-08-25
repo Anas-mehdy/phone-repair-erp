@@ -117,6 +117,7 @@ export async function updateRepairOrderDetailsAction(formData: FormData) {
   await repairOrderService.updateRepairOrderDetails(
     auth.shop.id,
     input.repairOrderId,
+    auth.user.id,
     input,
   );
 
@@ -160,7 +161,11 @@ export async function deleteRepairOrderAction(formData: FormData) {
 
   const auth = await requirePermission("repairs:delete");
 
-  await repairOrderService.deleteRepairOrder(auth.shop.id, parsed.repairOrderId);
+  await repairOrderService.deleteRepairOrder(
+    auth.shop.id,
+    parsed.repairOrderId,
+    auth.user.id
+  );
 
   revalidatePath("/repair-orders");
   revalidatePath("/dashboard");

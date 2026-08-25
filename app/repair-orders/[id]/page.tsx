@@ -155,6 +155,36 @@ export default async function RepairOrderDetailsPage({
               <Info label="الرقم التسلسلي" value={<span className="font-numeric">{repairOrder.deviceSerial ?? "-"}</span>} />
               <Info label="سعر الصيانة المتوقع" value={<span className="font-numeric">{formatMoney(repairOrder.estimatedTotal, currency)}</span>} />
               <Info label="سعر الصيانة النهائي" value={<span className="font-numeric">{formatMoney(repairOrder.finalTotal, currency)}</span>} />
+              <Info
+                label="أنشئت بواسطة"
+                value={
+                  repairOrder.createdByUser ? (
+                    <span className="font-bold text-slate-800">
+                      {repairOrder.createdByUser.name}{" "}
+                      <span className="text-[11px] font-medium text-teal-700">
+                        ({repairOrder.createdByUser.role === "OWNER" ? "المالك" : repairOrder.createdByUser.role === "ADMIN" ? "مدير فرع" : repairOrder.createdByUser.role === "TECHNICIAN" ? "فني صيانة" : "مشاهد"})
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="text-slate-400 font-medium">سجل سابق (المالك)</span>
+                  )
+                }
+              />
+              <Info
+                label="آخر تعديل بواسطة"
+                value={
+                  repairOrder.updatedByUser ? (
+                    <span className="font-bold text-slate-800">
+                      {repairOrder.updatedByUser.name}{" "}
+                      <span className="text-[11px] font-medium text-teal-700">
+                        ({repairOrder.updatedByUser.role === "OWNER" ? "المالك" : repairOrder.updatedByUser.role === "ADMIN" ? "مدير فرع" : repairOrder.updatedByUser.role === "TECHNICIAN" ? "فني صيانة" : "مشاهد"})
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="text-slate-400 font-medium">-</span>
+                  )
+                }
+              />
               <Info label="تاريخ الاستلام" value={<span className="font-numeric">{formatDate(repairOrder.createdAt)}</span>} />
               <Info label="التسليم المتوقع" value={<span className="font-numeric">{formatDate(repairOrder.dueAt)}</span>} />
               <Info label="تاريخ الانتهاء" value={<span className="font-numeric">{formatDate(repairOrder.completedAt)}</span>} />

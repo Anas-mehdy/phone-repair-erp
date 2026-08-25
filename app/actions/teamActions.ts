@@ -14,6 +14,7 @@ import { teamService } from "@/lib/services/teamService";
 import { setSessionCookie } from "@/lib/auth";
 
 const inviteSchema = z.object({
+  name: z.string().trim().min(2, "اسم الموظف مطلوب (حرفان على الأقل)"),
   email: z.string().email("البريد الإلكتروني غير صحيح"),
   role: z.nativeEnum(MembershipRole).refine((r) => r !== MembershipRole.OWNER, {
     message: "لا يمكن دعوة مالك جديد للمتجر",
@@ -41,7 +42,7 @@ const revokeInvitationSchema = z.object({
 });
 
 const acceptInvitationSchema = z.object({
-  name: z.string().min(2, "الاسم يجب ألا يقل عن حرفين"),
+  name: z.string().optional(),
   password: z.string().min(6, "كلمة المرور يجب ألا تقل عن 6 أحرف"),
 });
 
@@ -54,6 +55,7 @@ export async function inviteTeamMemberAction(formData: FormData) {
     const auth = await requirePermission("team:invite");
 
     const parsed = inviteSchema.safeParse({
+      name: formData.get("name"),
       email: formData.get("email"),
       role: formData.get("role"),
     });

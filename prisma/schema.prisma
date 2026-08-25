@@ -179,6 +179,7 @@ model Membership {
 model ShopInvitation {
   id                String            @id @default(uuid()) @db.Uuid
   shopId            String            @db.Uuid
+  name              String?           // اسم الموظف المحدد عند إنشاء الدعوة
   email             String
   role              MembershipRole    @default(TECHNICIAN)
   tokenHash         String            @unique // SHA-256 hash of the 32-byte cryptographically secure token

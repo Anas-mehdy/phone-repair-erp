@@ -4,12 +4,13 @@ import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth";
 
 export interface CreateInvitationInput {
+  name: string;
   email: string;
   role: MembershipRole;
 }
 
 export interface AcceptInvitationInput {
-  name: string;
+  name?: string;
   password: string;
 }
 
@@ -121,13 +122,19 @@ export async function listTeamMembers(shopId: string) {
 
 /**
  * Creates a cryptographically secure invitation for an employee to join a shop.
+ * Storing name and role on ShopInvitation directly without creating placeholder User.
  */
 export async function createInvitation(
   shopId: string,
   input: CreateInvitationInput,
   invitedByUserId: string
 ) {
+  const name = input.name.trim();
   const email = input.email.trim().toLowerCase();
+
+  if (!name || name.length < 2) {
+    throw new Error("اسم الموظف مطلوب (حرفان على الأقل).");
+  }
 
   // Validate allowed roles (Strictly forbid inviting an OWNER)
   if (input.role === MembershipRole.OWNER) {
@@ -189,6 +196,7 @@ export async function createInvitation(
   const invitation = await prisma.shopInvitation.create({
     data: {
       shopId,
+      name,
       email,
       role: input.role,
       tokenHash,
@@ -412,7 +420,7 @@ export async function getInvitationByToken(rawToken: string) {
 }
 
 /**
- * Accepts an invitation: sets password, activates membership, and marks invitation as accepted.
+ * Accepts an invitation: sets password, activates membership, and creates the User record upon acceptance.
  */
 export async function acceptInvitation(
   rawToken: string,
@@ -424,7 +432,7 @@ export async function acceptInvitation(
   }
 
   const invitation = check.invitation;
-  const name = input.name.trim();
+  const name = (input.name?.trim() || invitation.name?.trim()) || "عضو فريق العمل";
   const password = input.password;
 
   if (!name) {
@@ -457,7 +465,7 @@ export async function acceptInvitation(
       throw new Error("عفواً، لا يمكن الانضمام حالياً بسبب اكتمال عدد المقاعد المتاحة في المتجر.");
     }
 
-    // Find or create User record
+    // Find or create User record upon invitation acceptance
     let user = await tx.user.findUnique({
       where: { email: invitation.email.toLowerCase() },
     });
@@ -473,7 +481,7 @@ export async function acceptInvitation(
         },
       });
     } else {
-      // New user record
+      // New user record created only now upon acceptance
       user = await tx.user.create({
         data: {
           email: invitation.email.toLowerCase(),

@@ -45,6 +45,7 @@ export interface TeamMemberItem {
 
 export interface PendingInviteItem {
   id: string;
+  name?: string | null;
   email: string;
   role: MembershipRole;
   status: string;
@@ -457,7 +458,7 @@ export function TeamManagementSection({
             <table className="w-full text-right text-xs">
               <thead>
                 <tr className="border-b border-amber-100 text-slate-500 font-extrabold">
-                  <th className="py-2.5 pr-4">البريد الإلكتروني</th>
+                  <th className="py-2.5 pr-4">الموظف المدعو</th>
                   <th className="py-2.5">الدور المحدد</th>
                   <th className="py-2.5">تاريخ الدعوة</th>
                   <th className="py-2.5">الانتهاء</th>
@@ -469,8 +470,9 @@ export function TeamManagementSection({
                   const roleConfig = ROLE_DISPLAY[inv.role] || ROLE_DISPLAY.TECHNICIAN;
                   return (
                     <tr key={inv.id}>
-                      <td className="py-3 pr-4 font-bold text-slate-800" dir="ltr">
-                        {inv.email}
+                      <td className="py-3 pr-4">
+                        <div className="font-bold text-slate-900">{inv.name || "عضو جديد"}</div>
+                        <div className="text-[11px] text-slate-500 font-medium" dir="ltr">{inv.email}</div>
                       </td>
                       <td className="py-3">
                         <span
@@ -601,6 +603,21 @@ export function TeamManagementSection({
                     <span>{formError}</span>
                   </div>
                 ) : null}
+
+                <div>
+                  <label className="block text-xs font-extrabold text-slate-700 mb-1.5">
+                    اسم الموظف الكامل
+                  </label>
+                  <input
+                    type="text"
+                    name="name"
+                    required
+                    minLength={2}
+                    disabled={isPending}
+                    placeholder="مثال: أحمد عبد الله"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-xs"
+                  />
+                </div>
 
                 <div>
                   <label className="block text-xs font-extrabold text-slate-700 mb-1.5">

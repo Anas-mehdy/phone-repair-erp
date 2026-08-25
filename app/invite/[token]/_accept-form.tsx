@@ -8,9 +8,11 @@ import { Button } from "@/components/ui/button";
 export function AcceptInvitationForm({
   token,
   email,
+  defaultName = "",
 }: {
   token: string;
   email: string;
+  defaultName?: string;
 }) {
   const [isPending, startTransition] = useTransition();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -64,6 +66,7 @@ export function AcceptInvitationForm({
             type="text"
             name="name"
             required
+            defaultValue={defaultName}
             disabled={isPending}
             placeholder="أدخل اسمك الكريم"
             className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3.5 py-2.5 text-xs font-bold text-white placeholder:text-slate-600 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
