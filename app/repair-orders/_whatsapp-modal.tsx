@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   MessageCircle,
   Sparkles,
@@ -89,6 +89,8 @@ export function WhatsAppMessageModal({
   const [effectiveShopId, setEffectiveShopId] = useState(initialShopId || "");
 
   // Custom templates state
+  const messageTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const templateTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [customTemplates, setCustomTemplates] = useState<CustomWhatsAppTemplateDTO[]>([]);
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
@@ -268,11 +270,48 @@ export function WhatsAppMessageModal({
   }
 
   function insertVariableInMessage(val: string) {
-    setMessage((prev) => prev + ` ${val} `);
+    const textarea = messageTextareaRef.current;
+    const insertVal = ` ${val} `;
+    if (!textarea) {
+      setMessage((prev) => prev + insertVal);
+      return;
+    }
+
+    const start = textarea.selectionStart ?? message.length;
+    const end = textarea.selectionEnd ?? message.length;
+    const before = message.substring(0, start);
+    const after = message.substring(end);
+    const nextText = before + insertVal + after;
+
+    setMessage(nextText);
+
+    requestAnimationFrame(() => {
+      textarea.focus();
+      const nextPos = start + insertVal.length;
+      textarea.setSelectionRange(nextPos, nextPos);
+    });
   }
 
   function insertPlaceholderInForm(placeholder: string) {
-    setTemplateFormText((prev) => prev + placeholder);
+    const textarea = templateTextareaRef.current;
+    if (!textarea) {
+      setTemplateFormText((prev) => prev + placeholder);
+      return;
+    }
+
+    const start = textarea.selectionStart ?? templateFormText.length;
+    const end = textarea.selectionEnd ?? templateFormText.length;
+    const before = templateFormText.substring(0, start);
+    const after = templateFormText.substring(end);
+    const nextText = before + placeholder + after;
+
+    setTemplateFormText(nextText);
+
+    requestAnimationFrame(() => {
+      textarea.focus();
+      const nextPos = start + placeholder.length;
+      textarea.setSelectionRange(nextPos, nextPos);
+    });
   }
 
   function openCreateTemplateModal(initialContent = "") {
@@ -606,6 +645,7 @@ export function WhatsAppMessageModal({
                   </div>
                 </div>
                 <textarea
+                  ref={messageTextareaRef}
                   rows={6}
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
@@ -622,6 +662,7 @@ export function WhatsAppMessageModal({
                 <div className="flex flex-wrap gap-1.5">
                   <button
                     type="button"
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => insertVariableInMessage(name)}
                     className="text-[11px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg transition"
                   >
@@ -629,6 +670,7 @@ export function WhatsAppMessageModal({
                   </button>
                   <button
                     type="button"
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => insertVariableInMessage(device)}
                     className="text-[11px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg transition"
                   >
@@ -636,6 +678,7 @@ export function WhatsAppMessageModal({
                   </button>
                   <button
                     type="button"
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => insertVariableInMessage(ticketNumber)}
                     className="text-[11px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg transition"
                   >
@@ -643,6 +686,7 @@ export function WhatsAppMessageModal({
                   </button>
                   <button
                     type="button"
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => insertVariableInMessage(formattedAmount)}
                     className="text-[11px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg transition"
                   >
@@ -650,6 +694,7 @@ export function WhatsAppMessageModal({
                   </button>
                   <button
                     type="button"
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => insertVariableInMessage(trackingUrl)}
                     className="text-[11px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg transition"
                   >
@@ -772,6 +817,7 @@ export function WhatsAppMessageModal({
                       <div className="flex flex-wrap gap-1">
                         <button
                           type="button"
+                          onMouseDown={(e) => e.preventDefault()}
                           onClick={() => insertPlaceholderInForm("{اسم_العميل}")}
                           className="text-[10px] font-bold bg-white hover:bg-emerald-50 text-emerald-800 border border-slate-200 hover:border-emerald-300 px-2 py-0.5 rounded-md transition"
                         >
@@ -779,6 +825,7 @@ export function WhatsAppMessageModal({
                         </button>
                         <button
                           type="button"
+                          onMouseDown={(e) => e.preventDefault()}
                           onClick={() => insertPlaceholderInForm("{الجهاز}")}
                           className="text-[10px] font-bold bg-white hover:bg-emerald-50 text-emerald-800 border border-slate-200 hover:border-emerald-300 px-2 py-0.5 rounded-md transition"
                         >
@@ -786,6 +833,7 @@ export function WhatsAppMessageModal({
                         </button>
                         <button
                           type="button"
+                          onMouseDown={(e) => e.preventDefault()}
                           onClick={() => insertPlaceholderInForm("{رقم_التذكرة}")}
                           className="text-[10px] font-bold bg-white hover:bg-emerald-50 text-emerald-800 border border-slate-200 hover:border-emerald-300 px-2 py-0.5 rounded-md transition"
                         >
@@ -793,6 +841,7 @@ export function WhatsAppMessageModal({
                         </button>
                         <button
                           type="button"
+                          onMouseDown={(e) => e.preventDefault()}
                           onClick={() => insertPlaceholderInForm("{المبلغ}")}
                           className="text-[10px] font-bold bg-white hover:bg-emerald-50 text-emerald-800 border border-slate-200 hover:border-emerald-300 px-2 py-0.5 rounded-md transition"
                         >
@@ -800,6 +849,7 @@ export function WhatsAppMessageModal({
                         </button>
                         <button
                           type="button"
+                          onMouseDown={(e) => e.preventDefault()}
                           onClick={() => insertPlaceholderInForm("{الحالة}")}
                           className="text-[10px] font-bold bg-white hover:bg-emerald-50 text-emerald-800 border border-slate-200 hover:border-emerald-300 px-2 py-0.5 rounded-md transition"
                         >
@@ -807,6 +857,7 @@ export function WhatsAppMessageModal({
                         </button>
                         <button
                           type="button"
+                          onMouseDown={(e) => e.preventDefault()}
                           onClick={() => insertPlaceholderInForm("{اسم_المحل}")}
                           className="text-[10px] font-bold bg-white hover:bg-emerald-50 text-emerald-800 border border-slate-200 hover:border-emerald-300 px-2 py-0.5 rounded-md transition"
                         >
@@ -814,6 +865,7 @@ export function WhatsAppMessageModal({
                         </button>
                         <button
                           type="button"
+                          onMouseDown={(e) => e.preventDefault()}
                           onClick={() => insertPlaceholderInForm("{رابط_التتبع}")}
                           className="text-[10px] font-bold bg-white hover:bg-emerald-50 text-emerald-800 border border-slate-200 hover:border-emerald-300 px-2 py-0.5 rounded-md transition"
                         >
@@ -823,6 +875,7 @@ export function WhatsAppMessageModal({
                     </div>
 
                     <textarea
+                      ref={templateTextareaRef}
                       rows={5}
                       value={templateFormText}
                       onChange={(e) => setTemplateFormText(e.target.value)}
