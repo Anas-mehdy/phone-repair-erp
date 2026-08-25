@@ -1,26 +1,35 @@
-import { getCurrentShopContext } from "@/lib/current-shop";
+import { getAuthContext } from "@/lib/auth/context";
 import { shopService } from "@/lib/services/shopService";
+import { teamService } from "@/lib/services/teamService";
 import { PageHeader } from "@/components/page-header";
-import { Store, Percent, Users, Save } from "lucide-react";
+import { Store, Percent, Save } from "lucide-react";
 import { updateShopSettingsAction } from "@/app/actions/shopActions";
 import { Button } from "@/components/ui/button";
-import { formatDate, CURRENCY_OPTIONS } from "@/lib/format";
+import { CURRENCY_OPTIONS } from "@/lib/format";
 import { COUNTRY_DIAL_CODES, parseStoredPhone } from "@/lib/countries";
+import { TeamManagementSection } from "./_team-section";
 
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
-  const { shopId } = await getCurrentShopContext();
-  const shop = await shopService.getShopById(shopId);
+  const auth = await getAuthContext();
+  const [shop, teamData] = await Promise.all([
+    shopService.getShopById(auth.shop.id),
+    teamService.listTeamMembers(auth.shop.id),
+  ]);
 
   const currencies = CURRENCY_OPTIONS;
   const phoneParts = parseStoredPhone(shop.phone, shop.currency || "SAR");
+
+  const isOwner = auth.membership.role === "OWNER";
+  const canManageTeam = auth.permissions.includes("team:manage");
+  const canInviteTeam = auth.permissions.includes("team:invite");
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="إعدادات المتجر والنظام"
-        description="تخصيص معلومات المتجر، العملة الرسمية، الضرائب، وشروط الفواتير لفرعك."
+        description="تخصيص معلومات المتجر، العملة الرسمية، الضرائب، شروط الفواتير، وفريق العمل لفرعك."
       />
 
       <form action={updateShopSettingsAction} className="space-y-6">
@@ -33,7 +42,9 @@ export default async function SettingsPage() {
               </div>
               <div>
                 <h3 className="font-bold text-slate-800 text-sm">بيانات متجر الصيانة</h3>
-                <p className="text-[10px] text-slate-400 font-semibold">المعلومات التي تظهر بإيصالات الاستلام وفواتير العملاء</p>
+                <p className="text-[10px] text-slate-400 font-semibold">
+                  المعلومات التي تظهر بإيصالات الاستلام وفواتير العملاء
+                </p>
               </div>
             </div>
 
@@ -126,7 +137,9 @@ export default async function SettingsPage() {
               </div>
               <div>
                 <h3 className="font-bold text-slate-800 text-sm">الضرائب والشروط والفواتير</h3>
-                <p className="text-[10px] text-slate-400 font-semibold">حسابات الضريبة والشروط المطبوعة أسفل الإيصال</p>
+                <p className="text-[10px] text-slate-400 font-semibold">
+                  حسابات الضريبة والشروط المطبوعة أسفل الإيصال
+                </p>
               </div>
             </div>
 
@@ -166,7 +179,10 @@ export default async function SettingsPage() {
                 <textarea
                   name="terms"
                   rows={3}
-                  defaultValue={shop.terms || "الضمان يشمل القطع المستبدلة فقط لمدة 30 يوماً. المحل غير مسؤول عن الأجهزة المتروكة لأكثر من 60 يوماً."}
+                  defaultValue={
+                    shop.terms ||
+                    "الضمان يشمل القطع المستبدلة فقط لمدة 30 يوماً. المحل غير مسؤول عن الأجهزة المتروكة لأكثر من 60 يوماً."
+                  }
                   className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-medium text-slate-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-xs"
                 />
               </div>
@@ -186,50 +202,16 @@ export default async function SettingsPage() {
         </div>
       </form>
 
-      {/* Users / Team Members in this shop */}
-      <section className="erp-card p-6 space-y-4">
-        <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/5 text-blue-600 ring-1 ring-blue-500/10">
-            <Users className="h-4.5 w-4.5" />
-          </div>
-          <div>
-            <h3 className="font-bold text-slate-800 text-sm">مستخدمو المتجر المسجلون</h3>
-            <p className="text-[10px] text-slate-400 font-semibold">حسابات الفنيين والمديرين المرتبطين بهذا الفرع</p>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-right text-xs">
-            <thead>
-              <tr className="border-b border-slate-100 text-slate-500 font-extrabold">
-                <th className="pb-3 pr-2">الاسم</th>
-                <th className="pb-3">البريد الإلكتروني</th>
-                <th className="pb-3">الدور / الصلاحية</th>
-                <th className="pb-3">تاريخ الإنشاء</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {shop.users.map((user) => (
-                <tr key={user.id} className="text-slate-800">
-                  <td className="py-3.5 pr-2 font-bold flex items-center gap-2">
-                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-[10px] font-black text-slate-600">
-                      {user.name.charAt(0)}
-                    </span>
-                    {user.name}
-                  </td>
-                  <td className="py-3.5 font-medium text-slate-600" dir="ltr">{user.email}</td>
-                  <td className="py-3.5">
-                    <span className="inline-flex items-center rounded-md bg-teal-50 px-2 py-0.5 text-[10px] font-bold text-teal-700 border border-teal-200">
-                      {user.role === "OWNER" ? "المالك / المدير العام" : "فني / موظف"}
-                    </span>
-                  </td>
-                  <td className="py-3.5 font-numeric text-slate-500">{formatDate(user.createdAt)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      {/* Interactive Team Management Section */}
+      <TeamManagementSection
+        memberships={teamData.memberships}
+        pendingInvitations={teamData.pendingInvitations}
+        seatUsage={teamData.seatUsage}
+        currentUserId={auth.user.id}
+        isOwner={isOwner}
+        canManageTeam={canManageTeam}
+        canInviteTeam={canInviteTeam}
+      />
     </div>
   );
 }
