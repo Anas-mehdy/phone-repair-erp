@@ -4,7 +4,7 @@ import { PaymentMethod } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { getCurrentShopContext } from "@/lib/current-shop";
+import { requirePermission } from "@/lib/auth/context";
 import { invoiceService } from "@/lib/services/invoiceService";
 import { paymentService } from "@/lib/services/paymentService";
 
@@ -59,11 +59,11 @@ export async function createInvoiceFromRepairOrderAction(formData: FormData) {
   let redirectTo = `/repair-orders/${input.repairOrderId}`;
 
   try {
-    const { shopId, userId } = await getCurrentShopContext();
+    const auth = await requirePermission("repairs:update");
     const invoice = await invoiceService.createInvoiceFromRepairOrder(
-      shopId,
+      auth.shop.id,
       input.repairOrderId,
-      userId,
+      auth.user.id,
     );
     redirectTo = `/invoices/${invoice.id}`;
     revalidatePath("/invoices");
@@ -84,11 +84,11 @@ export async function createInvoiceFromSaleAction(formData: FormData) {
   let redirectTo = `/sales/${input.saleId}`;
 
   try {
-    const { shopId, userId } = await getCurrentShopContext();
+    const auth = await requirePermission("sales:create");
     const invoice = await invoiceService.createInvoiceFromSale(
-      shopId,
+      auth.shop.id,
       input.saleId,
-      userId,
+      auth.user.id,
     );
     redirectTo = `/invoices/${invoice.id}`;
     revalidatePath("/invoices");
@@ -113,8 +113,8 @@ export async function addPaymentAction(formData: FormData) {
   });
 
   try {
-    const { shopId, userId } = await getCurrentShopContext();
-    await paymentService.addPayment(shopId, input.invoiceId, userId, {
+    const auth = await requirePermission("invoices:pay");
+    await paymentService.addPayment(auth.shop.id, input.invoiceId, auth.user.id, {
       amount: input.amount,
       method: input.method,
       reference: input.reference,
@@ -138,8 +138,8 @@ export async function voidInvoiceAction(formData: FormData) {
   });
 
   try {
-    const { shopId, userId } = await getCurrentShopContext();
-    await invoiceService.voidInvoice(shopId, input.invoiceId, userId);
+    const auth = await requirePermission("invoices:void");
+    await invoiceService.voidInvoice(auth.shop.id, input.invoiceId, auth.user.id);
     revalidatePath("/invoices");
     revalidatePath(`/invoices/${input.invoiceId}`);
     revalidatePath("/dashboard");

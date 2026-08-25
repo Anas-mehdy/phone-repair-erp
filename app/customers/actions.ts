@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { getCurrentShopContext } from "@/lib/current-shop";
+import { requirePermission } from "@/lib/auth/context";
 import { customerService } from "@/lib/services/customerService";
 
 const updateCustomerSchema = z.object({
@@ -32,8 +32,8 @@ export async function updateCustomerAction(formData: FormData) {
     notes: readString(formData, "notes"),
   });
 
-  const { shopId } = await getCurrentShopContext();
-  await customerService.updateCustomer(shopId, input.customerId, input);
+  const auth = await requirePermission("customers:manage");
+  await customerService.updateCustomer(auth.shop.id, input.customerId, input);
 
   revalidatePath("/customers");
   revalidatePath(`/customers/${input.customerId}`);
@@ -45,8 +45,8 @@ export async function softDeleteCustomerAction(formData: FormData) {
     customerId: readString(formData, "customerId"),
   });
 
-  const { shopId } = await getCurrentShopContext();
-  await customerService.softDeleteCustomer(shopId, input.customerId);
+  const auth = await requirePermission("customers:delete");
+  await customerService.softDeleteCustomer(auth.shop.id, input.customerId);
 
   revalidatePath("/customers");
   redirect("/customers");

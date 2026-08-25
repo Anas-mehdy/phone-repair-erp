@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { getCurrentShopContext } from "@/lib/current-shop";
+import { requirePermission } from "@/lib/auth/context";
 import { supplierService } from "@/lib/services/supplierService";
 
 const createSupplierSchema = z.object({
@@ -38,8 +38,8 @@ export async function createSupplierAction(formData: FormData) {
     notes: readString(formData, "notes"),
   });
 
-  const { shopId } = await getCurrentShopContext();
-  const supplier = await supplierService.createSupplier(shopId, input);
+  const auth = await requirePermission("suppliers:manage");
+  const supplier = await supplierService.createSupplier(auth.shop.id, input);
 
   revalidatePath("/suppliers");
   revalidatePath("/repair-orders/new");
@@ -55,8 +55,8 @@ export async function updateSupplierAction(formData: FormData) {
     notes: readString(formData, "notes"),
   });
 
-  const { shopId } = await getCurrentShopContext();
-  await supplierService.updateSupplier(shopId, input.supplierId, input);
+  const auth = await requirePermission("suppliers:manage");
+  await supplierService.updateSupplier(auth.shop.id, input.supplierId, input);
 
   revalidatePath("/suppliers");
   revalidatePath(`/suppliers/${input.supplierId}`);
@@ -68,8 +68,8 @@ export async function deleteSupplierAction(formData: FormData) {
     supplierId: readString(formData, "supplierId"),
   });
 
-  const { shopId } = await getCurrentShopContext();
-  await supplierService.deleteSupplier(shopId, input.supplierId);
+  const auth = await requirePermission("suppliers:manage");
+  await supplierService.deleteSupplier(auth.shop.id, input.supplierId);
 
   revalidatePath("/suppliers");
   redirect("/suppliers");

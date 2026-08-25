@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { getCurrentShopContext } from "@/lib/current-shop";
+import { requirePermission } from "@/lib/auth/context";
 import { inventoryService } from "@/lib/services/inventoryService";
 
 const optionalMoneySchema = z
@@ -95,8 +95,8 @@ export async function createInventoryItemAction(formData: FormData) {
     reorderLevel: readString(formData, "reorderLevel"),
   });
 
-  const { shopId, userId } = await getCurrentShopContext();
-  const item = await inventoryService.createInventoryItem(shopId, userId, input);
+  const auth = await requirePermission("inventory:manage");
+  const item = await inventoryService.createInventoryItem(auth.shop.id, auth.user.id, input);
 
   revalidatePath("/inventory");
   redirect(`/inventory/${item.id}`);
@@ -114,9 +114,9 @@ export async function updateInventoryItemDetailsAction(formData: FormData) {
     reorderLevel: readString(formData, "reorderLevel"),
   });
 
-  const { shopId } = await getCurrentShopContext();
+  const auth = await requirePermission("inventory:manage");
   await inventoryService.updateInventoryItemDetails(
-    shopId,
+    auth.shop.id,
     input.inventoryItemId,
     input,
   );
@@ -133,8 +133,8 @@ export async function addStockAction(formData: FormData) {
     note: readString(formData, "note"),
   });
 
-  const { shopId, userId } = await getCurrentShopContext();
-  await inventoryService.addStock(shopId, input.inventoryItemId, userId, input);
+  const auth = await requirePermission("inventory:manage");
+  await inventoryService.addStock(auth.shop.id, input.inventoryItemId, auth.user.id, input);
 
   revalidatePath("/inventory");
   revalidatePath(`/inventory/${input.inventoryItemId}`);
@@ -148,8 +148,8 @@ export async function adjustStockAction(formData: FormData) {
     note: readString(formData, "note"),
   });
 
-  const { shopId, userId } = await getCurrentShopContext();
-  await inventoryService.adjustStock(shopId, input.inventoryItemId, userId, input);
+  const auth = await requirePermission("inventory:adjust");
+  await inventoryService.adjustStock(auth.shop.id, input.inventoryItemId, auth.user.id, input);
 
   revalidatePath("/inventory");
   revalidatePath(`/inventory/${input.inventoryItemId}`);

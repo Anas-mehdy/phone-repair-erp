@@ -1,6 +1,7 @@
 "use server";
 
 import { getCurrentShopContext } from "@/lib/current-shop";
+import { requirePermission } from "@/lib/auth/context";
 import { whatsappTemplateService } from "@/lib/services/whatsappTemplateService";
 
 export type CustomWhatsAppTemplateDTO = {
@@ -47,10 +48,7 @@ export async function saveWhatsAppTemplateAction(data: {
   error?: string;
 }> {
   try {
-    const context = await getCurrentShopContext({ allowRedirect: false });
-    if (!context.shopId) {
-      return { ok: false, error: "غير مصرح لك بهذه العملية" };
-    }
+    const auth = await requirePermission("shop:settings", { allowRedirect: false });
 
     const title = data.title?.trim();
     const templateText = data.templateText?.trim();
@@ -60,16 +58,16 @@ export async function saveWhatsAppTemplateAction(data: {
     let result;
     if (data.id && !data.id.startsWith("local_") && !data.id.startsWith("tpl_")) {
       // Update existing database template
-      result = await whatsappTemplateService.updateTemplate(context.shopId, data.id, {
+      result = await whatsappTemplateService.updateTemplate(auth.shop.id, data.id, {
         title,
         templateText,
       });
     } else {
       // Create new database template
-      result = await whatsappTemplateService.createTemplate(context.shopId, {
+      result = await whatsappTemplateService.createTemplate(auth.shop.id, {
         title,
         templateText,
-        createdByUserId: context.userId,
+        createdByUserId: auth.user.id,
       });
     }
 
@@ -84,7 +82,7 @@ export async function saveWhatsAppTemplateAction(data: {
     };
   } catch (error) {
     console.error("saveWhatsAppTemplateAction error:", error);
-    return { ok: false, error: "حدث خطأ أثناء حفظ القالب" };
+    return { ok: false, error: error instanceof Error ? error.message : "حدث خطأ أثناء حفظ القالب" };
   }
 }
 
@@ -93,17 +91,14 @@ export async function deleteWhatsAppTemplateAction(id: string): Promise<{
   error?: string;
 }> {
   try {
-    const context = await getCurrentShopContext({ allowRedirect: false });
-    if (!context.shopId) {
-      return { ok: false, error: "غير مصرح لك بهذه العملية" };
-    }
+    const auth = await requirePermission("shop:settings", { allowRedirect: false });
 
     if (!id.startsWith("local_") && !id.startsWith("tpl_")) {
-      await whatsappTemplateService.deleteTemplate(context.shopId, id);
+      await whatsappTemplateService.deleteTemplate(auth.shop.id, id);
     }
     return { ok: true };
   } catch (error) {
     console.error("deleteWhatsAppTemplateAction error:", error);
-    return { ok: false, error: "حدث خطأ أثناء حذف القالب" };
+    return { ok: false, error: error instanceof Error ? error.message : "حدث خطأ أثناء حذف القالب" };
   }
 }

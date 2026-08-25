@@ -67,6 +67,8 @@ const statusPath = (status: RepairStatus) => {
 };
 
 async function resetDemoDatabase() {
+  await prisma.shopInvitation.deleteMany();
+  await prisma.membership.deleteMany();
   await prisma.payment.deleteMany();
   await prisma.invoice.deleteMany();
   await prisma.inventoryMovement.deleteMany();
@@ -91,6 +93,7 @@ async function main() {
       currency: "SAR",
       taxNumber: "300052345600003",
       taxRate: 15,
+      maxSeats: 5,
     },
   });
 
@@ -101,6 +104,16 @@ async function main() {
       name: "عبدالله المالكي",
       passwordHash: "$2a$10$wN3M0K66HhL2ZcE6m6oG8e2u/v5aU2R4G3f/F4H4J5K6L7M8N9O0P", // hash of "password123"
       role: UserRole.OWNER,
+    },
+  });
+
+  // Create owner membership
+  await prisma.membership.create({
+    data: {
+      shopId: shop.id,
+      userId: owner.id,
+      role: "OWNER",
+      status: "ACTIVE",
     },
   });
 

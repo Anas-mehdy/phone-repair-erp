@@ -7,9 +7,37 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ---------------------------------------------------------
+// ENUMS
+// ---------------------------------------------------------
+
+// Legacy Role enum retained for backward compatibility during Phase 1 migration
 enum UserRole {
   OWNER
   STAFF
+}
+
+// Modern Multi-User Membership Roles
+enum MembershipRole {
+  OWNER        // مالك المتجر: تحكم كامل بالمتجر والموظفين والاشتراكات
+  ADMIN        // مدير الفرع: إدارة العمليات والمخزون والفريق (دون الفوترة وحذف المتجر)
+  TECHNICIAN   // فني صيانة: إنشاء وتعديل تذاكر الصيانة وقطع الغيار
+  VIEWER       // مشاهد: قراءة التقارير والتذاكر دون تعديل
+}
+
+// Membership Status Lifecycle
+enum MembershipStatus {
+  ACTIVE       // عضو نشط يحق له الوصول
+  SUSPENDED    // عضو مجمد مؤقتاً بواسطة المالك
+  REMOVED      // عضو ملغى من المتجر مع الحفاظ على سجل عملياته
+}
+
+// Invitation Lifecycle
+enum InvitationStatus {
+  PENDING      // دعوة قيد الانتظار لم تُقبل بعد
+  ACCEPTED     // دعوة تم قبولها وانضم الموظف
+  REVOKED      // دعوة تم إلغاؤها من قبل الإدارة
+  EXPIRED      // دعوة انتهت صلاحيتها الزمنية
 }
 
 enum RepairStatus {
@@ -58,6 +86,10 @@ enum SaleStatus {
   REFUNDED
 }
 
+// ---------------------------------------------------------
+// TENANT / BUSINESS MODEL
+// ---------------------------------------------------------
+
 model Shop {
   id                    String                @id @default(uuid()) @db.Uuid
   name                  String
@@ -67,12 +99,16 @@ model Shop {
   taxNumber             String?
   taxRate               Decimal               @default(15) @db.Decimal(5, 2)
   terms                 String?
+  maxSeats              Int                   @default(5) // حد المقاعد المسموح بها وفق خطة الاشتراك
   createdAt             DateTime              @default(now())
   updatedAt             DateTime              @updatedAt
   deletedAt             DateTime?
   version               Int                   @default(1)
 
-  users                 User[]
+  // Relationships
+  memberships           Membership[]
+  invitations           ShopInvitation[]
+  users                 User[]                // Legacy direct relation (Phase 1 compatibility)
   customers             Customer[]
   suppliers             Supplier[]
   repairOrders          RepairOrder[]
@@ -89,23 +125,83 @@ model Shop {
   @@index([deletedAt])
 }
 
+// ---------------------------------------------------------
+// USER IDENTITY & MEMBERSHIP
+// ---------------------------------------------------------
+
 model User {
-  id                String    @id @default(uuid()) @db.Uuid
-  shopId            String    @db.Uuid
-  email             String    @unique
+  id                String            @id @default(uuid()) @db.Uuid
+  email             String            @unique
   name              String
+  phone             String?
   passwordHash      String?
-  role              UserRole  @default(OWNER)
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
   deletedAt         DateTime?
-  version           Int       @default(1)
+  version           Int               @default(1)
 
-  shop              Shop      @relation(fields: [shopId], references: [id])
+  // Modern Multi-Tenancy Relations
+  memberships       Membership[]
+  sentInvitations   ShopInvitation[]  @relation("InvitedByUser")
 
+  // Legacy Fields (Retained for Phase 1 backward compatibility / safe migration)
+  // [DEPRECATED]: These will be removed in a future migration after complete transition to Membership
+  shopId            String            @db.Uuid
+  role              UserRole          @default(OWNER)
+  shop              Shop              @relation(fields: [shopId], references: [id])
+
+  @@index([email])
   @@index([shopId, updatedAt])
   @@index([shopId, deletedAt])
 }
+
+model Membership {
+  id                String            @id @default(uuid()) @db.Uuid
+  shopId            String            @db.Uuid
+  userId            String            @db.Uuid
+  role              MembershipRole    @default(TECHNICIAN)
+  status            MembershipStatus  @default(ACTIVE)
+  joinedAt          DateTime          @default(now())
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  deletedAt         DateTime?
+
+  shop              Shop              @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, userId])
+  @@index([shopId, status])
+  @@index([userId, status])
+  @@index([shopId, role])
+  @@index([shopId, updatedAt])
+}
+
+model ShopInvitation {
+  id                String            @id @default(uuid()) @db.Uuid
+  shopId            String            @db.Uuid
+  email             String
+  role              MembershipRole    @default(TECHNICIAN)
+  tokenHash         String            @unique // SHA-256 hash of the 32-byte cryptographically secure token
+  status            InvitationStatus  @default(PENDING)
+  invitedByUserId   String?           @db.Uuid
+  expiresAt         DateTime
+  acceptedAt        DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  deletedAt         DateTime?
+
+  shop              Shop              @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  invitedBy         User?             @relation("InvitedByUser", fields: [invitedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([shopId, status])
+  @@index([email, status])
+  @@index([tokenHash])
+  @@index([expiresAt])
+}
+
+// ---------------------------------------------------------
+// BUSINESS DATA MODELS (Fully Multi-Tenant via shopId)
+// ---------------------------------------------------------
 
 model Customer {
   id                String        @id @default(uuid()) @db.Uuid
@@ -121,7 +217,7 @@ model Customer {
   deletedAt         DateTime?
   version           Int           @default(1)
 
-  shop              Shop          @relation(fields: [shopId], references: [id])
+  shop              Shop          @relation(fields: [shopId], references: [id], onDelete: Cascade)
   repairOrders      RepairOrder[]
   sales             Sale[]
   invoices          Invoice[]
@@ -147,7 +243,7 @@ model Supplier {
   deletedAt         DateTime?
   version           Int           @default(1)
 
-  shop              Shop          @relation(fields: [shopId], references: [id])
+  shop              Shop          @relation(fields: [shopId], references: [id], onDelete: Cascade)
   repairOrders      RepairOrder[]
 
   @@index([shopId, name])
@@ -163,6 +259,8 @@ model RepairOrder {
   customerId         String?               @db.Uuid
   supplierId         String?               @db.Uuid
   createdByUserId    String?               @db.Uuid
+  assignedToUserId   String?               @db.Uuid // الفني المسؤول عن تنفيذ طلب الصيانة
+  updatedByUserId    String?               @db.Uuid // آخر مستخدم أجرى تعديلاً على الطلب
   clientGeneratedId  String?
   ticketNumber       String
   status             RepairStatus          @default(PENDING)
@@ -187,9 +285,9 @@ model RepairOrder {
   deletedAt          DateTime?
   version            Int                   @default(1)
 
-  shop               Shop                  @relation(fields: [shopId], references: [id])
-  customer           Customer?             @relation(fields: [customerId], references: [id])
-  supplier           Supplier?             @relation(fields: [supplierId], references: [id])
+  shop               Shop                  @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  customer           Customer?             @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  supplier           Supplier?             @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   statusHistory      RepairStatusHistory[]
   inventoryMovements InventoryMovement[]
   invoices           Invoice[]
@@ -200,6 +298,8 @@ model RepairOrder {
   @@index([shopId, customerId])
   @@index([shopId, supplierId])
   @@index([shopId, createdByUserId])
+  @@index([shopId, assignedToUserId])
+  @@index([shopId, updatedByUserId])
   @@index([shopId, updatedAt])
   @@index([shopId, deletedAt])
 }
@@ -218,8 +318,8 @@ model RepairStatusHistory {
   deletedAt         DateTime?
   version           Int           @default(1)
 
-  shop              Shop          @relation(fields: [shopId], references: [id])
-  repairOrder       RepairOrder   @relation(fields: [repairOrderId], references: [id])
+  shop              Shop          @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  repairOrder       RepairOrder   @relation(fields: [repairOrderId], references: [id], onDelete: Cascade)
 
   @@unique([shopId, clientGeneratedId])
   @@index([shopId, repairOrderId, createdAt])
@@ -245,7 +345,7 @@ model InventoryItem {
   deletedAt         DateTime?
   version           Int                 @default(1)
 
-  shop              Shop                @relation(fields: [shopId], references: [id])
+  shop              Shop                @relation(fields: [shopId], references: [id], onDelete: Cascade)
   movements         InventoryMovement[]
   saleItems         SaleItem[]
 
@@ -275,11 +375,11 @@ model InventoryMovement {
   deletedAt         DateTime?
   version           Int                   @default(1)
 
-  shop              Shop                  @relation(fields: [shopId], references: [id])
-  inventoryItem     InventoryItem         @relation(fields: [inventoryItemId], references: [id])
-  repairOrder       RepairOrder?          @relation(fields: [repairOrderId], references: [id])
-  sale              Sale?                 @relation(fields: [saleId], references: [id])
-  saleItem          SaleItem?             @relation(fields: [saleItemId], references: [id])
+  shop              Shop                  @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  inventoryItem     InventoryItem         @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+  repairOrder       RepairOrder?          @relation(fields: [repairOrderId], references: [id], onDelete: SetNull)
+  sale              Sale?                 @relation(fields: [saleId], references: [id], onDelete: SetNull)
+  saleItem          SaleItem?             @relation(fields: [saleItemId], references: [id], onDelete: SetNull)
 
   @@unique([shopId, clientGeneratedId])
   @@index([shopId, inventoryItemId, createdAt])
@@ -309,8 +409,8 @@ model Sale {
   deletedAt          DateTime?
   version            Int        @default(1)
 
-  shop               Shop       @relation(fields: [shopId], references: [id])
-  customer           Customer?  @relation(fields: [customerId], references: [id])
+  shop               Shop       @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  customer           Customer?  @relation(fields: [customerId], references: [id], onDelete: SetNull)
   items              SaleItem[]
   inventoryMovements InventoryMovement[]
   invoices           Invoice[]
@@ -340,9 +440,9 @@ model SaleItem {
   deletedAt         DateTime?
   version           Int                 @default(1)
 
-  shop              Shop                @relation(fields: [shopId], references: [id])
-  sale              Sale                @relation(fields: [saleId], references: [id])
-  inventoryItem     InventoryItem?      @relation(fields: [inventoryItemId], references: [id])
+  shop              Shop                @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  sale              Sale                @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  inventoryItem     InventoryItem?      @relation(fields: [inventoryItemId], references: [id], onDelete: SetNull)
   inventoryMovements InventoryMovement[]
 
   @@unique([shopId, clientGeneratedId])
@@ -377,10 +477,10 @@ model Invoice {
   deletedAt         DateTime?
   version           Int           @default(1)
 
-  shop              Shop          @relation(fields: [shopId], references: [id])
-  customer          Customer?     @relation(fields: [customerId], references: [id])
-  repairOrder       RepairOrder?  @relation(fields: [repairOrderId], references: [id])
-  sale              Sale?         @relation(fields: [saleId], references: [id])
+  shop              Shop          @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  customer          Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  repairOrder       RepairOrder?  @relation(fields: [repairOrderId], references: [id], onDelete: SetNull)
+  sale              Sale?         @relation(fields: [saleId], references: [id], onDelete: SetNull)
   payments          Payment[]
 
   @@unique([shopId, invoiceNumber])
@@ -412,8 +512,8 @@ model Payment {
   deletedAt         DateTime?
   version           Int           @default(1)
 
-  shop              Shop          @relation(fields: [shopId], references: [id])
-  invoice           Invoice       @relation(fields: [invoiceId], references: [id])
+  shop              Shop          @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  invoice           Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   @@unique([shopId, clientGeneratedId])
   @@index([shopId, invoiceId])
@@ -434,10 +534,9 @@ model WhatsAppTemplate {
   deletedAt         DateTime?
   version           Int       @default(1)
 
-  shop              Shop      @relation(fields: [shopId], references: [id])
+  shop              Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
   @@index([shopId, updatedAt])
   @@index([shopId, deletedAt])
   @@index([shopId, createdByUserId])
 }
-

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { getCurrentShopContext } from "@/lib/current-shop";
+import { requirePermission } from "@/lib/auth/context";
 import { salesService } from "@/lib/services/salesService";
 
 export type SaleActionState = {
@@ -63,8 +63,8 @@ export async function createSaleAction(
       items: rawItems,
     });
 
-    const { shopId, userId } = await getCurrentShopContext();
-    const sale = await salesService.createSale(shopId, userId, {
+    const auth = await requirePermission("sales:create");
+    const sale = await salesService.createSale(auth.shop.id, auth.user.id, {
       customerName: parsed.customerName,
       customerPhone: parsed.customerPhone,
       items: parsed.items.map((item) => ({
@@ -92,8 +92,8 @@ export async function cancelSaleAction(formData: FormData) {
     saleId: readString(formData, "saleId"),
   });
 
-  const { shopId, userId } = await getCurrentShopContext();
-  await salesService.cancelSale(shopId, input.saleId, userId);
+  const auth = await requirePermission("sales:cancel");
+  await salesService.cancelSale(auth.shop.id, input.saleId, auth.user.id);
 
   revalidatePath("/sales");
   revalidatePath(`/sales/${input.saleId}`);

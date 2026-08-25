@@ -4,7 +4,7 @@ import { RepairStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { getCurrentShopContext } from "@/lib/current-shop";
+import { requirePermission } from "@/lib/auth/context";
 import { repairOrderService } from "@/lib/services/repairOrderService";
 
 const createRepairOrderSchema = z.object({
@@ -81,10 +81,10 @@ export async function createRepairOrderAction(formData: FormData) {
     supplierNotes: readString(formData, "supplierNotes"),
   });
 
-  const { shopId, userId } = await getCurrentShopContext();
+  const auth = await requirePermission("repairs:create");
   const repairOrder = await repairOrderService.createRepairOrder(
-    shopId,
-    userId,
+    auth.shop.id,
+    auth.user.id,
     input,
   );
 
@@ -112,10 +112,10 @@ export async function updateRepairOrderDetailsAction(formData: FormData) {
     supplierNotes: readString(formData, "supplierNotes"),
   });
 
-  const { shopId } = await getCurrentShopContext();
+  const auth = await requirePermission("repairs:update");
 
   await repairOrderService.updateRepairOrderDetails(
-    shopId,
+    auth.shop.id,
     input.repairOrderId,
     input,
   );
@@ -132,12 +132,12 @@ export async function updateRepairOrderStatusAction(formData: FormData) {
     note: readString(formData, "note"),
   });
 
-  const { shopId, userId } = await getCurrentShopContext();
+  const auth = await requirePermission("repairs:update_status");
 
   await repairOrderService.updateRepairOrderStatus(
-    shopId,
+    auth.shop.id,
     input.repairOrderId,
-    userId,
+    auth.user.id,
     {
       status: input.status,
       note: input.note,
@@ -158,9 +158,9 @@ export async function deleteRepairOrderAction(formData: FormData) {
     repairOrderId: readString(formData, "repairOrderId"),
   });
 
-  const { shopId } = await getCurrentShopContext();
+  const auth = await requirePermission("repairs:delete");
 
-  await repairOrderService.deleteRepairOrder(shopId, parsed.repairOrderId);
+  await repairOrderService.deleteRepairOrder(auth.shop.id, parsed.repairOrderId);
 
   revalidatePath("/repair-orders");
   revalidatePath("/dashboard");

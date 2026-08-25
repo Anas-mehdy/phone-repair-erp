@@ -19,7 +19,12 @@ export function isSuperAdminEmail(email?: string | null): boolean {
     return adminEmails.includes(email.toLowerCase().trim());
   }
 
-  // Fallback: If no SUPER_ADMIN_EMAILS is configured yet, allow logged-in shop owners
+  // In production, strictly fail closed if SUPER_ADMIN_EMAILS is not configured
+  if (process.env.NODE_ENV === "production") {
+    return false;
+  }
+
+  // Development convenience fallback only when running locally in development
   return true;
 }
 

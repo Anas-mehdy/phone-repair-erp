@@ -1,14 +1,14 @@
 "use server";
 
-import { getCurrentShopContext } from "@/lib/current-shop";
+import { requirePermission } from "@/lib/auth/context";
 import { shopService, type UpdateShopInput } from "@/lib/services/shopService";
 import { combineCountryDialWithPhone } from "@/lib/countries";
 import { getSession, setSessionCookie } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 
 export async function updateShopSettingsAction(formData: FormData): Promise<void> {
-  const context = await getCurrentShopContext();
-  const shopId = context.shopId;
+  const auth = await requirePermission("shop:settings");
+  const shopId = auth.shop.id;
 
   const name = formData.get("name") as string;
   const rawPhone = (formData.get("phone") as string) || "";
