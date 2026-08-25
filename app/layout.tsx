@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Cairo, Outfit } from "next/font/google";
 import { AppShell } from "@/components/app-shell";
+import { getAuthContext, can } from "@/lib/auth/context";
 import "./globals.css";
 
 const cairo = Cairo({
@@ -28,15 +29,28 @@ export const metadata: Metadata = {
   description: "نظام متكامل لإدارة صيانة الهواتف الذكية والمبيعات والمخزون",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  let canSettings = false;
+
+  try {
+    const auth = await getAuthContext({ allowRedirect: false });
+    canSettings = can(auth, "shop:settings");
+  } catch {
+    canSettings = false;
+  }
+
   return (
-    <html lang="ar" dir="rtl" className={`${cairo.variable} ${outfit.variable} overflow-x-hidden w-full max-w-full`}>
+    <html
+      lang="ar"
+      dir="rtl"
+      className={`${cairo.variable} ${outfit.variable} overflow-x-hidden w-full max-w-full`}
+    >
       <body className="font-sans antialiased overflow-x-hidden min-h-screen w-full max-w-full">
-        <AppShell>{children}</AppShell>
+        <AppShell canSettings={canSettings}>{children}</AppShell>
       </body>
     </html>
   );

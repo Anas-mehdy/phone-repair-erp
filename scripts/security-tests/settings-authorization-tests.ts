@@ -17,7 +17,7 @@ function assert(role: string, testName: string, condition: boolean, expected: st
 
 function runSettingsAuthorizationTests() {
   console.log("================================================================================");
-  console.log("PHASE 9: SETTINGS ROUTE & MUTATION AUTHORIZATION REGRESSION SUITE");
+  console.log("PHASE 9: SETTINGS ROUTE, MUTATION & NAVIGATION AUTHORIZATION REGRESSION SUITE");
   console.log("================================================================================\n");
 
   // 1. OWNER Permissions
@@ -60,7 +60,59 @@ function runSettingsAuthorizationTests() {
     viewerCanSettings ? "Allowed (true)" : "Forbidden (false)"
   );
 
-  // 5. Route Level Guard Simulation
+  // 5. Navigation Sidebar Visibility Simulation
+  const simulateNavVisibility = (role: MembershipRole) => {
+    const permissions = ROLE_PERMISSIONS_MATRIX[role] || [];
+    const canSettings = permissions.includes("shop:settings");
+    const rawItems = [
+      { href: "/dashboard", label: "لوحة التحكم" },
+      { href: "/repair-orders", label: "طلبات الصيانة" },
+      { href: "/settings", label: "إعدادات المتجر" },
+    ];
+    const visibleItems = rawItems.filter(
+      (item) => item.href !== "/settings" || canSettings
+    );
+    const hasSettings = visibleItems.some((item) => item.href === "/settings");
+    return { canSettings, hasSettings };
+  };
+
+  const ownerNav = simulateNavVisibility(MembershipRole.OWNER);
+  assert(
+    "OWNER",
+    "OWNER sidebar renders 'Settings' navigation item",
+    ownerNav.hasSettings === true,
+    "Visible (true)",
+    ownerNav.hasSettings ? "Visible (true)" : "Hidden (false)"
+  );
+
+  const adminNav = simulateNavVisibility(MembershipRole.ADMIN);
+  assert(
+    "ADMIN",
+    "ADMIN sidebar strictly hides 'Settings' navigation item",
+    adminNav.hasSettings === false,
+    "Hidden (false)",
+    adminNav.hasSettings ? "Visible (true)" : "Hidden (false)"
+  );
+
+  const techNav = simulateNavVisibility(MembershipRole.TECHNICIAN);
+  assert(
+    "TECHNICIAN",
+    "TECHNICIAN sidebar strictly hides 'Settings' navigation item",
+    techNav.hasSettings === false,
+    "Hidden (false)",
+    techNav.hasSettings ? "Visible (true)" : "Hidden (false)"
+  );
+
+  const viewerNav = simulateNavVisibility(MembershipRole.VIEWER);
+  assert(
+    "VIEWER",
+    "VIEWER sidebar strictly hides 'Settings' navigation item",
+    viewerNav.hasSettings === false,
+    "Hidden (false)",
+    viewerNav.hasSettings ? "Visible (true)" : "Hidden (false)"
+  );
+
+  // 6. Route Level Guard Simulation
   const simulateSettingsPageAccess = (role: MembershipRole) => {
     const permissions = ROLE_PERMISSIONS_MATRIX[role] || [];
     if (!permissions.includes("shop:settings")) {
@@ -105,7 +157,7 @@ function runSettingsAuthorizationTests() {
     viewerAccess.redirect || "Rendered"
   );
 
-  // 6. Server Action Guard Simulation
+  // 7. Server Action Guard Simulation
   const simulateUpdateShopSettingsMutation = (role: MembershipRole) => {
     const permissions = ROLE_PERMISSIONS_MATRIX[role] || [];
     if (!permissions.includes("shop:settings")) {
@@ -153,9 +205,9 @@ function runSettingsAuthorizationTests() {
   }
 
   console.log("\n================================================================================");
-  console.log(`TOTAL SETTINGS AUTHORIZATION TESTS: ${assertions.length}`);
-  console.log(`PASSED                            : ${totalPassed}`);
-  console.log(`FAILED                            : ${totalFailed}`);
+  console.log(`TOTAL SETTINGS AUTHORIZATION & NAV TESTS: ${assertions.length}`);
+  console.log(`PASSED                                  : ${totalPassed}`);
+  console.log(`FAILED                                  : ${totalFailed}`);
   console.log("================================================================================");
 
   if (totalFailed > 0) {

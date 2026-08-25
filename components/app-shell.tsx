@@ -7,7 +7,13 @@ import { AppNav } from "@/components/app-nav";
 import { logoutAction } from "@/app/actions/authActions";
 import { cn } from "@/lib/utils";
 
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({
+  children,
+  canSettings = false,
+}: {
+  children: ReactNode;
+  canSettings?: boolean;
+}) {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -61,7 +67,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
 
           <div className="mt-4">
-            <AppNav />
+            <AppNav canSettings={canSettings} />
           </div>
         </div>
 
@@ -124,7 +130,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
           {/* Nav Items */}
           <div className="mt-4 flex-1">
-            <AppNav onNavigate={() => setMobileMenuOpen(false)} />
+            <AppNav canSettings={canSettings} onNavigate={() => setMobileMenuOpen(false)} />
           </div>
 
           {/* Drawer Footer */}
