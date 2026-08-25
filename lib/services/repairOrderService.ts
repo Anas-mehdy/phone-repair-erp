@@ -267,18 +267,18 @@ export async function getRepairOrderById(shopId: string, repairOrderId: string) 
       prisma.user.findMany({
         where: {
           id: { in: userIdsToFetch },
-          deletedAt: null,
         },
         select: {
           id: true,
           name: true,
+          shopId: true,
+          role: true,
         },
       }),
       prisma.membership.findMany({
         where: {
           shopId,
           userId: { in: userIdsToFetch },
-          deletedAt: null,
         },
         select: {
           userId: true,
@@ -293,11 +293,15 @@ export async function getRepairOrderById(shopId: string, repairOrderId: string) 
     }
 
     for (const u of users) {
-      usersMap.set(u.id, {
-        id: u.id,
-        name: u.name,
-        role: roleMap.get(u.id) || "OWNER",
-      });
+      // Resolve role scoped to THIS shop (via Membership or shop owner fallback)
+      const shopRole = roleMap.get(u.id) || (u.shopId === shopId ? u.role : null);
+      if (shopRole) {
+        usersMap.set(u.id, {
+          id: u.id,
+          name: u.name?.trim() || "عضو فريق العمل",
+          role: shopRole,
+        });
+      }
     }
   }
 
