@@ -173,6 +173,7 @@ export async function listSales(shopId: string, filters: SaleFilters = {}) {
     orderBy: {
       soldAt: "desc",
     },
+    take: 100,
   });
 }
 

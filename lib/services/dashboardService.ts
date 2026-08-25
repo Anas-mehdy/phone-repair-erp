@@ -23,7 +23,6 @@ export async function getDashboardMetrics(shopId: string) {
     repairOrdersCreatedToday,
     deliveredToday,
     salesTodayAggregate,
-    unpaidInvoicesCount,
     unpaidInvoicesAggregate,
     inventoryItems,
   ] = await Promise.all([
@@ -77,15 +76,6 @@ export async function getDashboardMetrics(shopId: string) {
         total: true,
       },
     }),
-    prisma.invoice.count({
-      where: {
-        shopId,
-        deletedAt: null,
-        status: {
-          in: [InvoiceStatus.UNPAID, InvoiceStatus.PARTIALLY_PAID],
-        },
-      },
-    }),
     prisma.invoice.aggregate({
       where: {
         shopId,
@@ -93,6 +83,9 @@ export async function getDashboardMetrics(shopId: string) {
         status: {
           in: [InvoiceStatus.UNPAID, InvoiceStatus.PARTIALLY_PAID],
         },
+      },
+      _count: {
+        id: true,
       },
       _sum: {
         balanceDue: true,
@@ -116,7 +109,7 @@ export async function getDashboardMetrics(shopId: string) {
     repairOrdersCreatedToday,
     deliveredToday,
     salesRevenueToday: salesTodayAggregate._sum.total ?? 0,
-    unpaidInvoicesCount,
+    unpaidInvoicesCount: unpaidInvoicesAggregate._count.id ?? 0,
     unpaidBalanceTotal: unpaidInvoicesAggregate._sum.balanceDue ?? 0,
     lowStockItemsCount: inventoryItems.filter(
       (item) => item.quantity <= item.reorderLevel,

@@ -93,6 +93,7 @@ export async function listInvoices(
     orderBy: {
       issuedAt: "desc",
     },
+    take: 100,
   });
 }
 

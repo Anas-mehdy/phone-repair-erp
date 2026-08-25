@@ -236,6 +236,7 @@ export async function listRepairOrders(
     orderBy: {
       createdAt: "desc",
     },
+    take: 100,
   });
 
   // Batched resolution of creators for the listed tickets

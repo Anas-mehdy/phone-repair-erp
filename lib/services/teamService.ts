@@ -70,7 +70,11 @@ export async function getShopSeatUsage(shopId: string): Promise<SeatUsageInfo> {
  * Lists all active team members and pending invitations for a shop.
  */
 export async function listTeamMembers(shopId: string) {
-  const [memberships, pendingInvitations, seatUsage] = await Promise.all([
+  const [shop, memberships, pendingInvitations] = await Promise.all([
+    prisma.shop.findUnique({
+      where: { id: shopId },
+      select: { maxSeats: true },
+    }),
     prisma.membership.findMany({
       where: {
         shopId,
@@ -110,8 +114,23 @@ export async function listTeamMembers(shopId: string) {
       },
       orderBy: { createdAt: "desc" },
     }),
-    getShopSeatUsage(shopId),
   ]);
+
+  const maxSeats = shop?.maxSeats ?? 5;
+  const activeMembersCount = memberships.length;
+  const pendingInvitesCount = pendingInvitations.length;
+  const usedSeats = activeMembersCount + pendingInvitesCount;
+  const remainingSeats = Math.max(0, maxSeats - usedSeats);
+  const canInvite = usedSeats < maxSeats;
+
+  const seatUsage: SeatUsageInfo = {
+    usedSeats,
+    activeMembersCount,
+    pendingInvitesCount,
+    maxSeats,
+    remainingSeats,
+    canInvite,
+  };
 
   return {
     memberships,

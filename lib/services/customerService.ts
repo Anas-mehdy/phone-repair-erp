@@ -77,6 +77,7 @@ export async function listCustomers(
     orderBy: {
       updatedAt: "desc",
     },
+    take: 100,
   });
 }
 

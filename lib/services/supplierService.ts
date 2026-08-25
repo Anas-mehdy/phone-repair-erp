@@ -58,6 +58,7 @@ export async function listSuppliers(
     orderBy: {
       createdAt: "desc",
     },
+    take: 100,
   });
 }
 

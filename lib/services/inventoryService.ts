@@ -88,6 +88,7 @@ export async function listInventoryItems(
     orderBy: {
       updatedAt: "desc",
     },
+    take: 100,
   });
 
   return filters.lowStockOnly

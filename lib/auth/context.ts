@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { MembershipRole, MembershipStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
@@ -58,26 +59,14 @@ export interface GetAuthContextOptions {
 }
 
 /**
- * Resolves the authenticated user, active shop, verified database membership, and permissions.
- *
- * Flow:
- * 1. Read JWT session cookie
- * 2. Validate session payload
- * 3. Query PostgreSQL Membership with composite key (shopId, userId)
- * 4. Verify membership status === ACTIVE (rejects SUSPENDED / REMOVED immediately)
- * 5. Resolve typed permissions from Database Membership.role
- * 6. Return typed AuthContext
+ * Internal Request-Scoped Memoized Auth Resolver.
+ * Uses React.cache() to deduplicate DB lookups during the lifecycle of a single HTTP request.
  */
-export async function getAuthContext(
-  options: GetAuthContextOptions = { allowRedirect: true }
-): Promise<AuthContext> {
+const resolveAuthContextInternal = cache(async (): Promise<AuthContext | null> => {
   const session = await getSession();
 
   if (!session || !session.userId || !session.shopId) {
-    if (options.allowRedirect !== false) {
-      redirect("/login");
-    }
-    throw new AuthenticationError("جلسة العمل غير صالحة أو منتهية. يرجى تسجيل الدخول مجدداً.");
+    return null;
   }
 
   // Strict Dual-Tenant Query: Requires BOTH userId AND shopId to match database record
@@ -113,28 +102,23 @@ export async function getAuthContext(
   if (membership) {
     // Check for soft-deleted shop or user
     if (membership.shop.deletedAt !== null) {
-      if (options.allowRedirect !== false) redirect("/login");
       throw new MembershipInactiveError("تم إيقاف هذا المتجر حالياً.");
     }
 
     if (membership.user.deletedAt !== null) {
-      if (options.allowRedirect !== false) redirect("/login");
       throw new MembershipInactiveError("تم تعطيل هذا الحساب.");
     }
 
     // Check membership lifecycle status
     if (membership.status === MembershipStatus.SUSPENDED) {
-      if (options.allowRedirect !== false) redirect("/login?error=suspended");
       throw new MembershipInactiveError("تم تجميد حسابك في هذا المتجر بواسطة الإدارة.");
     }
 
     if (membership.status === MembershipStatus.REMOVED || membership.deletedAt !== null) {
-      if (options.allowRedirect !== false) redirect("/login?error=removed");
       throw new MembershipInactiveError("تم إلغاء عضويتك من هذا المتجر.");
     }
 
     if (membership.status !== MembershipStatus.ACTIVE) {
-      if (options.allowRedirect !== false) redirect("/login");
       throw new MembershipInactiveError("عضويتك غير نشطة في هذا المتجر.");
     }
 
@@ -182,9 +166,6 @@ export async function getAuthContext(
     legacyUser.shop.deletedAt !== null ||
     legacyUser.shopId !== session.shopId
   ) {
-    if (options.allowRedirect !== false) {
-      redirect("/login");
-    }
     throw new AuthenticationError("تعذر التحقق من العضوية أو المتجر المطلوب.");
   }
 
@@ -212,6 +193,46 @@ export async function getAuthContext(
     },
     permissions,
   };
+});
+
+/**
+ * Resolves the authenticated user, active shop, verified database membership, and permissions.
+ * Safe for multiple calls per request without duplicate DB queries.
+ */
+export async function getAuthContext(
+  options: GetAuthContextOptions = { allowRedirect: true }
+): Promise<AuthContext> {
+  try {
+    const context = await resolveAuthContextInternal();
+
+    if (!context) {
+      if (options.allowRedirect !== false) {
+        redirect("/login");
+      }
+      throw new AuthenticationError("جلسة العمل غير صالحة أو منتهية. يرجى تسجيل الدخول مجدداً.");
+    }
+
+    return context;
+  } catch (error) {
+    // Preserve Next.js redirect signal
+    if (error && typeof error === "object" && "digest" in error) {
+      throw error;
+    }
+
+    if (error instanceof MembershipInactiveError) {
+      if (options.allowRedirect !== false) {
+        if (error.message.includes("تجميد")) redirect("/login?error=suspended");
+        if (error.message.includes("إلغاء")) redirect("/login?error=removed");
+        redirect("/login");
+      }
+      throw error;
+    }
+
+    if (options.allowRedirect !== false) {
+      redirect("/login");
+    }
+    throw error;
+  }
 }
 
 /**
