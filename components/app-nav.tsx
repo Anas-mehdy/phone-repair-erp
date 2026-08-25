@@ -52,6 +52,7 @@ function isActivePath(pathname: string, href: string) {
 export function AppNav({
   onNavigate,
   canSettings = false,
+  compact = false,
 }: {
   onNavigate?: () => void;
   compact?: boolean;
@@ -60,8 +61,8 @@ export function AppNav({
   const pathname = usePathname();
 
   return (
-    <nav className="mt-2 space-y-5">
-      {navGroups.map((group) => {
+    <nav className={cn("mt-2", compact ? "space-y-3" : "space-y-5")}>
+      {navGroups.map((group, groupIdx) => {
         // Filter out Settings navigation item if user lacks shop:settings permission (non-OWNER)
         const visibleItems = group.items.filter(
           (item) => item.href !== "/settings" || canSettings
@@ -71,9 +72,15 @@ export function AppNav({
 
         return (
           <div key={group.title} className="space-y-1">
-            <h3 className="px-3 text-[10px] font-black tracking-wider text-slate-400 uppercase">
-              {group.title}
-            </h3>
+            {compact ? (
+              groupIdx > 0 ? (
+                <div className="my-2 border-t border-slate-200/60 mx-1" />
+              ) : null
+            ) : (
+              <h3 className="px-3 text-[10px] font-black tracking-wider text-slate-400 uppercase">
+                {group.title}
+              </h3>
+            )}
             <div className="space-y-1">
               {visibleItems.map((item) => {
                 const active = isActivePath(pathname, item.href);
@@ -82,25 +89,37 @@ export function AppNav({
                     key={item.href}
                     href={item.href}
                     onClick={onNavigate}
+                    title={compact ? item.label : undefined}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "group relative flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-xs font-bold transition-all duration-200",
+                      "group relative flex items-center rounded-xl text-xs font-bold transition-all duration-200",
+                      compact
+                        ? "justify-center p-2.5 hover:bg-slate-100/80"
+                        : "gap-3 px-3.5 py-2.5 hover:bg-slate-100/80 hover:text-slate-900",
                       active
                         ? "bg-primary/10 text-primary font-black shadow-xs"
-                        : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900"
+                        : "text-slate-600"
                     )}
                   >
                     {active ? (
-                      <span className="absolute inset-y-2 right-0 w-1.5 rounded-l-md bg-primary" />
+                      <span
+                        className={cn(
+                          "absolute bg-primary",
+                          compact
+                            ? "inset-y-1.5 right-0.5 w-1 rounded-full"
+                            : "inset-y-2 right-0 w-1.5 rounded-l-md"
+                        )}
+                      />
                     ) : null}
                     <item.icon
                       className={cn(
-                        "h-4 w-4 transition-transform duration-200 group-hover:scale-110",
+                        "transition-transform duration-200 group-hover:scale-110 shrink-0",
+                        compact ? "h-5 w-5" : "h-4 w-4",
                         active ? "text-primary stroke-[2.5]" : "text-slate-500"
                       )}
                       aria-hidden="true"
                     />
-                    <span className="truncate">{item.label}</span>
+                    {!compact && <span className="truncate">{item.label}</span>}
                   </Link>
                 );
               })}

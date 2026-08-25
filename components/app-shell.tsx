@@ -1,6 +1,6 @@
 "use client";
 
-import { Smartphone, LogOut, Menu, X } from "lucide-react";
+import { Smartphone, LogOut, Menu, X, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { useState, useEffect, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { AppNav } from "@/components/app-nav";
@@ -16,6 +16,32 @@ export function AppShell({
 }) {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  // Default to collapsed (folded) on desktop
+  const [isCollapsed, setIsCollapsed] = useState(true);
+
+  // Load user preference from localStorage if previously set
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("phone_repair_sidebar_collapsed");
+      if (saved !== null) {
+        setIsCollapsed(saved === "true");
+      }
+    } catch {
+      // ignore storage access errors
+    }
+  }, []);
+
+  const toggleSidebar = () => {
+    setIsCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("phone_repair_sidebar_collapsed", String(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  };
 
   // Close drawer on page navigation
   useEffect(() => {
@@ -50,40 +76,91 @@ export function AppShell({
   return (
     <div className="min-h-screen bg-slate-50/20">
       {/* Sidebar Desktop */}
-      <aside className="fixed inset-y-0 right-0 hidden w-64 border-l border-slate-200/60 bg-white/70 backdrop-blur-xl px-5 py-6 shadow-sm shadow-slate-100/30 lg:flex lg:flex-col lg:justify-between">
-        <div>
-          <div className="flex items-center gap-3.5 rounded-2xl border border-slate-200/60 bg-slate-50/40 p-4 transition-all duration-300 hover:border-primary/10">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-primary/95 to-teal-800 text-primary-foreground shadow-md shadow-primary/20">
-              <Smartphone className="h-6 w-6" aria-hidden="true" />
-            </div>
-            <div className="overflow-hidden">
-              <h1 className="text-base font-extrabold tracking-tight text-slate-800 bg-gradient-to-l from-slate-900 to-slate-700 bg-clip-text text-transparent truncate">
-                مصلح OS
-              </h1>
-              <p className="mt-0.5 text-[10px] font-bold text-teal-700 uppercase tracking-wide truncate">
-                منظومة إدارة الصيانة
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-4">
-            <AppNav canSettings={canSettings} />
-          </div>
-        </div>
-
-        {/* User / Logout footer in sidebar */}
-        <div className="pt-4 border-t border-slate-200/60">
-          <form action={logoutAction}>
-            <button
-              type="submit"
-              className="w-full flex items-center justify-between gap-2.5 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition"
-            >
-              <div className="flex items-center gap-2">
-                <LogOut className="h-4 w-4" />
-                <span>تسجيل الخروج</span>
+      <aside
+        className={cn(
+          "fixed inset-y-0 right-0 z-30 hidden border-l border-slate-200/60 bg-white/80 backdrop-blur-xl shadow-sm shadow-slate-100/30 transition-all duration-300 ease-in-out lg:flex lg:flex-col lg:justify-between",
+          isCollapsed ? "w-20 px-3 py-5" : "w-64 px-5 py-6"
+        )}
+      >
+        <div className="flex flex-col h-full overflow-y-auto overflow-x-hidden">
+          {/* Header / Brand & Toggle */}
+          {isCollapsed ? (
+            <div className="flex flex-col items-center gap-3">
+              <button
+                type="button"
+                onClick={toggleSidebar}
+                title="توسيع القائمة الجانبية"
+                aria-label="توسيع القائمة الجانبية"
+                className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 border border-slate-200/80 hover:border-emerald-200 transition-all duration-200 active:scale-95 cursor-pointer shadow-2xs"
+              >
+                <ChevronsLeft className="h-4.5 w-4.5" />
+              </button>
+              <div
+                title="مصلح OS - منظومة إدارة الصيانة"
+                onClick={toggleSidebar}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-primary/95 to-teal-800 text-primary-foreground shadow-md shadow-primary/20 cursor-pointer transition hover:scale-105"
+              >
+                <Smartphone className="h-5.5 w-5.5" aria-hidden="true" />
               </div>
-            </button>
-          </form>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between gap-2 rounded-2xl border border-slate-200/60 bg-slate-50/40 p-3.5 transition-all duration-300 hover:border-primary/10">
+              <div className="flex items-center gap-3 overflow-hidden">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-primary/95 to-teal-800 text-primary-foreground shadow-md shadow-primary/20">
+                  <Smartphone className="h-5.5 w-5.5" aria-hidden="true" />
+                </div>
+                <div className="overflow-hidden">
+                  <h1 className="text-base font-extrabold tracking-tight text-slate-800 bg-gradient-to-l from-slate-900 to-slate-700 bg-clip-text text-transparent truncate">
+                    مصلح OS
+                  </h1>
+                  <p className="mt-0.5 text-[10px] font-bold text-teal-700 uppercase tracking-wide truncate">
+                    منظومة إدارة الصيانة
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={toggleSidebar}
+                title="طي القائمة الجانبية"
+                aria-label="طي القائمة الجانبية"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-200/70 hover:text-slate-700 transition active:scale-95 cursor-pointer"
+              >
+                <ChevronsRight className="h-4.5 w-4.5" />
+              </button>
+            </div>
+          )}
+
+          {/* Navigation Items */}
+          <div className="mt-4 flex-1">
+            <AppNav canSettings={canSettings} compact={isCollapsed} />
+          </div>
+
+          {/* User / Logout footer in sidebar */}
+          <div className={cn("pt-4 border-t border-slate-200/60 mt-auto", isCollapsed ? "flex justify-center" : "")}>
+            <form action={logoutAction} className="w-full">
+              {isCollapsed ? (
+                <button
+                  type="submit"
+                  title="تسجيل الخروج"
+                  aria-label="تسجيل الخروج"
+                  className="flex h-10 w-10 mx-auto items-center justify-center rounded-xl text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition active:scale-95 cursor-pointer"
+                >
+                  <LogOut className="h-4.5 w-4.5" />
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  className="w-full flex items-center justify-between gap-2.5 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition"
+                >
+                  <div className="flex items-center gap-2">
+                    <LogOut className="h-4 w-4" />
+                    <span>تسجيل الخروج</span>
+                  </div>
+                </button>
+              )}
+            </form>
+          </div>
         </div>
       </aside>
 
@@ -130,7 +207,7 @@ export function AppShell({
 
           {/* Nav Items */}
           <div className="mt-4 flex-1">
-            <AppNav canSettings={canSettings} onNavigate={() => setMobileMenuOpen(false)} />
+            <AppNav canSettings={canSettings} onNavigate={() => setMobileMenuOpen(false)} compact={false} />
           </div>
 
           {/* Drawer Footer */}
@@ -149,7 +226,7 @@ export function AppShell({
       </aside>
 
       {/* Main Content Area */}
-      <div className="lg:pr-64">
+      <div className={cn("transition-all duration-300 ease-in-out", isCollapsed ? "lg:pr-20" : "lg:pr-64")}>
         {/* Header Mobile */}
         <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl px-4 py-3 shadow-xs lg:hidden">
           <div className="flex items-center justify-between">
