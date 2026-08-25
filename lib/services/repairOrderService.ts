@@ -196,7 +196,7 @@ export async function listRepairOrders(
   const status =
     filters.status && filters.status !== "ALL" ? filters.status : undefined;
 
-  return prisma.repairOrder.findMany({
+  const orders = await prisma.repairOrder.findMany({
     where: {
       shopId,
       deletedAt: null,
@@ -237,6 +237,47 @@ export async function listRepairOrders(
       createdAt: "desc",
     },
   });
+
+  // Batched resolution of creators for the listed tickets
+  const creatorUserIds = Array.from(
+    new Set(orders.map((o) => o.createdByUserId).filter((id): id is string => Boolean(id)))
+  );
+
+  const usersMap = new Map<string, { id: string; name: string; role: string }>();
+
+  if (creatorUserIds.length > 0) {
+    const [users, memberships] = await Promise.all([
+      prisma.user.findMany({
+        where: { id: { in: creatorUserIds } },
+        select: { id: true, name: true, shopId: true, role: true },
+      }),
+      prisma.membership.findMany({
+        where: { shopId, userId: { in: creatorUserIds } },
+        select: { userId: true, role: true },
+      }),
+    ]);
+
+    const roleMap = new Map<string, string>();
+    for (const m of memberships) {
+      roleMap.set(m.userId, m.role);
+    }
+
+    for (const u of users) {
+      const shopRole = roleMap.get(u.id) || (u.shopId === shopId ? u.role : null);
+      if (shopRole) {
+        usersMap.set(u.id, {
+          id: u.id,
+          name: u.name?.trim() || "عضو فريق العمل",
+          role: shopRole,
+        });
+      }
+    }
+  }
+
+  return orders.map((order) => ({
+    ...order,
+    createdByUser: order.createdByUserId ? usersMap.get(order.createdByUserId) || null : null,
+  }));
 }
 
 export async function getRepairOrderById(shopId: string, repairOrderId: string) {

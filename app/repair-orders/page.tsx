@@ -141,9 +141,10 @@ export default async function RepairOrdersPage({
                   <th className="text-slate-800">العميل</th>
                   <th className="text-slate-800">الهاتف</th>
                   <th className="text-slate-800">الجهاز</th>
-                  <th className="w-64 text-slate-800">المشكلة</th>
+                  <th className="w-56 text-slate-800">المشكلة</th>
                   <th className="text-slate-800">الحالة</th>
-                  <th className="text-slate-800">التكلفة المتوقعة</th>
+                  <th className="text-slate-800">التكلفة</th>
+                  <th className="text-slate-800">المنشئ</th>
                   <th className="text-slate-800">تاريخ الإنشاء</th>
                   <th className="text-slate-800">التسليم المتوقع</th>
                   <th className="w-24 text-slate-800 text-center">الإجراءات</th>
@@ -177,6 +178,26 @@ export default async function RepairOrdersPage({
                       <RepairStatusBadge status={repairOrder.status} />
                     </td>
                     <td className="font-black font-numeric text-slate-900">{formatMoney(repairOrder.estimatedTotal, currency)}</td>
+                    <td>
+                      {repairOrder.createdByUser ? (
+                        <div className="space-y-0.5">
+                          <div className="font-bold text-slate-900 text-xs truncate max-w-[130px]">
+                            {repairOrder.createdByUser.name}
+                          </div>
+                          <span className="inline-block text-[10px] font-bold text-teal-800 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200/60">
+                            {repairOrder.createdByUser.role === "OWNER"
+                              ? "المالك"
+                              : repairOrder.createdByUser.role === "ADMIN"
+                              ? "مدير فرع"
+                              : repairOrder.createdByUser.role === "TECHNICIAN"
+                              ? "فني صيانة"
+                              : "مشاهد"}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 font-medium text-xs">-</span>
+                      )}
+                    </td>
                     <td className="font-numeric text-slate-600 font-medium">{formatDate(repairOrder.createdAt)}</td>
                     <td className="font-numeric text-slate-600 font-medium">{formatDate(repairOrder.dueAt)}</td>
                     <td className="text-center">
