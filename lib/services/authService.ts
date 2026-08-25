@@ -3,12 +3,12 @@ import { hashPassword, verifyPassword, setSessionCookie, clearSessionCookie, get
 import { z } from "zod";
 
 export const registerSchema = z.object({
-  name: z.string().min(2, "الاسم يجب ألا يقل عن حرفين"),
-  email: z.string().email("البريد الإلكتروني غير صحيح"),
-  password: z.string().min(6, "كلمة المرور يجب ألا تقل عن 6 أحرف"),
-  shopName: z.string().min(2, "اسم المتجر يجب ألا يقل عن حرفين"),
-  phone: z.string().optional().default(""),
-  currency: z.string().default("SAR"),
+  name: z.string().min(2, "الاسم الكامل مطلوب ويجب ألا يقل عن حرفين"),
+  email: z.string().email("البريد الإلكتروني غير صحيح ومطلوب"),
+  password: z.string().min(6, "كلمة المرور مطلوبة ويجب ألا تقل عن 6 أحرف"),
+  shopName: z.string().min(2, "اسم المتجر مطلوب ويجب ألا يقل عن حرفين"),
+  phone: z.string().min(6, "رقم هاتف المتجر مطلوب لإنشاء الحساب"),
+  currency: z.string().min(1, "العملة الرسمية مطلوبة").default("SAR"),
   address: z.string().optional().default(""),
 });
 

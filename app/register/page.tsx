@@ -14,17 +14,20 @@ import {
   ArrowLeft,
   Loader2,
   CheckCircle2,
+  AlertTriangle,
+  XCircle,
 } from "lucide-react";
 import { registerAction } from "@/app/actions/authActions";
 import { Button } from "@/components/ui/button";
 import { CURRENCY_OPTIONS } from "@/lib/format";
-import { COUNTRY_DIAL_CODES } from "@/lib/countries";
+import { COUNTRY_DIAL_CODES, validatePhoneForCountry, findCountryByDialCode } from "@/lib/countries";
 
 export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedCurrency, setSelectedCurrency] = useState("SAR");
   const [selectedDialCode, setSelectedDialCode] = useState("+966");
+  const [phoneValue, setPhoneValue] = useState("");
 
   function handleCurrencyChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const newCurr = e.target.value;
@@ -35,12 +38,24 @@ export default function RegisterPage() {
     }
   }
 
-  const currentCountry =
-    COUNTRY_DIAL_CODES.find((c) => c.dialCode === selectedDialCode) || COUNTRY_DIAL_CODES[0];
+  const currentCountry = findCountryByDialCode(selectedDialCode);
+  const phoneValidation = validatePhoneForCountry(selectedDialCode, phoneValue);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+
+    // Client-side strict validation for phone number
+    if (!phoneValue.trim()) {
+      setError(`يرجى إدخال رقم هاتف المتجر لدولة ${currentCountry.name} (${currentCountry.description})`);
+      return;
+    }
+
+    if (!phoneValidation.isValid) {
+      setError(phoneValidation.error || "رقم الهاتف غير صحيح للدولة المحددة");
+      return;
+    }
+
     setLoading(true);
 
     const formData = new FormData(e.currentTarget);
@@ -84,8 +99,9 @@ export default function RegisterPage() {
 
         <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800/80 p-6 sm:p-10 shadow-2xl rounded-3xl">
           {error && (
-            <div className="mb-6 rounded-2xl bg-rose-500/10 border border-rose-500/20 p-4 text-xs font-bold text-rose-400">
-              {error}
+            <div className="mb-6 rounded-2xl bg-rose-500/10 border border-rose-500/20 p-4 text-xs font-bold text-rose-400 flex items-start gap-2.5">
+              <XCircle className="h-4 w-4 shrink-0 mt-0.5" />
+              <div className="flex-1 leading-relaxed">{error}</div>
             </div>
           )}
 
@@ -100,7 +116,7 @@ export default function RegisterPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-extrabold text-slate-300 mb-1.5">
-                    الاسم الكامل
+                    الاسم الكامل <span className="text-rose-400">*</span>
                   </label>
                   <div className="relative">
                     <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-slate-500">
@@ -110,6 +126,7 @@ export default function RegisterPage() {
                       type="text"
                       name="name"
                       required
+                      minLength={2}
                       placeholder="مثال: أحمد محمد"
                       className="w-full rounded-xl border border-slate-800 bg-slate-950/60 py-2.5 pr-9 pl-3 text-sm text-white placeholder-slate-600 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 transition"
                     />
@@ -118,7 +135,7 @@ export default function RegisterPage() {
 
                 <div>
                   <label className="block text-xs font-extrabold text-slate-300 mb-1.5">
-                    البريد الإلكتروني
+                    البريد الإلكتروني <span className="text-rose-400">*</span>
                   </label>
                   <div className="relative">
                     <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-slate-500">
@@ -138,7 +155,7 @@ export default function RegisterPage() {
 
               <div>
                 <label className="block text-xs font-extrabold text-slate-300 mb-1.5">
-                  كلمة المرور
+                  كلمة المرور <span className="text-rose-400">*</span>
                 </label>
                 <div className="relative">
                   <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-slate-500">
@@ -166,7 +183,7 @@ export default function RegisterPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-extrabold text-slate-300 mb-1.5">
-                    اسم المحل أو الورشة
+                    اسم المحل أو الورشة <span className="text-rose-400">*</span>
                   </label>
                   <div className="relative">
                     <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-slate-500">
@@ -176,6 +193,7 @@ export default function RegisterPage() {
                       type="text"
                       name="shopName"
                       required
+                      minLength={2}
                       placeholder="مثال: مركز النخبة لصيانة الهواتف"
                       className="w-full rounded-xl border border-slate-800 bg-slate-950/60 py-2.5 pr-9 pl-3 text-sm text-white placeholder-slate-600 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 transition"
                     />
@@ -184,7 +202,7 @@ export default function RegisterPage() {
 
                 <div>
                   <label className="block text-xs font-extrabold text-slate-300 mb-1.5">
-                    العملة الرسمية للنظام
+                    العملة الرسمية للنظام <span className="text-rose-400">*</span>
                   </label>
                   <div className="relative">
                     <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-slate-500">
@@ -192,6 +210,7 @@ export default function RegisterPage() {
                     </div>
                     <select
                       name="currency"
+                      required
                       value={selectedCurrency}
                       onChange={handleCurrencyChange}
                       className="w-full rounded-xl border border-slate-800 bg-slate-950/60 py-2.5 pr-9 pl-3 text-sm text-white focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 transition"
@@ -210,10 +229,10 @@ export default function RegisterPage() {
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="block text-xs font-extrabold text-slate-300">
-                      رقم هاتف المتجر / الواتساب
+                      رقم هاتف المتجر / الواتساب <span className="text-rose-400">*</span>
                     </label>
                     <span className="text-[10px] text-teal-400 font-bold">
-                      (الرقم بدون رمز الدولة)
+                      ({currentCountry.description})
                     </span>
                   </div>
                   <div className="flex items-center gap-2" dir="ltr">
@@ -221,6 +240,7 @@ export default function RegisterPage() {
                     <div className="relative w-[130px] shrink-0">
                       <select
                         name="dialCode"
+                        required
                         value={selectedDialCode}
                         onChange={(e) => setSelectedDialCode(e.target.value)}
                         className="w-full rounded-xl border border-slate-800 bg-slate-950/80 py-2.5 px-2 text-xs font-bold text-teal-400 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 transition cursor-pointer"
@@ -241,11 +261,47 @@ export default function RegisterPage() {
                       <input
                         type="tel"
                         name="phone"
+                        required
+                        value={phoneValue}
+                        onChange={(e) => setPhoneValue(e.target.value)}
                         placeholder={`مثال: ${currentCountry.placeholder}`}
-                        className="w-full rounded-xl border border-slate-800 bg-slate-950/60 py-2.5 pr-9 pl-3 text-sm font-numeric text-white placeholder-slate-600 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 transition"
+                        className={`w-full rounded-xl border bg-slate-950/60 py-2.5 pr-9 pl-3 text-sm font-numeric text-white placeholder-slate-600 focus:outline-none focus:ring-1 transition ${
+                          phoneValue.trim() && !phoneValidation.isValid
+                            ? "border-rose-500/80 focus:border-rose-500 focus:ring-rose-500/20"
+                            : phoneValue.trim() && phoneValidation.isValid
+                            ? "border-emerald-500/80 focus:border-emerald-500 focus:ring-emerald-500/20"
+                            : "border-slate-800 focus:border-teal-500 focus:ring-teal-500"
+                        }`}
                       />
                     </div>
                   </div>
+
+                  {/* Live Dynamic Phone Validation Feedback */}
+                  {phoneValue.trim() ? (
+                    <div className="mt-1.5">
+                      {phoneValidation.isValid ? (
+                        <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-400">
+                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                          <span>رقم هاتف صحيح ({phoneValidation.formattedInternational})</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 text-[11px] font-bold text-rose-400">
+                          <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-rose-400" />
+                          <span>
+                            {phoneValidation.currentCount < phoneValidation.expectedCountMin
+                              ? `ناقص ${phoneValidation.expectedCountMin - phoneValidation.currentCount} رقم (تم إدخال ${phoneValidation.currentCount} من ${phoneValidation.expectedCountMin})`
+                              : phoneValidation.currentCount > phoneValidation.expectedCountMax
+                              ? `زائد ${phoneValidation.currentCount - phoneValidation.expectedCountMax} رقم عن المطلوب`
+                              : phoneValidation.error}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="mt-1 text-[10px] text-slate-500 font-medium">
+                      أدخل الرقم بدون الصفر المبدئي أو كود الدولة ({currentCountry.description})
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -283,7 +339,7 @@ export default function RegisterPage() {
               <Button
                 type="submit"
                 disabled={loading}
-                className="w-full h-12 rounded-xl bg-gradient-to-r from-teal-500 to-primary text-slate-950 font-black text-sm shadow-lg shadow-teal-500/20 hover:from-teal-400 hover:to-teal-600 transition duration-200 border-0"
+                className="w-full h-12 rounded-xl bg-gradient-to-r from-teal-500 to-primary text-slate-950 font-black text-sm shadow-lg shadow-teal-500/20 hover:from-teal-400 hover:to-teal-600 transition duration-200 border-0 cursor-pointer"
               >
                 {loading ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
