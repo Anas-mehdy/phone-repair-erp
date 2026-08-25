@@ -401,10 +401,14 @@ export default async function RepairOrderDetailsPage({
               ) : (
                 <form action={createInvoiceFromRepairOrderAction} className="w-full">
                   <input type="hidden" name="repairOrderId" value={repairOrder.id} />
-                  <Button className="w-full font-bold shadow-sm rounded-xl py-5 text-xs justify-center hover:bg-teal-50 hover:text-teal-700 border-slate-200" variant="outline" type="submit">
-                    <FileText className="h-4.5 w-4.5 ml-2 text-teal-600 shrink-0" aria-hidden="true" />
+                  <SubmitButton
+                    variant="outline"
+                    className="w-full font-bold shadow-sm rounded-xl py-5 text-xs justify-center hover:bg-teal-50 hover:text-teal-700 border-slate-200"
+                    loadingText="جاري إنشاء فاتورة الصيانة وتحويلك..."
+                    icon={<FileText className="h-4.5 w-4.5 ml-2 text-teal-600 shrink-0" aria-hidden="true" />}
+                  >
                     إنشاء فاتورة صيانة
-                  </Button>
+                  </SubmitButton>
                 </form>
               )}
 

@@ -9,6 +9,7 @@ import {
   SaleStatusBadge,
 } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/submit-button";
 import { getCurrentShopContext } from "@/lib/current-shop";
 import { isDatabaseConnectionError } from "@/lib/database-errors";
 import { salesService } from "@/lib/services/salesService";
@@ -241,12 +242,17 @@ export default async function SaleDetailsPage({
                   </Link>
                 </Button>
               ) : (
-                <form action={createInvoiceFromSaleAction}>
+                <form action={createInvoiceFromSaleAction} className="w-full">
                   <input type="hidden" name="saleId" value={sale.id} />
-                  <Button type="submit" variant="outline" className="w-full font-bold shadow-sm border-slate-200 hover:bg-teal-50 hover:text-teal-700 rounded-xl h-11 text-xs justify-center">
-                    <FileText className="h-4.5 w-4.5 ml-2 text-primary shrink-0" aria-hidden="true" />
+                  <SubmitButton
+                    type="submit"
+                    variant="outline"
+                    className="w-full font-bold shadow-sm border-slate-200 hover:bg-teal-50 hover:text-teal-700 rounded-xl h-11 text-xs justify-center"
+                    loadingText="جاري إنشاء الفاتورة الضريبية وتحويلك..."
+                    icon={<FileText className="h-4.5 w-4.5 ml-2 text-primary shrink-0" aria-hidden="true" />}
+                  >
                     إنشاء فاتورة ضريبية
-                  </Button>
+                  </SubmitButton>
                 </form>
               )}
               {sale.status === SaleStatus.COMPLETED ? (

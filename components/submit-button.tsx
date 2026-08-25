@@ -3,9 +3,11 @@
 import { useFormStatus } from "react-dom";
 import { Loader2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type { ComponentProps } from "react";
 
 type SubmitButtonProps = Omit<ComponentProps<typeof Button>, "type"> & {
+  type?: "submit" | "button" | "reset";
   idleText?: string;
   loadingText?: string;
   icon?: React.ReactNode;
@@ -26,19 +28,19 @@ export function SubmitButton({
     <Button
       type="submit"
       disabled={pending || disabled}
-      className={className}
+      className={cn(className, pending && "cursor-wait opacity-80 select-none")}
       {...props}
     >
       {pending ? (
-        <>
-          <Loader2 className="h-4 w-4 ml-2 animate-spin" />
-          {loadingText}
-        </>
+        <span className="flex items-center justify-center gap-2">
+          <Loader2 className="h-4 w-4 animate-spin text-current shrink-0" />
+          <span>{loadingText}</span>
+        </span>
       ) : (
-        <>
+        <span className="flex items-center justify-center">
           {icon}
-          {children || idleText}
-        </>
+          <span>{children || idleText}</span>
+        </span>
       )}
     </Button>
   );
