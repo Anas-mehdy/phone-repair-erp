@@ -22,6 +22,7 @@ import { getCurrentShopContext } from "@/lib/current-shop";
 import { isDatabaseConnectionError } from "@/lib/database-errors";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { dashboardService } from "@/lib/services/dashboardService";
+import { FeatureSpotlight } from "@/components/dashboard/feature-spotlight";
 
 export const dynamic = "force-dynamic";
 
@@ -166,6 +167,9 @@ export default async function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Feature Spotlight for High Priority New Features */}
+      <FeatureSpotlight />
 
       {/* KPI Cards Grid */}
       <section className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
