@@ -10,23 +10,27 @@ import {
   KeyRound,
   ShieldCheck,
   CheckCircle2,
-  ArrowRight,
   MessageCircle,
   Cpu,
   Layers,
-  FileCode,
   Smartphone,
-  Globe,
-  Lock,
   Database,
   Terminal,
   Percent,
   Clock,
-  Send,
   HelpCircle,
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
+
+interface ImeiCheckResult {
+  imei: string;
+  model: string;
+  icloud: string;
+  simLock: string;
+  blacklist: string;
+  warranty: string;
+}
 
 interface DigitalProduct {
   id: string;
@@ -204,7 +208,7 @@ export default function OnlineStorePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [imeiTest, setImeiTest] = useState("");
   const [imeiChecking, setImeiChecking] = useState(false);
-  const [imeiResult, setImeiResult] = useState<any>(null);
+  const [imeiResult, setImeiResult] = useState<ImeiCheckResult | null>(null);
 
   const filteredProducts = DIGITAL_PRODUCTS.filter((p) => {
     const matchesCat = activeCategory === "all" || p.category === activeCategory;

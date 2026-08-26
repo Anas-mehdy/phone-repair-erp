@@ -10,14 +10,11 @@ import {
   Zap,
   Smartphone,
   CheckCircle2,
-  AlertTriangle,
   ArrowRight,
   MessageCircle,
-  ShieldAlert,
   Battery,
   Tv,
   Radio,
-  SlidersHorizontal,
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";

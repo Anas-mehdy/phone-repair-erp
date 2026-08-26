@@ -21,7 +21,6 @@ import {
 } from "lucide-react";
 import {
   CHANGELOG_ENTRIES,
-  type ChangelogEntry,
   type ChangelogType,
 } from "@/lib/changelog-data";
 import { cn } from "@/lib/utils";

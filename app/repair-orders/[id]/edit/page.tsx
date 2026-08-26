@@ -1,4 +1,4 @@
-import { ArrowRight, Wrench } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DatabaseUnavailable } from "@/components/database-unavailable";
