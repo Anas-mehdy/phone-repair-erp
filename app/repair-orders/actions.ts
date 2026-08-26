@@ -189,10 +189,6 @@ export async function updateRepairOrderDetailsAction(formData: FormData) {
   revalidatePath(`/repair-orders/${input.repairOrderId}`);
   revalidatePath("/customers");
   revalidatePath("/dashboard");
-
-  if (input.redirectTo) {
-    redirect(input.redirectTo);
-  }
 }
 
 export async function updateRepairOrderStatusAction(formData: FormData) {

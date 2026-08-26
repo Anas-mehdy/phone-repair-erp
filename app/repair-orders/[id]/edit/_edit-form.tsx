@@ -1,8 +1,9 @@
 "use client";
 
-import { useTransition } from "react";
-import { ArrowRight, Save, Loader2, User, Smartphone, Wrench, DollarSign } from "lucide-react";
+import { useState, useTransition } from "react";
+import { ArrowRight, Save, Loader2, User, Smartphone, Wrench, DollarSign, AlertCircle, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { RepairStatus } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { updateRepairOrderDetailsAction } from "../../actions";
@@ -78,17 +79,34 @@ export function EditRepairOrderForm({
   inventoryItems = [],
   currency,
 }: EditRepairOrderFormProps) {
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+  const [isSuccess, setIsSuccess] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (isPending) return;
 
+    setError(null);
     const form = e.currentTarget;
     const formData = new FormData(form);
 
     startTransition(async () => {
-      await updateRepairOrderDetailsAction(formData);
+      try {
+        await updateRepairOrderDetailsAction(formData);
+        setIsSuccess(true);
+        router.push(`/repair-orders/${repairOrder.id}`);
+        router.refresh();
+      } catch (err: unknown) {
+        if ((err as { digest?: string })?.digest?.startsWith("NEXT_REDIRECT")) {
+          setIsSuccess(true);
+          router.push(`/repair-orders/${repairOrder.id}`);
+          router.refresh();
+          return;
+        }
+        setError(err instanceof Error ? err.message : "حدث خطأ أثناء حفظ التعديلات");
+      }
     });
   }
 
@@ -107,7 +125,20 @@ export function EditRepairOrderForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <input type="hidden" name="repairOrderId" value={repairOrder.id} />
-      <input type="hidden" name="redirectTo" value={`/repair-orders/${repairOrder.id}`} />
+
+      {error && (
+        <div className="flex items-center gap-2.5 p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-xs font-bold animate-in fade-in duration-200">
+          <AlertCircle className="h-5 w-5 text-rose-600 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {isSuccess && (
+        <div className="flex items-center gap-2.5 p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl text-xs font-bold animate-in fade-in duration-200">
+          <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+          <span>تم حفظ التعديلات بنجاح، جاري تحويلك لصفحة التذكرة...</span>
+        </div>
+      )}
 
       {/* Customer Information */}
       <section className="erp-section">
