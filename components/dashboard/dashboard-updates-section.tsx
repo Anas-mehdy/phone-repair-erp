@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
@@ -12,6 +12,8 @@ import {
   Zap,
   ShieldCheck,
   Layers,
+  Users,
+  UserPlus,
   ArrowLeft,
   ChevronDown,
   ChevronUp,
@@ -34,6 +36,8 @@ const ICON_MAP: Record<string, LucideIcon> = {
   Zap,
   ShieldCheck,
   Layers,
+  Users,
+  UserPlus,
 };
 
 function getTypeMeta(type: ChangelogType) {
@@ -97,7 +101,7 @@ export function DashboardUpdatesSection() {
                 نشرة التحديثات والميزات الجديدة
               </h3>
               <span className="rounded-full bg-teal-100/80 border border-teal-200 px-2 py-0.5 text-[10px] font-black text-teal-800 font-numeric">
-                v1.2.0
+                v1.3.0
               </span>
             </div>
             <p className="mt-0.5 text-xs text-slate-500 font-medium">
@@ -178,7 +182,7 @@ export function DashboardUpdatesSection() {
           </div>
 
           {/* Cards Grid */}
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filteredEntries.map((entry) => {
               const meta = getTypeMeta(entry.type);
               const EntryIcon = (entry.iconName && ICON_MAP[entry.iconName]) || Sparkles;
@@ -186,24 +190,24 @@ export function DashboardUpdatesSection() {
               return (
                 <div
                   key={entry.id}
-                  className="group relative flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-4.5 shadow-2xs transition-all duration-200 hover:-translate-y-1 hover:border-teal-300 hover:shadow-md"
+                  className="group relative flex flex-col justify-between rounded-2xl border border-slate-200/80 bg-white p-6 shadow-2xs transition-all duration-200 hover:-translate-y-1 hover:border-teal-300 hover:shadow-md"
                 >
-                  <div className="space-y-3">
+                  <div className="space-y-3.5">
                     {/* Top Row: Badge, Version, Date */}
                     <div className="flex items-center justify-between gap-2 flex-wrap">
                       <span
                         className={cn(
-                          "inline-flex items-center rounded-lg border px-2 py-0.5 text-[10px] font-bold",
+                          "inline-flex items-center rounded-lg border px-2.5 py-1 text-[10px] font-bold",
                           meta.badgeClass
                         )}
                       >
                         {meta.label}
                       </span>
                       <div className="flex items-center gap-1.5">
-                        <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold font-numeric text-slate-600">
+                        <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold font-numeric text-slate-600">
                           {entry.version}
                         </span>
-                        <span className="text-[10px] font-semibold text-slate-600 font-numeric">
+                        <span className="text-[10px] font-semibold text-slate-500 font-numeric">
                           {entry.date}
                         </span>
                       </div>
@@ -225,14 +229,14 @@ export function DashboardUpdatesSection() {
                     </div>
 
                     {/* Description */}
-                    <p className="text-xs text-slate-600 leading-relaxed font-normal">
+                    <p className="text-xs text-slate-600 leading-relaxed font-normal px-0.5">
                       {entry.description}
                     </p>
                   </div>
 
                   {/* Deep Link Action CTA */}
                   {entry.actionHref && entry.actionLabel && (
-                    <div className="mt-4 pt-3 border-t border-slate-100 flex justify-end">
+                    <div className="mt-5 pt-3.5 border-t border-slate-100 flex justify-end">
                       <Link
                         href={entry.actionHref}
                         className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-700 hover:text-teal-900 group-hover:text-teal-800 transition"

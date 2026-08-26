@@ -1,3 +1,4 @@
+import bcrypt from "bcryptjs";
 import {
   InventoryMovementType,
   InvoiceStatus,
@@ -97,12 +98,13 @@ async function main() {
     },
   });
 
+  const ownerPasswordHash = await bcrypt.hash("password123", 10);
   const owner = await prisma.user.create({
     data: {
       shopId: shop.id,
       email: process.env.SEED_OWNER_EMAIL ?? "owner@example.com",
       name: "عبدالله المالكي",
-      passwordHash: "$2a$10$wN3M0K66HhL2ZcE6m6oG8e2u/v5aU2R4G3f/F4H4J5K6L7M8N9O0P", // hash of "password123"
+      passwordHash: ownerPasswordHash,
       role: UserRole.OWNER,
     },
   });

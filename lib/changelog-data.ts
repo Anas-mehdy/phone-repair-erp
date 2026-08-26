@@ -1,4 +1,4 @@
-﻿export type ChangelogType = "FEATURE" | "IMPROVEMENT" | "FIX";
+export type ChangelogType = "FEATURE" | "IMPROVEMENT" | "FIX";
 export type ChangelogPriority = "LOW" | "MEDIUM" | "HIGH";
 
 export interface ChangelogEntry {
@@ -9,7 +9,7 @@ export interface ChangelogEntry {
   priority: ChangelogPriority;
   title: string;
   description: string;
-  iconName?: "Sparkles" | "Wrench" | "ShoppingCart" | "Boxes" | "Receipt" | "QrCode" | "Zap" | "ShieldCheck";
+  iconName?: "Sparkles" | "Wrench" | "ShoppingCart" | "Boxes" | "Receipt" | "QrCode" | "Zap" | "ShieldCheck" | "Users" | "UserPlus";
   actionLabel?: string;
   actionHref?: string;
 }
@@ -20,6 +20,18 @@ export const CHANGELOG_STORAGE_KEYS = {
 } as const;
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
+  {
+    id: "feat-team-employee-management-v1-3",
+    version: "v1.3.0",
+    date: "2026-08-26",
+    type: "FEATURE",
+    priority: "HIGH",
+    title: "إضافة وإدارة موظفي وفنيي المتجر وتحديد الصلاحيات",
+    description: "إمكانية دعوة وإضافة الموظفين والفنيين تحت حساب المتجر الحالي، وتعيين أدوارهم وصلاحياتهم (مدير، فني صيانة، موظف استقبال، محاسب) مع متابعة الدعوات وإدارة المقاعد.",
+    iconName: "Users",
+    actionLabel: "إدارة فريق العمل والموظفين",
+    actionHref: "/settings#team",
+  },
   {
     id: "feat-pos-quick-sales-v1-2",
     version: "v1.2.0",

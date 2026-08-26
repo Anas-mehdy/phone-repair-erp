@@ -211,15 +211,17 @@ export default async function SettingsPage() {
       </form>
 
       {/* Interactive Team Management Section */}
-      <TeamManagementSection
-        memberships={teamData.memberships}
-        pendingInvitations={teamData.pendingInvitations}
-        seatUsage={teamData.seatUsage}
-        currentUserId={auth.user.id}
-        isOwner={isOwner}
-        canManageTeam={canManageTeam}
-        canInviteTeam={canInviteTeam}
-      />
+      <div id="team" className="scroll-mt-6">
+        <TeamManagementSection
+          memberships={teamData.memberships}
+          pendingInvitations={teamData.pendingInvitations}
+          seatUsage={teamData.seatUsage}
+          currentUserId={auth.user.id}
+          isOwner={isOwner}
+          canManageTeam={canManageTeam}
+          canInviteTeam={canInviteTeam}
+        />
+      </div>
     </div>
   );
 }
