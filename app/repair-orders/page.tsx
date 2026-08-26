@@ -133,52 +133,54 @@ export default async function RepairOrdersPage({
             actionLabel="طلب صيانة جديد"
           />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="erp-table min-w-[1000px]">
+          <div className="overflow-x-auto relative">
+            <table className="erp-table min-w-[950px]">
               <thead>
                 <tr>
-                  <th className="w-28 text-slate-800">رقم الطلب</th>
-                  <th className="text-slate-800">العميل</th>
-                  <th className="text-slate-800">الهاتف</th>
-                  <th className="text-slate-800">الجهاز</th>
-                  <th className="w-56 text-slate-800">المشكلة</th>
-                  <th className="text-slate-800">الحالة</th>
-                  <th className="text-slate-800">التكلفة</th>
-                  <th className="text-slate-800">المنشئ</th>
-                  <th className="text-slate-800">تاريخ الإنشاء</th>
-                  <th className="text-slate-800">التسليم المتوقع</th>
-                  <th className="w-36 text-slate-800 text-center">الإجراءات</th>
+                  <th className="whitespace-nowrap text-slate-800">رقم الطلب</th>
+                  <th className="whitespace-nowrap text-slate-800">العميل</th>
+                  <th className="whitespace-nowrap text-slate-800">الهاتف</th>
+                  <th className="whitespace-nowrap text-slate-800">الجهاز</th>
+                  <th className="max-w-[200px] text-slate-800">المشكلة</th>
+                  <th className="whitespace-nowrap text-slate-800">الحالة</th>
+                  <th className="whitespace-nowrap text-slate-800">التكلفة</th>
+                  <th className="whitespace-nowrap text-slate-800">المنشئ</th>
+                  <th className="whitespace-nowrap text-slate-800">تاريخ الإنشاء</th>
+                  <th className="whitespace-nowrap text-slate-800">التسليم المتوقع</th>
+                  <th className="sticky left-0 z-20 bg-slate-100/95 backdrop-blur-xs text-slate-800 text-center whitespace-nowrap px-3 shadow-[-6px_0_12px_rgba(0,0,0,0.06)]">
+                    الإجراءات
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {repairOrders.map((repairOrder) => (
-                  <tr key={repairOrder.id} className="align-middle">
-                    <td className="font-black font-numeric text-slate-900">{repairOrder.ticketNumber}</td>
-                    <td className="font-bold text-slate-900">{repairOrder.customer?.name ?? "-"}</td>
-                    <td className="font-numeric text-slate-600 font-medium">{repairOrder.customer?.phone ?? "-"}</td>
+                  <tr key={repairOrder.id} className="align-middle group hover:bg-slate-50/90 transition">
+                    <td className="font-black font-numeric text-slate-900 whitespace-nowrap">{repairOrder.ticketNumber}</td>
+                    <td className="font-bold text-slate-900 whitespace-nowrap">{repairOrder.customer?.name ?? "-"}</td>
+                    <td className="font-numeric text-slate-600 font-medium whitespace-nowrap">{repairOrder.customer?.phone ?? "-"}</td>
                     <td className="font-semibold text-slate-800">
-                      <div>
+                      <div className="whitespace-nowrap">
                         {[repairOrder.deviceBrand, repairOrder.deviceModel]
                           .filter(Boolean)
                           .join(" ") || "-"}
                       </div>
                       {(repairOrder.supplierName || repairOrder.supplier || repairOrder.partName) ? (
-                        <div className="flex items-center gap-1 text-[10px] text-teal-800 bg-teal-50 px-1.5 py-0.5 rounded-md w-fit mt-1 border border-teal-100 font-bold">
+                        <div className="flex items-center gap-1 text-[10px] text-teal-800 bg-teal-50 px-1.5 py-0.5 rounded-md w-fit mt-1 border border-teal-100 font-bold whitespace-nowrap">
                           <Truck className="h-3 w-3 text-teal-600" />
                           <span>{repairOrder.partName || "قطعة خارجية"} {repairOrder.supplier?.name ?? repairOrder.supplierName ? `(${repairOrder.supplier?.name ?? repairOrder.supplierName})` : ""}</span>
                         </div>
                       ) : null}
                     </td>
-                    <td className="max-w-xs text-slate-600 font-medium">
+                    <td className="max-w-[200px] text-slate-600 font-medium">
                       <span className="line-clamp-2 leading-relaxed">
                         {repairOrder.reportedIssue}
                       </span>
                     </td>
-                    <td>
+                    <td className="whitespace-nowrap">
                       <RepairStatusBadge status={repairOrder.status} />
                     </td>
-                    <td className="font-black font-numeric text-slate-900">{formatMoney(repairOrder.estimatedTotal, currency)}</td>
-                    <td>
+                    <td className="font-black font-numeric text-slate-900 whitespace-nowrap">{formatMoney(repairOrder.estimatedTotal, currency)}</td>
+                    <td className="whitespace-nowrap">
                       {repairOrder.createdByUser ? (
                         <div className="space-y-0.5">
                           <div className="font-bold text-slate-900 text-xs truncate max-w-[130px]">
@@ -198,17 +200,17 @@ export default async function RepairOrdersPage({
                         <span className="text-slate-400 font-medium text-xs">-</span>
                       )}
                     </td>
-                    <td className="font-numeric text-slate-600 font-medium">{formatDate(repairOrder.createdAt)}</td>
-                    <td className="font-numeric text-slate-600 font-medium">{formatDate(repairOrder.dueAt)}</td>
-                    <td className="text-center">
-                      <div className="flex items-center justify-center gap-1.5">
-                        <Button asChild variant="outline" size="sm" className="font-bold shadow-xs border-slate-300 hover:bg-primary/10 hover:text-primary hover:border-primary/30 rounded-lg">
+                    <td className="font-numeric text-slate-600 font-medium whitespace-nowrap">{formatDate(repairOrder.createdAt)}</td>
+                    <td className="font-numeric text-slate-600 font-medium whitespace-nowrap">{formatDate(repairOrder.dueAt)}</td>
+                    <td className="sticky left-0 z-10 bg-white group-hover:bg-slate-50 text-center whitespace-nowrap px-3 shadow-[-6px_0_12px_rgba(0,0,0,0.06)]">
+                      <div className="flex items-center justify-center gap-1.5 shrink-0">
+                        <Button asChild variant="outline" size="sm" className="h-8 px-2.5 font-bold shadow-xs border-slate-300 hover:bg-primary/10 hover:text-primary hover:border-primary/30 rounded-lg text-xs">
                           <Link href={`/repair-orders/${repairOrder.id}`}>
                             <Eye className="h-3.5 w-3.5 ml-1" aria-hidden="true" />
                             عرض
                           </Link>
                         </Button>
-                        <Button asChild variant="outline" size="sm" className="font-bold shadow-xs border-slate-300 hover:bg-teal-50 hover:text-teal-800 hover:border-teal-300 rounded-lg text-slate-700">
+                        <Button asChild variant="outline" size="sm" className="h-8 px-2.5 font-bold shadow-xs border-slate-300 hover:bg-teal-50 hover:text-teal-800 hover:border-teal-300 rounded-lg text-slate-700 text-xs">
                           <Link href={`/repair-orders/${repairOrder.id}/edit`} title="تعديل تذكرة الصيانة">
                             <Pencil className="h-3.5 w-3.5 ml-1" aria-hidden="true" />
                             تعديل
