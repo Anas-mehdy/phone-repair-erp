@@ -51,7 +51,6 @@ export function AdminOnlineUsers({
       if (res.ok) {
         const json: PresenceData = await res.json();
         setData(json);
-        setLastRefreshedAt(new Date());
       }
     } catch {
       // ignore transient fetch errors
