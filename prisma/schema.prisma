@@ -56,6 +56,7 @@ enum InventoryMovementType {
   ADJUSTMENT
   SALE
   REPAIR_USAGE
+  REPAIR_RETURN
   RETURN
 }
 
@@ -112,6 +113,7 @@ model Shop {
   customers             Customer[]
   suppliers             Supplier[]
   repairOrders          RepairOrder[]
+  repairOrderItems      RepairOrderItem[]
   repairStatusHistories RepairStatusHistory[]
   inventoryItems        InventoryItem[]
   inventoryMovements    InventoryMovement[]
@@ -248,6 +250,7 @@ model Supplier {
 
   shop              Shop          @relation(fields: [shopId], references: [id], onDelete: Cascade)
   repairOrders      RepairOrder[]
+  repairOrderItems  RepairOrderItem[]
 
   @@index([shopId, name])
   @@index([shopId, phone])
@@ -291,6 +294,7 @@ model RepairOrder {
   shop               Shop                  @relation(fields: [shopId], references: [id], onDelete: Cascade)
   customer           Customer?             @relation(fields: [customerId], references: [id], onDelete: SetNull)
   supplier           Supplier?             @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  items              RepairOrderItem[]
   statusHistory      RepairStatusHistory[]
   inventoryMovements InventoryMovement[]
   invoices           Invoice[]
@@ -303,6 +307,38 @@ model RepairOrder {
   @@index([shopId, createdByUserId])
   @@index([shopId, assignedToUserId])
   @@index([shopId, updatedByUserId])
+  @@index([shopId, updatedAt])
+  @@index([shopId, deletedAt])
+}
+
+model RepairOrderItem {
+  id                String              @id @default(uuid()) @db.Uuid
+  shopId            String              @db.Uuid
+  repairOrderId     String              @db.Uuid
+  inventoryItemId   String?             @db.Uuid
+  supplierId        String?             @db.Uuid
+  clientGeneratedId String?
+  partName          String
+  quantity          Int                 @default(1)
+  unitCost          Decimal?            @db.Decimal(12, 2)
+  unitPrice         Decimal?            @db.Decimal(12, 2)
+  supplierName      String?
+  notes             String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  deletedAt         DateTime?
+  version           Int                 @default(1)
+
+  shop              Shop                @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  repairOrder       RepairOrder         @relation(fields: [repairOrderId], references: [id], onDelete: Cascade)
+  inventoryItem     InventoryItem?      @relation(fields: [inventoryItemId], references: [id], onDelete: SetNull)
+  supplier          Supplier?           @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  inventoryMovements InventoryMovement[]
+
+  @@unique([shopId, clientGeneratedId])
+  @@index([shopId, repairOrderId])
+  @@index([shopId, inventoryItemId])
+  @@index([shopId, supplierId])
   @@index([shopId, updatedAt])
   @@index([shopId, deletedAt])
 }
@@ -351,6 +387,7 @@ model InventoryItem {
   shop              Shop                @relation(fields: [shopId], references: [id], onDelete: Cascade)
   movements         InventoryMovement[]
   saleItems         SaleItem[]
+  repairOrderItems  RepairOrderItem[]
 
   @@index([shopId, sku])
   @@unique([shopId, clientGeneratedId])
@@ -364,6 +401,7 @@ model InventoryMovement {
   shopId            String                @db.Uuid
   inventoryItemId   String                @db.Uuid
   repairOrderId     String?               @db.Uuid
+  repairOrderItemId String?               @db.Uuid
   saleId            String?               @db.Uuid
   saleItemId        String?               @db.Uuid
   createdByUserId   String?               @db.Uuid
@@ -381,12 +419,14 @@ model InventoryMovement {
   shop              Shop                  @relation(fields: [shopId], references: [id], onDelete: Cascade)
   inventoryItem     InventoryItem         @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
   repairOrder       RepairOrder?          @relation(fields: [repairOrderId], references: [id], onDelete: SetNull)
+  repairOrderItem   RepairOrderItem?      @relation(fields: [repairOrderItemId], references: [id], onDelete: SetNull)
   sale              Sale?                 @relation(fields: [saleId], references: [id], onDelete: SetNull)
   saleItem          SaleItem?             @relation(fields: [saleItemId], references: [id], onDelete: SetNull)
 
   @@unique([shopId, clientGeneratedId])
   @@index([shopId, inventoryItemId, createdAt])
   @@index([shopId, repairOrderId])
+  @@index([shopId, repairOrderItemId])
   @@index([shopId, saleId])
   @@index([shopId, saleItemId])
   @@index([shopId, createdByUserId])

@@ -12,6 +12,7 @@ import { getCurrentShopContext } from "@/lib/current-shop";
 import { isDatabaseConnectionError } from "@/lib/database-errors";
 import { repairOrderService } from "@/lib/services/repairOrderService";
 import { supplierService } from "@/lib/services/supplierService";
+import { inventoryService } from "@/lib/services/inventoryService";
 import { createInvoiceFromRepairOrderAction } from "@/app/invoices/actions";
 import {
   Field,
@@ -55,6 +56,7 @@ export default async function RepairOrderDetailsPage({
   const query = await searchParams;
   let repairOrder: Awaited<ReturnType<typeof repairOrderService.getRepairOrderById>>;
   let suppliers: Awaited<ReturnType<typeof supplierService.listSuppliers>> = [];
+  let inventoryItems: Awaited<ReturnType<typeof inventoryService.listInventoryItems>> = [];
 
   let shopId = "";
   let currency = "SAR";
@@ -64,9 +66,10 @@ export default async function RepairOrderDetailsPage({
     shopId = context.shopId;
     currency = context.currency;
     shopName = context.shopName;
-    [repairOrder, suppliers] = await Promise.all([
+    [repairOrder, suppliers, inventoryItems] = await Promise.all([
       repairOrderService.getRepairOrderById(context.shopId, id),
       supplierService.listSuppliers(context.shopId),
+      inventoryService.listInventoryItems(context.shopId),
     ]);
   } catch (error) {
     if (isDatabaseConnectionError(error)) {
@@ -79,6 +82,15 @@ export default async function RepairOrderDetailsPage({
   if (!repairOrder) {
     notFound();
   }
+
+  const serializedInventory = inventoryItems.map((item) => ({
+    id: item.id,
+    name: item.name,
+    sku: item.sku,
+    quantity: item.quantity,
+    unitPrice: item.unitPrice.toString(),
+    unitCost: item.unitCost ? item.unitCost.toString() : null,
+  }));
 
   const repairPrice = Number(repairOrder.finalTotal ?? repairOrder.estimatedTotal ?? 0);
   const partCostNum = Number(repairOrder.partCost ?? 0);
@@ -192,13 +204,13 @@ export default async function RepairOrderDetailsPage({
             </div>
 
             {/* Supplier & Parts info box (Workshop only) */}
-            {(repairOrder.supplierName || repairOrder.supplier || repairOrder.partName || repairOrder.partCost) ? (
+            {(repairOrder.items.length > 0 || repairOrder.supplierName || repairOrder.supplier || repairOrder.partName || repairOrder.partCost) ? (
               <div className="mt-6 border-t border-slate-100/60 pt-5">
                 <div className="rounded-2xl border border-teal-200/80 bg-teal-50/40 p-4 space-y-4">
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <div className="flex items-center gap-2 text-xs font-bold text-teal-900">
                       <Truck className="h-4 w-4 text-teal-700" />
-                      <span>بيانات المورد وقطع الغيار (خاص بالورشة)</span>
+                      <span>بيانات قطع الغيار والموردين (خاص بالورشة)</span>
                     </div>
                     {repairPrice > 0 && partCostNum > 0 ? (
                       <div className="flex items-center gap-2 bg-teal-900 text-white px-3 py-1 rounded-xl text-xs font-bold">
@@ -208,21 +220,72 @@ export default async function RepairOrderDetailsPage({
                       </div>
                     ) : null}
                   </div>
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    <Info label="المورد" value={repairOrder.supplier?.name ?? repairOrder.supplierName ?? "-"} />
-                    <Info label="القطعة المشتراة" value={repairOrder.partName ?? "-"} />
-                    <Info label="تكلفة شراء القطعة" value={<span className="font-numeric">{formatMoney(repairOrder.partCost, currency)}</span>} />
-                    <Info
-                      label="حالة خصم التكلفة"
-                      value={
-                        repairOrder.deductPartCost ? (
-                          <span className="text-xs font-bold text-teal-700">مخصومة من الأرباح</span>
-                        ) : (
-                          <span className="text-xs font-bold text-slate-500">غير مخصومة</span>
-                        )
-                      }
-                    />
-                  </div>
+
+                  {repairOrder.items.length > 0 ? (
+                    <div className="space-y-2">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-right text-xs">
+                          <thead>
+                            <tr className="border-b border-teal-200/60 text-slate-500 font-bold">
+                              <th className="py-2 px-3">القطعة</th>
+                              <th className="py-2 px-3">المصدر / المورد</th>
+                              <th className="py-2 px-3 text-center">الكمية</th>
+                              <th className="py-2 px-3 font-numeric">سعر التكلفة</th>
+                              <th className="py-2 px-3 font-numeric">إجمالي التكلفة</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-teal-100/60">
+                            {repairOrder.items.map((item) => {
+                              const lineCost = Number(item.unitCost || 0) * item.quantity;
+                              return (
+                                <tr key={item.id} className="text-slate-800 font-medium">
+                                  <td className="py-2.5 px-3 font-bold">
+                                    {item.partName}
+                                    {item.notes ? (
+                                      <span className="block text-[11px] font-normal text-slate-500">{item.notes}</span>
+                                    ) : null}
+                                  </td>
+                                  <td className="py-2.5 px-3">
+                                    {item.inventoryItem ? (
+                                      <span className="inline-flex items-center gap-1 rounded-md bg-teal-100 px-2 py-0.5 text-[11px] font-bold text-teal-800">
+                                        مخزون داخلي
+                                      </span>
+                                    ) : (
+                                      <span className="text-slate-600">
+                                        {item.supplier?.name ?? item.supplierName ?? "مورد خارجي"}
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="py-2.5 px-3 text-center font-numeric font-bold">{item.quantity}</td>
+                                  <td className="py-2.5 px-3 font-numeric">{formatMoney(item.unitCost, currency)}</td>
+                                  <td className="py-2.5 px-3 font-numeric font-bold text-teal-950">
+                                    {formatMoney(lineCost, currency)}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                      <Info label="المورد" value={repairOrder.supplier?.name ?? repairOrder.supplierName ?? "-"} />
+                      <Info label="القطعة المشتراة" value={repairOrder.partName ?? "-"} />
+                      <Info label="تكلفة شراء القطعة" value={<span className="font-numeric">{formatMoney(repairOrder.partCost, currency)}</span>} />
+                      <Info
+                        label="حالة خصم التكلفة"
+                        value={
+                          repairOrder.deductPartCost ? (
+                            <span className="text-xs font-bold text-teal-700">مخصومة من الأرباح</span>
+                          ) : (
+                            <span className="text-xs font-bold text-slate-500">غير مخصومة</span>
+                          )
+                        }
+                      />
+                    </div>
+                  )}
+
                   {repairOrder.supplierNotes ? (
                     <div className="text-xs font-medium text-slate-600 bg-white/80 p-2.5 rounded-xl border border-teal-100">
                       <span className="font-bold text-slate-800 ml-1">ملاحظات الضمان والمورد:</span>
@@ -290,12 +353,25 @@ export default async function RepairOrderDetailsPage({
               {/* Supplier & Parts in Edit Mode */}
               <SupplierFields
                 suppliers={suppliers}
+                inventoryItems={serializedInventory}
                 currency={currency}
                 defaultSupplierName={repairOrder.supplier?.name ?? repairOrder.supplierName ?? ""}
                 defaultPartName={repairOrder.partName ?? ""}
                 defaultPartCost={repairOrder.partCost?.toString() ?? ""}
                 defaultDeductPartCost={repairOrder.deductPartCost}
                 defaultSupplierNotes={repairOrder.supplierNotes ?? ""}
+                initialItems={repairOrder.items.map((item) => ({
+                  id: item.id,
+                  inventoryItemId: item.inventoryItemId,
+                  supplierId: item.supplierId,
+                  supplierName: item.supplier?.name ?? item.supplierName,
+                  partName: item.partName,
+                  quantity: item.quantity,
+                  unitCost: item.unitCost ? item.unitCost.toString() : "0",
+                  unitPrice: item.unitPrice ? item.unitPrice.toString() : "0",
+                  notes: item.notes,
+                }))}
+                readOnly={repairOrder.status === "CANCELLED"}
               />
 
               <div className="flex justify-end">

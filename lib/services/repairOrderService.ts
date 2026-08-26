@@ -4,9 +4,32 @@ import { prisma } from "@/lib/prisma";
 const repairOrderInclude = {
   customer: true,
   supplier: true,
+  items: {
+    where: {
+      deletedAt: null,
+    },
+    include: {
+      inventoryItem: true,
+      supplier: true,
+    },
+    orderBy: {
+      createdAt: "asc",
+    },
+  },
   statusHistory: {
     orderBy: {
       createdAt: "asc",
+    },
+  },
+  inventoryMovements: {
+    where: {
+      deletedAt: null,
+    },
+    include: {
+      inventoryItem: true,
+    },
+    orderBy: {
+      createdAt: "desc",
     },
   },
   invoices: {
@@ -27,6 +50,18 @@ export type RepairOrderListFilters = {
   search?: string;
 };
 
+export type RepairOrderItemInput = {
+  id?: string;
+  inventoryItemId?: string | null;
+  supplierId?: string | null;
+  supplierName?: string | null;
+  partName: string;
+  quantity: number;
+  unitCost?: string | number | null;
+  unitPrice?: string | number | null;
+  notes?: string | null;
+};
+
 export type CreateRepairOrderInput = {
   customerName: string;
   customerPhone: string;
@@ -38,12 +73,15 @@ export type CreateRepairOrderInput = {
   estimatedTotal?: string;
   dueAt?: string;
   notes?: string;
+  // Legacy single part fields for backward compatibility
   supplierId?: string;
   supplierName?: string;
   partName?: string;
   partCost?: string;
   deductPartCost?: boolean;
   supplierNotes?: string;
+  // New multi-item parts
+  items?: RepairOrderItemInput[];
 };
 
 export type UpdateRepairOrderDetailsInput = {
@@ -56,12 +94,15 @@ export type UpdateRepairOrderDetailsInput = {
   estimatedTotal?: string;
   finalTotal?: string;
   dueAt?: string;
+  // Legacy single part fields for backward compatibility
   supplierId?: string;
   supplierName?: string;
   partName?: string;
   partCost?: string;
   deductPartCost?: boolean;
   supplierNotes?: string;
+  // New multi-item parts
+  items?: RepairOrderItemInput[];
 };
 
 export type UpdateRepairOrderStatusInput = {
@@ -85,18 +126,21 @@ export function normalizePhone(phone: string) {
   return hasPlus ? `+${digits}` : digits;
 }
 
-function emptyToNull(value?: string) {
+function emptyToNull(value?: string | null) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
 }
 
-function decimalOrNull(value?: string) {
-  const trimmed = value?.trim();
-  if (!trimmed) {
+function decimalOrNull(value?: string | number | null) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  const str = String(value).trim();
+  if (!str) {
     return null;
   }
 
-  const normalized = trimmed.replace(",", ".");
+  const normalized = str.replace(",", ".");
   const parsed = Number(normalized);
 
   if (Number.isNaN(parsed)) {
@@ -151,13 +195,17 @@ export async function findOrCreateCustomerForRepair(
   });
 }
 
-export async function generateTicketNumber(shopId: string) {
+export async function generateTicketNumber(
+  shopId: string,
+  txClient?: Prisma.TransactionClient,
+) {
+  const db = txClient ?? prisma;
   const now = new Date();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, "0");
   const prefix = `RO-${year}${month}-`;
 
-  const count = await prisma.repairOrder.count({
+  const count = await db.repairOrder.count({
     where: {
       shopId,
       ticketNumber: {
@@ -168,7 +216,7 @@ export async function generateTicketNumber(shopId: string) {
 
   for (let offset = 1; offset <= 50; offset += 1) {
     const ticketNumber = `${prefix}${String(count + offset).padStart(4, "0")}`;
-    const existing = await prisma.repairOrder.findUnique({
+    const existing = await db.repairOrder.findUnique({
       where: {
         shopId_ticketNumber: {
           shopId,
@@ -185,7 +233,7 @@ export async function generateTicketNumber(shopId: string) {
     }
   }
 
-  return `${prefix}${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+  return `${prefix}${Date.now().toString().slice(-4)}${crypto.randomUUID().slice(0, 4).toUpperCase()}`;
 }
 
 export async function listRepairOrders(
@@ -367,48 +415,152 @@ export async function getRepairOrderById(shopId: string, repairOrderId: string) 
   };
 }
 
+/**
+ * Concurrency-safe atomic deduction of inventory stock.
+ * Returns unitCost snapshot and quantityAfter.
+ */
+async function deductInventoryStockAtomic(
+  tx: Prisma.TransactionClient,
+  shopId: string,
+  inventoryItemId: string,
+  quantityToDeduct: number,
+  itemNameForError?: string,
+) {
+  if (quantityToDeduct <= 0) {
+    throw new Error("يجب أن تكون كمية الخصم من المخزون أكبر من صفر.");
+  }
+
+  const item = await tx.inventoryItem.findFirst({
+    where: { id: inventoryItemId, shopId, deletedAt: null },
+    select: { id: true, name: true, unitCost: true, quantity: true },
+  });
+
+  if (!item) {
+    throw new Error(`قطعة المخزون غير موجودة أو تم حذفها: ${itemNameForError ?? inventoryItemId}`);
+  }
+
+  const affectedCount = await tx.$executeRaw`
+    UPDATE "InventoryItem"
+    SET "quantity" = "quantity" - ${quantityToDeduct},
+        "updatedAt" = NOW()
+    WHERE "id" = ${inventoryItemId}::uuid
+      AND "shopId" = ${shopId}::uuid
+      AND "deletedAt" IS NULL
+      AND "quantity" >= ${quantityToDeduct}
+  `;
+
+  if (affectedCount === 0) {
+    throw new Error(
+      `الكمية المتوفرة في المخزون غير كافية للقطعة: "${item.name}". المتوفر حالياً (${item.quantity}) والمطلوب (${quantityToDeduct}).`
+    );
+  }
+
+  return {
+    unitCost: item.unitCost,
+    quantityAfter: item.quantity - quantityToDeduct,
+    name: item.name,
+  };
+}
+
+/**
+ * Concurrency-safe atomic restoration of inventory stock.
+ */
+async function restoreInventoryStockAtomic(
+  tx: Prisma.TransactionClient,
+  shopId: string,
+  inventoryItemId: string,
+  quantityToRestore: number,
+) {
+  if (quantityToRestore <= 0) {
+    return { unitCost: null, quantityAfter: 0, name: "" };
+  }
+
+  const item = await tx.inventoryItem.findFirst({
+    where: { id: inventoryItemId, shopId, deletedAt: null },
+    select: { id: true, name: true, unitCost: true, quantity: true },
+  });
+
+  if (!item) {
+    throw new Error("تعذر إرجاع القطعة لأن عنصر المخزون غير موجود في المتجر.");
+  }
+
+  await tx.$executeRaw`
+    UPDATE "InventoryItem"
+    SET "quantity" = "quantity" + ${quantityToRestore},
+        "updatedAt" = NOW()
+    WHERE "id" = ${inventoryItemId}::uuid
+      AND "shopId" = ${shopId}::uuid
+      AND "deletedAt" IS NULL
+  `;
+
+  return {
+    unitCost: item.unitCost,
+    quantityAfter: item.quantity + quantityToRestore,
+    name: item.name,
+  };
+}
+
+async function resolveSupplierForPart(
+  tx: Prisma.TransactionClient,
+  shopId: string,
+  supplierId?: string | null,
+  supplierName?: string | null,
+) {
+  let resolvedId = supplierId ? supplierId.trim() : null;
+  let resolvedName = supplierName ? supplierName.trim() : null;
+
+  if (resolvedName && !resolvedId) {
+    const existingSupplier = await tx.supplier.findFirst({
+      where: {
+        shopId,
+        deletedAt: null,
+        name: { equals: resolvedName, mode: "insensitive" },
+      },
+    });
+    if (existingSupplier) {
+      resolvedId = existingSupplier.id;
+      resolvedName = existingSupplier.name;
+    } else {
+      const newSupplier = await tx.supplier.create({
+        data: {
+          shopId,
+          name: resolvedName,
+        },
+      });
+      resolvedId = newSupplier.id;
+    }
+  } else if (resolvedId && !resolvedName) {
+    const existingSupplier = await tx.supplier.findFirst({
+      where: { id: resolvedId, shopId, deletedAt: null },
+      select: { name: true },
+    });
+    if (existingSupplier) {
+      resolvedName = existingSupplier.name;
+    }
+  }
+
+  return { supplierId: resolvedId, supplierName: resolvedName };
+}
+
 export async function createRepairOrder(
   shopId: string,
   createdByUserId: string | null,
   input: CreateRepairOrderInput,
 ) {
   const customer = await findOrCreateCustomerForRepair(shopId, input);
-  const ticketNumber = await generateTicketNumber(shopId);
-
-  let supplierId = input.supplierId ? input.supplierId.trim() : null;
-  let supplierName = input.supplierName ? input.supplierName.trim() : null;
-
-  if (supplierName && !supplierId) {
-    const existingSupplier = await prisma.supplier.findFirst({
-      where: {
-        shopId,
-        deletedAt: null,
-        name: { equals: supplierName, mode: "insensitive" },
-      },
-    });
-    if (existingSupplier) {
-      supplierId = existingSupplier.id;
-      supplierName = existingSupplier.name;
-    } else {
-      const newSupplier = await prisma.supplier.create({
-        data: {
-          shopId,
-          name: supplierName,
-        },
-      });
-      supplierId = newSupplier.id;
-    }
-  } else if (supplierId && !supplierName) {
-    const existingSupplier = await prisma.supplier.findFirst({
-      where: { id: supplierId, shopId, deletedAt: null },
-      select: { name: true },
-    });
-    if (existingSupplier) {
-      supplierName = existingSupplier.name;
-    }
-  }
 
   return prisma.$transaction(async (tx) => {
+    const ticketNumber = await generateTicketNumber(shopId, tx);
+
+    // 1. Resolve main supplier if legacy supplier fields are provided
+    const mainSupplier = await resolveSupplierForPart(
+      tx,
+      shopId,
+      input.supplierId,
+      input.supplierName,
+    );
+
+    // 2. Create base RepairOrder
     const repairOrder = await tx.repairOrder.create({
       data: {
         shopId,
@@ -423,8 +575,8 @@ export async function createRepairOrder(
         reportedIssue: input.reportedIssue.trim(),
         resolutionNotes: emptyToNull(input.notes),
         estimatedTotal: decimalOrNull(input.estimatedTotal),
-        supplierId: supplierId || null,
-        supplierName: supplierName || null,
+        supplierId: mainSupplier.supplierId,
+        supplierName: mainSupplier.supplierName,
         partName: emptyToNull(input.partName),
         partCost: decimalOrNull(input.partCost),
         deductPartCost: input.deductPartCost ?? true,
@@ -444,6 +596,118 @@ export async function createRepairOrder(
       },
     });
 
+    // 3. Process RepairOrderItems & Atomic Inventory Deduction
+    let totalItemsCost = new Prisma.Decimal(0);
+    const itemsList = input.items ?? [];
+
+    if (itemsList.length > 0) {
+      for (const itemInput of itemsList) {
+        const qty = Number(itemInput.quantity) || 1;
+        const partName = itemInput.partName.trim();
+        const inventoryItemId = emptyToNull(itemInput.inventoryItemId);
+
+        if (!partName) {
+          throw new Error("يجب تحديد اسم أو وصف لقطعة الغيار.");
+        }
+
+        if (inventoryItemId) {
+          // Internal Inventory Item -> Atomic Deduction & Backend UnitCost Authority
+          const deduction = await deductInventoryStockAtomic(
+            tx,
+            shopId,
+            inventoryItemId,
+            qty,
+            partName,
+          );
+
+          const unitCost = deduction.unitCost ?? new Prisma.Decimal(0);
+          const unitPrice = decimalOrNull(String(itemInput.unitPrice ?? ""));
+
+          const createdItem = await tx.repairOrderItem.create({
+            data: {
+              shopId,
+              repairOrderId: repairOrder.id,
+              inventoryItemId,
+              partName: deduction.name || partName,
+              quantity: qty,
+              unitCost,
+              unitPrice,
+              notes: emptyToNull(itemInput.notes ?? undefined),
+            },
+          });
+
+          await tx.inventoryMovement.create({
+            data: {
+              shopId,
+              inventoryItemId,
+              repairOrderId: repairOrder.id,
+              repairOrderItemId: createdItem.id,
+              createdByUserId,
+              type: "REPAIR_USAGE",
+              quantityChange: -qty,
+              quantityAfter: deduction.quantityAfter,
+              unitCostSnapshot: unitCost,
+              note: `استخدام في تذكرة صيانة رقم (${ticketNumber})`,
+            },
+          });
+
+          totalItemsCost = totalItemsCost.add(unitCost.mul(qty));
+        } else {
+          // External Supplier Part
+          const itemSupplier = await resolveSupplierForPart(
+            tx,
+            shopId,
+            itemInput.supplierId,
+            itemInput.supplierName,
+          );
+
+          const unitCost = decimalOrNull(String(itemInput.unitCost ?? "")) ?? new Prisma.Decimal(0);
+          const unitPrice = decimalOrNull(String(itemInput.unitPrice ?? ""));
+
+          await tx.repairOrderItem.create({
+            data: {
+              shopId,
+              repairOrderId: repairOrder.id,
+              supplierId: itemSupplier.supplierId,
+              supplierName: itemSupplier.supplierName,
+              partName,
+              quantity: qty,
+              unitCost,
+              unitPrice,
+              notes: emptyToNull(itemInput.notes ?? undefined),
+            },
+          });
+
+          totalItemsCost = totalItemsCost.add(unitCost.mul(qty));
+        }
+      }
+
+      // Synchronize overall partCost and summary on RepairOrder
+      const partSummary = itemsList.map((i) => i.partName.trim()).filter(Boolean).join("، ");
+      await tx.repairOrder.update({
+        where: { id: repairOrder.id },
+        data: {
+          partCost: totalItemsCost.gt(0) ? totalItemsCost : repairOrder.partCost,
+          partName: partSummary || repairOrder.partName,
+        },
+      });
+    } else if (input.partName) {
+      // Legacy fallback single item creation
+      const legacyCost = decimalOrNull(input.partCost) ?? new Prisma.Decimal(0);
+      await tx.repairOrderItem.create({
+        data: {
+          shopId,
+          repairOrderId: repairOrder.id,
+          supplierId: mainSupplier.supplierId,
+          supplierName: mainSupplier.supplierName,
+          partName: input.partName.trim(),
+          quantity: 1,
+          unitCost: legacyCost,
+          notes: emptyToNull(input.supplierNotes),
+        },
+      });
+    }
+
     return repairOrder;
   });
 }
@@ -462,6 +726,8 @@ export async function updateRepairOrderDetails(
     },
     select: {
       id: true,
+      ticketNumber: true,
+      status: true,
     },
   });
 
@@ -469,64 +735,395 @@ export async function updateRepairOrderDetails(
     throw new Error("طلب الصيانة غير موجود.");
   }
 
-  let supplierId = input.supplierId !== undefined ? (input.supplierId ? input.supplierId.trim() : null) : undefined;
-  let supplierName = input.supplierName !== undefined ? (input.supplierName ? input.supplierName.trim() : null) : undefined;
-
-  if (supplierName && !supplierId) {
-    const existingSupplier = await prisma.supplier.findFirst({
-      where: {
-        shopId,
-        deletedAt: null,
-        name: { equals: supplierName, mode: "insensitive" },
-      },
-    });
-    if (existingSupplier) {
-      supplierId = existingSupplier.id;
-      supplierName = existingSupplier.name;
-    } else {
-      const newSupplier = await prisma.supplier.create({
-        data: {
-          shopId,
-          name: supplierName,
-        },
-      });
-      supplierId = newSupplier.id;
-    }
-  } else if (supplierId && supplierName === undefined) {
-    const existingSupplier = await prisma.supplier.findFirst({
-      where: { id: supplierId, shopId, deletedAt: null },
-      select: { name: true },
-    });
-    if (existingSupplier) {
-      supplierName = existingSupplier.name;
-    }
+  // Prevent modifying parts on CANCELLED tickets
+  if (existing.status === RepairStatus.CANCELLED && input.items !== undefined) {
+    throw new Error("لا يمكن تعديل قطع الغيار لتذكرة صيانة ملغاة.");
   }
 
-  return prisma.repairOrder.update({
-    where: {
-      id: repairOrderId,
-    },
-    data: {
-      updatedByUserId,
-      deviceBrand: emptyToNull(input.deviceBrand),
-      deviceModel: emptyToNull(input.deviceModel),
-      deviceSerial: emptyToNull(input.deviceSerial),
-      reportedIssue: input.reportedIssue?.trim(),
-      diagnosis: emptyToNull(input.diagnosis),
-      resolutionNotes: emptyToNull(input.resolutionNotes),
-      estimatedTotal: decimalOrNull(input.estimatedTotal),
-      finalTotal: decimalOrNull(input.finalTotal),
-      supplierId: supplierId,
-      supplierName: supplierName,
-      partName: input.partName !== undefined ? emptyToNull(input.partName) : undefined,
-      partCost: input.partCost !== undefined ? decimalOrNull(input.partCost) : undefined,
-      deductPartCost: input.deductPartCost !== undefined ? input.deductPartCost : undefined,
-      supplierNotes: input.supplierNotes !== undefined ? emptyToNull(input.supplierNotes) : undefined,
-      dueAt: dateOrNull(input.dueAt),
-      version: {
-        increment: 1,
+  return prisma.$transaction(async (tx) => {
+    // 1. Resolve main supplier if passed
+    const mainSupplier = await resolveSupplierForPart(
+      tx,
+      shopId,
+      input.supplierId,
+      input.supplierName,
+    );
+
+    // 2. Handle items delta if items are explicitly passed
+    let totalItemsCost = new Prisma.Decimal(0);
+
+    if (input.items !== undefined) {
+      const existingItems = await tx.repairOrderItem.findMany({
+        where: {
+          repairOrderId,
+          shopId,
+          deletedAt: null,
+        },
+      });
+
+      const existingMap = new Map(existingItems.map((item) => [item.id, item]));
+      const incomingIds = new Set(
+        input.items.map((i) => i.id).filter((id): id is string => Boolean(id)),
+      );
+
+      // A. Process DELETIONS (items removed from list)
+      for (const oldItem of existingItems) {
+        if (!incomingIds.has(oldItem.id)) {
+          if (oldItem.inventoryItemId) {
+            // Check net unreturned consumed movements
+            const movements = await tx.inventoryMovement.findMany({
+              where: {
+                shopId,
+                repairOrderId,
+                repairOrderItemId: oldItem.id,
+                deletedAt: null,
+              },
+              select: { quantityChange: true },
+            });
+            const netChange = movements.reduce((sum, m) => sum + m.quantityChange, 0);
+            const unreturned = -netChange; // USAGE is negative, so netChange is -qty
+
+            if (unreturned > 0) {
+              const restoration = await restoreInventoryStockAtomic(
+                tx,
+                shopId,
+                oldItem.inventoryItemId,
+                unreturned,
+              );
+
+              await tx.inventoryMovement.create({
+                data: {
+                  shopId,
+                  inventoryItemId: oldItem.inventoryItemId,
+                  repairOrderId,
+                  repairOrderItemId: oldItem.id,
+                  createdByUserId: updatedByUserId,
+                  type: "REPAIR_RETURN",
+                  quantityChange: unreturned,
+                  quantityAfter: restoration.quantityAfter,
+                  unitCostSnapshot: restoration.unitCost,
+                  note: `إرجاع قطعة بعد حذفها من تذكرة الصيانة (${existing.ticketNumber})`,
+                },
+              });
+            }
+          }
+
+          // Soft delete item
+          await tx.repairOrderItem.update({
+            where: { id: oldItem.id },
+            data: { deletedAt: new Date() },
+          });
+        }
+      }
+
+      // B. Process UPDATES & ADDITIONS
+      for (const itemInput of input.items) {
+        const qty = Math.max(1, Number(itemInput.quantity) || 1);
+        const partName = itemInput.partName.trim();
+        const inventoryItemId = emptyToNull(itemInput.inventoryItemId);
+
+        if (!partName) {
+          throw new Error("يجب إدخال اسم أو وصف لقطعة الغيار.");
+        }
+
+        if (itemInput.id && existingMap.has(itemInput.id)) {
+          // --- EXISTING ITEM UPDATE (Delta logic) ---
+          const oldItem = existingMap.get(itemInput.id)!;
+
+          if (oldItem.inventoryItemId === inventoryItemId) {
+            if (inventoryItemId) {
+              // Same internal inventory item: calculate quantity difference
+              const deltaQty = qty - oldItem.quantity;
+
+              if (deltaQty > 0) {
+                // Deduct additional stock
+                const deduction = await deductInventoryStockAtomic(
+                  tx,
+                  shopId,
+                  inventoryItemId,
+                  deltaQty,
+                  partName,
+                );
+
+                await tx.inventoryMovement.create({
+                  data: {
+                    shopId,
+                    inventoryItemId,
+                    repairOrderId,
+                    repairOrderItemId: oldItem.id,
+                    createdByUserId: updatedByUserId,
+                    type: "REPAIR_USAGE",
+                    quantityChange: -deltaQty,
+                    quantityAfter: deduction.quantityAfter,
+                    unitCostSnapshot: oldItem.unitCost ?? deduction.unitCost,
+                    note: `زيادة كمية مستهلكة في تذكرة الصيانة (${existing.ticketNumber})`,
+                  },
+                });
+              } else if (deltaQty < 0) {
+                // Return difference
+                const returnQty = -deltaQty;
+                const restoration = await restoreInventoryStockAtomic(
+                  tx,
+                  shopId,
+                  inventoryItemId,
+                  returnQty,
+                );
+
+                await tx.inventoryMovement.create({
+                  data: {
+                    shopId,
+                    inventoryItemId,
+                    repairOrderId,
+                    repairOrderItemId: oldItem.id,
+                    createdByUserId: updatedByUserId,
+                    type: "REPAIR_RETURN",
+                    quantityChange: returnQty,
+                    quantityAfter: restoration.quantityAfter,
+                    unitCostSnapshot: oldItem.unitCost ?? restoration.unitCost,
+                    note: `تقليل كمية مستهلكة في تذكرة الصيانة (${existing.ticketNumber})`,
+                  },
+                });
+              }
+
+              const unitPrice = decimalOrNull(String(itemInput.unitPrice ?? ""));
+              await tx.repairOrderItem.update({
+                where: { id: oldItem.id },
+                data: {
+                  partName,
+                  quantity: qty,
+                  unitPrice,
+                  notes: emptyToNull(itemInput.notes ?? undefined),
+                },
+              });
+
+              const cost = oldItem.unitCost ?? new Prisma.Decimal(0);
+              totalItemsCost = totalItemsCost.add(cost.mul(qty));
+            } else {
+              // External item update
+              const itemSupplier = await resolveSupplierForPart(
+                tx,
+                shopId,
+                itemInput.supplierId,
+                itemInput.supplierName,
+              );
+              const unitCost = decimalOrNull(String(itemInput.unitCost ?? "")) ?? oldItem.unitCost ?? new Prisma.Decimal(0);
+              const unitPrice = decimalOrNull(String(itemInput.unitPrice ?? ""));
+
+              await tx.repairOrderItem.update({
+                where: { id: oldItem.id },
+                data: {
+                  partName,
+                  quantity: qty,
+                  unitCost,
+                  unitPrice,
+                  supplierId: itemSupplier.supplierId,
+                  supplierName: itemSupplier.supplierName,
+                  notes: emptyToNull(itemInput.notes ?? undefined),
+                },
+              });
+
+              totalItemsCost = totalItemsCost.add(unitCost.mul(qty));
+            }
+          } else {
+            // Inventory item changed (e.g. from item A to B, or internal to external)
+            if (oldItem.inventoryItemId) {
+              // Restore old item
+              const restoration = await restoreInventoryStockAtomic(
+                tx,
+                shopId,
+                oldItem.inventoryItemId,
+                oldItem.quantity,
+              );
+              await tx.inventoryMovement.create({
+                data: {
+                  shopId,
+                  inventoryItemId: oldItem.inventoryItemId,
+                  repairOrderId,
+                  repairOrderItemId: oldItem.id,
+                  createdByUserId: updatedByUserId,
+                  type: "REPAIR_RETURN",
+                  quantityChange: oldItem.quantity,
+                  quantityAfter: restoration.quantityAfter,
+                  unitCostSnapshot: restoration.unitCost,
+                  note: `استبدال قطعة في تذكرة الصيانة (${existing.ticketNumber})`,
+                },
+              });
+            }
+
+            if (inventoryItemId) {
+              // Deduct new item
+              const deduction = await deductInventoryStockAtomic(
+                tx,
+                shopId,
+                inventoryItemId,
+                qty,
+                partName,
+              );
+              const unitCost = deduction.unitCost ?? new Prisma.Decimal(0);
+              const unitPrice = decimalOrNull(String(itemInput.unitPrice ?? ""));
+
+              await tx.repairOrderItem.update({
+                where: { id: oldItem.id },
+                data: {
+                  inventoryItemId,
+                  supplierId: null,
+                  supplierName: null,
+                  partName: deduction.name || partName,
+                  quantity: qty,
+                  unitCost,
+                  unitPrice,
+                  notes: emptyToNull(itemInput.notes ?? undefined),
+                },
+              });
+
+              await tx.inventoryMovement.create({
+                data: {
+                  shopId,
+                  inventoryItemId,
+                  repairOrderId,
+                  repairOrderItemId: oldItem.id,
+                  createdByUserId: updatedByUserId,
+                  type: "REPAIR_USAGE",
+                  quantityChange: -qty,
+                  quantityAfter: deduction.quantityAfter,
+                  unitCostSnapshot: unitCost,
+                  note: `استخدام قطعة بديلة في تذكرة الصيانة (${existing.ticketNumber})`,
+                },
+              });
+
+              totalItemsCost = totalItemsCost.add(unitCost.mul(qty));
+            } else {
+              // Now external
+              const itemSupplier = await resolveSupplierForPart(
+                tx,
+                shopId,
+                itemInput.supplierId,
+                itemInput.supplierName,
+              );
+              const unitCost = decimalOrNull(String(itemInput.unitCost ?? "")) ?? new Prisma.Decimal(0);
+              const unitPrice = decimalOrNull(String(itemInput.unitPrice ?? ""));
+
+              await tx.repairOrderItem.update({
+                where: { id: oldItem.id },
+                data: {
+                  inventoryItemId: null,
+                  supplierId: itemSupplier.supplierId,
+                  supplierName: itemSupplier.supplierName,
+                  partName,
+                  quantity: qty,
+                  unitCost,
+                  unitPrice,
+                  notes: emptyToNull(itemInput.notes ?? undefined),
+                },
+              });
+
+              totalItemsCost = totalItemsCost.add(unitCost.mul(qty));
+            }
+          }
+        } else {
+          // --- NEW ITEM ADDITION ---
+          if (inventoryItemId) {
+            const deduction = await deductInventoryStockAtomic(
+              tx,
+              shopId,
+              inventoryItemId,
+              qty,
+              partName,
+            );
+
+            const unitCost = deduction.unitCost ?? new Prisma.Decimal(0);
+            const unitPrice = decimalOrNull(String(itemInput.unitPrice ?? ""));
+
+            const createdItem = await tx.repairOrderItem.create({
+              data: {
+                shopId,
+                repairOrderId,
+                inventoryItemId,
+                partName: deduction.name || partName,
+                quantity: qty,
+                unitCost,
+                unitPrice,
+                notes: emptyToNull(itemInput.notes ?? undefined),
+              },
+            });
+
+            await tx.inventoryMovement.create({
+              data: {
+                shopId,
+                inventoryItemId,
+                repairOrderId,
+                repairOrderItemId: createdItem.id,
+                createdByUserId: updatedByUserId,
+                type: "REPAIR_USAGE",
+                quantityChange: -qty,
+                quantityAfter: deduction.quantityAfter,
+                unitCostSnapshot: unitCost,
+                note: `إضافة قطعة مستهلكة لتذكرة الصيانة (${existing.ticketNumber})`,
+              },
+            });
+
+            totalItemsCost = totalItemsCost.add(unitCost.mul(qty));
+          } else {
+            const itemSupplier = await resolveSupplierForPart(
+              tx,
+              shopId,
+              itemInput.supplierId,
+              itemInput.supplierName,
+            );
+            const unitCost = decimalOrNull(String(itemInput.unitCost ?? "")) ?? new Prisma.Decimal(0);
+            const unitPrice = decimalOrNull(String(itemInput.unitPrice ?? ""));
+
+            await tx.repairOrderItem.create({
+              data: {
+                shopId,
+                repairOrderId,
+                supplierId: itemSupplier.supplierId,
+                supplierName: itemSupplier.supplierName,
+                partName,
+                quantity: qty,
+                unitCost,
+                unitPrice,
+                notes: emptyToNull(itemInput.notes ?? undefined),
+              },
+            });
+
+            totalItemsCost = totalItemsCost.add(unitCost.mul(qty));
+          }
+        }
+      }
+    }
+
+    // 3. Update RepairOrder record
+    const partSummary = input.items !== undefined
+      ? input.items.map((i) => i.partName.trim()).filter(Boolean).join("، ")
+      : undefined;
+
+    return tx.repairOrder.update({
+      where: {
+        id: repairOrderId,
       },
-    },
+      data: {
+        updatedByUserId,
+        deviceBrand: emptyToNull(input.deviceBrand),
+        deviceModel: emptyToNull(input.deviceModel),
+        deviceSerial: emptyToNull(input.deviceSerial),
+        reportedIssue: input.reportedIssue?.trim(),
+        diagnosis: emptyToNull(input.diagnosis),
+        resolutionNotes: emptyToNull(input.resolutionNotes),
+        estimatedTotal: decimalOrNull(input.estimatedTotal),
+        finalTotal: decimalOrNull(input.finalTotal),
+        supplierId: mainSupplier.supplierId,
+        supplierName: mainSupplier.supplierName,
+        partName: partSummary !== undefined ? partSummary || null : (input.partName !== undefined ? emptyToNull(input.partName) : undefined),
+        partCost: input.items !== undefined ? (totalItemsCost.gt(0) ? totalItemsCost : null) : (input.partCost !== undefined ? decimalOrNull(input.partCost) : undefined),
+        deductPartCost: input.deductPartCost !== undefined ? input.deductPartCost : undefined,
+        supplierNotes: input.supplierNotes !== undefined ? emptyToNull(input.supplierNotes) : undefined,
+        dueAt: dateOrNull(input.dueAt),
+        version: {
+          increment: 1,
+        },
+      },
+    });
   });
 }
 
@@ -544,6 +1141,7 @@ export async function updateRepairOrderStatus(
     },
     select: {
       id: true,
+      ticketNumber: true,
       status: true,
       completedAt: true,
       deliveredAt: true,
@@ -562,12 +1160,115 @@ export async function updateRepairOrderStatus(
 
   const now = new Date();
 
-  // Execute in a single batched network payload
-  const [updatedRepairOrder] = await prisma.$transaction([
-    prisma.repairOrder.update({
-      where: {
-        id: repairOrderId,
-      },
+  return prisma.$transaction(async (tx) => {
+    // 1. Double-reversal prevention: handle stock return on cancellation
+    if (input.status === RepairStatus.CANCELLED && oldStatus !== RepairStatus.CANCELLED) {
+      const activeItems = await tx.repairOrderItem.findMany({
+        where: {
+          repairOrderId,
+          shopId,
+          deletedAt: null,
+          inventoryItemId: { not: null },
+        },
+      });
+
+      for (const item of activeItems) {
+        if (item.inventoryItemId) {
+          // Calculate net unreturned quantity
+          const movements = await tx.inventoryMovement.findMany({
+            where: {
+              shopId,
+              repairOrderId,
+              repairOrderItemId: item.id,
+              deletedAt: null,
+            },
+            select: { quantityChange: true },
+          });
+
+          const netChange = movements.reduce((sum, m) => sum + m.quantityChange, 0);
+          const unreturned = -netChange;
+
+          if (unreturned > 0) {
+            const restoration = await restoreInventoryStockAtomic(
+              tx,
+              shopId,
+              item.inventoryItemId,
+              unreturned,
+            );
+
+            await tx.inventoryMovement.create({
+              data: {
+                shopId,
+                inventoryItemId: item.inventoryItemId,
+                repairOrderId,
+                repairOrderItemId: item.id,
+                createdByUserId: updatedByUserId,
+                type: "REPAIR_RETURN",
+                quantityChange: unreturned,
+                quantityAfter: restoration.quantityAfter,
+                unitCostSnapshot: restoration.unitCost,
+                note: `استرجاع قطعة بسبب إلغاء تذكرة الصيانة (${repairOrder.ticketNumber})`,
+              },
+            });
+          }
+        }
+      }
+    } else if (oldStatus === RepairStatus.CANCELLED && input.status !== RepairStatus.CANCELLED) {
+      // Re-activating a cancelled ticket: re-deduct items
+      const activeItems = await tx.repairOrderItem.findMany({
+        where: {
+          repairOrderId,
+          shopId,
+          deletedAt: null,
+          inventoryItemId: { not: null },
+        },
+      });
+
+      for (const item of activeItems) {
+        if (item.inventoryItemId) {
+          const movements = await tx.inventoryMovement.findMany({
+            where: {
+              shopId,
+              repairOrderId,
+              repairOrderItemId: item.id,
+              deletedAt: null,
+            },
+            select: { quantityChange: true },
+          });
+
+          const netChange = movements.reduce((sum, m) => sum + m.quantityChange, 0);
+          // If netChange is 0, item was fully returned and needs to be re-deducted
+          if (netChange === 0 && item.quantity > 0) {
+            const deduction = await deductInventoryStockAtomic(
+              tx,
+              shopId,
+              item.inventoryItemId,
+              item.quantity,
+              item.partName,
+            );
+
+            await tx.inventoryMovement.create({
+              data: {
+                shopId,
+                inventoryItemId: item.inventoryItemId,
+                repairOrderId,
+                repairOrderItemId: item.id,
+                createdByUserId: updatedByUserId,
+                type: "REPAIR_USAGE",
+                quantityChange: -item.quantity,
+                quantityAfter: deduction.quantityAfter,
+                unitCostSnapshot: deduction.unitCost,
+                note: `إعادة خصم القطعة بعد إلغاء إلغاء التذكرة (${repairOrder.ticketNumber})`,
+              },
+            });
+          }
+        }
+      }
+    }
+
+    // 2. Update status and history
+    const updatedRepairOrder = await tx.repairOrder.update({
+      where: { id: repairOrderId },
       data: {
         status: input.status,
         updatedByUserId,
@@ -583,8 +1284,9 @@ export async function updateRepairOrderStatus(
           increment: 1,
         },
       },
-    }),
-    prisma.repairStatusHistory.create({
+    });
+
+    await tx.repairStatusHistory.create({
       data: {
         shopId,
         repairOrderId,
@@ -593,16 +1295,16 @@ export async function updateRepairOrderStatus(
         toStatus: input.status,
         note: emptyToNull(input.note),
       },
-    }),
-  ]);
+    });
 
-  return updatedRepairOrder;
+    return updatedRepairOrder;
+  });
 }
 
 export async function deleteRepairOrder(
   shopId: string,
   repairOrderId: string,
-  updatedByUserId: string | null
+  updatedByUserId: string | null,
 ) {
   const repairOrder = await prisma.repairOrder.findFirst({
     where: {
@@ -632,23 +1334,87 @@ export async function deleteRepairOrder(
 
   const now = new Date();
 
-  return prisma.$transaction([
-    prisma.repairOrder.update({
+  return prisma.$transaction(async (tx) => {
+    // If not already cancelled, return unreturned internal stock
+    if (repairOrder.status !== RepairStatus.CANCELLED) {
+      const activeItems = await tx.repairOrderItem.findMany({
+        where: {
+          repairOrderId,
+          shopId,
+          deletedAt: null,
+          inventoryItemId: { not: null },
+        },
+      });
+
+      for (const item of activeItems) {
+        if (item.inventoryItemId) {
+          const movements = await tx.inventoryMovement.findMany({
+            where: {
+              shopId,
+              repairOrderId,
+              repairOrderItemId: item.id,
+              deletedAt: null,
+            },
+            select: { quantityChange: true },
+          });
+
+          const netChange = movements.reduce((sum, m) => sum + m.quantityChange, 0);
+          const unreturned = -netChange;
+
+          if (unreturned > 0) {
+            const restoration = await restoreInventoryStockAtomic(
+              tx,
+              shopId,
+              item.inventoryItemId,
+              unreturned,
+            );
+
+            await tx.inventoryMovement.create({
+              data: {
+                shopId,
+                inventoryItemId: item.inventoryItemId,
+                repairOrderId,
+                repairOrderItemId: item.id,
+                createdByUserId: updatedByUserId,
+                type: "REPAIR_RETURN",
+                quantityChange: unreturned,
+                quantityAfter: restoration.quantityAfter,
+                unitCostSnapshot: restoration.unitCost,
+                note: `استرجاع قطعة بسبب حذف تذكرة الصيانة (${repairOrder.ticketNumber})`,
+              },
+            });
+          }
+        }
+      }
+    }
+
+    // Soft delete items
+    await tx.repairOrderItem.updateMany({
+      where: { repairOrderId, shopId, deletedAt: null },
+      data: { deletedAt: now },
+    });
+
+    // Soft delete repair order
+    const deletedOrder = await tx.repairOrder.update({
       where: { id: repairOrderId },
       data: {
         deletedAt: now,
         updatedByUserId,
       },
-    }),
-    prisma.invoice.updateMany({
+    });
+
+    // Soft delete unpaid invoices
+    await tx.invoice.updateMany({
       where: {
         repairOrderId,
         shopId,
         deletedAt: null,
       },
       data: { deletedAt: now },
-    }),
-  ]);
+    });
+
+    return deletedOrder;
+  });
 }
 
 export const repairOrderService = {
@@ -662,3 +1428,4 @@ export const repairOrderService = {
   findOrCreateCustomerForRepair,
   normalizePhone,
 };
+

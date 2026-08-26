@@ -119,6 +119,14 @@ export async function getInventoryMovements(
       inventoryItemId,
       deletedAt: null,
     },
+    include: {
+      repairOrder: {
+        select: {
+          id: true,
+          ticketNumber: true,
+        },
+      },
+    },
     orderBy: {
       createdAt: "desc",
     },

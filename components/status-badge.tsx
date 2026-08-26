@@ -80,6 +80,7 @@ export const inventoryMovementTypeLabels: Record<InventoryMovementType, string> 
   ADJUSTMENT: "تسوية",
   SALE: "بيع",
   REPAIR_USAGE: "استخدام في صيانة",
+  REPAIR_RETURN: "استرجاع من صيانة",
   RETURN: "مرتجع",
 };
 
@@ -113,6 +114,7 @@ const movementTypeTones: Record<InventoryMovementType, BadgeTone> = {
   ADJUSTMENT: "blue",
   SALE: "amber",
   REPAIR_USAGE: "orange",
+  REPAIR_RETURN: "blue",
   RETURN: "emerald",
 };
 

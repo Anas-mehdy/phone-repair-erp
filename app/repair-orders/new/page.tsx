@@ -4,11 +4,24 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { getCurrentShopContext } from "@/lib/current-shop";
 import { supplierService } from "@/lib/services/supplierService";
+import { inventoryService } from "@/lib/services/inventoryService";
 import { CreateRepairOrderForm } from "./_create-form";
 
 export default async function NewRepairOrderPage() {
   const { shopId, currency } = await getCurrentShopContext();
-  const suppliers = await supplierService.listSuppliers(shopId);
+  const [suppliers, inventoryItems] = await Promise.all([
+    supplierService.listSuppliers(shopId),
+    inventoryService.listInventoryItems(shopId),
+  ]);
+
+  const serializedInventory = inventoryItems.map((item) => ({
+    id: item.id,
+    name: item.name,
+    sku: item.sku,
+    quantity: item.quantity,
+    unitPrice: item.unitPrice.toString(),
+    unitCost: item.unitCost ? item.unitCost.toString() : null,
+  }));
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -27,6 +40,7 @@ export default async function NewRepairOrderPage() {
 
       <CreateRepairOrderForm
         suppliers={suppliers}
+        inventoryItems={serializedInventory}
         currency={currency}
       />
     </div>

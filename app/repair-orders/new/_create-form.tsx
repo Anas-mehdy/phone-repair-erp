@@ -6,13 +6,15 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { createRepairOrderAction } from "../actions";
 import { Field, inputClassName, textareaClassName } from "../_components";
-import { SupplierFields, type SupplierOption } from "../_supplier-fields";
+import { SupplierFields, type SupplierOption, type InventoryItemOption } from "../_supplier-fields";
 
 export function CreateRepairOrderForm({
   suppliers,
+  inventoryItems = [],
   currency,
 }: {
   suppliers: SupplierOption[];
+  inventoryItems?: InventoryItemOption[];
   currency: string;
 }) {
   const [isPending, startTransition] = useTransition();
@@ -159,6 +161,7 @@ export function CreateRepairOrderForm({
       {/* Supplier & Parts Section */}
       <SupplierFields
         suppliers={suppliers}
+        inventoryItems={inventoryItems}
         currency={currency}
       />
 

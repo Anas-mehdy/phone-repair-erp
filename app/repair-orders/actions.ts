@@ -7,6 +7,18 @@ import { z } from "zod";
 import { requirePermission } from "@/lib/auth/context";
 import { repairOrderService } from "@/lib/services/repairOrderService";
 
+const repairOrderItemSchema = z.object({
+  id: z.string().optional(),
+  inventoryItemId: z.string().nullable().optional(),
+  supplierId: z.string().nullable().optional(),
+  supplierName: z.string().nullable().optional(),
+  partName: z.string().trim().min(1, "اسم القطعة مطلوب"),
+  quantity: z.number().int().min(1).default(1),
+  unitCost: z.union([z.string(), z.number()]).optional().nullable(),
+  unitPrice: z.union([z.string(), z.number()]).optional().nullable(),
+  notes: z.string().optional().nullable(),
+});
+
 const createRepairOrderSchema = z.object({
   customerName: z.string().trim().min(1, "اسم العميل مطلوب"),
   customerPhone: z.string().trim().min(1, "رقم العميل مطلوب"),
@@ -24,6 +36,7 @@ const createRepairOrderSchema = z.object({
   partCost: z.string().optional(),
   deductPartCost: z.boolean().optional(),
   supplierNotes: z.string().optional(),
+  items: z.array(repairOrderItemSchema).optional(),
 });
 
 const updateRepairOrderDetailsSchema = z.object({
@@ -43,6 +56,7 @@ const updateRepairOrderDetailsSchema = z.object({
   partCost: z.string().optional(),
   deductPartCost: z.boolean().optional(),
   supplierNotes: z.string().optional(),
+  items: z.array(repairOrderItemSchema).optional(),
 });
 
 const updateRepairOrderStatusSchema = z.object({
@@ -59,6 +73,32 @@ function readString(formData: FormData, key: string) {
 function readCheckbox(formData: FormData, key: string) {
   const value = formData.get(key);
   return value === "on" || value === "true" || value === "1";
+}
+
+function readItems(formData: FormData): z.infer<typeof repairOrderItemSchema>[] | undefined {
+  const itemsRaw = formData.get("items");
+  if (!itemsRaw || typeof itemsRaw !== "string") {
+    return undefined;
+  }
+  try {
+    const parsed = JSON.parse(itemsRaw);
+    if (Array.isArray(parsed)) {
+      return parsed.map((item) => ({
+        id: item.id || undefined,
+        inventoryItemId: item.inventoryItemId || null,
+        supplierId: item.supplierId || null,
+        supplierName: item.supplierName || null,
+        partName: String(item.partName || "").trim(),
+        quantity: Number(item.quantity) || 1,
+        unitCost: item.unitCost !== undefined ? item.unitCost : null,
+        unitPrice: item.unitPrice !== undefined ? item.unitPrice : null,
+        notes: item.notes || null,
+      })).filter((item) => Boolean(item.partName));
+    }
+  } catch {
+    return undefined;
+  }
+  return undefined;
 }
 
 export async function createRepairOrderAction(formData: FormData) {
@@ -79,9 +119,14 @@ export async function createRepairOrderAction(formData: FormData) {
     partCost: readString(formData, "partCost"),
     deductPartCost: readCheckbox(formData, "deductPartCost"),
     supplierNotes: readString(formData, "supplierNotes"),
+    items: readItems(formData),
   });
 
   const auth = await requirePermission("repairs:create");
+  if (input.items && input.items.some((i) => Boolean(i.inventoryItemId))) {
+    await requirePermission("inventory:use_parts");
+  }
+
   const repairOrder = await repairOrderService.createRepairOrder(
     auth.shop.id,
     auth.user.id,
@@ -110,9 +155,13 @@ export async function updateRepairOrderDetailsAction(formData: FormData) {
     partCost: readString(formData, "partCost"),
     deductPartCost: readCheckbox(formData, "deductPartCost"),
     supplierNotes: readString(formData, "supplierNotes"),
+    items: readItems(formData),
   });
 
   const auth = await requirePermission("repairs:update");
+  if (input.items && input.items.some((i) => Boolean(i.inventoryItemId))) {
+    await requirePermission("inventory:use_parts");
+  }
 
   await repairOrderService.updateRepairOrderDetails(
     auth.shop.id,
