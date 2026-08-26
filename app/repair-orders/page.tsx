@@ -1,5 +1,5 @@
 import { RepairStatus } from "@prisma/client";
-import { Eye, Plus, Search, Truck, Wrench } from "lucide-react";
+import { Eye, Pencil, Plus, Search, Truck, Wrench } from "lucide-react";
 import Link from "next/link";
 import { DatabaseUnavailable } from "@/components/database-unavailable";
 import { EmptyState } from "@/components/empty-state";
@@ -147,7 +147,7 @@ export default async function RepairOrdersPage({
                   <th className="text-slate-800">المنشئ</th>
                   <th className="text-slate-800">تاريخ الإنشاء</th>
                   <th className="text-slate-800">التسليم المتوقع</th>
-                  <th className="w-24 text-slate-800 text-center">الإجراءات</th>
+                  <th className="w-36 text-slate-800 text-center">الإجراءات</th>
                 </tr>
               </thead>
               <tbody>
@@ -206,6 +206,12 @@ export default async function RepairOrdersPage({
                           <Link href={`/repair-orders/${repairOrder.id}`}>
                             <Eye className="h-3.5 w-3.5 ml-1" aria-hidden="true" />
                             عرض
+                          </Link>
+                        </Button>
+                        <Button asChild variant="outline" size="sm" className="font-bold shadow-xs border-slate-300 hover:bg-teal-50 hover:text-teal-800 hover:border-teal-300 rounded-lg text-slate-700">
+                          <Link href={`/repair-orders/${repairOrder.id}/edit`} title="تعديل تذكرة الصيانة">
+                            <Pencil className="h-3.5 w-3.5 ml-1" aria-hidden="true" />
+                            تعديل
                           </Link>
                         </Button>
                         <DeleteRepairOrderButton

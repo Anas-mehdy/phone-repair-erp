@@ -41,6 +41,9 @@ const createRepairOrderSchema = z.object({
 
 const updateRepairOrderDetailsSchema = z.object({
   repairOrderId: z.string().uuid(),
+  customerName: z.string().optional(),
+  customerPhone: z.string().optional(),
+  customerNotes: z.string().optional(),
   deviceBrand: z.string().optional(),
   deviceModel: z.string().optional(),
   deviceSerial: z.string().optional(),
@@ -50,6 +53,7 @@ const updateRepairOrderDetailsSchema = z.object({
   estimatedTotal: z.string().optional(),
   finalTotal: z.string().optional(),
   dueAt: z.string().optional(),
+  status: z.nativeEnum(RepairStatus).optional(),
   supplierId: z.string().optional(),
   supplierName: z.string().optional(),
   partName: z.string().optional(),
@@ -57,6 +61,7 @@ const updateRepairOrderDetailsSchema = z.object({
   deductPartCost: z.boolean().optional(),
   supplierNotes: z.string().optional(),
   items: z.array(repairOrderItemSchema).optional(),
+  redirectTo: z.string().optional(),
 });
 
 const updateRepairOrderStatusSchema = z.object({
@@ -138,8 +143,16 @@ export async function createRepairOrderAction(formData: FormData) {
 }
 
 export async function updateRepairOrderDetailsAction(formData: FormData) {
+  const statusStr = readString(formData, "status");
+  const status = Object.values(RepairStatus).includes(statusStr as RepairStatus)
+    ? (statusStr as RepairStatus)
+    : undefined;
+
   const input = updateRepairOrderDetailsSchema.parse({
     repairOrderId: readString(formData, "repairOrderId"),
+    customerName: readString(formData, "customerName") || undefined,
+    customerPhone: readString(formData, "customerPhone") || undefined,
+    customerNotes: readString(formData, "customerNotes") || undefined,
     deviceBrand: readString(formData, "deviceBrand"),
     deviceModel: readString(formData, "deviceModel"),
     deviceSerial: readString(formData, "deviceSerial"),
@@ -149,6 +162,7 @@ export async function updateRepairOrderDetailsAction(formData: FormData) {
     estimatedTotal: readString(formData, "estimatedTotal"),
     finalTotal: readString(formData, "finalTotal"),
     dueAt: readString(formData, "dueAt"),
+    status,
     supplierId: readString(formData, "supplierId"),
     supplierName: readString(formData, "supplierName"),
     partName: readString(formData, "partName"),
@@ -156,6 +170,7 @@ export async function updateRepairOrderDetailsAction(formData: FormData) {
     deductPartCost: readCheckbox(formData, "deductPartCost"),
     supplierNotes: readString(formData, "supplierNotes"),
     items: readItems(formData),
+    redirectTo: readString(formData, "redirectTo") || undefined,
   });
 
   const auth = await requirePermission("repairs:update");
@@ -172,7 +187,12 @@ export async function updateRepairOrderDetailsAction(formData: FormData) {
 
   revalidatePath("/repair-orders");
   revalidatePath(`/repair-orders/${input.repairOrderId}`);
+  revalidatePath("/customers");
   revalidatePath("/dashboard");
+
+  if (input.redirectTo) {
+    redirect(input.redirectTo);
+  }
 }
 
 export async function updateRepairOrderStatusAction(formData: FormData) {

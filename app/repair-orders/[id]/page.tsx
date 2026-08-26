@@ -1,5 +1,5 @@
 import QRCode from "qrcode";
-import { ArrowRight, Calculator, FileText, Printer, QrCode, Tag, Truck, Wrench } from "lucide-react";
+import { ArrowRight, Calculator, FileText, Pencil, Printer, QrCode, Tag, Truck, Wrench } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -131,6 +131,12 @@ export default async function RepairOrderDetailsPage({
             </div>
           </div>
           <div className="flex flex-wrap gap-2.5">
+            <Button asChild variant="outline" className="font-bold shadow-xs border-teal-300 hover:bg-teal-50 text-teal-800 rounded-xl px-5 h-11">
+              <Link href={`/repair-orders/${repairOrder.id}/edit`}>
+                <Pencil className="h-4 w-4 ml-1.5" aria-hidden="true" />
+                تعديل بيانات التذكرة
+              </Link>
+            </Button>
             <Button asChild variant="outline" className="font-bold shadow-xs border-slate-300 hover:bg-slate-50 rounded-xl px-5 h-11">
               <Link href="/repair-orders">
                 <ArrowRight className="h-4 w-4 ml-1.5" aria-hidden="true" />
@@ -311,10 +317,27 @@ export default async function RepairOrderDetailsPage({
             {/* Edit details form */}
             <form action={updateRepairOrderDetailsAction} className="erp-section space-y-6">
               <input type="hidden" name="repairOrderId" value={repairOrder.id} />
-              <div className="border-b border-slate-100/60 pb-3">
+              <div className="border-b border-slate-100/60 pb-3 flex items-center justify-between">
                 <h3 className="font-bold text-slate-800 text-sm">تعديل بيانات طلب الصيانة</h3>
+                <Button asChild variant="outline" size="sm" className="font-bold border-teal-300 hover:bg-teal-50 text-teal-800 text-xs rounded-lg">
+                  <Link href={`/repair-orders/${repairOrder.id}/edit`}>
+                    <Pencil className="h-3 w-3 ml-1" />
+                    صفحة التعديل الشاملة
+                  </Link>
+                </Button>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="اسم العميل">
+                  <input className={inputClassName} name="customerName" defaultValue={repairOrder.customer?.name ?? ""} />
+                </Field>
+                <Field label="رقم الهاتف">
+                  <input className={`${inputClassName} font-numeric`} name="customerPhone" defaultValue={repairOrder.customer?.phone ?? ""} />
+                </Field>
+                <div className="sm:col-span-2">
+                  <Field label="ملاحظات العميل">
+                    <input className={inputClassName} name="customerNotes" defaultValue={repairOrder.customer?.notes ?? ""} placeholder="ملاحظات العميل..." />
+                  </Field>
+                </div>
                 <Field label="الشركة المصنعة">
                   <input className={inputClassName} name="deviceBrand" defaultValue={repairOrder.deviceBrand ?? ""} />
                 </Field>
@@ -499,6 +522,13 @@ export default async function RepairOrderDetailsPage({
                 <Link href={`/repair-orders/${repairOrder.id}/sticker`} target="_blank">
                   <Tag className="h-4.5 w-4.5 ml-2 text-teal-600 shrink-0" aria-hidden="true" />
                   طباعة ستيكر الهاتف (50×30 مم)
+                </Link>
+              </Button>
+
+              <Button asChild variant="outline" className="w-full font-bold shadow-sm rounded-xl py-5 text-xs justify-center hover:bg-teal-50 hover:text-teal-900 hover:border-teal-300 border-slate-200 text-slate-800 transition">
+                <Link href={`/repair-orders/${repairOrder.id}/edit`}>
+                  <Pencil className="h-4.5 w-4.5 ml-2 text-teal-600 shrink-0" aria-hidden="true" />
+                  تعديل بيانات التذكرة بالكامل
                 </Link>
               </Button>
 

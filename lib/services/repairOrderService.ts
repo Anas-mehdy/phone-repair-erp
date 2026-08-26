@@ -85,6 +85,9 @@ export type CreateRepairOrderInput = {
 };
 
 export type UpdateRepairOrderDetailsInput = {
+  customerName?: string;
+  customerPhone?: string;
+  customerNotes?: string;
   deviceBrand?: string;
   deviceModel?: string;
   deviceSerial?: string;
@@ -94,6 +97,7 @@ export type UpdateRepairOrderDetailsInput = {
   estimatedTotal?: string;
   finalTotal?: string;
   dueAt?: string;
+  status?: RepairStatus;
   // Legacy single part fields for backward compatibility
   supplierId?: string;
   supplierName?: string;
@@ -728,6 +732,9 @@ export async function updateRepairOrderDetails(
       id: true,
       ticketNumber: true,
       status: true,
+      customerId: true,
+      completedAt: true,
+      deliveredAt: true,
     },
   });
 
@@ -735,12 +742,112 @@ export async function updateRepairOrderDetails(
     throw new Error("طلب الصيانة غير موجود.");
   }
 
-  // Prevent modifying parts on CANCELLED tickets
-  if (existing.status === RepairStatus.CANCELLED && input.items !== undefined) {
-    throw new Error("لا يمكن تعديل قطع الغيار لتذكرة صيانة ملغاة.");
-  }
-
   return prisma.$transaction(async (tx) => {
+    // 0. Handle Customer update if customer info is provided
+    let updatedCustomerId = existing.customerId;
+    if (input.customerName !== undefined || input.customerPhone !== undefined || input.customerNotes !== undefined) {
+      if (existing.customerId) {
+        const normPhone = input.customerPhone !== undefined ? normalizePhone(input.customerPhone) : undefined;
+        await tx.customer.update({
+          where: { id: existing.customerId },
+          data: {
+            ...(input.customerName !== undefined && input.customerName.trim() ? { name: input.customerName.trim() } : {}),
+            ...(input.customerPhone !== undefined ? { phone: emptyToNull(input.customerPhone), phoneNormalized: normPhone } : {}),
+            ...(input.customerNotes !== undefined ? { notes: emptyToNull(input.customerNotes) } : {}),
+            version: { increment: 1 },
+          },
+        });
+      } else if (input.customerName && input.customerPhone) {
+        const newCustomer = await findOrCreateCustomerForRepair(shopId, {
+          customerName: input.customerName,
+          customerPhone: input.customerPhone,
+          customerNotes: input.customerNotes,
+          reportedIssue: input.reportedIssue ?? "",
+        });
+        updatedCustomerId = newCustomer.id;
+      }
+    }
+
+    // 0.1 Handle Status change if provided
+    let newStatus = existing.status;
+    let completedAt = existing.completedAt;
+    let deliveredAt = existing.deliveredAt;
+
+    if (input.status && input.status !== existing.status) {
+      newStatus = input.status;
+      const now = new Date();
+
+      // If transitioning to CANCELLED, restore inventory items
+      if (input.status === RepairStatus.CANCELLED) {
+        const activeItems = await tx.repairOrderItem.findMany({
+          where: {
+            repairOrderId,
+            shopId,
+            deletedAt: null,
+            inventoryItemId: { not: null },
+          },
+        });
+
+        for (const item of activeItems) {
+          if (item.inventoryItemId) {
+            const movements = await tx.inventoryMovement.findMany({
+              where: {
+                shopId,
+                repairOrderId,
+                repairOrderItemId: item.id,
+                deletedAt: null,
+              },
+              select: { quantityChange: true },
+            });
+            const netChange = movements.reduce((sum, m) => sum + m.quantityChange, 0);
+            const unreturned = -netChange;
+            if (unreturned > 0) {
+              const restoration = await restoreInventoryStockAtomic(
+                tx,
+                shopId,
+                item.inventoryItemId,
+                unreturned,
+              );
+
+              await tx.inventoryMovement.create({
+                data: {
+                  shopId,
+                  inventoryItemId: item.inventoryItemId,
+                  repairOrderId,
+                  repairOrderItemId: item.id,
+                  createdByUserId: updatedByUserId,
+                  type: "REPAIR_RETURN",
+                  quantityChange: unreturned,
+                  quantityAfter: restoration.quantityAfter,
+                  unitCostSnapshot: restoration.unitCost,
+                  note: `إرجاع للمخزون بسبب إلغاء تذكرة الصيانة (${existing.ticketNumber})`,
+                },
+              });
+            }
+          }
+        }
+      }
+
+      if (input.status === RepairStatus.DONE && !completedAt) {
+        completedAt = now;
+      }
+      if (input.status === RepairStatus.DELIVERED) {
+        if (!completedAt) completedAt = now;
+        if (!deliveredAt) deliveredAt = now;
+      }
+
+      await tx.repairStatusHistory.create({
+        data: {
+          shopId,
+          repairOrderId,
+          createdByUserId: updatedByUserId,
+          fromStatus: existing.status,
+          toStatus: input.status,
+          note: "تم تحديث حالة التذكرة أثناء تعديل البيانات",
+        },
+      });
+    }
+
     // 1. Resolve main supplier if passed
     const mainSupplier = await resolveSupplierForPart(
       tx,
@@ -1103,7 +1210,11 @@ export async function updateRepairOrderDetails(
         id: repairOrderId,
       },
       data: {
+        customerId: updatedCustomerId,
         updatedByUserId,
+        status: newStatus,
+        completedAt,
+        deliveredAt,
         deviceBrand: emptyToNull(input.deviceBrand),
         deviceModel: emptyToNull(input.deviceModel),
         deviceSerial: emptyToNull(input.deviceSerial),
