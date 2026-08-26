@@ -109,37 +109,37 @@ export default async function RepairOrderDetailsPage({
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-w-0 max-w-full">
       {/* Top summary hero card */}
-      <div className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm shadow-slate-200/50">
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-teal-800 text-white shadow-md shadow-primary/20">
-              <Wrench className="h-6 w-6" aria-hidden="true" />
+      <div className="rounded-3xl border border-slate-200/80 bg-white p-4 sm:p-6 shadow-sm shadow-slate-200/50 min-w-0 max-w-full overflow-hidden">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+            <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-teal-800 text-white shadow-md shadow-primary/20">
+              <Wrench className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden="true" />
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">تفاصيل تذكرة الصيانة</span>
-                <span className="text-[11px] font-bold text-teal-800 bg-teal-50 px-2.5 py-0.5 rounded-full border border-teal-200">تذكرة نشطة</span>
+                <span className="text-[11px] sm:text-xs font-extrabold text-slate-500 uppercase tracking-wider">تفاصيل تذكرة الصيانة</span>
+                <span className="text-[10px] sm:text-[11px] font-bold text-teal-800 bg-teal-50 px-2 sm:px-2.5 py-0.5 rounded-full border border-teal-200">تذكرة نشطة</span>
               </div>
-              <h2 className="text-2xl font-black text-slate-900 font-numeric mt-1 flex items-center gap-2">
+              <h2 className="text-xl sm:text-2xl font-black text-slate-900 font-numeric mt-1 truncate">
                 {repairOrder.ticketNumber}
               </h2>
-              <p className="text-xs font-medium text-slate-600 mt-1">
+              <p className="text-xs font-medium text-slate-600 mt-1 truncate">
                 جهاز العميل: <span className="font-bold text-slate-900">{[repairOrder.deviceBrand, repairOrder.deviceModel].filter(Boolean).join(" ") || "-"}</span>
               </p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2.5">
-            <Button asChild variant="outline" className="font-bold shadow-xs border-teal-300 hover:bg-teal-50 text-teal-800 rounded-xl px-5 h-11">
+          <div className="flex flex-wrap gap-2 pt-2 sm:pt-0">
+            <Button asChild variant="outline" className="font-bold shadow-xs border-teal-300 hover:bg-teal-50 text-teal-800 rounded-xl px-4 h-10 text-xs flex-1 sm:flex-initial">
               <Link href={`/repair-orders/${repairOrder.id}/edit`}>
-                <Pencil className="h-4 w-4 ml-1.5" aria-hidden="true" />
+                <Pencil className="h-3.5 w-3.5 ml-1.5" aria-hidden="true" />
                 تعديل بيانات التذكرة
               </Link>
             </Button>
-            <Button asChild variant="outline" className="font-bold shadow-xs border-slate-300 hover:bg-slate-50 rounded-xl px-5 h-11">
+            <Button asChild variant="outline" className="font-bold shadow-xs border-slate-300 hover:bg-slate-50 rounded-xl px-4 h-10 text-xs flex-1 sm:flex-initial">
               <Link href="/repair-orders">
-                <ArrowRight className="h-4 w-4 ml-1.5" aria-hidden="true" />
+                <ArrowRight className="h-3.5 w-3.5 ml-1.5" aria-hidden="true" />
                 رجوع للقائمة
               </Link>
             </Button>
@@ -154,16 +154,16 @@ export default async function RepairOrderDetailsPage({
       ) : null}
 
       {/* 2-column layout */}
-      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] min-w-0 max-w-full">
         {/* Main Column */}
-        <div className="space-y-6">
+        <div className="space-y-6 min-w-0 max-w-full">
           {/* General Information Card */}
           <div className="erp-section">
-            <div className="border-b border-slate-100/60 pb-3 mb-5 flex items-center justify-between">
+            <div className="border-b border-slate-100/60 pb-3 mb-5 flex flex-wrap items-center justify-between gap-2">
               <h3 className="font-bold text-slate-800 text-sm">المعلومات العامة</h3>
               <RepairStatusBadge status={repairOrder.status} />
             </div>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
               <Info label="اسم العميل" value={repairOrder.customer?.name ?? "-"} />
               <Info label="رقم الهاتف" value={<span className="font-numeric">{repairOrder.customer?.phone ?? "-"}</span>} />
               <Info
@@ -212,15 +212,15 @@ export default async function RepairOrderDetailsPage({
             {/* Supplier & Parts info box (Workshop only) */}
             {(repairOrder.items.length > 0 || repairOrder.supplierName || repairOrder.supplier || repairOrder.partName || repairOrder.partCost) ? (
               <div className="mt-6 border-t border-slate-100/60 pt-5">
-                <div className="rounded-2xl border border-teal-200/80 bg-teal-50/40 p-4 space-y-4">
+                <div className="rounded-2xl border border-teal-200/80 bg-teal-50/40 p-3.5 sm:p-4 space-y-4 min-w-0 max-w-full overflow-hidden">
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <div className="flex items-center gap-2 text-xs font-bold text-teal-900">
-                      <Truck className="h-4 w-4 text-teal-700" />
+                      <Truck className="h-4 w-4 text-teal-700 shrink-0" />
                       <span>بيانات قطع الغيار والموردين (خاص بالورشة)</span>
                     </div>
                     {repairPrice > 0 && partCostNum > 0 ? (
                       <div className="flex items-center gap-2 bg-teal-900 text-white px-3 py-1 rounded-xl text-xs font-bold">
-                        <Calculator className="h-3.5 w-3.5 text-teal-300" />
+                        <Calculator className="h-3.5 w-3.5 text-teal-300 shrink-0" />
                         <span>صافي ربح الصيانة:</span>
                         <span className="font-numeric font-black text-teal-200">{formatMoney(netProfit, currency)}</span>
                       </div>
@@ -229,8 +229,8 @@ export default async function RepairOrderDetailsPage({
 
                   {repairOrder.items.length > 0 ? (
                     <div className="space-y-2">
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-right text-xs">
+                      <div className="overflow-x-auto -mx-3.5 px-3.5 sm:mx-0 sm:px-0">
+                        <table className="w-full text-right text-xs min-w-[480px]">
                           <thead>
                             <tr className="border-b border-teal-200/60 text-slate-500 font-bold">
                               <th className="py-2 px-3">القطعة</th>
@@ -310,7 +310,7 @@ export default async function RepairOrderDetailsPage({
           </div>
 
           {/* Form modifications */}
-          <div className="grid gap-6 md:grid-cols-[280px_1fr]">
+          <div className="grid gap-6 md:grid-cols-[minmax(0,280px)_minmax(0,1fr)] min-w-0 max-w-full">
             {/* Status Update Card */}
             <StatusUpdateForm repairOrderId={repairOrder.id} currentStatus={repairOrder.status} />
 
@@ -548,9 +548,9 @@ export default async function RepairOrderDetailsPage({
 
 function Info({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-slate-200/80 bg-slate-50/60 p-4 transition duration-200 hover:bg-white hover:border-primary/40 hover:shadow-xs">
-      <p className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">{label}</p>
-      <div className="mt-1.5 text-sm font-extrabold text-slate-900 leading-normal">{value}</div>
+    <div className="rounded-xl border border-slate-200/80 bg-slate-50/60 p-3.5 sm:p-4 transition duration-200 hover:bg-white hover:border-primary/40 hover:shadow-xs min-w-0 max-w-full overflow-hidden">
+      <p className="text-xs font-extrabold text-slate-500 uppercase tracking-wider truncate">{label}</p>
+      <div className="mt-1.5 text-sm font-extrabold text-slate-900 leading-normal break-words">{value}</div>
     </div>
   );
 }

@@ -283,9 +283,9 @@ export function SupplierFields({
                 className="rounded-2xl border border-teal-100 bg-white p-4 shadow-2xs space-y-3 transition-all hover:border-teal-200"
               >
                 {/* Item header & Type Switcher */}
-                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                  <div className="flex items-center gap-2">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-teal-100 text-[11px] font-bold text-teal-800">
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-100">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-teal-100 text-[11px] font-bold text-teal-800">
                       {idx + 1}
                     </span>
                     <div className="inline-flex rounded-lg p-0.5 bg-slate-100 border border-slate-200/60 text-xs font-bold">
@@ -332,7 +332,7 @@ export function SupplierFields({
 
                 {/* Form fields depending on source */}
                 {item.source === "inventory" ? (
-                  <div className="grid gap-3 sm:grid-cols-12">
+                  <div className="grid gap-3 sm:grid-cols-12 min-w-0">
                     <div className="sm:col-span-6">
                       <Field label="اختر القطعة من المخزون">
                         <select
@@ -402,7 +402,7 @@ export function SupplierFields({
                     )}
                   </div>
                 ) : (
-                  <div className="grid gap-3 sm:grid-cols-12">
+                  <div className="grid gap-3 sm:grid-cols-12 min-w-0">
                     <div className="sm:col-span-4">
                       <Field label="اسم المورد الخارجي">
                         <input

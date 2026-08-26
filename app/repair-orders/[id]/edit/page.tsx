@@ -57,7 +57,7 @@ export default async function EditRepairOrderPage({
   }));
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6 min-w-0 max-w-full">
       <PageHeader
         title={`تعديل تذكرة الصيانة: ${repairOrder.ticketNumber}`}
         description="تعديل بيانات العميل، مواصفات الجهاز، تفاصيل العطل، قطع الغيار والتكاليف"

@@ -358,13 +358,13 @@ export function EditRepairOrderForm({
       />
 
       {/* Action Buttons */}
-      <div className="flex items-center justify-between gap-3 pt-2">
+      <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
         <Button
           asChild
           variant="outline"
           type="button"
           disabled={isPending}
-          className="rounded-xl h-12 px-5 font-bold border-slate-300 hover:bg-slate-50"
+          className="rounded-xl h-12 px-5 font-bold border-slate-300 hover:bg-slate-50 justify-center"
         >
           <Link href={`/repair-orders/${repairOrder.id}`}>
             <ArrowRight className="h-4 w-4 ml-1.5" />
@@ -375,7 +375,7 @@ export function EditRepairOrderForm({
         <Button
           type="submit"
           disabled={isPending}
-          className="h-12 px-8 rounded-xl bg-teal-800 hover:bg-teal-700 text-white font-bold text-sm shadow-md shadow-teal-900/15 flex items-center justify-center gap-2 min-w-[180px]"
+          className="h-12 px-8 rounded-xl bg-teal-800 hover:bg-teal-700 text-white font-bold text-sm shadow-md shadow-teal-900/15 flex items-center justify-center gap-2 sm:min-w-[180px]"
         >
           {isPending ? (
             <>

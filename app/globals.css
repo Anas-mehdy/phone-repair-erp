@@ -59,7 +59,7 @@
 
 @layer components {
   .erp-card {
-    @apply rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/50 transition-all duration-300;
+    @apply rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/50 transition-all duration-300 min-w-0 max-w-full;
   }
 
   .erp-card-hover {
@@ -67,7 +67,7 @@
   }
 
   .erp-section {
-    @apply rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm shadow-slate-200/50;
+    @apply rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-6 shadow-sm shadow-slate-200/50 min-w-0 max-w-full;
   }
 
   .erp-table {
@@ -95,7 +95,7 @@
   }
 
   .erp-filter-card {
-    @apply rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm shadow-slate-200/50;
+    @apply rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-5 shadow-sm shadow-slate-200/50 min-w-0 max-w-full;
   }
 
   .erp-input {
