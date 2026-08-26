@@ -7,10 +7,7 @@ import {
   RefreshCw,
   MessageCircle,
   Clock,
-  Shield,
   Wifi,
-  Sparkles,
-  ExternalLink,
 } from "lucide-react";
 import { normalizePhoneForWhatsApp } from "@/lib/services/whatsappService";
 
@@ -46,8 +43,6 @@ export function AdminOnlineUsers({
 }) {
   const [data, setData] = useState<PresenceData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date>(new Date());
-  const [isOpen, setIsOpen] = useState(false);
 
   const fetchPresence = useCallback(async (isManual = false) => {
     if (isManual) setIsLoading(true);
