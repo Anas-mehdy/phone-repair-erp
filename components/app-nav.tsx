@@ -2,7 +2,9 @@
 
 import {
   Boxes,
+  Cpu,
   Headphones,
+  Laptop,
   LayoutDashboard,
   Receipt,
   Settings,
@@ -10,18 +12,43 @@ import {
   Truck,
   UserRound,
   Wrench,
+  type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-export const navGroups = [
+export interface NavItem {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  badge?: {
+    text: string;
+    className?: string;
+  };
+}
+
+export interface NavGroup {
+  title: string;
+  items: NavItem[];
+}
+
+export const navGroups: NavGroup[] = [
   {
     title: "العمليات الأساسية",
     items: [
       { href: "/dashboard", label: "لوحة التحكم", icon: LayoutDashboard },
       { href: "/repair-orders", label: "طلبات الصيانة", icon: Wrench },
       { href: "/sales", label: "المبيعات والـ POS", icon: ShoppingCart },
+      {
+        href: "/online-store",
+        label: "المتجر الإلكتروني",
+        icon: Laptop,
+        badge: {
+          text: "قريباً 🔥",
+          className: "bg-orange-500/10 text-orange-600 border-orange-500/20 font-bold",
+        },
+      },
     ],
   },
   {
@@ -30,6 +57,15 @@ export const navGroups = [
       { href: "/customers", label: "إدارة العملاء", icon: UserRound },
       { href: "/suppliers", label: "الموردون وقطع الغيار", icon: Truck },
       { href: "/inventory", label: "المستودع والمخزون", icon: Boxes },
+      {
+        href: "/compatibility",
+        label: "التوافقات",
+        icon: Cpu,
+        badge: {
+          text: "قريباً 🔥",
+          className: "bg-orange-500/10 text-orange-600 border-orange-500/20 font-bold",
+        },
+      },
       { href: "/invoices", label: "الفواتير والمالية", icon: Receipt },
     ],
   },
@@ -89,7 +125,7 @@ export function AppNav({
                     key={item.href}
                     href={item.href}
                     onClick={onNavigate}
-                    title={compact ? item.label : undefined}
+                    title={compact ? (item.badge ? `${item.label} (${item.badge.text})` : item.label) : undefined}
                     aria-current={active ? "page" : undefined}
                     className={cn(
                       "group relative flex items-center rounded-xl text-xs font-bold transition-all duration-200",
@@ -111,15 +147,37 @@ export function AppNav({
                         )}
                       />
                     ) : null}
-                    <item.icon
-                      className={cn(
-                        "transition-transform duration-200 group-hover:scale-110 shrink-0",
-                        compact ? "h-5 w-5" : "h-4 w-4",
-                        active ? "text-primary stroke-[2.5]" : "text-slate-500"
+                    <div className="relative shrink-0">
+                      <item.icon
+                        className={cn(
+                          "transition-transform duration-200 group-hover:scale-110",
+                          compact ? "h-5 w-5" : "h-4 w-4",
+                          active ? "text-primary stroke-[2.5]" : "text-slate-500"
+                        )}
+                        aria-hidden="true"
+                      />
+                      {compact && item.badge && (
+                        <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75" />
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500" />
+                        </span>
                       )}
-                      aria-hidden="true"
-                    />
-                    {!compact && <span className="truncate">{item.label}</span>}
+                    </div>
+                    {!compact && (
+                      <div className="flex flex-1 items-center justify-between gap-1.5 overflow-hidden">
+                        <span className="truncate">{item.label}</span>
+                        {item.badge && (
+                          <span
+                            className={cn(
+                              "inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-black leading-tight tracking-tight",
+                              item.badge.className || "bg-orange-500/10 text-orange-600 border-orange-500/20"
+                            )}
+                          >
+                            {item.badge.text}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </Link>
                 );
               })}
