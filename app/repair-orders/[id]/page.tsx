@@ -25,6 +25,7 @@ import { SupplierFields } from "../_supplier-fields";
 import { WhatsAppMessageModal } from "../_whatsapp-modal";
 import { StatusUpdateForm } from "../_status-form";
 import { DeleteRepairOrderButton } from "../_delete-button";
+import { CopyTrackingLinkButton } from "../_copy-tracking-button";
 import {
   updateRepairOrderDetailsAction,
 } from "../actions";
@@ -465,6 +466,9 @@ export default async function RepairOrderDetailsPage({
               />
             </div>
             <p className="mt-3.5 font-numeric text-xs font-extrabold text-slate-400 tracking-wide">{repairOrder.ticketNumber}</p>
+            <div className="mt-3 pt-3 border-t border-slate-100">
+              <CopyTrackingLinkButton trackingUrl={trackingUrl} />
+            </div>
           </div>
 
           {/* Business Actions Container */}
