@@ -7,7 +7,6 @@ import { AppNav } from "@/components/app-nav";
 import { logoutAction } from "@/app/actions/authActions";
 import { cn } from "@/lib/utils";
 import { UserPresenceHeartbeat } from "@/components/user-presence-heartbeat";
-import { WhatsNewTrigger } from "@/components/changelog/whats-new-trigger";
 
 export function AppShell({
   children,
@@ -139,8 +138,7 @@ export function AppShell({
           </div>
 
           {/* User / Logout footer in sidebar */}
-          <div className="pt-3 border-t border-slate-200/60 mt-auto space-y-1.5">
-            <WhatsNewTrigger compact={isCollapsed} />
+          <div className={cn("pt-4 border-t border-slate-200/60 mt-auto", isCollapsed ? "flex justify-center" : "")}>
             <form action={logoutAction} className="w-full">
               {isCollapsed ? (
                 <button
@@ -214,8 +212,7 @@ export function AppShell({
           </div>
 
           {/* Drawer Footer */}
-          <div className="pt-4 mt-6 border-t border-slate-100 space-y-2">
-            <WhatsNewTrigger compact={false} />
+          <div className="pt-4 mt-6 border-t border-slate-100">
             <form action={logoutAction}>
               <button
                 type="submit"
@@ -255,18 +252,15 @@ export function AppShell({
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <WhatsNewTrigger compact={true} className="h-9 w-9 border border-slate-200 bg-slate-50 hover:bg-teal-50" />
-              <form action={logoutAction}>
-                <button
-                  type="submit"
-                  className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-rose-600 bg-slate-50 hover:bg-rose-50 px-3 py-2 rounded-xl border border-slate-200 hover:border-rose-200 transition cursor-pointer"
-                >
-                  <LogOut className="h-3.5 w-3.5" />
-                  <span>خروج</span>
-                </button>
-              </form>
-            </div>
+            <form action={logoutAction}>
+              <button
+                type="submit"
+                className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-rose-600 bg-slate-50 hover:bg-rose-50 px-3 py-2 rounded-xl border border-slate-200 hover:border-rose-200 transition cursor-pointer"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                <span>خروج</span>
+              </button>
+            </form>
           </div>
         </header>
 
