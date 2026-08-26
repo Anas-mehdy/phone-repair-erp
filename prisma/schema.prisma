@@ -138,6 +138,7 @@ model User {
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
   deletedAt         DateTime?
+  lastActiveAt      DateTime?
   version           Int               @default(1)
 
   // Modern Multi-Tenancy Relations
@@ -151,6 +152,7 @@ model User {
   shop              Shop              @relation(fields: [shopId], references: [id])
 
   @@index([email])
+  @@index([lastActiveAt])
   @@index([shopId, updatedAt])
   @@index([shopId, deletedAt])
 }

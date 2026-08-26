@@ -11,6 +11,8 @@ export interface PlatformStats {
   totalSuppliers: number;
   newShopsToday: number;
   newShopsThisWeek: number;
+  onlineUsersCount: number;
+  activeOnlineShopsCount: number;
   currencyBreakdown: Array<{ currency: string; count: number }>;
   statusBreakdown: Array<{ status: string; count: number }>;
 }
@@ -24,6 +26,7 @@ export const adminService = {
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - 7);
+    const onlineThresholdDate = new Date(now.getTime() - 5 * 60 * 1000);
 
     const [
       totalShops,
@@ -35,6 +38,7 @@ export const adminService = {
       totalSuppliers,
       newShopsToday,
       newShopsThisWeek,
+      onlineUsers,
       shopsByCurrency,
       ordersByStatus,
     ] = await Promise.all([
@@ -47,6 +51,19 @@ export const adminService = {
       prisma.supplier.count({ where: { deletedAt: null } }),
       prisma.shop.count({ where: { createdAt: { gte: startOfToday } } }),
       prisma.shop.count({ where: { createdAt: { gte: startOfWeek } } }),
+      prisma.user.findMany({
+        where: {
+          lastActiveAt: { gte: onlineThresholdDate },
+          deletedAt: null,
+        },
+        select: {
+          shopId: true,
+          memberships: {
+            where: { status: "ACTIVE", deletedAt: null },
+            select: { shopId: true },
+          },
+        },
+      }),
       prisma.shop.groupBy({
         by: ["currency"],
         _count: { id: true },
@@ -58,6 +75,14 @@ export const adminService = {
         where: { deletedAt: null },
       }),
     ]);
+
+    const activeOnlineShopIds = new Set<string>();
+    onlineUsers.forEach((u) => {
+      if (u.shopId) activeOnlineShopIds.add(u.shopId);
+      u.memberships.forEach((m) => {
+        if (m.shopId) activeOnlineShopIds.add(m.shopId);
+      });
+    });
 
     const currencyBreakdown = shopsByCurrency
       .map((item) => ({
@@ -81,6 +106,8 @@ export const adminService = {
       totalSuppliers,
       newShopsToday,
       newShopsThisWeek,
+      onlineUsersCount: onlineUsers.length,
+      activeOnlineShopsCount: activeOnlineShopIds.size,
       currencyBreakdown,
       statusBreakdown,
     };
@@ -91,6 +118,8 @@ export const adminService = {
    */
   async listAllShops(query?: string) {
     const trimmed = query?.trim().toLowerCase();
+    const now = new Date();
+    const onlineThreshold = 5 * 60 * 1000;
 
     const shops = await prisma.shop.findMany({
       where: trimmed
@@ -120,6 +149,7 @@ export const adminService = {
             name: true,
             email: true,
             createdAt: true,
+            lastActiveAt: true,
           },
           take: 1,
         },
@@ -140,6 +170,11 @@ export const adminService = {
 
     return shops.map((shop) => {
       const owner = shop.users[0] || null;
+      const isOnline = Boolean(
+        owner?.lastActiveAt &&
+        now.getTime() - new Date(owner.lastActiveAt).getTime() < onlineThreshold
+      );
+
       return {
         id: shop.id,
         name: shop.name,
@@ -149,11 +184,13 @@ export const adminService = {
         createdAt: shop.createdAt,
         deletedAt: shop.deletedAt,
         isActive: shop.deletedAt === null,
+        isOnline,
         owner: owner
           ? {
               id: owner.id,
               name: owner.name,
               email: owner.email,
+              lastActiveAt: owner.lastActiveAt,
             }
           : null,
         counts: {

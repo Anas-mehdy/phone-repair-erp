@@ -31,10 +31,12 @@ export interface ShopRowData {
   createdAt: Date;
   deletedAt: Date | null;
   isActive: boolean;
+  isOnline?: boolean;
   owner: {
     id: string;
     name: string;
     email: string;
+    lastActiveAt?: Date | null;
   } | null;
   counts: {
     repairOrders: number;
@@ -239,10 +241,19 @@ export function AdminShopTable({ initialShops }: { initialShops: ShopRowData[] }
                           <Store className="h-4 w-4" />
                         </div>
                         <div>
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="font-black text-white text-xs">{shop.name}</span>
+                            {shop.isOnline && (
+                              <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded-md border border-emerald-500/30 font-bold">
+                                <span className="flex h-1.5 w-1.5 relative">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                                </span>
+                                <span>متصل الآن</span>
+                              </span>
+                            )}
                             {!shop.isActive && (
-                              <span className="text-[10px] bg-rose-500/20 text-rose-300 px-1.5 py-0.2 rounded border border-rose-500/30">
+                              <span className="text-[10px] bg-rose-500/20 text-rose-300 px-1.5 py-0.5 rounded border border-rose-500/30">
                                 مجمد
                               </span>
                             )}

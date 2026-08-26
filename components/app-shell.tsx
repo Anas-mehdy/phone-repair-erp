@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { AppNav } from "@/components/app-nav";
 import { logoutAction } from "@/app/actions/authActions";
 import { cn } from "@/lib/utils";
+import { UserPresenceHeartbeat } from "@/components/user-presence-heartbeat";
 
 export function AppShell({
   children,
@@ -264,6 +265,7 @@ export function AppShell({
         </header>
 
         <main className="mx-auto min-h-screen max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
+          <UserPresenceHeartbeat />
           {children}
         </main>
       </div>

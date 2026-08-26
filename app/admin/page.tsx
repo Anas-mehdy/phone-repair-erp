@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { adminService } from "@/lib/services/adminService";
 import { AdminShopTable } from "./_admin-shop-table";
+import { AdminOnlineUsers } from "./_admin-online-users";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +40,12 @@ export default async function SuperAdminDashboardPage() {
           <span>حالة النظام: متصل وتعمل جميع الخدمات بكفاءة</span>
         </div>
       </div>
+
+      {/* Live Presence Section */}
+      <AdminOnlineUsers
+        initialOnlineCount={stats.onlineUsersCount}
+        initialActiveShopsCount={stats.activeOnlineShopsCount}
+      />
 
       {/* Global Metric Cards Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
