@@ -1,11 +1,14 @@
 import {
   CompatibilityCandidateStatus,
   CompatibilityImportStatus,
-  PartCategory,
 } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { parseBatterySourceText } from "./battery-candidate-import";
+import {
+  COMPATIBILITY_DATASETS,
+  CompatibilityDatasetKey,
+} from "./compatibility-datasets";
 import { normalizeSearchString } from "./normalization";
 
 export interface CompatibilityDirectoryDevice {
@@ -46,12 +49,14 @@ function relevanceScore(deviceName: string, normalizedQuery: string): number {
  */
 export async function searchCompatibilityDirectory(
   query: string,
-  options: { category?: PartCategory; limit?: number } = {}
+  options: { dataset?: CompatibilityDatasetKey; limit?: number } = {}
 ): Promise<CompatibilityDirectoryResult[]> {
   const normalizedQuery = normalizeSearchString(query);
   if (normalizedQuery.length < 2) return [];
 
-  const category = options.category || PartCategory.SCREEN;
+  const dataset = options.dataset || "SCREEN";
+  const datasetConfig = COMPATIBILITY_DATASETS[dataset];
+  const category = datasetConfig.mappedCategory;
   const limit = Math.min(Math.max(options.limit || 30, 1), 50);
 
   const matches = await prisma.compatibilityCandidateMember.findMany({
@@ -60,7 +65,10 @@ export async function searchCompatibilityDirectory(
       candidateGroup: {
         status: { in: VISIBLE_CANDIDATE_STATUSES },
         mappedCategory: category,
-        batch: { status: { in: SEARCHABLE_BATCH_STATUSES } },
+        batch: {
+          status: { in: SEARCHABLE_BATCH_STATUSES },
+          categoryName: datasetConfig.sourceCategory,
+        },
       },
     },
     select: {
@@ -100,7 +108,7 @@ export async function searchCompatibilityDirectory(
     if (seen.has(uniqueKey)) continue;
     seen.add(uniqueKey);
 
-    const batteryDetails = category === PartCategory.BATTERY
+    const batteryDetails = dataset === "BATTERY"
       ? parseBatterySourceText(match.candidateGroup.rawSourceText)
       : null;
 
