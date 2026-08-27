@@ -6,3 +6,4 @@ export * from "./part.service";
 export * from "./normalization";
 export * from "./compatibility-search.service";
 export * from "./inventory-matcher.service";
+export * from "./compatibility-import.service";
