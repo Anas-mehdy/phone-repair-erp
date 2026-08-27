@@ -171,10 +171,10 @@ export class CompatibilitySearchService {
    * 2. Identify candidate Devices and candidate Parts using indexed lookups.
    * 3. Query DeviceCompatibility table with single JOIN query (NO N+1 loops).
    * 4. Strictly filter operational replacements:
-   *    - Returns ONLY VERIFIED and PROVISIONALLY_VERIFIED in operational mode.
-   *    - Excludes UNVERIFIED and INCOMPATIBLE from operational replacement results.
+   *    - Returns ONLY centrally published VERIFIED records.
+   *    - Excludes provisional, unverified, incompatible, archived and suspended records.
    *    - Excludes archived records.
-   * 5. Rank: VERIFIED (Rank 1) > PROVISIONALLY_VERIFIED (Rank 2).
+   * Public request parameters can never widen this publication gate.
    */
   async searchCompatibilities(params: CompatibilitySearchParams): Promise<CompatibilitySearchResponse> {
     const rawQuery = params.query?.trim() || "";
@@ -185,21 +185,11 @@ export class CompatibilitySearchService {
     const limit = Math.min(Math.max(Number(params.limit) || 20, 1), 50);
     const skip = (page - 1) * limit;
 
-    // Status filter rules:
-    // In operational mode: allow only VERIFIED and PROVISIONALLY_VERIFIED.
-    // If admin explicitly requests includeIncompatible, allow INCOMPATIBLE.
-    let statusFilter: Prisma.EnumCompatibilityStatusFilter | CompatibilityStatus[];
-    if (params.status) {
-      statusFilter = [params.status];
-    } else if (params.includeIncompatible) {
-      statusFilter = [CompatibilityStatus.VERIFIED, CompatibilityStatus.PROVISIONALLY_VERIFIED, CompatibilityStatus.INCOMPATIBLE];
-    } else {
-      statusFilter = [CompatibilityStatus.VERIFIED, CompatibilityStatus.PROVISIONALLY_VERIFIED];
-    }
-
     const where: Prisma.DeviceCompatibilityWhereInput = {
-      isArchived: params.includeArchived ? undefined : false,
-      compatibilityStatus: { in: statusFilter },
+      isArchived: false,
+      compatibilityStatus: CompatibilityStatus.VERIFIED,
+      publishedAt: { not: null },
+      suspendedAt: null,
     };
 
     if (params.category) {
@@ -214,7 +204,7 @@ export class CompatibilitySearchService {
             // Device match
             {
               device: {
-                isArchived: params.includeArchived ? undefined : false,
+            isArchived: false,
                 OR: [
                   { modelNumber: { equals: rawQuery, mode: "insensitive" } },
                   { normalizedModel: { in: [normalizedQuery, baseNormalized].filter(Boolean) } },
@@ -229,7 +219,7 @@ export class CompatibilitySearchService {
             // Part match
             {
               part: {
-                isArchived: params.includeArchived ? undefined : false,
+                isArchived: false,
                 OR: [
                   { manufacturerCode: { equals: rawQuery, mode: "insensitive" } },
                   { normalizedPartCode: { equals: normalizedQuery } },
