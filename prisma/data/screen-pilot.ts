@@ -5,6 +5,7 @@ import {
 } from "@prisma/client";
 
 export const SCREEN_PILOT_BATCH = "screen-pilot-redmi-note11-family-2026-08-27";
+export const SCREEN_VARIANT_BATCH = "screen-variants-redmi-note11-family-v2-2026-08-27";
 
 export const SCREEN_PILOT_DEVICES = [
   { brand: "Xiaomi", commercialName: "Redmi Note 11 4G", modelNumber: "2201117TG", normalizedModel: "2201117tg", networkVariant: "4G", region: "Global", releaseYear: 2022 },
@@ -29,6 +30,76 @@ export const SCREEN_PILOT_FAMILY = {
       "Quality and feature parity differ by supplier; verify fingerprint, brightness, refresh rate and frame before publishing a specific SKU.",
   },
 } as const;
+
+const UNKNOWN_FEATURES = {
+  fingerprint: "UNKNOWN",
+  refreshRate: "UNKNOWN",
+  brightness: "UNKNOWN",
+  colorAccuracy: "UNKNOWN",
+} as const;
+
+export const SCREEN_PILOT_VARIANTS = [
+  {
+    normalizedPartCode: "fixshop-xiarn12s-04",
+    manufacturerCode: "XIARN12S-04",
+    name: "شاشة TFT بديلة بدون إطار — عائلة Redmi Note 11",
+    aliases: ["XIARN12S-04"],
+    sourceUrl: "https://www.fixshop.eu/spare-parts-xiaomi-redmi-note-xiaomi-redmi-note-12s-2303cra44a/xiaomi-redmi-note-11-11s-12s-poco-m4-pro-4g-lcd-display-plus-touch-screen-tft/",
+    technicalNotes: "عرض مورّد محدد لشاشة TFT بدون إطار. خصائص البصمة والسطوع والتردد ودقة الألوان لم تُحسم بعد.",
+    specifications: {
+      schemaVersion: 1,
+      recordKind: "INSTALLABLE_SCREEN",
+      quality: "TFT_AFTERMARKET",
+      technology: "TFT_LCD",
+      assembly: "DISPLAY_AND_DIGITIZER",
+      frame: "WITHOUT_FRAME",
+      supplier: "FixShop",
+      supplierProductCode: "XIARN12S-04",
+      claims: UNKNOWN_FEATURES,
+      publicationWarning: "لا تُنشر قبل حسم خصائص البصمة والسطوع والتردد ومطابقة الفلكس.",
+    },
+  },
+  {
+    normalizedPartCode: "allspares-rn11-family-high-copy",
+    manufacturerCode: null,
+    name: "شاشة High Copy بدون إطار — عائلة Redmi Note 11",
+    aliases: [],
+    sourceUrl: "https://all-spares.com/en/lcd-compatible-with-xiaomi-redmi-note-11-black-without-frame-high-copy/",
+    technicalNotes: "عرض مورّد محدد لشاشة High Copy بدون إطار. تقنية اللوحة وخصائص الأداء لم تُحسم بعد.",
+    specifications: {
+      schemaVersion: 1,
+      recordKind: "INSTALLABLE_SCREEN",
+      quality: "HIGH_COPY",
+      technology: "UNKNOWN",
+      assembly: "DISPLAY_AND_DIGITIZER",
+      frame: "WITHOUT_FRAME",
+      supplier: "All Spares",
+      supplierProductCode: null,
+      claims: UNKNOWN_FEATURES,
+      publicationWarning: "وصف High Copy لا يثبت تقنية اللوحة أو مساواتها للأصلية.",
+    },
+  },
+  {
+    normalizedPartCode: "4phones-fe39e555ad",
+    manufacturerCode: "FE39E555AD",
+    name: "شاشة مُسوّقة كجودة OEM — عائلة Redmi Note 11",
+    aliases: ["FE39E555AD"],
+    sourceUrl: "https://4phones.eu/products/xiaomi-redmi-note-11-redmi-note-11s-display-and-digitizer-black",
+    technicalNotes: "وصف OEM هنا ادعاء تسويقي من المورّد وليس إثبات Service Pack مصنعي.",
+    specifications: {
+      schemaVersion: 1,
+      recordKind: "INSTALLABLE_SCREEN",
+      quality: "OEM_MARKETED",
+      technology: "UNKNOWN",
+      assembly: "DISPLAY_AND_DIGITIZER",
+      frame: "WITHOUT_FRAME",
+      supplier: "4Phones",
+      supplierProductCode: "FE39E555AD",
+      claims: UNKNOWN_FEATURES,
+      publicationWarning: "لا تُعرض كقطعة أصلية أو Service Pack دون رقم قطعة مصنعي ودليل رسمي.",
+    },
+  },
+] as const;
 
 export const SCREEN_PILOT_SOURCES = [
   {

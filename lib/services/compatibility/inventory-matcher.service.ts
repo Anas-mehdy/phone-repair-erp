@@ -1,6 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { CompatibilityStatus, PartCategory, Prisma } from "@prisma/client";
 import { DeviceNotFoundError } from "./compatibility.errors";
+import {
+  ScreenSpecificationSummary,
+  summarizeScreenSpecifications,
+} from "./screen-specifications";
 
 export interface InventoryMatcherOptions {
   shopId?: string;
@@ -26,6 +30,7 @@ export interface CompatibleInventoryItemResult {
   category: PartCategory;
   manufacturerCode: string | null;
   partAliases: string[];
+  screenSpecification: ScreenSpecificationSummary | null;
   compatibilityId: string;
   compatibilityStatus: CompatibilityStatus;
   compatibilityType: string;
@@ -174,6 +179,7 @@ export class SmartInventoryMatcherService {
         category: part.category,
         manufacturerCode: part.manufacturerCode,
         partAliases: part.partAliases,
+        screenSpecification: summarizeScreenSpecifications(part.specifications),
         compatibilityId: compat.id,
         compatibilityStatus: compat.compatibilityStatus,
         compatibilityType: compat.compatibilityType,

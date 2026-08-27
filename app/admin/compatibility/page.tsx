@@ -28,6 +28,7 @@ import {
   History,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { summarizeScreenSpecifications } from "@/lib/services/compatibility/screen-specifications";
 
 interface CompatibilityRecord {
   id: string;
@@ -135,6 +136,9 @@ export default function AdminCompatibilityGovernanceDashboard() {
   // Incompatible modal state
   const [incompModalOpen, setIncompModalOpen] = useState(false);
   const [incompReason, setIncompReason] = useState("");
+  const selectedScreenSpecification = summarizeScreenSpecifications(
+    selectedRecord?.part.specifications,
+  );
 
   // Fetch paginated admin records
   const fetchRecords = useCallback(async () => {
@@ -707,6 +711,32 @@ export default function AdminCompatibilityGovernanceDashboard() {
                   الكود المصنعي: {selectedRecord.part.manufacturerCode || "غير محدد"}
                 </div>
                 <div className="text-[10px] text-slate-400 pt-1">الفئة: {selectedRecord.part.category}</div>
+                {selectedScreenSpecification && (
+                  <div className="pt-2 border-t border-slate-800 space-y-2">
+                    <div className="flex flex-wrap gap-1.5">
+                      <span className="rounded-md bg-sky-500/20 border border-sky-500/30 px-2 py-1 text-[10px] font-black text-sky-300">
+                        {selectedScreenSpecification.qualityLabel}
+                      </span>
+                      <span className="rounded-md bg-slate-800 px-2 py-1 text-[10px] font-bold text-slate-300">
+                        {selectedScreenSpecification.technologyLabel}
+                      </span>
+                      <span className="rounded-md bg-slate-800 px-2 py-1 text-[10px] font-bold text-slate-300">
+                        {selectedScreenSpecification.frameLabel}
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-slate-400">
+                      المورّد: {selectedScreenSpecification.supplier}
+                      {selectedScreenSpecification.supplierProductCode
+                        ? ` • الكود: ${selectedScreenSpecification.supplierProductCode}`
+                        : ""}
+                    </div>
+                    {selectedScreenSpecification.unresolvedClaims.length > 0 && (
+                      <div className="rounded-lg border border-amber-800/60 bg-amber-950/30 p-2 text-[10px] font-bold text-amber-300">
+                        توجد {selectedScreenSpecification.unresolvedClaims.length} خصائص أداء غير محسومة؛ لا تعتمد القطعة قبل مراجعتها.
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 

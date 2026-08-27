@@ -65,6 +65,17 @@ interface CompatiblePartItem {
   category: string;
   manufacturerCode: string | null;
   partAliases: string[];
+  screenSpecification: {
+    quality: string;
+    qualityLabel: string;
+    technology: string;
+    technologyLabel: string;
+    frame: string;
+    frameLabel: string;
+    supplier: string;
+    supplierProductCode: string | null;
+    unresolvedClaims: string[];
+  } | null;
   compatibilityId: string;
   compatibilityStatus: "VERIFIED" | "PROVISIONALLY_VERIFIED" | "UNVERIFIED" | "INCOMPATIBLE";
   compatibilityType: string;
@@ -661,6 +672,28 @@ export default function TechnicianCompatibilityPage() {
                             </span>
                           </div>
                         </div>
+
+                        {part.screenSpecification && (
+                          <div className="rounded-xl border border-sky-200 bg-sky-50/60 p-3 space-y-2">
+                            <div className="flex flex-wrap gap-1.5">
+                              <span className="rounded-lg bg-sky-600 px-2.5 py-1 text-[11px] font-black text-white">
+                                {part.screenSpecification.qualityLabel}
+                              </span>
+                              <span className="rounded-lg border border-sky-200 bg-white px-2.5 py-1 text-[11px] font-bold text-sky-900">
+                                {part.screenSpecification.technologyLabel}
+                              </span>
+                              <span className="rounded-lg border border-sky-200 bg-white px-2.5 py-1 text-[11px] font-bold text-sky-900">
+                                {part.screenSpecification.frameLabel}
+                              </span>
+                            </div>
+                            <div className="text-[10px] font-bold text-sky-800">
+                              المصدر: {part.screenSpecification.supplier}
+                              {part.screenSpecification.supplierProductCode
+                                ? ` • كود العرض: ${part.screenSpecification.supplierProductCode}`
+                                : ""}
+                            </div>
+                          </div>
+                        )}
 
                         {/* Provisional Warning Banner if needed */}
                         {part.requiresManualVerification && (
