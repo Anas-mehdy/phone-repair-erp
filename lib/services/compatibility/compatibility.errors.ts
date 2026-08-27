@@ -72,6 +72,15 @@ export class SelfVerificationNotAllowedError extends CompatibilityDomainError {
   }
 }
 
+export class DuplicateCompatibilityReviewError extends CompatibilityDomainError {
+  constructor(userId: string) {
+    super(
+      `Reviewer "${userId}" has already submitted a decision for the current review version. A second independent reviewer is required.`,
+      "DUPLICATE_COMPATIBILITY_REVIEW"
+    );
+  }
+}
+
 export class InsufficientVerificationPermissionError extends CompatibilityDomainError {
   constructor(userId: string, role?: string) {
     super(
