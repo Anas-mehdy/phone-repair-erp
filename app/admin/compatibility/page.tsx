@@ -61,7 +61,6 @@ interface CompatibilityRecord {
     specifications: Record<string, unknown>;
   };
   evidenceCount: number;
-  reviewCount: number;
   evidences: Array<{
     id: string;
     sourceType: string;
@@ -221,11 +220,7 @@ export default function AdminCompatibilityGovernanceDashboard() {
         throw new Error(json.error || "فشل اعتماد السجل.");
       }
 
-      setActionSuccess(
-        json.compatibility?.compatibilityStatus === "VERIFIED"
-          ? "تم النشر بعد اكتمال اعتمادين مستقلين."
-          : "تم تسجيل الاعتماد الأول. ما زال السجل بانتظار مدقق مستقل ثانٍ ولن يظهر للفنيين بعد."
-      );
+      setActionSuccess("تم اعتماد التوافق ونشره بنجاح بعد مراجعة المصدر والدليل.");
       setVerifyModalOpen(false);
       setSelectedRecord(json.compatibility);
       fetchRecords();
@@ -373,7 +368,7 @@ export default function AdminCompatibilityGovernanceDashboard() {
                 لوحة حوكمة واعتماد التوافقات الهندسية (Admin Compatibility Governance)
               </h1>
               <p className="text-xs text-slate-400 mt-0.5">
-                مراجعة واعتماد وتدقيق قاعدة المعرفة الهندسية لتوافقات الأجهزة وقطع الغيار وتطبيق مبدأ الفحص الرباعي (Four-Eyes).
+                مراجعة مصادر وأدلة توافقات الأجهزة وقطع الغيار قبل نشرها للمستخدمين.
               </p>
             </div>
           </div>
@@ -667,7 +662,7 @@ export default function AdminCompatibilityGovernanceDashboard() {
                   <span>سجل معتمد ومحمي ضد التعديل المباشر (Immutable Verified Knowledge)</span>
                 </div>
                 <p className="text-slate-300 leading-relaxed text-[11px]">
-                  تم اعتماد هذا التوافق هندسياً واجتيازه الفحص المزدوج وتوثيقه بأدلة مرجعية. لا يمكن تعديل بيانات الجهاز أو القطعة مباشرة لحماية أمان الصيانة.
+                  تم اعتماد هذا التوافق بعد مراجعة مصدره ودليله المرجعي. لا يمكن تعديل بيانات الجهاز أو القطعة مباشرة لحماية أمان الصيانة.
                 </p>
               </div>
             )}
@@ -676,10 +671,10 @@ export default function AdminCompatibilityGovernanceDashboard() {
               <div className="rounded-2xl bg-amber-950/40 border border-amber-800/80 p-4 text-xs space-y-1">
                 <div className="flex items-center gap-2 font-black text-amber-300">
                   <AlertTriangle className="h-4 w-4 text-amber-400" />
-                  <span>اعتماد أولي فقط — {selectedRecord.reviewCount || 1} من 2</span>
+                  <span>مسودة غير منشورة بانتظار مراجعتك</span>
                 </div>
                 <p className="text-slate-300 leading-relaxed text-[11px]">
-                  هذا السجل مخفي عن الفنيين ولن يُنشر قبل اعتماد مدقق مركزي مستقل ثانٍ.
+                  هذا السجل مخفي عن المستخدمين. راجع مصدره ودليله، ثم يمكنك اعتماده ونشره مباشرة بصفتك مدير المنصة.
                 </p>
               </div>
             )}
@@ -826,7 +821,7 @@ export default function AdminCompatibilityGovernanceDashboard() {
                     className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black rounded-xl gap-1.5 px-4 shadow-lg shadow-emerald-600/20"
                   >
                     <ShieldCheck className="h-4 w-4" />
-                    <span>تسجيل اعتماد مستقل</span>
+                    <span>اعتماد ونشر</span>
                   </Button>
                 )}
               </div>
@@ -846,8 +841,8 @@ export default function AdminCompatibilityGovernanceDashboard() {
                 <ShieldCheck className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-base font-black text-white">تسجيل مراجعة واعتماد مستقل</h3>
-                <p className="text-xs text-slate-400">إضافة الدليل الفني وتطبيق مبدأ التدقيق المزدوج (Four-Eyes Gate)</p>
+                <h3 className="text-base font-black text-white">مراجعة المصدر واعتماد التوافق</h3>
+                <p className="text-xs text-slate-400">تحقق من المرجع والدليل، ثم اعتمد السجل لينشر للمستخدمين.</p>
               </div>
             </div>
 
