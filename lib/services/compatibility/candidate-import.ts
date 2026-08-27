@@ -118,17 +118,22 @@ function scoreAndClassify(group: Pick<CandidateGroup, "members" | "issues">): {
  * Converts the external screen list into isolated research candidates.
  * It deliberately does not create Device, Part, or DeviceCompatibility records.
  */
-export function auditScreenCandidates(input: unknown): CandidateImportAudit {
+export function auditCandidateSection(
+  input: unknown,
+  options: { categoryName: string; maxGroupSize?: number }
+): CandidateImportAudit {
   if (!input || typeof input !== "object") throw new Error("Invalid source document");
   const document = input as SourceDocument;
   if (!Array.isArray(document.categories)) throw new Error("Source categories are missing");
 
   const category = (document.categories as SourceCategory[]).find(
-    (item) => asString(item.category_name) === SCREEN_SOURCE_CATEGORY
+    (item) => asString(item.category_name) === options.categoryName
   );
   if (!category || !Array.isArray(category.brands)) {
-    throw new Error(`Screen category not found: ${SCREEN_SOURCE_CATEGORY}`);
+    throw new Error(`Compatibility category not found: ${options.categoryName}`);
   }
+
+  const maxGroupSize = options.maxGroupSize ?? 20;
 
   const groups: CandidateGroup[] = [];
   for (const rawBrand of category.brands as SourceBrand[]) {
@@ -144,9 +149,12 @@ export function auditScreenCandidates(input: unknown): CandidateImportAudit {
 
       if (!sourceGroupId) issues.push("MISSING_GROUP_ID");
       if (models.length < 2) issues.push("TOO_FEW_MODELS");
-      if (models.length > 20) issues.push("GIANT_GROUP");
+      if (models.length > maxGroupSize) issues.push("GIANT_GROUP");
       if (models.some((model) => brandWordCount(model) > 1)) issues.push("MERGED_MODEL_NAMES");
       if (models.some((model) => /^\d+$/.test(model) || normalizeSearchString(model).length < 3)) {
+        issues.push("INVALID_MODEL_TOKEN");
+      }
+      if (models.some((model) => /(?:Â|âœ|�|✅)/u.test(model))) {
         issues.push("INVALID_MODEL_TOKEN");
       }
       if (models.some((model) => /\b(new|old|center camera|china|global)\b/i.test(model))) {
@@ -193,7 +201,7 @@ export function auditScreenCandidates(input: unknown): CandidateImportAudit {
   for (const group of groups) Object.assign(group, scoreAndClassify(group));
 
   return {
-    categoryName: SCREEN_SOURCE_CATEGORY,
+    categoryName: options.categoryName,
     groups,
     stats: {
       groups: groups.length,
@@ -204,4 +212,11 @@ export function auditScreenCandidates(input: unknown): CandidateImportAudit {
       duplicateMemberships,
     },
   };
+}
+
+export function auditScreenCandidates(input: unknown): CandidateImportAudit {
+  return auditCandidateSection(input, {
+    categoryName: SCREEN_SOURCE_CATEGORY,
+    maxGroupSize: 20,
+  });
 }

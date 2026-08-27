@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  AlertTriangle, Battery, Box, Check, ChevronLeft, Cpu, Layers,
-  Loader2, Radio, Search, Smartphone, Tv, X, Zap,
+  AlertTriangle, Battery, Cable, Check, ChevronLeft, Frame,
+  Loader2, PanelsTopLeft, PlugZap, Radio, ScanLine, Search, ShieldCheck,
+  SlidersHorizontal, Smartphone, Tv, X,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 import { PageHeader } from "@/components/page-header";
 
@@ -23,16 +25,33 @@ interface DirectoryResult {
   capacityMah: number | null;
 }
 
-type ActiveCategory = "SCREEN" | "BATTERY";
+type ActiveCategory =
+  | "SCREEN" | "BATTERY" | "CHARGING_PORT" | "DISPLAY_CONNECTOR"
+  | "POWER_FLEX" | "FRAME" | "BACK_COVER" | "TEMPERED_GLASS" | "TOUCH_GLASS";
 
-const CATEGORIES = [
-  { id: "SCREEN", label: "الشاشات", description: "متاح الآن", icon: Tv, enabled: true },
-  { id: "BATTERY", label: "البطاريات", description: "متاح الآن", icon: Battery, enabled: true },
-  { id: "CHARGING_PORT", label: "منافذ الشحن", description: "قريباً", icon: Zap, enabled: false },
-  { id: "CONNECTOR", label: "الفلاتات والموصلات", description: "قريباً", icon: Cpu, enabled: false },
-  { id: "IC_CHIP", label: "الآيسيات", description: "قريباً", icon: Radio, enabled: false },
-  { id: "HOUSING_FRAME", label: "الفريمات", description: "قريباً", icon: Box, enabled: false },
-  { id: "OTHER", label: "قطع أخرى", description: "قريباً", icon: Layers, enabled: false },
+interface CategoryMeta {
+  id: ActiveCategory | "IC_CHIP";
+  label: string;
+  description: string;
+  icon: LucideIcon;
+  enabled: boolean;
+  searchExample: string;
+  resultTitle: string;
+  resultSubtitle: string;
+  installWarning: string;
+}
+
+const CATEGORIES: CategoryMeta[] = [
+  { id: "SCREEN", label: "الشاشات", description: "متاح", icon: Tv, enabled: true, searchExample: "Note 11 أو A52 أو iPhone 12", resultTitle: "الأجهزة المتوافقة", resultSubtitle: "تستخدم مجموعة الشاشة نفسها", installWarning: "قبل التركيب: قارن كود الشاشة والموصل والفريم مع القطعة القديمة." },
+  { id: "BATTERY", label: "البطاريات", description: "متاح", icon: Battery, enabled: true, searchExample: "Vivo Y36 أو Redmi Note 11", resultTitle: "الأجهزة التي تستخدم هذه البطارية", resultSubtitle: "بحسب كود البطارية المسجل", installWarning: "قبل التركيب: طابق كود البطارية والفولت والموصل؛ السعة وحدها لا تكفي." },
+  { id: "CHARGING_PORT", label: "منافذ الشحن", description: "متاح", icon: PlugZap, enabled: true, searchExample: "Redmi 10 أو Vivo Y20", resultTitle: "الأجهزة التي تستخدم منفذ الشحن نفسه", resultSubtitle: "تستخدم بوردة الشحن نفسها", installWarning: "قبل التركيب: قارن شكل البوردة والموصل والمايك والمكوّنات مع القطعة القديمة." },
+  { id: "DISPLAY_CONNECTOR", label: "كونكترات الشاشة", description: "متاح", icon: Cable, enabled: true, searchExample: "Samsung A22 أو Redmi A1", resultTitle: "الأجهزة التي تستخدم الكونكتر نفسه", resultSubtitle: "ضمن مجموعة كونكتر الشاشة نفسها", installWarning: "قبل التركيب: طابق عدد الأرجل والاتجاه ومكان الكونكتر مع البوردة." },
+  { id: "POWER_FLEX", label: "فلاتات الباور والصوت", description: "متاح", icon: SlidersHorizontal, enabled: true, searchExample: "Redmi Note 9 Pro أو Vivo Y20", resultTitle: "الأجهزة التي تستخدم الفلاتة نفسها", resultSubtitle: "ضمن مجموعة فلاتة الباور والصوت نفسها", installWarning: "قبل التركيب: قارن الموصل وطول الفلاتة وترتيب أزرار الباور والصوت." },
+  { id: "FRAME", label: "الفريمات", description: "متاح", icon: Frame, enabled: true, searchExample: "Samsung A10 أو Redmi 8", resultTitle: "الأجهزة التي تستخدم الفريم نفسه", resultSubtitle: "ضمن مجموعة الفريم الأوسط نفسها", installWarning: "قبل التركيب: طابق فتحات الكاميرا والأزرار والكونكترات وأبعاد الفريم." },
+  { id: "BACK_COVER", label: "الأغطية الخلفية", description: "متاح", icon: PanelsTopLeft, enabled: true, searchExample: "Poco X6 أو Samsung M55", resultTitle: "الأجهزة التي تستخدم الغطاء نفسه", resultSubtitle: "ضمن مجموعة الغطاء الخلفي نفسها", installWarning: "قبل التركيب: طابق فتحات الكاميرا والبصمة والأبعاد واللون المطلوب." },
+  { id: "TEMPERED_GLASS", label: "لاصقات الحماية", description: "متاح", icon: ShieldCheck, enabled: true, searchExample: "Redmi 9 أو Vivo Y91", resultTitle: "الأجهزة التي تستخدم اللاصقة نفسها", resultSubtitle: "ضمن مجموعة قياس الحماية نفسها", installWarning: "قبل التركيب: قارن المقاس والحواف وفتحات الكاميرا والسماعة والحساسات." },
+  { id: "TOUCH_GLASS", label: "زجاج اللمس / OCA", description: "متاح", icon: ScanLine, enabled: true, searchExample: "Moto G22 أو Vivo Y20", resultTitle: "الأجهزة التي تستخدم الزجاج نفسه", resultSubtitle: "ضمن مجموعة زجاج اللمس/OCA نفسها", installWarning: "قبل العمل: طابق المقاس والحواف والفتحات ونوع الشاشة؛ هذا القسم يحتاج خبرة صيانة شاشات." },
+  { id: "IC_CHIP", label: "الآيسيات", description: "قريباً", icon: Radio, enabled: false, searchExample: "", resultTitle: "", resultSubtitle: "", installWarning: "" },
 ];
 
 export default function TechnicianCompatibilityPage() {
@@ -60,7 +79,7 @@ export default function TechnicianCompatibilityPage() {
 
     try {
       const response = await fetch(
-        `/api/compatibility/directory?q=${encodeURIComponent(trimmed)}&category=${category}&limit=30`,
+        `/api/compatibility/directory?q=${encodeURIComponent(trimmed)}&dataset=${category}&limit=30`,
         { signal: abortRef.current.signal }
       );
       const payload = await response.json();
@@ -100,7 +119,8 @@ export default function TechnicianCompatibilityPage() {
   }
 
   const isBattery = selectedCategory === "BATTERY";
-  const PartIcon = isBattery ? Battery : Tv;
+  const selectedMeta = CATEGORIES.find((category) => category.id === selectedCategory) || CATEGORIES[0];
+  const PartIcon = selectedMeta.icon;
 
   return (
     <div className="mx-auto max-w-6xl space-y-5 pb-12">
@@ -125,7 +145,7 @@ export default function TechnicianCompatibilityPage() {
           <p className="mt-0.5 text-xs font-medium text-slate-400">اختر القسم ثم ابحث عن الجهاز</p>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
           {CATEGORIES.map((category) => {
             const Icon = category.icon;
             const isActive = selectedCategory === category.id;
@@ -164,7 +184,7 @@ export default function TechnicianCompatibilityPage() {
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-100 p-4 sm:p-5">
           <label htmlFor="compatibility-search" className="mb-2 block text-xs font-black text-slate-700">
-            ابحث داخل {isBattery ? "البطاريات" : "الشاشات"}
+            ابحث داخل {selectedMeta.label}
           </label>
           <div className="relative">
             <Search className="absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-violet-600" />
@@ -175,7 +195,7 @@ export default function TechnicianCompatibilityPage() {
                 setQuery(event.target.value);
                 setSelected(null);
               }}
-              placeholder={isBattery ? "مثال: Vivo Y36 أو Redmi Note 11 أو A52" : "مثال: Note 11 أو A52 أو iPhone 12"}
+              placeholder={`مثال: ${selectedMeta.searchExample}`}
               className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3.5 pl-11 pr-12 text-sm font-bold text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:bg-white focus:ring-2 focus:ring-violet-100"
               autoFocus
             />
@@ -258,7 +278,7 @@ export default function TechnicianCompatibilityPage() {
                   <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-5">
                     <div>
                       <div className="text-xs font-bold text-violet-600">
-                        {selected.brandSection} • {isBattery ? "بطاريات" : "شاشات"}
+                        {selected.brandSection} • {selectedMeta.label}
                       </div>
                       <h3 className="mt-1 text-2xl font-black text-slate-900">{selected.deviceName}</h3>
                       {isBattery && selected.partCode && (
@@ -287,10 +307,10 @@ export default function TechnicianCompatibilityPage() {
                       </span>
                       <div>
                         <h4 className="text-base font-black text-slate-900">
-                          {isBattery ? "الأجهزة التي تستخدم هذه البطارية" : "الأجهزة المتوافقة"}
+                          {selectedMeta.resultTitle}
                         </h4>
                         <p className="text-xs font-medium text-slate-400">
-                          {isBattery ? "بحسب كود البطارية المسجل" : "تستخدم مجموعة الشاشة نفسها"}
+                          {selectedMeta.resultSubtitle}
                         </p>
                       </div>
                     </div>
@@ -308,9 +328,7 @@ export default function TechnicianCompatibilityPage() {
                     </div>
 
                     <div className="mt-6 rounded-xl bg-slate-50 px-4 py-3 text-xs font-medium leading-6 text-slate-500">
-                      {isBattery
-                        ? "قبل التركيب: طابق كود البطارية والفولت والموصل مع البطارية القديمة؛ السعة وحدها لا تكفي."
-                        : "قبل التركيب: قارن كود الشاشة والموصل والفريم مع القطعة القديمة."}
+                      {selectedMeta.installWarning}
                     </div>
                   </div>
                 </div>
@@ -321,7 +339,7 @@ export default function TechnicianCompatibilityPage() {
                   </span>
                   <h3 className="mt-4 text-base font-black text-slate-800">اختر جهازاً من نتائج البحث</h3>
                   <p className="mt-1 max-w-sm text-xs font-medium leading-5 text-slate-400">
-                    ستظهر هنا مباشرة جميع الأجهزة التي تستخدم {isBattery ? "البطارية" : "الشاشة"} نفسها.
+                    ستظهر هنا مباشرة جميع الأجهزة التي تستخدم القطعة نفسها.
                   </p>
                 </div>
               )}
