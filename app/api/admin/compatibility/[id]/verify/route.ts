@@ -2,13 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { compatibilityService } from "@/lib/services/compatibility";
 import { getCompatibilityGovernanceUser } from "@/lib/services/compatibility/admin-context";
 import {
-  SelfVerificationNotAllowedError,
   VerificationEvidenceRequiredError,
   InsufficientVerificationPermissionError,
   InvalidVerificationLevelError,
   ArchivedCompatibilityCannotBeVerifiedError,
   CompatibilityNotFoundError,
-  DuplicateCompatibilityReviewError,
 } from "@/lib/services/compatibility/compatibility.errors";
 import { VerificationLevel, CompatibilityType, VerificationSourceType } from "@prisma/client";
 
@@ -56,20 +54,11 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      message:
-        updated.compatibilityStatus === "VERIFIED"
-          ? "Compatibility published after two independent approvals."
-          : "First independent approval recorded; a second reviewer is still required.",
+      message: "Compatibility published by the platform owner after evidence review.",
       compatibility: updated,
     });
   } catch (error: unknown) {
     console.error("Admin verify compatibility error:", error);
-    if (error instanceof SelfVerificationNotAllowedError) {
-      return NextResponse.json({ success: false, code: "SELF_VERIFICATION_FORBIDDEN", error: error.message }, { status: 400 });
-    }
-    if (error instanceof DuplicateCompatibilityReviewError) {
-      return NextResponse.json({ success: false, code: error.code, error: error.message }, { status: 409 });
-    }
     if (error instanceof VerificationEvidenceRequiredError) {
       return NextResponse.json({ success: false, code: "EVIDENCE_REQUIRED", error: error.message }, { status: 400 });
     }
