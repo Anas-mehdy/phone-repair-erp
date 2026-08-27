@@ -17,6 +17,8 @@
     "compatibility:test:screen-import": "tsx scripts/test-screen-candidate-import.ts",
     "compatibility:import:battery": "tsx scripts/import-battery-candidates.ts",
     "compatibility:test:battery-import": "tsx scripts/test-battery-candidate-import.ts",
+    "compatibility:import:remaining": "tsx scripts/import-remaining-compatibility-sections.ts",
+    "compatibility:test:remaining-import": "tsx scripts/test-multi-section-candidate-import.ts",
     "compatibility:corroborate:screens": "tsx scripts/run-screen-auto-corroboration.ts",
     "compatibility:test:corroboration": "tsx scripts/test-screen-auto-corroboration.ts"
   },
