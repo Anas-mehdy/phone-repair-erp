@@ -59,13 +59,10 @@ export const navGroups: NavGroup[] = [
       { href: "/inventory", label: "المستودع والمخزون", icon: Boxes },
       {
         href: "/compatibility",
-        label: "التوافقات",
+        label: "التوافقات والمخزون",
         icon: Cpu,
-        badge: {
-          text: "قريباً 🔥",
-          className: "bg-orange-500/10 text-orange-600 border-orange-500/20 font-bold",
-        },
       },
+
       { href: "/invoices", label: "الفواتير والمالية", icon: Receipt },
     ],
   },

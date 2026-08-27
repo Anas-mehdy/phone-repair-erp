@@ -583,3 +583,161 @@ model WhatsAppTemplate {
   @@index([shopId, deletedAt])
   @@index([shopId, createdByUserId])
 }
+
+// ---------------------------------------------------------
+// COMPATIBILITY ENGINE (Phase 1)
+// ---------------------------------------------------------
+
+enum PartCategory {
+  SCREEN        // الشاشات واللمس
+  BATTERY       // البطاريات والـ BMS
+  CHARGING_PORT // منافذ وقواعد وفلاتات الشحن
+  IC_CHIP       // الآيسيات ودوائر الطاقة وإدارة الإشارة
+  CONNECTOR     // كونكترات وفلاتات الربط (FPC)
+  CAMERA        // الكاميرات والمستشعرات
+  HOUSING_FRAME // الأطر ولواصق التثبيت
+  OTHER
+}
+
+enum CompatibilityStatus {
+  VERIFIED                // توافق موثق وفق معيار التحقق المعتمد في النظام
+  PROVISIONALLY_VERIFIED  // موثق مبدئياً بأدلة أولية (يظهر مع تحذير تدقيق ولا يعامل كبديل نهائي)
+  UNVERIFIED              // غير موثق (مسودة / اقتراح جديد قيد المراجعة)
+  INCOMPATIBLE            // غير متوافق نهائياً (تحذير صريح لمنع حدوث تلف في الأجهزة)
+}
+
+enum CompatibilityType {
+  DIRECT_REPLACEMENT      // بديل مباشر (Drop-in): يركب ويعمل بدون أي تعديل
+  FUNCTIONAL_EQUIVALENT   // متطابق وظيفياً (قد يختلف المظهر الخارجي أو الشركة المصنعة)
+  PHYSICAL_COMPATIBLE     // متطابق فيزيائياً ولكن قد يتطلب تعديلاً بسيطاً (مثل نقل الفلكس)
+  REQUIRES_MODIFICATION   // يتطلب تعديلاً فلكس/لحام/إعادة برمجة (موضح في الملاحظات)
+  PARTIAL_COMPATIBILITY   // توافق جزئي (مثلاً: تعمل الشاشة لكن لا يعمل التردد العالي)
+  INCOMPATIBLE            // غير متوافق
+}
+
+enum VerificationLevel {
+  OEM_OFFICIAL            // صادر ومؤكد من الشركة المصنعة (Service Manual / OEM Bulletin)
+  ENGINEERING_VERIFIED    // موثق بمخطط هندسي معتمد (Schematic / Boardview / Pinout Matrix)
+  PHYSICAL_TEST_VERIFIED  // تم اختباره والتأكد منه فيزيائياً وميدانياً في ورشة معتمدة
+  TECHNICIAN_REPORTED     // تجربة/تقرير فني خبير (يحتاج مراجعة مهندس معتمد)
+  SUPPLIER_CATALOG        // كتالوج مورد قطع غيار معتمد
+}
+
+enum VerificationSourceType {
+  OEM_SERVICE_MANUAL
+  MANUFACTURER_PART_NO
+  OFFICIAL_DOCUMENTATION
+  BOARDVIEW_SCHEMATIC
+  PHYSICAL_TEST
+  TRUSTED_SUPPLIER
+  TECHNICIAN_VERIFIED
+}
+
+model Device {
+  id                 String                @id @default(uuid()) @db.Uuid
+  brand              String                // Samsung, Xiaomi, Apple, Infinix...
+  commercialName     String                // Galaxy A12, Redmi Note 10 Pro...
+  modelNumber        String                // SM-A125F, M2101K6G...
+  normalizedModel    String                // sma125f, m2101k6g
+  networkVariant     String?               // 4G, 5G, LTE
+  region             String?               // Global, EU, China, India, USA
+  boardRevision      String?               // Rev 0.3, PCB v2.0
+  releaseYear        Int?
+  notes              String?
+  
+  // Archiving (Soft Delete)
+  isArchived         Boolean               @default(false)
+  archivedAt         DateTime?
+  
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  // العلاقات (RESTRICT لحماية البيانات التاريخية من الحذف العرضي)
+  compatibilities    DeviceCompatibility[]
+
+  @@index([normalizedModel])
+  @@index([brand, commercialName])
+  @@index([isArchived])
+}
+
+model Part {
+  id                 String                @id @default(uuid()) @db.Uuid
+  category           PartCategory
+  name               String                // شاشة كاملة مع الفريم، بطارية 5000mAh...
+  manufacturerCode   String?               // الكود المصنعي الصريح (مثل BN5A, EB-BA125ABY, PM6150)
+  normalizedPartCode String?               // bn5a, ebba125aby, pm6150
+  partAliases        String[]              // أسماء بديلة وأكواد شائعة للقطعة
+  specifications     Json?                 // أبعاد، سعة، فولتية، Pinout، تردد...
+  
+  // Archiving (Soft Delete)
+  isArchived         Boolean               @default(false)
+  archivedAt         DateTime?
+  
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  // العلاقات
+  compatibilities    DeviceCompatibility[]
+
+  @@index([category])
+  @@index([normalizedPartCode])
+  @@index([isArchived])
+}
+
+model DeviceCompatibility {
+  id                   String                  @id @default(uuid()) @db.Uuid
+  deviceId             String                  @db.Uuid
+  partId               String                  @db.Uuid
+  
+  // تصنيف التوافق (بدون default)
+  compatibilityStatus  CompatibilityStatus     @default(UNVERIFIED)
+  compatibilityType    CompatibilityType
+  
+  // ملخص التوثيق الفني
+  verificationLevel    VerificationLevel       @default(TECHNICIAN_REPORTED)
+  technicalNotes       String?                 // ملاحظات فنية للتركيب
+  
+  // تدقيق وصلاحيات (Four-Eyes Principle)
+  createdById          String?                 // معرف من قام بإدخال السجل
+  verifiedById         String?                 // معرف المهندس/المدقق المعتمد الذي راجع واعتمد
+  verifiedAt           DateTime?
+  
+  // Archiving (Soft Delete - الحذف الفعلي محظور برمجياً)
+  isArchived           Boolean                 @default(false)
+  archivedAt           DateTime?
+  
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+
+  // العلاقات (RESTRICT: يمنع حذف الجهاز أو القطعة إذا كانت مرتبطة بسجل توافق)
+  device               Device                  @relation(fields: [deviceId], references: [id], onDelete: Restrict)
+  part                 Part                    @relation(fields: [partId], references: [id], onDelete: Restrict)
+  
+  // أدلة التحقق المتعددة (Decoupled Evidence Model)
+  evidences            CompatibilityEvidence[]
+
+  @@unique([deviceId, partId])
+  @@index([deviceId])
+  @@index([partId])
+  @@index([compatibilityStatus])
+  @@index([isArchived])
+}
+
+model CompatibilityEvidence {
+  id                   String                  @id @default(uuid()) @db.Uuid
+  compatibilityId      String                  @db.Uuid
+  sourceType           VerificationSourceType
+  sourceReference      String                  // رقم المخطط، اسم الدليل، رقم الصفحة، رابط المرجع
+  evidenceDetails      String                  // تفاصيل الدليل الفني والشرح الهندسي
+  verifiedBy           String                  // اسم أو معرف المدقق الفني
+  verifiedAt           DateTime                @default(now())
+  
+  createdAt            DateTime                @default(now())
+
+  // العلاقات
+  compatibility        DeviceCompatibility     @relation(fields: [compatibilityId], references: [id], onDelete: Cascade)
+
+  @@index([compatibilityId])
+  @@index([sourceType])
+}
+

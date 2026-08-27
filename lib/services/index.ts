@@ -9,3 +9,5 @@ export { supplierService } from "./supplierService";
 export { whatsappService } from "./whatsappService";
 export { whatsappTemplateService } from "./whatsappTemplateService";
 export { adminService } from "./adminService";
+export * from "./compatibility";
+

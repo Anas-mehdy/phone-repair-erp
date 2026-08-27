@@ -38,6 +38,20 @@ export default async function AdminLayout({
             {/* Quick Links */}
             <div className="flex items-center gap-3">
               <Link
+                href="/admin"
+                className="flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-2 text-xs font-bold text-slate-300 hover:bg-slate-800 hover:text-white transition"
+              >
+                <LayoutDashboard className="h-4 w-4 text-violet-400" />
+                <span>إحصائيات المنصة</span>
+              </Link>
+              <Link
+                href="/admin/compatibility"
+                className="flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-2 text-xs font-bold text-slate-300 hover:bg-slate-800 hover:text-white transition"
+              >
+                <ShieldAlert className="h-4 w-4 text-emerald-400" />
+                <span>حوكمة التوافقات</span>
+              </Link>
+              <Link
                 href="/dashboard"
                 className="flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-2 text-xs font-bold text-slate-300 hover:bg-slate-800 hover:text-white transition"
               >
@@ -46,6 +60,7 @@ export default async function AdminLayout({
                 <ArrowRight className="h-3.5 w-3.5 rotate-180" />
               </Link>
             </div>
+
           </div>
         </div>
       </header>
