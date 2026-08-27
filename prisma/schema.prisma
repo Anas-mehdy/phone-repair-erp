@@ -754,6 +754,8 @@ model DeviceCompatibility {
   suspendedAt          DateTime?
   suspensionReason     String?
   reviewVersion        Int                     @default(1)
+  corroboratedSourceCount Int                   @default(0)
+  verificationMethod   String?
   
   // Archiving (Soft Delete - الحذف الفعلي محظور برمجياً)
   isArchived           Boolean                 @default(false)

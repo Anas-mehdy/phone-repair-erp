@@ -176,8 +176,8 @@ export class CompatibilitySearchService {
    * 2. Identify candidate Devices and candidate Parts using indexed lookups.
    * 3. Query DeviceCompatibility table with single JOIN query (NO N+1 loops).
    * 4. Strictly filter operational replacements:
-   *    - Returns ONLY centrally published VERIFIED records.
-   *    - Excludes provisional, unverified, incompatible, archived and suspended records.
+   *    - Returns published VERIFIED records and automatically corroborated provisional records.
+   *    - Excludes unpublished, unverified, incompatible, archived and suspended records.
    *    - Excludes archived records.
    * Public request parameters can never widen this publication gate.
    */
@@ -192,7 +192,9 @@ export class CompatibilitySearchService {
 
     const where: Prisma.DeviceCompatibilityWhereInput = {
       isArchived: false,
-      compatibilityStatus: CompatibilityStatus.VERIFIED,
+      compatibilityStatus: {
+        in: [CompatibilityStatus.VERIFIED, CompatibilityStatus.PROVISIONALLY_VERIFIED],
+      },
       publishedAt: { not: null },
       suspendedAt: null,
     };

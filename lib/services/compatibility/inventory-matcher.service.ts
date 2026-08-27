@@ -38,6 +38,8 @@ export interface CompatibleInventoryItemResult {
   technicalNotes: string | null;
   verifiedAt: Date | null;
   evidenceCount: number;
+  corroboratedSourceCount: number;
+  verificationMethod: string | null;
   isVerified: boolean;
   isProvisional: boolean;
   requiresManualVerification: boolean;
@@ -68,8 +70,8 @@ export class SmartInventoryMatcherService {
    * Identifies all compatible parts for a device and matches them with available InventoryItems.
    * 
    * CORE INVARIANTS:
-   * 1. Compatibility comes ONLY from published VERIFIED records.
-   * 2. Provisional, unverified, incompatible, archived and suspended records are excluded.
+   * 1. Results contain published VERIFIED records and automatically corroborated provisional records.
+   * 2. Unpublished, unverified, incompatible, archived and suspended records are excluded.
    * 3. Inventory is linked by InventoryItem.partId; names and SKUs never prove identity.
    * 4. Zero N+1 queries (executed in 2 optimized batched queries).
    */
@@ -91,7 +93,9 @@ export class SmartInventoryMatcherService {
       where: {
         deviceId,
         isArchived: false,
-        compatibilityStatus: CompatibilityStatus.VERIFIED,
+        compatibilityStatus: {
+          in: [CompatibilityStatus.VERIFIED, CompatibilityStatus.PROVISIONALLY_VERIFIED],
+        },
         publishedAt: { not: null },
         suspendedAt: null,
         part: {
@@ -187,10 +191,14 @@ export class SmartInventoryMatcherService {
         technicalNotes: compat.technicalNotes,
         verifiedAt: compat.verifiedAt,
         evidenceCount: compat.evidences.length,
+        corroboratedSourceCount: compat.corroboratedSourceCount,
+        verificationMethod: compat.verificationMethod,
         isVerified,
         isProvisional,
         requiresManualVerification: isProvisional,
-        warning: isProvisional ? "يتطلب المطابقة اليدوية للقطعة وفحص الأبعاد والموصل قبل التركيب" : null,
+        warning: isProvisional
+          ? `توافق سوقي مؤيد من ${compat.corroboratedSourceCount} مصادر مستقلة؛ طابق رقم الموديل ونوع الشاشة والفريم قبل التركيب.`
+          : null,
         totalAvailableQuantity: totalQuantity,
         inStock: totalQuantity > 0,
         inventoryItems: inventoryDetails,

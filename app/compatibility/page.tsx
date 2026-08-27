@@ -83,6 +83,8 @@ interface CompatiblePartItem {
   technicalNotes: string | null;
   verifiedAt: string | null;
   evidenceCount: number;
+  corroboratedSourceCount: number;
+  verificationMethod: string | null;
   evidences?: EvidenceDetail[];
   isVerified: boolean;
   isProvisional: boolean;
@@ -638,7 +640,7 @@ export default function TechnicianCompatibilityPage() {
                           ) : (
                             <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber-50 text-amber-900 border border-amber-300 px-2.5 py-1 text-xs font-black shadow-2xs">
                               <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
-                              <span>⚠️ توافق أولي (يتطلب تدقيق)</span>
+                              <span>توافق سوقي — مؤيد من {part.corroboratedSourceCount} مصادر</span>
                             </span>
                           )}
 
