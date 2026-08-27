@@ -14,7 +14,9 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:seed:screens": "tsx prisma/seed-screens.ts",
     "compatibility:import:screen": "tsx scripts/import-screen-candidates.ts",
-    "compatibility:test:screen-import": "tsx scripts/test-screen-candidate-import.ts"
+    "compatibility:test:screen-import": "tsx scripts/test-screen-candidate-import.ts",
+    "compatibility:corroborate:screens": "tsx scripts/run-screen-auto-corroboration.ts",
+    "compatibility:test:corroboration": "tsx scripts/test-screen-auto-corroboration.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.1.0",
