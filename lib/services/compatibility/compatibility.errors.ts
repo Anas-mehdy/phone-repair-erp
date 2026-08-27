@@ -63,24 +63,6 @@ export class ArchivedCompatibilityCannotBeVerifiedError extends CompatibilityDom
   }
 }
 
-export class SelfVerificationNotAllowedError extends CompatibilityDomainError {
-  constructor(userId: string) {
-    super(
-      `Four-Eyes Principle violation: User "${userId}" created this compatibility proposal and cannot self-verify it.`,
-      "SELF_VERIFICATION_NOT_ALLOWED"
-    );
-  }
-}
-
-export class DuplicateCompatibilityReviewError extends CompatibilityDomainError {
-  constructor(userId: string) {
-    super(
-      `Reviewer "${userId}" has already submitted a decision for the current review version. A second independent reviewer is required.`,
-      "DUPLICATE_COMPATIBILITY_REVIEW"
-    );
-  }
-}
-
 export class InsufficientVerificationPermissionError extends CompatibilityDomainError {
   constructor(userId: string, role?: string) {
     super(
