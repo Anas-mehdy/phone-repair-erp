@@ -2,6 +2,7 @@ export const SCREEN_QUALITY_LABELS = {
   SERVICE_PACK: "Service Pack أصلية",
   OEM_PULLED: "أصلية مسحوبة من جهاز",
   OEM_MARKETED: "مُسوّقة كجودة OEM",
+  ORIGINAL_PRC: "Original PRC (تصنيف مورّد)",
   OLED_AFTERMARKET: "OLED بديلة",
   INCELL: "Incell بديلة",
   TFT_AFTERMARKET: "TFT بديلة",
@@ -13,6 +14,7 @@ export const SCREEN_TECHNOLOGY_LABELS = {
   AMOLED: "AMOLED",
   OLED: "OLED",
   INCELL_LCD: "Incell LCD",
+  IPS_LCD: "IPS LCD",
   TFT_LCD: "TFT LCD",
   UNKNOWN: "التقنية غير محسومة",
 } as const;

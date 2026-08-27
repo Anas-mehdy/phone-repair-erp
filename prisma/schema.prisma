@@ -652,6 +652,14 @@ enum CompatibilityImportStatus {
   FAILED
 }
 
+enum CompatibilityCandidateStatus {
+  READY_FOR_CORROBORATION // اسم نظيف مبدئياً، لكنه لا يزال بحاجة إلى مصدر مستقل
+  NEEDS_REVIEW            // توجد ملاحظة تستلزم مراجعة قبل البحث عن مصادر إضافية
+  QUARANTINED             // بيانات مشوهة أو مجموعة كبيرة/مشبوهة، ولا يجوز نشرها
+  APPROVED                // تم اعتماد المرشح لاحقاً عبر مسار التحقق
+  REJECTED                // ثبت أن المرشح غير صحيح
+}
+
 enum CompatibilityTestResult {
   PASS
   FAIL
@@ -692,6 +700,7 @@ model Device {
 
   // العلاقات (RESTRICT لحماية البيانات التاريخية من الحذف العرضي)
   compatibilities    DeviceCompatibility[]
+  candidateMembers   CompatibilityCandidateMember[]
 
   @@index([normalizedModel])
   @@index([brand, commercialName])
@@ -860,11 +869,57 @@ model CompatibilityImportBatch {
   createdById       String
   createdAt         DateTime                    @default(now())
   completedAt       DateTime?
+  sourceFileHash    String?                     @unique
+  categoryName      String?
 
   source            CompatibilitySource?        @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  groups            CompatibilityCandidateGroup[]
 
   @@index([status, createdAt])
   @@index([sourceId, createdAt])
+  @@index([categoryName])
+}
+
+/// مجموعة توافق مرشحة كما وردت من المصدر. وجودها هنا لا يعني صحة التوافق.
+model CompatibilityCandidateGroup {
+  id                 String                         @id @default(uuid()) @db.Uuid
+  batchId            String                         @db.Uuid
+  sourceGroupId      String
+  brandSection       String
+  rawSourceText      String
+  contributor        String?
+  mappedCategory     PartCategory?
+  confidenceScore    Int                            @default(0)
+  status             CompatibilityCandidateStatus  @default(NEEDS_REVIEW)
+  issues             Json?
+  createdAt          DateTime                       @default(now())
+  updatedAt          DateTime                       @updatedAt
+  batch              CompatibilityImportBatch       @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  members            CompatibilityCandidateMember[]
+
+  @@unique([batchId, sourceGroupId])
+  @@index([status])
+  @@index([mappedCategory])
+  @@index([brandSection])
+}
+
+/// اسم جهاز خام داخل مجموعة مرشحة، مع إمكانية ربطه بجهاز دقيق بعد المراجعة.
+model CompatibilityCandidateMember {
+  id                  String                       @id @default(uuid()) @db.Uuid
+  candidateGroupId    String                       @db.Uuid
+  rawModelName        String
+  normalizedModelName String
+  position            Int
+  matchedDeviceId     String?                      @db.Uuid
+  matchConfidence     Int?
+  matchNotes          String?
+  createdAt           DateTime                     @default(now())
+  candidateGroup      CompatibilityCandidateGroup  @relation(fields: [candidateGroupId], references: [id], onDelete: Cascade)
+  matchedDevice       Device?                      @relation(fields: [matchedDeviceId], references: [id], onDelete: SetNull)
+
+  @@unique([candidateGroupId, position])
+  @@index([normalizedModelName])
+  @@index([matchedDeviceId])
 }
 
 model CompatibilityPhysicalTest {

@@ -9,6 +9,15 @@ import {
   SCREEN_PILOT_VARIANTS,
   SCREEN_VARIANT_BATCH,
 } from "./data/screen-pilot";
+import {
+  SCREEN_CANDIDATE_BATCH_1,
+  SCREEN_CANDIDATE_COMPATIBILITY_TYPE,
+  SCREEN_CANDIDATE_DEVICES,
+  SCREEN_CANDIDATE_LICENSE_NOTE,
+  SCREEN_CANDIDATE_SOURCES,
+  SCREEN_CANDIDATE_VERIFICATION_LEVEL,
+  SCREEN_CANDIDATES,
+} from "./data/screen-candidate-batch-1";
 
 const ACTOR = "system:screen-source-pilot";
 
@@ -241,6 +250,139 @@ async function seedScreenPilot() {
 
   console.log(
     `Screen pilot ready: ${SCREEN_PILOT_VARIANTS.length} quality variants × ${devices.length} devices, status UNVERIFIED.`,
+  );
+
+  const candidateSourceMap = new Map<string, string>();
+  for (const source of SCREEN_CANDIDATE_SOURCES) {
+    const existingSource = await prisma.compatibilitySource.findFirst({ where: { url: source.url } });
+    const sourceRecord = existingSource ?? await prisma.compatibilitySource.create({
+      data: {
+        ...source,
+        licenseNotes: SCREEN_CANDIDATE_LICENSE_NOTE,
+      },
+    });
+    candidateSourceMap.set(source.url, sourceRecord.id);
+  }
+
+  const candidateDeviceMap = new Map<string, string>();
+  for (const device of SCREEN_CANDIDATE_DEVICES) {
+    const { identitySource, ...deviceData } = device;
+    const existingDevice = await prisma.device.findFirst({
+      where: { modelNumber: { equals: device.modelNumber, mode: "insensitive" } },
+    });
+    const deviceRecord = existingDevice ?? await prisma.device.create({
+      data: {
+        ...deviceData,
+        notes: `Device identity reference: ${identitySource}`,
+      },
+    });
+    candidateDeviceMap.set(device.modelNumber, deviceRecord.id);
+  }
+
+  let candidateRelationshipCount = 0;
+  for (const candidate of SCREEN_CANDIDATES) {
+    const source = SCREEN_CANDIDATE_SOURCES.find((item) => item.url === candidate.sourceUrl);
+    if (!source) throw new Error(`Missing candidate source: ${candidate.sourceUrl}`);
+
+    const candidatePart = await prisma.part.findFirst({
+      where: { normalizedPartCode: candidate.normalizedPartCode },
+    }) ?? await prisma.part.create({
+      data: {
+        category: PartCategory.SCREEN,
+        name: candidate.name,
+        manufacturerCode: candidate.manufacturerCode,
+        normalizedPartCode: candidate.normalizedPartCode,
+        partAliases: [...candidate.aliases],
+        specifications: candidate.specifications as unknown as Prisma.InputJsonValue,
+      },
+    });
+
+    for (const modelNumber of candidate.deviceModelNumbers) {
+      const deviceId = candidateDeviceMap.get(modelNumber);
+      if (!deviceId) throw new Error(`Missing candidate device: ${modelNumber}`);
+
+      const existingCompatibility = await prisma.deviceCompatibility.findUnique({
+        where: { deviceId_partId: { deviceId, partId: candidatePart.id } },
+      });
+      const compatibility = existingCompatibility ?? await prisma.deviceCompatibility.create({
+        data: {
+          deviceId,
+          partId: candidatePart.id,
+          compatibilityStatus: CompatibilityStatus.UNVERIFIED,
+          compatibilityType: SCREEN_CANDIDATE_COMPATIBILITY_TYPE,
+          verificationLevel: SCREEN_CANDIDATE_VERIFICATION_LEVEL,
+          technicalNotes: candidate.technicalNotes,
+          createdById: ACTOR,
+        },
+      });
+
+      const existingEvidence = await prisma.compatibilityEvidence.findFirst({
+        where: { compatibilityId: compatibility.id, sourceReference: candidate.sourceUrl },
+      });
+      if (!existingEvidence) {
+        await prisma.compatibilityEvidence.create({
+          data: {
+            compatibilityId: compatibility.id,
+            sourceId: candidateSourceMap.get(candidate.sourceUrl),
+            sourceType: source.sourceType,
+            sourceReference: candidate.sourceUrl,
+            evidenceDetails: candidate.evidenceDetails,
+            verifiedBy: ACTOR,
+          },
+        });
+      }
+
+      const existingAudit = await prisma.compatibilityAuditEvent.findFirst({
+        where: { compatibilityId: compatibility.id, action: "SCREEN_CANDIDATE_IMPORTED" },
+      });
+      if (!existingAudit) {
+        await prisma.compatibilityAuditEvent.create({
+          data: {
+            compatibilityId: compatibility.id,
+            actorId: ACTOR,
+            action: "SCREEN_CANDIDATE_IMPORTED",
+            toStatus: CompatibilityStatus.UNVERIFIED,
+            reason: "Exact supplier SKU and device model candidate imported for further corroboration; never auto-published.",
+            metadata: {
+              category: "SCREEN",
+              supplier: candidate.specifications.supplier,
+              quality: candidate.specifications.quality,
+              batch: SCREEN_CANDIDATE_BATCH_1,
+              autoPublished: false,
+            },
+          },
+        });
+      }
+      candidateRelationshipCount += 1;
+    }
+  }
+
+  const candidateBatchExists = await prisma.compatibilityImportBatch.findFirst({
+    where: { filename: SCREEN_CANDIDATE_BATCH_1 },
+  });
+  if (!candidateBatchExists) {
+    await prisma.compatibilityImportBatch.create({
+      data: {
+        filename: SCREEN_CANDIDATE_BATCH_1,
+        status: "IMPORTED",
+        totalRows: candidateRelationshipCount,
+        validRows: candidateRelationshipCount,
+        createdRecords: candidateRelationshipCount,
+        validationReport: {
+          category: "SCREEN",
+          candidateParts: SCREEN_CANDIDATES.length,
+          devices: SCREEN_CANDIDATE_DEVICES.length,
+          publicationStatus: "UNVERIFIED",
+          autoPublished: false,
+        },
+        createdById: ACTOR,
+        completedAt: new Date(),
+      },
+    });
+  }
+
+  console.log(
+    `Candidate batch ready: ${SCREEN_CANDIDATES.length} screen SKUs, ${candidateRelationshipCount} unpublished relationships.`,
   );
 }
 
