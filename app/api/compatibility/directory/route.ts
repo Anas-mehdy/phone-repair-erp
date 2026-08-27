@@ -1,8 +1,8 @@
-import { PartCategory } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 
 import { getSession } from "@/lib/auth";
 import { searchCompatibilityDirectory } from "@/lib/services/compatibility/compatibility-directory.service";
+import { isCompatibilityDatasetKey } from "@/lib/services/compatibility/compatibility-datasets";
 
 export const dynamic = "force-dynamic";
 
@@ -18,8 +18,8 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const query = (searchParams.get("q") || "").trim();
-    const requestedCategory = (searchParams.get("category") || "SCREEN").toUpperCase();
-    const category = requestedCategory === "BATTERY" ? PartCategory.BATTERY : PartCategory.SCREEN;
+    const requestedDataset = (searchParams.get("dataset") || searchParams.get("category") || "SCREEN").toUpperCase();
+    const dataset = isCompatibilityDatasetKey(requestedDataset) ? requestedDataset : "SCREEN";
     const parsedLimit = Number.parseInt(searchParams.get("limit") || "30", 10);
     const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 50) : 30;
 
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     }
 
     const results = await searchCompatibilityDirectory(query, {
-      category,
+      dataset,
       limit,
     });
     return NextResponse.json({ success: true, query, results });
