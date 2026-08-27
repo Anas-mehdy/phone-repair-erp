@@ -6,6 +6,8 @@ import {
   SCREEN_PILOT_FAMILY,
   SCREEN_PILOT_LICENSE_NOTE,
   SCREEN_PILOT_SOURCES,
+  SCREEN_PILOT_VARIANTS,
+  SCREEN_VARIANT_BATCH,
 } from "./data/screen-pilot";
 
 const ACTOR = "system:screen-source-pilot";
@@ -128,7 +130,118 @@ async function seedScreenPilot() {
     });
   }
 
-  console.log(`Screen pilot ready: ${devices.length} devices, ${SCREEN_PILOT_SOURCES.length} sources each, status UNVERIFIED.`);
+  // The first pilot grouped conflicting quality claims into one research family.
+  // Keep it as audit history, but never treat it as an installable screen.
+  const archivedAt = new Date();
+  await prisma.deviceCompatibility.updateMany({
+    where: { partId: part.id, isArchived: false },
+    data: { isArchived: true, archivedAt },
+  });
+  await prisma.part.update({
+    where: { id: part.id },
+    data: { isArchived: true, archivedAt },
+  });
+
+  let createdVariantRelationships = 0;
+  for (const variant of SCREEN_PILOT_VARIANTS) {
+    const variantPart = await prisma.part.findFirst({
+      where: { normalizedPartCode: variant.normalizedPartCode },
+    }) ?? await prisma.part.create({
+      data: {
+        category: PartCategory.SCREEN,
+        name: variant.name,
+        manufacturerCode: variant.manufacturerCode,
+        normalizedPartCode: variant.normalizedPartCode,
+        partAliases: [...variant.aliases],
+        specifications: variant.specifications as unknown as Prisma.InputJsonValue,
+      },
+    });
+
+    const source = SCREEN_PILOT_SOURCES.find((item) => item.url === variant.sourceUrl);
+    if (!source) throw new Error(`Missing source metadata for ${variant.normalizedPartCode}`);
+
+    for (const device of devices) {
+      const existingCompatibility = await prisma.deviceCompatibility.findUnique({
+        where: { deviceId_partId: { deviceId: device.id, partId: variantPart.id } },
+      });
+      const compatibility = existingCompatibility ?? await prisma.deviceCompatibility.create({
+        data: {
+          deviceId: device.id,
+          partId: variantPart.id,
+          compatibilityStatus: CompatibilityStatus.UNVERIFIED,
+          compatibilityType: SCREEN_PILOT_FAMILY.compatibilityType,
+          verificationLevel: SCREEN_PILOT_FAMILY.verificationLevel,
+          technicalNotes: variant.technicalNotes,
+          createdById: ACTOR,
+        },
+      });
+
+      const sourceEvidence = await prisma.compatibilityEvidence.findFirst({
+        where: { compatibilityId: compatibility.id, sourceReference: source.url },
+      });
+      if (!sourceEvidence) {
+        await prisma.compatibilityEvidence.create({
+          data: {
+            compatibilityId: compatibility.id,
+            sourceId: sourceMap.get(source.url),
+            sourceType: source.sourceType,
+            sourceReference: source.url,
+            evidenceDetails: source.details,
+            verifiedBy: ACTOR,
+          },
+        });
+      }
+
+      const auditExists = await prisma.compatibilityAuditEvent.findFirst({
+        where: { compatibilityId: compatibility.id, action: "SCREEN_VARIANT_IMPORTED" },
+      });
+      if (!auditExists) {
+        await prisma.compatibilityAuditEvent.create({
+          data: {
+            compatibilityId: compatibility.id,
+            actorId: ACTOR,
+            action: "SCREEN_VARIANT_IMPORTED",
+            toStatus: CompatibilityStatus.UNVERIFIED,
+            reason: "Exact supplier listing imported as a quality-specific screen candidate; no automatic publication.",
+            metadata: {
+              category: "SCREEN",
+              quality: variant.specifications.quality,
+              supplier: variant.specifications.supplier,
+              autoPublished: false,
+            },
+          },
+        });
+      }
+      createdVariantRelationships += 1;
+    }
+  }
+
+  const variantBatchExists = await prisma.compatibilityImportBatch.findFirst({
+    where: { filename: SCREEN_VARIANT_BATCH },
+  });
+  if (!variantBatchExists) {
+    await prisma.compatibilityImportBatch.create({
+      data: {
+        filename: SCREEN_VARIANT_BATCH,
+        status: "IMPORTED",
+        totalRows: createdVariantRelationships,
+        validRows: createdVariantRelationships,
+        createdRecords: createdVariantRelationships,
+        validationReport: {
+          category: "SCREEN",
+          variantCount: SCREEN_PILOT_VARIANTS.length,
+          publicationStatus: "UNVERIFIED",
+          legacyFamilyArchived: true,
+        },
+        createdById: ACTOR,
+        completedAt: new Date(),
+      },
+    });
+  }
+
+  console.log(
+    `Screen pilot ready: ${SCREEN_PILOT_VARIANTS.length} quality variants × ${devices.length} devices, status UNVERIFIED.`,
+  );
 }
 
 seedScreenPilot()

@@ -5,6 +5,10 @@ import {
   Prisma,
 } from "@prisma/client";
 import { normalizeSearchString, normalizeModelNumber, tokenizeQuery } from "./normalization";
+import {
+  ScreenSpecificationSummary,
+  summarizeScreenSpecifications,
+} from "./screen-specifications";
 
 export interface DeviceSearchOptions {
   brand?: string;
@@ -65,6 +69,7 @@ export interface CompatibilitySearchResultItem {
     name: string;
     manufacturerCode: string | null;
     partAliases: string[];
+    screenSpecification: ScreenSpecificationSummary | null;
   };
   evidenceCount: number;
   evidences: FormattedEvidenceItem[];
@@ -303,6 +308,7 @@ export class CompatibilitySearchService {
           name: record.part.name,
           manufacturerCode: record.part.manufacturerCode,
           partAliases: record.part.partAliases,
+          screenSpecification: summarizeScreenSpecifications(record.part.specifications),
         },
         evidenceCount: record.evidences.length,
         evidences: record.evidences.map((e) => ({
