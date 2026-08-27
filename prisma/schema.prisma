@@ -736,7 +736,7 @@ model DeviceCompatibility {
   verificationLevel    VerificationLevel       @default(TECHNICIAN_REPORTED)
   technicalNotes       String?                 // ملاحظات فنية للتركيب
   
-  // تدقيق وصلاحيات (Four-Eyes Principle)
+  // تدقيق وصلاحيات النشر وإثبات من اعتمد السجل
   createdById          String?                 // معرف من قام بإدخال السجل
   verifiedById         String?                 // معرف المهندس/المدقق المعتمد الذي راجع واعتمد
   verifiedAt           DateTime?
