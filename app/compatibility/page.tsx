@@ -93,13 +93,15 @@ interface InventoryMatchResponse {
 }
 
 const CATEGORIES = [
-  { id: "ALL", label: "جميع الفئات", icon: Layers },
-  { id: "SCREEN", label: "الشاشات", icon: Tv },
-  { id: "BATTERY", label: "البطاريات", icon: Battery },
-  { id: "CHARGING_PORT", label: "منافذ الشحن", icon: Zap },
-  { id: "IC_CHIP", label: "الآيسيات والدوائر", icon: Radio },
-  { id: "CAMERA", label: "الكاميرات", icon: Camera },
-  { id: "BACK_GLASS", label: "الزجاج الخلفي", icon: Box },
+  { id: "ALL", label: "كل القطع", description: "بحث شامل في جميع الأنواع", icon: Layers },
+  { id: "SCREEN", label: "الشاشات", description: "شاشات كاملة ولوحات عرض", icon: Tv },
+  { id: "BATTERY", label: "البطاريات", description: "بطاريات ودوائر الحماية", icon: Battery },
+  { id: "CHARGING_PORT", label: "منافذ الشحن", description: "قواعد وفلاتات الشحن", icon: Zap },
+  { id: "CONNECTOR", label: "الفلاتات والموصلات", description: "FPC وموصلات الربط", icon: Cpu },
+  { id: "IC_CHIP", label: "الآيسيات والدوائر", description: "طاقة وإشارة وتحكم", icon: Radio },
+  { id: "CAMERA", label: "الكاميرات", description: "كاميرات ومستشعرات", icon: Camera },
+  { id: "HOUSING_FRAME", label: "الهياكل والفريمات", description: "فريمات وهياكل تثبيت", icon: Box },
+  { id: "OTHER", label: "قطع أخرى", description: "قطع موثقة غير مصنفة", icon: Layers },
 ];
 
 export default function TechnicianCompatibilityPage() {
@@ -125,7 +127,7 @@ export default function TechnicianCompatibilityPage() {
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // 1. Debounced Device Search via GET /api/compatibility/search
+  // 1. Debounced Device Search via GET /api/compatibility/devices
   const fetchDevices = useCallback(async (query: string) => {
     const trimmed = query.trim();
     if (!trimmed) {
@@ -143,7 +145,7 @@ export default function TechnicianCompatibilityPage() {
     setSearchError(null);
 
     try {
-      const res = await fetch(`/api/compatibility/search?q=${encodeURIComponent(trimmed)}&limit=15`, {
+      const res = await fetch(`/api/compatibility/devices?q=${encodeURIComponent(trimmed)}&limit=30`, {
         signal: abortControllerRef.current.signal,
       });
 
@@ -153,16 +155,7 @@ export default function TechnicianCompatibilityPage() {
 
       const json = await res.json();
       if (json.success && Array.isArray(json.results)) {
-        // Extract distinct devices from compatibility results
-        const devMap = new Map<string, DeviceItem>();
-        for (const item of json.results) {
-          if (item.device && !devMap.has(item.device.id)) {
-            devMap.set(item.device.id, item.device);
-          }
-        }
-        
-        // If query directly matches known device names or no direct compatibility returned, query fallback
-        setDeviceResults(Array.from(devMap.values()));
+        setDeviceResults(json.results as DeviceItem[]);
       } else {
         setDeviceResults([]);
       }
@@ -308,15 +301,68 @@ export default function TechnicianCompatibilityPage() {
       {/* ------------------------------------------------------------- */}
       <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs">
         {!selectedDevice ? (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between gap-2">
+          <div className="space-y-5">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-black text-slate-900">1. اختر نوع القطعة</div>
+                  <div className="text-[11px] font-bold text-slate-400 mt-0.5">
+                    سيُطبّق القسم على النتائج بعد اختيار الجهاز
+                  </div>
+                </div>
+                {selectedCategory !== "ALL" && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCategory("ALL")}
+                    className="text-[11px] font-black text-primary hover:text-primary/80"
+                  >
+                    إلغاء التحديد
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+                {CATEGORIES.map((cat) => {
+                  const Icon = cat.icon;
+                  const isActive = selectedCategory === cat.id;
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setSelectedCategory(cat.id)}
+                      aria-pressed={isActive}
+                      className={`group min-h-[92px] rounded-2xl border p-3 text-right transition ${
+                        isActive
+                          ? "border-primary bg-primary/5 shadow-sm ring-1 ring-primary/15"
+                          : "border-slate-200 bg-slate-50/60 hover:border-primary/40 hover:bg-white"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${
+                          isActive ? "bg-primary text-white" : "bg-white text-slate-500 border border-slate-200"
+                        }`}>
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        {isActive && <CheckCircle2 className="h-4 w-4 text-primary" />}
+                      </div>
+                      <div className="mt-2 text-xs font-black text-slate-900">{cat.label}</div>
+                      <div className="mt-0.5 text-[10px] font-bold text-slate-400">{cat.description}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="border-t border-slate-100 pt-4">
+              <div className="flex items-center justify-between gap-2">
               <label htmlFor="device-search-input" className="text-xs font-black text-slate-800 flex items-center gap-2">
                 <Smartphone className="h-4 w-4 text-primary" />
-                <span>1. ابحث عن جهاز العميل بالاسم أو رقم الموديل:</span>
+                <span>2. ابحث عن جهاز العميل بالاسم أو رقم الموديل:</span>
               </label>
               <span className="text-[11px] font-bold text-slate-400">
                 (مثال: SM-A525F أو A12 أو Redmi Note 10S أو iPhone 12)
               </span>
+              </div>
             </div>
 
             <div className="relative">

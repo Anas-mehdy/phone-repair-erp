@@ -1,0 +1,35 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getSession } from "@/lib/auth";
+import { compatibilitySearchService } from "@/lib/services/compatibility/compatibility-search.service";
+
+export const dynamic = "force-dynamic";
+
+export async function GET(request: NextRequest) {
+  try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: "يجب تسجيل الدخول للبحث في دليل التوافقات." },
+        { status: 401 }
+      );
+    }
+
+    const { searchParams } = new URL(request.url);
+    const query = (searchParams.get("q") || searchParams.get("query") || "").trim();
+    const parsedLimit = Number.parseInt(searchParams.get("limit") || "20", 10);
+    const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 50) : 20;
+
+    if (query.length < 2) {
+      return NextResponse.json({ success: true, query, results: [] });
+    }
+
+    const results = await compatibilitySearchService.searchDevices(query, { limit });
+    return NextResponse.json({ success: true, query, results });
+  } catch (error) {
+    console.error("Compatibility device search API error:", error);
+    return NextResponse.json(
+      { success: false, error: "تعذر البحث عن الأجهزة حالياً." },
+      { status: 500 }
+    );
+  }
+}
