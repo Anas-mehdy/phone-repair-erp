@@ -393,6 +393,7 @@ model InventoryItem {
 
   @@index([shopId, sku])
   @@index([shopId, partId])
+  @@index([partId])
   @@unique([shopId, clientGeneratedId])
   @@index([shopId, name])
   @@index([shopId, updatedAt])
