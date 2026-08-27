@@ -296,6 +296,20 @@ export default function TechnicianCompatibilityPage() {
         description="اختر موديل الهاتف لمعرفة كافة القطع المتوافقة هندسياً والمتاحة حالياً في مخزون الورشة فورياً."
       />
 
+      <div
+        role="alert"
+        className="rounded-2xl border-2 border-amber-500 bg-amber-50 px-5 py-6 text-center shadow-sm"
+      >
+        <div className="flex items-center justify-center gap-3 text-amber-900">
+          <AlertTriangle className="h-8 w-8 shrink-0" />
+          <h2 className="text-2xl font-black sm:text-3xl">هذه الصفحة ما تزال قيد التطوير</h2>
+        </div>
+        <p className="mx-auto mt-3 max-w-3xl text-sm font-bold leading-7 text-amber-900 sm:text-base">
+          نتائج التوافقات الحالية تجريبية وغير مكتملة. يُمنع الاعتماد عليها لتركيب أي قطعة قبل التحقق اليدوي من فني مختص،
+          إلى أن تنتهي مراجعة قاعدة البيانات واعتماد مصادرها الهندسية.
+        </p>
+      </div>
+
       {/* ------------------------------------------------------------- */}
       {/* SECTION 1: DEVICE SELECTION / SEARCH BAR                       */}
       {/* ------------------------------------------------------------- */}
