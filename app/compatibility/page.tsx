@@ -119,17 +119,19 @@ export default function TechnicianCompatibilityPage() {
                 disabled={!category.enabled}
                 className={`rounded-xl border p-3 text-right transition ${
                   category.enabled
-                    ? "border-sky-400 bg-sky-50 ring-1 ring-sky-100"
+                    ? "border-violet-400 bg-violet-50 ring-1 ring-violet-100"
                     : "cursor-not-allowed border-slate-200 bg-slate-50 opacity-60"
                 }`}
               >
                 <div className="flex items-center justify-between">
                   <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${
-                    category.enabled ? "bg-sky-600 text-white" : "bg-white text-slate-400"
+                    category.enabled
+                      ? "bg-gradient-to-br from-violet-600 to-fuchsia-500 text-white"
+                      : "bg-white text-slate-400"
                   }`}>
                     <Icon className="h-4 w-4" />
                   </span>
-                  {category.enabled && <Check className="h-4 w-4 text-sky-600" />}
+                  {category.enabled && <Check className="h-4 w-4 text-violet-600" />}
                 </div>
                 <div className="mt-2 text-xs font-black text-slate-900">{category.label}</div>
                 <div className="mt-0.5 text-[10px] font-bold text-slate-400">{category.description}</div>
@@ -145,7 +147,7 @@ export default function TechnicianCompatibilityPage() {
             ابحث داخل الشاشات
           </label>
           <div className="relative">
-            <Search className="absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-sky-600" />
+            <Search className="absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-violet-600" />
             <input
               id="compatibility-search"
               value={query}
@@ -154,11 +156,11 @@ export default function TechnicianCompatibilityPage() {
                 setSelected(null);
               }}
               placeholder="مثال: Note 11 أو A52 أو iPhone 12"
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3.5 pl-11 pr-12 text-sm font-bold text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-100"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3.5 pl-11 pr-12 text-sm font-bold text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:bg-white focus:ring-2 focus:ring-violet-100"
               autoFocus
             />
             {loading ? (
-              <Loader2 className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-sky-600" />
+              <Loader2 className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-violet-600" />
             ) : query ? (
               <button
                 type="button"
@@ -203,22 +205,22 @@ export default function TechnicianCompatibilityPage() {
                       onClick={() => setSelected(result)}
                       className={`w-full rounded-xl border p-3 text-right transition ${
                         active
-                          ? "border-sky-500 bg-sky-50 shadow-sm"
-                          : "border-slate-200 bg-white hover:border-sky-300 hover:bg-sky-50/40"
+                          ? "border-violet-500 bg-gradient-to-l from-violet-50 to-fuchsia-50/60 shadow-sm"
+                          : "border-slate-200 bg-white hover:border-violet-300 hover:bg-violet-50/40"
                       }`}
                     >
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
-                          <div className="truncate text-[10px] font-bold text-sky-600">{result.brandSection}</div>
+                          <div className="truncate text-[10px] font-bold text-violet-600">{result.brandSection}</div>
                           <div className="mt-0.5 truncate text-sm font-black text-slate-900">{result.deviceName}</div>
                         </div>
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-600">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-100 to-fuchsia-100 text-violet-700">
                           <Smartphone className="h-4 w-4" />
                         </span>
                       </div>
                       <div className="mt-2 flex items-center justify-between text-[11px]">
-                        <span className="font-black text-sky-700">{result.compatibilityCount} أجهزة</span>
-                        <ChevronLeft className="h-4 w-4 text-sky-500" />
+                        <span className="font-black text-violet-700">{result.compatibilityCount} أجهزة</span>
+                        <ChevronLeft className="h-4 w-4 text-fuchsia-500" />
                       </div>
                     </button>
                   );
@@ -231,10 +233,10 @@ export default function TechnicianCompatibilityPage() {
                 <div>
                   <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-5">
                     <div>
-                      <div className="text-xs font-bold text-sky-600">{selected.brandSection} • شاشات</div>
+                      <div className="text-xs font-bold text-violet-600">{selected.brandSection} • شاشات</div>
                       <h3 className="mt-1 text-2xl font-black text-slate-900">{selected.deviceName}</h3>
                     </div>
-                    <div className="rounded-xl bg-sky-50 px-4 py-2 text-center text-sky-700">
+                    <div className="rounded-xl bg-gradient-to-br from-violet-50 to-fuchsia-50 px-4 py-2 text-center text-violet-700">
                       <div className="text-2xl font-black">{selected.compatibilityCount}</div>
                       <div className="text-[10px] font-bold">أجهزة</div>
                     </div>
@@ -242,7 +244,7 @@ export default function TechnicianCompatibilityPage() {
 
                   <div className="pt-5">
                     <div className="mb-4 flex items-center gap-2">
-                      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-100 text-sky-600">
+                      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-100 to-fuchsia-100 text-violet-700">
                         <Tv className="h-4 w-4" />
                       </span>
                       <div>
@@ -255,10 +257,10 @@ export default function TechnicianCompatibilityPage() {
                       {selected.compatibleDevices.map((device) => (
                         <div
                           key={device.id}
-                          className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-sky-200 bg-sky-50/60 px-3 py-2.5"
+                          className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-violet-200 bg-gradient-to-l from-violet-50/80 to-fuchsia-50/40 px-3 py-2.5"
                         >
                           <span className="text-sm font-black text-slate-800">{device.name}</span>
-                          <Check className="h-4 w-4 shrink-0 text-sky-600" />
+                          <Check className="h-4 w-4 shrink-0 text-fuchsia-600" />
                         </div>
                       ))}
                     </div>
@@ -270,7 +272,7 @@ export default function TechnicianCompatibilityPage() {
                 </div>
               ) : (
                 <div className="flex min-h-[330px] flex-col items-center justify-center text-center">
-                  <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-sky-50 text-sky-500">
+                  <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-100 to-fuchsia-100 text-violet-600">
                     <Smartphone className="h-7 w-7" />
                   </span>
                   <h3 className="mt-4 text-base font-black text-slate-800">اختر جهازاً من نتائج البحث</h3>
@@ -285,7 +287,7 @@ export default function TechnicianCompatibilityPage() {
 
         {!query && (
           <div className="flex min-h-[260px] flex-col items-center justify-center p-8 text-center">
-            <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-sky-50 text-sky-500">
+            <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-100 to-fuchsia-100 text-violet-600">
               <Search className="h-7 w-7" />
             </span>
             <h3 className="mt-4 text-base font-black text-slate-800">اكتب اسم الجهاز للبدء</h3>
