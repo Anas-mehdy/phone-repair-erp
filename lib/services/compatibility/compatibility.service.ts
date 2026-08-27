@@ -18,13 +18,11 @@ import {
   DuplicateCompatibilityError,
   CompatibilityAlreadyArchivedError,
   ArchivedCompatibilityCannotBeVerifiedError,
-  SelfVerificationNotAllowedError,
   InsufficientVerificationPermissionError,
   VerificationEvidenceRequiredError,
   InvalidVerificationLevelError,
   CannotDeleteVerifiedCompatibilityError,
   ImmutableVerifiedStateError,
-  DuplicateCompatibilityReviewError,
 } from "./compatibility.errors";
 import {
   CompatibilityUserContext,
@@ -208,7 +206,6 @@ export class CompatibilityService {
 
       const current = rows[0];
       const isArchived = current.isArchived ?? current.isarchived ?? false;
-      const creatorId = current.createdById ?? current.createdbyid ?? null;
       const currentLevel = current.verificationLevel ?? current.verificationlevel ?? VerificationLevel.TECHNICIAN_REPORTED;
       const currentType = current.compatibilityType ?? current.compatibilitytype ?? CompatibilityType.DIRECT_REPLACEMENT;
       const currentStatus = current.compatibilityStatus ?? current.compatibilitystatus ?? CompatibilityStatus.UNVERIFIED;
@@ -218,25 +215,8 @@ export class CompatibilityService {
         throw new ArchivedCompatibilityCannotBeVerifiedError(input.compatibilityId);
       }
 
-      if (creatorId && creatorId === user.id) {
-        throw new SelfVerificationNotAllowedError(user.id);
-      }
-
       if (!canVerifyCompatibility(user)) {
         throw new InsufficientVerificationPermissionError(user.id, user.role?.toString());
-      }
-
-      const existingReview = await tx.compatibilityReview.findUnique({
-        where: {
-          compatibilityId_reviewerId_reviewVersion: {
-            compatibilityId: input.compatibilityId,
-            reviewerId: user.id,
-            reviewVersion,
-          },
-        },
-      });
-      if (existingReview) {
-        throw new DuplicateCompatibilityReviewError(user.id);
       }
 
       const targetLevel = input.verificationLevel || currentLevel;
@@ -272,40 +252,39 @@ export class CompatibilityService {
         },
       });
 
-      await tx.compatibilityReview.create({
-        data: {
+      await tx.compatibilityReview.upsert({
+        where: {
+          compatibilityId_reviewerId_reviewVersion: {
+            compatibilityId: input.compatibilityId,
+            reviewerId: user.id,
+            reviewVersion,
+          },
+        },
+        create: {
           compatibilityId: input.compatibilityId,
           reviewerId: user.id,
           decision: CompatibilityReviewDecision.APPROVED,
           notes: details,
           reviewVersion,
         },
-      });
-
-      const approvalCount = await tx.compatibilityReview.count({
-        where: {
-          compatibilityId: input.compatibilityId,
-          reviewVersion,
+        update: {
           decision: CompatibilityReviewDecision.APPROVED,
+          notes: details,
         },
       });
-      const isPublished = approvalCount >= 2;
-      const targetStatus = isPublished
-        ? CompatibilityStatus.VERIFIED
-        : CompatibilityStatus.PROVISIONALLY_VERIFIED;
       const now = new Date();
 
       const updated = await tx.deviceCompatibility.update({
         where: { id: input.compatibilityId },
         data: {
-          compatibilityStatus: targetStatus,
+          compatibilityStatus: CompatibilityStatus.VERIFIED,
           compatibilityType: input.compatibilityType || currentType,
           verificationLevel: targetLevel,
           technicalNotes: input.technicalNotes !== undefined ? input.technicalNotes?.trim() : current.technicalNotes,
-          verifiedById: isPublished ? user.id : null,
-          verifiedAt: isPublished ? now : null,
-          publishedById: isPublished ? user.id : null,
-          publishedAt: isPublished ? now : null,
+          verifiedById: user.id,
+          verifiedAt: now,
+          publishedById: user.id,
+          publishedAt: now,
           suspendedAt: null,
           suspensionReason: null,
         },
@@ -318,11 +297,11 @@ export class CompatibilityService {
         data: {
           compatibilityId: input.compatibilityId,
           actorId: user.id,
-          action: isPublished ? "PUBLISHED_AFTER_TWO_REVIEWS" : "FIRST_REVIEW_APPROVED",
+          action: "PUBLISHED_BY_OWNER_FROM_EVIDENCE",
           fromStatus: currentStatus,
-          toStatus: targetStatus,
+          toStatus: CompatibilityStatus.VERIFIED,
           reason: sourceRef,
-          metadata: { approvalCount, reviewVersion },
+          metadata: { reviewVersion, approvalMode: "OWNER_SINGLE_APPROVAL" },
         },
       });
 
@@ -633,7 +612,6 @@ export class CompatibilityService {
           evidences: {
             orderBy: { verifiedAt: "desc" },
           },
-          _count: { select: { reviews: true } },
         },
         orderBy: [
           { updatedAt: "desc" },
@@ -677,7 +655,6 @@ export class CompatibilityService {
           specifications: r.part.specifications,
         },
         evidenceCount: r.evidences.length,
-        reviewCount: r._count.reviews,
         evidences: r.evidences.map((e) => ({
           id: e.id,
           sourceType: e.sourceType,
@@ -740,7 +717,6 @@ export class CompatibilityService {
       device: record.device,
       part: record.part,
       evidenceCount: record.evidences.length,
-      reviewCount: record.reviews.length,
       evidences: record.evidences,
       reviews: record.reviews,
       auditEvents: record.auditEvents,
