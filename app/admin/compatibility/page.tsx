@@ -61,6 +61,7 @@ interface CompatibilityRecord {
     specifications: Record<string, unknown>;
   };
   evidenceCount: number;
+  reviewCount: number;
   evidences: Array<{
     id: string;
     sourceType: string;
@@ -220,7 +221,11 @@ export default function AdminCompatibilityGovernanceDashboard() {
         throw new Error(json.error || "فشل اعتماد السجل.");
       }
 
-      setActionSuccess("تم اعتماد وتوثيق التوافق بنجاح ونقله لحالة VERIFIED.");
+      setActionSuccess(
+        json.compatibility?.compatibilityStatus === "VERIFIED"
+          ? "تم النشر بعد اكتمال اعتمادين مستقلين."
+          : "تم تسجيل الاعتماد الأول. ما زال السجل بانتظار مدقق مستقل ثانٍ ولن يظهر للفنيين بعد."
+      );
       setVerifyModalOpen(false);
       setSelectedRecord(json.compatibility);
       fetchRecords();
@@ -667,6 +672,18 @@ export default function AdminCompatibilityGovernanceDashboard() {
               </div>
             )}
 
+            {selectedRecord.compatibilityStatus === "PROVISIONALLY_VERIFIED" && !selectedRecord.isArchived && (
+              <div className="rounded-2xl bg-amber-950/40 border border-amber-800/80 p-4 text-xs space-y-1">
+                <div className="flex items-center gap-2 font-black text-amber-300">
+                  <AlertTriangle className="h-4 w-4 text-amber-400" />
+                  <span>اعتماد أولي فقط — {selectedRecord.reviewCount || 1} من 2</span>
+                </div>
+                <p className="text-slate-300 leading-relaxed text-[11px]">
+                  هذا السجل مخفي عن الفنيين ولن يُنشر قبل اعتماد مدقق مركزي مستقل ثانٍ.
+                </p>
+              </div>
+            )}
+
             {/* Device & Part Cards */}
             <div className="grid gap-4 md:grid-cols-2">
               <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4 space-y-2 text-xs">
@@ -809,7 +826,7 @@ export default function AdminCompatibilityGovernanceDashboard() {
                     className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black rounded-xl gap-1.5 px-4 shadow-lg shadow-emerald-600/20"
                   >
                     <ShieldCheck className="h-4 w-4" />
-                    <span>اعتماد نهائي (Verify)</span>
+                    <span>تسجيل اعتماد مستقل</span>
                   </Button>
                 )}
               </div>
@@ -829,7 +846,7 @@ export default function AdminCompatibilityGovernanceDashboard() {
                 <ShieldCheck className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-base font-black text-white">تأكيد اعتماد التوافق النهائي (Verify)</h3>
+                <h3 className="text-base font-black text-white">تسجيل مراجعة واعتماد مستقل</h3>
                 <p className="text-xs text-slate-400">إضافة الدليل الفني وتطبيق مبدأ التدقيق المزدوج (Four-Eyes Gate)</p>
               </div>
             </div>
@@ -934,7 +951,7 @@ export default function AdminCompatibilityGovernanceDashboard() {
                 className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black rounded-xl px-5 gap-1.5 shadow-lg shadow-emerald-600/20"
               >
                 {actionLoading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                <span>تأكيد الاعتماد النهائي</span>
+                <span>تسجيل الاعتماد</span>
               </Button>
             </div>
           </div>

@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
 import { CompatibilityStatus, PartCategory, Prisma } from "@prisma/client";
-import { normalizeSearchString } from "./normalization";
 import { DeviceNotFoundError } from "./compatibility.errors";
 
 export interface InventoryMatcherOptions {
@@ -64,9 +63,9 @@ export class SmartInventoryMatcherService {
    * Identifies all compatible parts for a device and matches them with available InventoryItems.
    * 
    * CORE INVARIANTS:
-   * 1. Compatibility comes ONLY from existing DeviceCompatibility records (Rank 1: VERIFIED, Rank 2: PROVISIONALLY_VERIFIED).
-   * 2. UNVERIFIED, INCOMPATIBLE, and Archived records are strictly EXCLUDED.
-   * 3. Inventory existence NEVER implies compatibility.
+   * 1. Compatibility comes ONLY from published VERIFIED records.
+   * 2. Provisional, unverified, incompatible, archived and suspended records are excluded.
+   * 3. Inventory is linked by InventoryItem.partId; names and SKUs never prove identity.
    * 4. Zero N+1 queries (executed in 2 optimized batched queries).
    */
   async getAvailableCompatibleParts(
@@ -87,9 +86,9 @@ export class SmartInventoryMatcherService {
       where: {
         deviceId,
         isArchived: false,
-        compatibilityStatus: {
-          in: [CompatibilityStatus.VERIFIED, CompatibilityStatus.PROVISIONALLY_VERIFIED],
-        },
+        compatibilityStatus: CompatibilityStatus.VERIFIED,
+        publishedAt: { not: null },
+        suspendedAt: null,
         part: {
           isArchived: false,
           category: options.category || undefined,
@@ -125,34 +124,12 @@ export class SmartInventoryMatcherService {
       };
     }
 
-    // 3. Collect search identifiers from compatible parts to batch match InventoryItems (Query 2)
-    const partTermsMap = new Map<string, string[]>();
-    const allSearchConditions: Prisma.InventoryItemWhereInput[] = [];
-
-    for (const compat of compatibilities) {
-      const p = compat.part;
-      const terms = [
-        p.manufacturerCode,
-        ...(p.partAliases || []),
-        p.name,
-      ].filter((t): t is string => !!t && t.trim().length > 0);
-
-      partTermsMap.set(p.id, terms);
-
-      for (const term of terms) {
-        allSearchConditions.push(
-          { sku: { equals: term, mode: "insensitive" } },
-          { sku: { equals: term.replace(/[^a-zA-Z0-9]/g, ""), mode: "insensitive" } },
-          { name: { contains: term, mode: "insensitive" } }
-        );
-      }
-    }
-
-    // Batch query InventoryItems matching the compatible parts
+    // 3. Match inventory through the explicit foreign key only (Query 2).
+    const partIds = compatibilities.map((compatibility) => compatibility.partId);
     const inventoryWhere: Prisma.InventoryItemWhereInput = {
       deletedAt: null,
       shopId: options.shopId || undefined,
-      OR: allSearchConditions.length > 0 ? allSearchConditions : undefined,
+      partId: { in: partIds },
     };
 
     const matchingInventoryItems = await prisma.inventoryItem.findMany({
@@ -169,36 +146,7 @@ export class SmartInventoryMatcherService {
 
     for (const compat of compatibilities) {
       const part = compat.part;
-      const normalizedPartCode = part.normalizedPartCode;
-
-      // Find matching inventory items for this specific part
-
-      const matchedItems = matchingInventoryItems.filter((item) => {
-        const itemSku = item.sku?.trim().toLowerCase() || "";
-        const itemName = item.name.trim().toLowerCase();
-        const itemSkuNorm = normalizeSearchString(itemSku);
-
-        // Check if SKU matches manufacturerCode or aliases
-        if (part.manufacturerCode) {
-          const mfgLower = part.manufacturerCode.toLowerCase();
-          if (itemSku === mfgLower || itemSkuNorm === normalizedPartCode) return true;
-          if (itemName.includes(mfgLower)) return true;
-        }
-
-        // Check aliases
-        for (const alias of part.partAliases) {
-          const aliasLower = alias.toLowerCase();
-          const aliasNorm = normalizeSearchString(aliasLower);
-          if (itemSku === aliasLower || itemSkuNorm === aliasNorm) return true;
-          if (itemName.includes(aliasLower)) return true;
-        }
-
-        // Check part name
-        const partNameLower = part.name.toLowerCase();
-        if (itemName.includes(partNameLower) || partNameLower.includes(itemName)) return true;
-
-        return false;
-      });
+      const matchedItems = matchingInventoryItems.filter((item) => item.partId === part.id);
 
       const inventoryDetails: InventoryLocationDetail[] = matchedItems.map((item) => ({
         inventoryItemId: item.id,

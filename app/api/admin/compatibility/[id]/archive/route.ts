@@ -1,32 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
-import { isSuperAdminEmail } from "@/lib/adminAuth";
 import { compatibilityService } from "@/lib/services/compatibility";
+import { getCompatibilityGovernanceUser } from "@/lib/services/compatibility/admin-context";
 import { CompatibilityNotFoundError } from "@/lib/services/compatibility/compatibility.errors";
 
 export const dynamic = "force-dynamic";
-
-async function getAdminUserContext() {
-  const session = await getSession();
-  if (!session) return null;
-  const isSuper = isSuperAdminEmail(session.email);
-  const isOwnerOrAdmin = session.role === "OWNER" || session.role === "ADMIN" || isSuper;
-  if (!isOwnerOrAdmin) return null;
-
-  return {
-    id: session.userId,
-    email: session.email,
-    role: session.role,
-    isSuperAdmin: isSuper,
-  };
-}
 
 export async function POST(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getAdminUserContext();
+    const user = await getCompatibilityGovernanceUser();
     if (!user) {
       return NextResponse.json({ success: false, error: "Unauthorized." }, { status: 403 });
     }

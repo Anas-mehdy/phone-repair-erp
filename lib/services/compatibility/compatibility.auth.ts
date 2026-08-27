@@ -1,9 +1,7 @@
-import { MembershipRole } from "@prisma/client";
-
 export interface CompatibilityUserContext {
   id: string;
   email?: string;
-  role?: MembershipRole | string;
+  role?: string;
   isSuperAdmin?: boolean;
 }
 
@@ -18,24 +16,15 @@ export const VERIFIED_ELIGIBLE_LEVELS = new Set([
 
 /**
  * Checks if a user has sufficient authorization to approve/verify compatibility records.
- * By default, OWNER, ADMIN, or superadmins have verification authority.
- * Regular TECHNICIANS can propose UNVERIFIED or report data, but cannot grant final verification.
+ * Compatibility knowledge is global, so shop roles never grant publishing authority.
+ * Only the centrally managed Super Admin allowlist may review or publish records.
  */
 export function canVerifyCompatibility(user?: CompatibilityUserContext | null): boolean {
   if (!user || !user.id) {
     return false;
   }
 
-  if (user.isSuperAdmin) {
-    return true;
-  }
-
-  const role = user.role;
-  if (role === "OWNER" || role === "ADMIN" || role === MembershipRole.OWNER || role === MembershipRole.ADMIN) {
-    return true;
-  }
-
-  return false;
+  return user.isSuperAdmin === true;
 }
 
 /**
