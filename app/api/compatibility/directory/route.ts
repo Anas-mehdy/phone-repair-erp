@@ -18,6 +18,8 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const query = (searchParams.get("q") || "").trim();
+    const requestedCategory = (searchParams.get("category") || "SCREEN").toUpperCase();
+    const category = requestedCategory === "BATTERY" ? PartCategory.BATTERY : PartCategory.SCREEN;
     const parsedLimit = Number.parseInt(searchParams.get("limit") || "30", 10);
     const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 50) : 30;
 
@@ -26,7 +28,7 @@ export async function GET(request: NextRequest) {
     }
 
     const results = await searchCompatibilityDirectory(query, {
-      category: PartCategory.SCREEN,
+      category,
       limit,
     });
     return NextResponse.json({ success: true, query, results });
@@ -38,4 +40,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

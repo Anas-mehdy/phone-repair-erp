@@ -19,11 +19,15 @@ interface DirectoryResult {
   brandSection: string;
   compatibilityCount: number;
   compatibleDevices: DirectoryDevice[];
+  partCode: string | null;
+  capacityMah: number | null;
 }
+
+type ActiveCategory = "SCREEN" | "BATTERY";
 
 const CATEGORIES = [
   { id: "SCREEN", label: "الشاشات", description: "متاح الآن", icon: Tv, enabled: true },
-  { id: "BATTERY", label: "البطاريات", description: "قريباً", icon: Battery, enabled: false },
+  { id: "BATTERY", label: "البطاريات", description: "متاح الآن", icon: Battery, enabled: true },
   { id: "CHARGING_PORT", label: "منافذ الشحن", description: "قريباً", icon: Zap, enabled: false },
   { id: "CONNECTOR", label: "الفلاتات والموصلات", description: "قريباً", icon: Cpu, enabled: false },
   { id: "IC_CHIP", label: "الآيسيات", description: "قريباً", icon: Radio, enabled: false },
@@ -32,6 +36,7 @@ const CATEGORIES = [
 ];
 
 export default function TechnicianCompatibilityPage() {
+  const [selectedCategory, setSelectedCategory] = useState<ActiveCategory>("SCREEN");
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<DirectoryResult[]>([]);
   const [selected, setSelected] = useState<DirectoryResult | null>(null);
@@ -40,7 +45,7 @@ export default function TechnicianCompatibilityPage() {
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  const searchDirectory = useCallback(async (value: string) => {
+  const searchDirectory = useCallback(async (value: string, category: ActiveCategory) => {
     const trimmed = value.trim();
     if (trimmed.length < 2) {
       setResults([]);
@@ -55,7 +60,7 @@ export default function TechnicianCompatibilityPage() {
 
     try {
       const response = await fetch(
-        `/api/compatibility/directory?q=${encodeURIComponent(trimmed)}&limit=30`,
+        `/api/compatibility/directory?q=${encodeURIComponent(trimmed)}&category=${category}&limit=30`,
         { signal: abortRef.current.signal }
       );
       const payload = await response.json();
@@ -73,11 +78,11 @@ export default function TechnicianCompatibilityPage() {
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => searchDirectory(query), 250);
+    debounceRef.current = setTimeout(() => searchDirectory(query, selectedCategory), 250);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query, searchDirectory]);
+  }, [query, selectedCategory, searchDirectory]);
 
   function clearSearch() {
     setQuery("");
@@ -86,11 +91,22 @@ export default function TechnicianCompatibilityPage() {
     setError(null);
   }
 
+  function selectCategory(category: ActiveCategory) {
+    setSelectedCategory(category);
+    setQuery("");
+    setResults([]);
+    setSelected(null);
+    setError(null);
+  }
+
+  const isBattery = selectedCategory === "BATTERY";
+  const PartIcon = isBattery ? Battery : Tv;
+
   return (
     <div className="mx-auto max-w-6xl space-y-5 pb-12">
       <PageHeader
         title="دليل توافق القطع"
-        description="ابحث عن موديل الجهاز لتعرف الأجهزة التي تستخدم الشاشة نفسها."
+        description="ابحث عن موديل الجهاز لتعرف القطع والأجهزة المتوافقة بسهولة."
       />
 
       <div className="flex items-start gap-3 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-amber-950">
@@ -98,7 +114,7 @@ export default function TechnicianCompatibilityPage() {
         <div>
           <div className="text-sm font-black">الدليل ما يزال قيد التطوير</div>
           <p className="mt-0.5 text-xs font-medium leading-5 text-amber-800">
-            استخدم النتائج كدليل مساعد، وطابق رقم موديل الشاشة قبل التركيب.
+            استخدم النتائج كدليل مساعد، وطابق كود القطعة قبل التركيب.
           </p>
         </div>
       </div>
@@ -112,26 +128,30 @@ export default function TechnicianCompatibilityPage() {
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
           {CATEGORIES.map((category) => {
             const Icon = category.icon;
+            const isActive = selectedCategory === category.id;
             return (
               <button
                 key={category.id}
                 type="button"
                 disabled={!category.enabled}
+                onClick={() => category.enabled && selectCategory(category.id as ActiveCategory)}
                 className={`rounded-xl border p-3 text-right transition ${
-                  category.enabled
+                  isActive
                     ? "border-violet-400 bg-violet-50 ring-1 ring-violet-100"
+                    : category.enabled
+                      ? "border-slate-200 bg-white hover:border-violet-300 hover:bg-violet-50/40"
                     : "cursor-not-allowed border-slate-200 bg-slate-50 opacity-60"
                 }`}
               >
                 <div className="flex items-center justify-between">
                   <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${
-                    category.enabled
+                    isActive
                       ? "bg-gradient-to-br from-violet-600 to-fuchsia-500 text-white"
                       : "bg-white text-slate-400"
                   }`}>
                     <Icon className="h-4 w-4" />
                   </span>
-                  {category.enabled && <Check className="h-4 w-4 text-violet-600" />}
+                  {isActive && <Check className="h-4 w-4 text-violet-600" />}
                 </div>
                 <div className="mt-2 text-xs font-black text-slate-900">{category.label}</div>
                 <div className="mt-0.5 text-[10px] font-bold text-slate-400">{category.description}</div>
@@ -144,7 +164,7 @@ export default function TechnicianCompatibilityPage() {
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-100 p-4 sm:p-5">
           <label htmlFor="compatibility-search" className="mb-2 block text-xs font-black text-slate-700">
-            ابحث داخل الشاشات
+            ابحث داخل {isBattery ? "البطاريات" : "الشاشات"}
           </label>
           <div className="relative">
             <Search className="absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-violet-600" />
@@ -155,7 +175,7 @@ export default function TechnicianCompatibilityPage() {
                 setQuery(event.target.value);
                 setSelected(null);
               }}
-              placeholder="مثال: Note 11 أو A52 أو iPhone 12"
+              placeholder={isBattery ? "مثال: Vivo Y36 أو Redmi Note 11 أو A52" : "مثال: Note 11 أو A52 أو iPhone 12"}
               className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3.5 pl-11 pr-12 text-sm font-bold text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-500 focus:bg-white focus:ring-2 focus:ring-violet-100"
               autoFocus
             />
@@ -211,7 +231,9 @@ export default function TechnicianCompatibilityPage() {
                     >
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
-                          <div className="truncate text-[10px] font-bold text-violet-600">{result.brandSection}</div>
+                          <div className="truncate text-[10px] font-bold text-violet-600">
+                            {result.brandSection}{isBattery && result.partCode ? ` • ${result.partCode}` : ""}
+                          </div>
                           <div className="mt-0.5 truncate text-sm font-black text-slate-900">{result.deviceName}</div>
                         </div>
                         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-100 to-fuchsia-100 text-violet-700">
@@ -219,7 +241,9 @@ export default function TechnicianCompatibilityPage() {
                         </span>
                       </div>
                       <div className="mt-2 flex items-center justify-between text-[11px]">
-                        <span className="font-black text-violet-700">{result.compatibilityCount} أجهزة</span>
+                        <span className="font-black text-violet-700">
+                          {isBattery && result.partCode ? result.partCode : `${result.compatibilityCount} أجهزة`}
+                        </span>
                         <ChevronLeft className="h-4 w-4 text-fuchsia-500" />
                       </div>
                     </button>
@@ -233,8 +257,22 @@ export default function TechnicianCompatibilityPage() {
                 <div>
                   <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-5">
                     <div>
-                      <div className="text-xs font-bold text-violet-600">{selected.brandSection} • شاشات</div>
+                      <div className="text-xs font-bold text-violet-600">
+                        {selected.brandSection} • {isBattery ? "بطاريات" : "شاشات"}
+                      </div>
                       <h3 className="mt-1 text-2xl font-black text-slate-900">{selected.deviceName}</h3>
+                      {isBattery && selected.partCode && (
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <span className="rounded-lg bg-violet-600 px-3 py-1 text-sm font-black text-white">
+                            {selected.partCode}
+                          </span>
+                          {selected.capacityMah && (
+                            <span className="rounded-lg border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-black text-violet-800">
+                              {selected.capacityMah} mAh
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <div className="rounded-xl bg-gradient-to-br from-violet-50 to-fuchsia-50 px-4 py-2 text-center text-violet-700">
                       <div className="text-2xl font-black">{selected.compatibilityCount}</div>
@@ -245,11 +283,15 @@ export default function TechnicianCompatibilityPage() {
                   <div className="pt-5">
                     <div className="mb-4 flex items-center gap-2">
                       <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-100 to-fuchsia-100 text-violet-700">
-                        <Tv className="h-4 w-4" />
+                        <PartIcon className="h-4 w-4" />
                       </span>
                       <div>
-                        <h4 className="text-base font-black text-slate-900">الأجهزة المتوافقة</h4>
-                        <p className="text-xs font-medium text-slate-400">تستخدم مجموعة الشاشة نفسها</p>
+                        <h4 className="text-base font-black text-slate-900">
+                          {isBattery ? "الأجهزة التي تستخدم هذه البطارية" : "الأجهزة المتوافقة"}
+                        </h4>
+                        <p className="text-xs font-medium text-slate-400">
+                          {isBattery ? "بحسب كود البطارية المسجل" : "تستخدم مجموعة الشاشة نفسها"}
+                        </p>
                       </div>
                     </div>
 
@@ -266,7 +308,9 @@ export default function TechnicianCompatibilityPage() {
                     </div>
 
                     <div className="mt-6 rounded-xl bg-slate-50 px-4 py-3 text-xs font-medium leading-6 text-slate-500">
-                      قبل التركيب: قارن كود الشاشة والموصل والفريم مع القطعة القديمة.
+                      {isBattery
+                        ? "قبل التركيب: طابق كود البطارية والفولت والموصل مع البطارية القديمة؛ السعة وحدها لا تكفي."
+                        : "قبل التركيب: قارن كود الشاشة والموصل والفريم مع القطعة القديمة."}
                     </div>
                   </div>
                 </div>
@@ -277,7 +321,7 @@ export default function TechnicianCompatibilityPage() {
                   </span>
                   <h3 className="mt-4 text-base font-black text-slate-800">اختر جهازاً من نتائج البحث</h3>
                   <p className="mt-1 max-w-sm text-xs font-medium leading-5 text-slate-400">
-                    ستظهر هنا مباشرة جميع الأجهزة التي تستخدم الشاشة نفسها.
+                    ستظهر هنا مباشرة جميع الأجهزة التي تستخدم {isBattery ? "البطارية" : "الشاشة"} نفسها.
                   </p>
                 </div>
               )}

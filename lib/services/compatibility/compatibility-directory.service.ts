@@ -5,6 +5,7 @@ import {
 } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
+import { parseBatterySourceText } from "./battery-candidate-import";
 import { normalizeSearchString } from "./normalization";
 
 export interface CompatibilityDirectoryDevice {
@@ -19,6 +20,8 @@ export interface CompatibilityDirectoryResult {
   brandSection: string;
   compatibilityCount: number;
   compatibleDevices: CompatibilityDirectoryDevice[];
+  partCode: string | null;
+  capacityMah: number | null;
 }
 
 const VISIBLE_CANDIDATE_STATUSES: CompatibilityCandidateStatus[] = [
@@ -69,6 +72,7 @@ export async function searchCompatibilityDirectory(
           id: true,
           brandSection: true,
           confidenceScore: true,
+          rawSourceText: true,
           members: {
             orderBy: { position: "asc" },
             select: { id: true, rawModelName: true },
@@ -96,6 +100,10 @@ export async function searchCompatibilityDirectory(
     if (seen.has(uniqueKey)) continue;
     seen.add(uniqueKey);
 
+    const batteryDetails = category === PartCategory.BATTERY
+      ? parseBatterySourceText(match.candidateGroup.rawSourceText)
+      : null;
+
     results.push({
       id: match.id,
       groupId: match.candidateGroup.id,
@@ -106,6 +114,8 @@ export async function searchCompatibilityDirectory(
         id: member.id,
         name: member.rawModelName,
       })),
+      partCode: batteryDetails?.batteryCode || null,
+      capacityMah: batteryDetails?.capacityMah || null,
     });
 
     if (results.length >= limit) break;
