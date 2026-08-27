@@ -370,6 +370,7 @@ model RepairStatusHistory {
 model InventoryItem {
   id                String              @id @default(uuid()) @db.Uuid
   shopId            String              @db.Uuid
+  partId            String?             @db.Uuid
   clientGeneratedId String?
   sku               String?
   category          String?
@@ -385,11 +386,13 @@ model InventoryItem {
   version           Int                 @default(1)
 
   shop              Shop                @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  part              Part?               @relation(fields: [partId], references: [id], onDelete: SetNull)
   movements         InventoryMovement[]
   saleItems         SaleItem[]
   repairOrderItems  RepairOrderItem[]
 
   @@index([shopId, sku])
+  @@index([shopId, partId])
   @@unique([shopId, clientGeneratedId])
   @@index([shopId, name])
   @@index([shopId, updatedAt])
@@ -633,6 +636,40 @@ enum VerificationSourceType {
   TECHNICIAN_VERIFIED
 }
 
+enum CompatibilityReviewDecision {
+  APPROVED
+  REJECTED
+  NEEDS_CHANGES
+  CONFLICT
+}
+
+enum CompatibilityImportStatus {
+  VALIDATING
+  READY_FOR_REVIEW
+  IMPORTED
+  REJECTED
+  FAILED
+}
+
+enum CompatibilityTestResult {
+  PASS
+  FAIL
+  PARTIAL
+}
+
+enum CompatibilityConflictSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum CompatibilityConflictStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
 model Device {
   id                 String                @id @default(uuid()) @db.Uuid
   brand              String                // Samsung, Xiaomi, Apple, Infinix...
@@ -678,6 +715,7 @@ model Part {
 
   // العلاقات
   compatibilities    DeviceCompatibility[]
+  inventoryItems     InventoryItem[]
 
   @@index([category])
   @@index([normalizedPartCode])
@@ -701,6 +739,11 @@ model DeviceCompatibility {
   createdById          String?                 // معرف من قام بإدخال السجل
   verifiedById         String?                 // معرف المهندس/المدقق المعتمد الذي راجع واعتمد
   verifiedAt           DateTime?
+  publishedAt          DateTime?
+  publishedById        String?
+  suspendedAt          DateTime?
+  suspensionReason     String?
+  reviewVersion        Int                     @default(1)
   
   // Archiving (Soft Delete - الحذف الفعلي محظور برمجياً)
   isArchived           Boolean                 @default(false)
@@ -715,17 +758,24 @@ model DeviceCompatibility {
   
   // أدلة التحقق المتعددة (Decoupled Evidence Model)
   evidences            CompatibilityEvidence[]
+  reviews              CompatibilityReview[]
+  auditEvents          CompatibilityAuditEvent[]
+  physicalTests        CompatibilityPhysicalTest[]
+  conflictReports      CompatibilityConflictReport[]
 
   @@unique([deviceId, partId])
   @@index([deviceId])
   @@index([partId])
   @@index([compatibilityStatus])
+  @@index([publishedAt])
+  @@index([suspendedAt])
   @@index([isArchived])
 }
 
 model CompatibilityEvidence {
   id                   String                  @id @default(uuid()) @db.Uuid
   compatibilityId      String                  @db.Uuid
+  sourceId             String?                 @db.Uuid
   sourceType           VerificationSourceType
   sourceReference      String                  // رقم المخطط، اسم الدليل، رقم الصفحة، رابط المرجع
   evidenceDetails      String                  // تفاصيل الدليل الفني والشرح الهندسي
@@ -736,8 +786,118 @@ model CompatibilityEvidence {
 
   // العلاقات
   compatibility        DeviceCompatibility     @relation(fields: [compatibilityId], references: [id], onDelete: Cascade)
+  source               CompatibilitySource?    @relation(fields: [sourceId], references: [id], onDelete: SetNull)
 
   @@index([compatibilityId])
+  @@index([sourceId])
   @@index([sourceType])
 }
 
+model CompatibilitySource {
+  id             String                 @id @default(uuid()) @db.Uuid
+  name           String
+  publisher      String?
+  sourceType     VerificationSourceType
+  url            String?
+  trustLevel     Int                    @default(1)
+  licenseNotes   String?
+  isActive       Boolean                @default(true)
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  evidences      CompatibilityEvidence[]
+  importBatches  CompatibilityImportBatch[]
+
+  @@index([sourceType, isActive])
+  @@index([trustLevel])
+}
+
+model CompatibilityReview {
+  id                String                          @id @default(uuid()) @db.Uuid
+  compatibilityId   String                          @db.Uuid
+  reviewerId        String
+  decision          CompatibilityReviewDecision
+  notes             String?
+  reviewVersion     Int                             @default(1)
+  createdAt         DateTime                        @default(now())
+
+  compatibility     DeviceCompatibility             @relation(fields: [compatibilityId], references: [id], onDelete: Cascade)
+
+  @@unique([compatibilityId, reviewerId, reviewVersion])
+  @@index([compatibilityId, reviewVersion, decision])
+  @@index([reviewerId, createdAt])
+}
+
+model CompatibilityAuditEvent {
+  id                String                  @id @default(uuid()) @db.Uuid
+  compatibilityId   String                  @db.Uuid
+  actorId           String?
+  action            String
+  fromStatus        CompatibilityStatus?
+  toStatus          CompatibilityStatus?
+  reason            String?
+  metadata          Json?
+  createdAt         DateTime                @default(now())
+
+  compatibility     DeviceCompatibility     @relation(fields: [compatibilityId], references: [id], onDelete: Cascade)
+
+  @@index([compatibilityId, createdAt])
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+}
+
+model CompatibilityImportBatch {
+  id                String                      @id @default(uuid()) @db.Uuid
+  filename          String
+  sourceId          String?                     @db.Uuid
+  status            CompatibilityImportStatus  @default(VALIDATING)
+  totalRows         Int                         @default(0)
+  validRows         Int                         @default(0)
+  invalidRows       Int                         @default(0)
+  createdRecords    Int                         @default(0)
+  validationReport  Json?
+  createdById       String
+  createdAt         DateTime                    @default(now())
+  completedAt       DateTime?
+
+  source            CompatibilitySource?        @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([sourceId, createdAt])
+}
+
+model CompatibilityPhysicalTest {
+  id                String                    @id @default(uuid()) @db.Uuid
+  compatibilityId   String                    @db.Uuid
+  testerId          String
+  result            CompatibilityTestResult
+  protocolVersion   String
+  checklist         Json
+  notes             String?
+  testedAt          DateTime                  @default(now())
+  approvedById      String?
+  approvedAt        DateTime?
+
+  compatibility     DeviceCompatibility       @relation(fields: [compatibilityId], references: [id], onDelete: Cascade)
+
+  @@index([compatibilityId, result, testedAt])
+  @@index([testerId, testedAt])
+}
+
+model CompatibilityConflictReport {
+  id                String                         @id @default(uuid()) @db.Uuid
+  compatibilityId   String                         @db.Uuid
+  reportedById      String?
+  severity          CompatibilityConflictSeverity
+  status            CompatibilityConflictStatus   @default(OPEN)
+  reason            String
+  createdAt         DateTime                       @default(now())
+  resolvedById      String?
+  resolvedAt        DateTime?
+  resolutionNotes   String?
+
+  compatibility     DeviceCompatibility            @relation(fields: [compatibilityId], references: [id], onDelete: Cascade)
+
+  @@index([compatibilityId, status, severity])
+  @@index([status, createdAt])
+}
