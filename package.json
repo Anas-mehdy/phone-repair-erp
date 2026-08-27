@@ -11,7 +11,9 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "compatibility:import:screen": "tsx scripts/import-screen-candidates.ts",
+    "compatibility:test:screen-import": "tsx scripts/test-screen-candidate-import.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.1.0",
