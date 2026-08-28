@@ -39,7 +39,7 @@ export default function LoginPage() {
               <Smartphone className="h-6 w-6" />
             </div>
             <div className="text-right">
-              <span className="text-xl font-black tracking-tight text-white block">مصلح OS</span>
+              <span className="text-xl font-black tracking-tight text-white block">مسار</span>
               <span className="text-[10px] font-bold text-teal-400 tracking-wider">منظومة إدارة مراكز الصيانة</span>
             </div>
           </Link>

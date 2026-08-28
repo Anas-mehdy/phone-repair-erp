@@ -129,4 +129,167 @@
   }
 }
 
+/* Decorative Masar device journey — visual only, no application state. */
+.masar-journey {
+  position: relative;
+  margin-top: 2rem;
+  padding: 0.25rem 0.5rem;
+}
+
+.masar-path-track {
+  position: absolute;
+  z-index: 0;
+  top: 2.25rem;
+  right: 7%;
+  left: 7%;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #e2e8f0, #ccfbf1, #e0e7ff, #e2e8f0);
+}
+
+.masar-path-beam {
+  position: absolute;
+  top: -2px;
+  right: -22%;
+  width: 22%;
+  height: 7px;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, transparent, #6366f1, #14b8a6, transparent);
+  filter: drop-shadow(0 0 6px rgba(20, 184, 166, 0.7));
+  animation: masar-beam 7.2s linear infinite;
+}
+
+.masar-stages {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.masar-stage {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.masar-stage-icon {
+  position: relative;
+  display: flex;
+  height: 4.5rem;
+  width: 4.5rem;
+  align-items: center;
+  justify-content: center;
+  border: 5px solid white;
+  border-radius: 1.4rem;
+  color: #64748b;
+  background: #f1f5f9;
+  box-shadow: 0 0 0 1px #e2e8f0, 0 8px 18px rgba(15, 23, 42, 0.08);
+  animation: masar-stage-glow 7.2s ease-in-out infinite;
+}
+
+.masar-stage-number {
+  position: absolute;
+  top: -0.45rem;
+  right: -0.45rem;
+  display: flex;
+  height: 1.25rem;
+  width: 1.25rem;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid white;
+  border-radius: 9999px;
+  background: #cbd5e1;
+  color: white;
+  font-size: 0.6rem;
+  font-weight: 900;
+  transition: background-color 200ms ease;
+}
+
+.masar-stage:nth-child(2) .masar-stage-icon { animation-delay: 1.2s; }
+.masar-stage:nth-child(3) .masar-stage-icon { animation-delay: 2.4s; }
+.masar-stage:nth-child(4) .masar-stage-icon { animation-delay: 3.6s; }
+.masar-stage:nth-child(5) .masar-stage-icon { animation-delay: 4.8s; }
+.masar-stage:nth-child(6) .masar-stage-icon { animation-delay: 6s; }
+
+@keyframes masar-beam {
+  0% { right: -22%; opacity: 0; }
+  5% { opacity: 1; }
+  94% { opacity: 1; }
+  100% { right: 100%; opacity: 0; }
+}
+
+@keyframes masar-stage-glow {
+  0%, 13%, 100% {
+    transform: translateY(0) scale(1);
+    color: #64748b;
+    background: #f1f5f9;
+    box-shadow: 0 0 0 1px #e2e8f0, 0 8px 18px rgba(15, 23, 42, 0.08);
+  }
+  4%, 9% {
+    transform: translateY(-4px) scale(1.06);
+    color: white;
+    background: linear-gradient(135deg, #14b8a6, #4f46e5);
+    box-shadow: 0 0 0 1px #99f6e4, 0 0 24px rgba(20, 184, 166, 0.45);
+  }
+}
+
+@media (max-width: 639px) {
+  .masar-journey {
+    margin-top: 1.5rem;
+    padding: 0 0.25rem;
+  }
+
+  .masar-path-track {
+    top: 1.5rem;
+    right: 2.2rem;
+    bottom: 1.5rem;
+    left: auto;
+    width: 3px;
+    height: auto;
+  }
+
+  .masar-path-beam {
+    top: -20%;
+    right: -2px;
+    width: 7px;
+    height: 20%;
+    animation-name: masar-beam-mobile;
+  }
+
+  .masar-stages {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .masar-stage {
+    flex-direction: row;
+    gap: 0.85rem;
+  }
+
+  .masar-stage-icon {
+    height: 4rem;
+    width: 4rem;
+    flex-shrink: 0;
+    border-radius: 1.25rem;
+  }
+
+  @keyframes masar-beam-mobile {
+    0% { top: -20%; opacity: 0; }
+    5% { opacity: 1; }
+    94% { opacity: 1; }
+    100% { top: 100%; opacity: 0; }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .masar-path-beam,
+  .masar-stage-icon {
+    animation: none;
+  }
+}
 

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import {
-  Smartphone,
+  Route,
   Wrench,
   MessageSquareCode,
   ShoppingCart,
@@ -30,11 +30,11 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-2">
           <Link href="/" className="flex items-center gap-2 sm:gap-3 shrink-0 min-w-0">
             <div className="flex h-9 w-9 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl bg-gradient-to-br from-teal-400 to-primary text-slate-950 shadow-lg shadow-teal-500/20">
-              <Smartphone className="h-5 w-5 sm:h-6 sm:w-6" />
+              <Route className="h-5 w-5 sm:h-6 sm:w-6" />
             </div>
             <div className="min-w-0">
-              <span className="text-base sm:text-xl font-black tracking-tight text-white block truncate">مصلح OS</span>
-              <span className="hidden sm:block text-[9px] font-bold text-teal-400 uppercase tracking-wider">Cloud ERP for Phone Repair</span>
+              <span className="text-base sm:text-xl font-black tracking-tight text-white block truncate">مسار</span>
+              <span className="hidden sm:block text-[9px] font-bold text-teal-400 tracking-wider">من الاستلام حتى التسليم</span>
             </div>
           </Link>
 
@@ -234,7 +234,7 @@ export default function LandingPage() {
       <section id="how-it-works" className="py-16 sm:py-20 border-t border-slate-900 bg-slate-950 w-full overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <span className="text-xs font-black text-teal-400 uppercase tracking-wider">خطوات بسيطة وسريعة</span>
-          <h2 className="mt-3 text-2xl sm:text-4xl font-black text-white">كيف تبدأ استخدام مصلح OS؟</h2>
+          <h2 className="mt-3 text-2xl sm:text-4xl font-black text-white">كيف تبدأ استخدام مسار؟</h2>
 
           <div className="mt-12 sm:mt-14 grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 text-right">
             <div className="rounded-3xl border border-slate-800 bg-slate-900/40 p-6 sm:p-7 relative">
@@ -346,8 +346,8 @@ export default function LandingPage() {
       <footer className="border-t border-slate-900 bg-slate-950 py-8 text-center text-xs text-slate-500 w-full overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <Smartphone className="h-4 w-4 text-teal-400 shrink-0" />
-            <span className="font-bold text-slate-400">مصلح OS - جميع الحقوق محفوظة {new Date().getFullYear()}</span>
+            <Route className="h-4 w-4 text-teal-400 shrink-0" />
+            <span className="font-bold text-slate-400">مسار - جميع الحقوق محفوظة {new Date().getFullYear()}</span>
           </div>
           <div className="flex items-center gap-4 sm:gap-6 font-medium">
             <Link href="/login" className="hover:text-teal-400 transition">تسجيل الدخول</Link>
