@@ -1,14 +1,16 @@
-import { Eye, PackagePlus, Plus, Search } from "lucide-react";
+import { Eye, PackagePlus, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { DatabaseUnavailable } from "@/components/database-unavailable";
+import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { PlainBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
-import { getCurrentShopContext } from "@/lib/current-shop";
+import { getAuthContext } from "@/lib/auth/context";
 import { isDatabaseConnectionError } from "@/lib/database-errors";
 import { inventoryService } from "@/lib/services/inventoryService";
+import { deleteInventoryItemAction } from "./actions";
 import {
   formatDate,
   formatMoney,
@@ -22,6 +24,8 @@ type InventoryPageProps = {
   searchParams: Promise<{
     search?: string;
     lowStockOnly?: string;
+    error?: string;
+    deleted?: string;
   }>;
 };
 
@@ -30,12 +34,14 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
   const search = params.search ?? "";
   const lowStockOnly = params.lowStockOnly === "on";
   let items: Awaited<ReturnType<typeof inventoryService.listInventoryItems>>;
+  let canManage = false;
 
   let currency = "SAR";
   try {
-    const context = await getCurrentShopContext();
-    currency = context.currency;
-    items = await inventoryService.listInventoryItems(context.shopId, {
+    const context = await getAuthContext();
+    currency = context.shop.currency;
+    canManage = context.permissions.includes("inventory:manage");
+    items = await inventoryService.listInventoryItems(context.shop.id, {
       search,
       lowStockOnly,
     });
@@ -61,6 +67,9 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
           </Button>
         }
       />
+
+      {params.deleted && <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-700">تم حذف قطعة المخزون بنجاح مع الاحتفاظ بحركاتها السابقة.</div>}
+      {params.error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-700">{params.error}</div>}
 
       {/* Summary Info Strip */}
       <div className="rounded-2xl border border-indigo-200/50 bg-indigo-50/15 p-4 text-xs font-semibold text-indigo-900/90 flex items-center justify-between gap-4">
@@ -133,7 +142,7 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
                   <th className="text-slate-800">سعر البيع</th>
                   <th className="text-slate-800">الحالة</th>
                   <th className="text-slate-800">آخر تحديث</th>
-                  <th className="w-28 text-slate-800 text-center">الإجراءات</th>
+                  <th className="w-64 text-slate-800 text-center">الإجراءات</th>
                 </tr>
               </thead>
               <tbody>
@@ -165,14 +174,15 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
                         />
                       </td>
                       <td className="font-numeric text-slate-600 font-medium">{formatDate(item.updatedAt)}</td>
-                      <td className="text-center">
-                        <Button asChild variant="outline" size="sm" className="font-bold shadow-xs border-slate-300 hover:bg-primary/10 hover:text-primary hover:border-primary/30 rounded-lg">
+                      <td><div className="flex items-center justify-center gap-1.5">
+                        <Button asChild variant="outline" size="sm" title="عرض" className="font-bold shadow-xs border-slate-300 hover:bg-primary/10 hover:text-primary hover:border-primary/30 rounded-lg">
                           <Link href={`/inventory/${item.id}`}>
-                            <Eye className="h-3.5 w-3.5 ml-1" aria-hidden="true" />
-                            عرض
+                            <Eye className="h-3.5 w-3.5" aria-hidden="true" />
                           </Link>
                         </Button>
-                      </td>
+                        {canManage && <Button asChild variant="outline" size="sm" className="font-bold text-indigo-700"><Link href={`/inventory/${item.id}#edit-inventory`}><Pencil className="ml-1 h-3.5 w-3.5" />تعديل</Link></Button>}
+                        {canManage && <form action={deleteInventoryItemAction}><input type="hidden" name="inventoryItemId" value={item.id} /><ConfirmSubmitButton type="submit" variant="outline" size="sm" className="font-bold border-rose-200 text-rose-700 hover:bg-rose-50" message={`هل تريد حذف ${item.name} من المخزون؟ ستبقى حركاته القديمة محفوظة.`}><Trash2 className="ml-1 h-3.5 w-3.5" />حذف</ConfirmSubmitButton></form>}
+                      </div></td>
                     </tr>
                   );
                 })}

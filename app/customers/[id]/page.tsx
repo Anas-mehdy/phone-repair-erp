@@ -189,7 +189,7 @@ export default async function CustomerDetailsPage({
         {/* Sidebar panel */}
         <div className="space-y-6">
           {/* Edit Client details form */}
-          <form action={updateCustomerAction} className="erp-section">
+          <form id="edit-customer" action={updateCustomerAction} className="erp-section scroll-mt-6">
             <input type="hidden" name="customerId" value={customer.id} />
             <div className="border-b border-slate-100/60 pb-3 mb-4">
               <h3 className="font-bold text-slate-800 text-sm">تعديل بيانات العميل</h3>
@@ -319,4 +319,3 @@ function RelatedLink({
     </Link>
   );
 }
-

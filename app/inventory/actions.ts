@@ -88,6 +88,8 @@ const adjustStockSchema = z.object({
   note: z.string().optional(),
 });
 
+const inventoryItemIdSchema = z.object({ inventoryItemId: z.string().uuid() });
+
 function readString(formData: FormData, key: string) {
   const value = formData.get(key);
   return typeof value === "string" ? value : "";
@@ -199,4 +201,20 @@ export async function adjustStockAction(formData: FormData) {
   revalidatePath("/inventory");
   revalidatePath(`/inventory/${input.inventoryItemId}`);
   redirect(`/inventory/${input.inventoryItemId}`);
+}
+
+export async function deleteInventoryItemAction(formData: FormData) {
+  try {
+    const input = inventoryItemIdSchema.parse({
+      inventoryItemId: readString(formData, "inventoryItemId"),
+    });
+    const auth = await requirePermission("inventory:manage");
+    await inventoryService.softDeleteInventoryItem(auth.shop.id, input.inventoryItemId);
+    revalidatePath("/inventory");
+    revalidatePath("/compatibility");
+    redirect("/inventory?deleted=1");
+  } catch (error) {
+    if (error && typeof error === "object" && "digest" in error) throw error;
+    redirect(`/inventory?error=${encodeURIComponent(errorMessage(error))}`);
+  }
 }

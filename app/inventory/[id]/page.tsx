@@ -156,7 +156,7 @@ export default async function InventoryItemDetailsPage({
           </div>
 
           {/* Edit Inventory Item Form */}
-          <form action={updateInventoryItemDetailsAction} className="erp-section">
+          <form id="edit-inventory" action={updateInventoryItemDetailsAction} className="erp-section scroll-mt-6">
             <input type="hidden" name="inventoryItemId" value={item.id} />
             <div className="border-b border-slate-100/60 pb-3 mb-4">
               <h3 className="font-bold text-slate-800 text-sm">تعديل مواصفات وبيانات القطعة</h3>

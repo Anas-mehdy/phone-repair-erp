@@ -44,6 +44,18 @@ const paymentSchema = z.object({
   paidAt: z.string().optional(),
 });
 
+const updateSchema = z.object({
+  planId: z.string().uuid(),
+  title: z.string().trim().min(2, "وصف الاتفاق مطلوب").max(160),
+  notes: z.string().trim().max(1000).optional(),
+  totalAmount: z.string().trim().min(1, "المبلغ الإجمالي مطلوب"),
+  installmentCount: z.coerce.number().int().min(1).max(120),
+  frequency: z.nativeEnum(InstallmentFrequency),
+  firstDueAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "تاريخ أول قسط مطلوب"),
+});
+
+const planIdSchema = z.object({ planId: z.string().uuid() });
+
 export async function createInstallmentPlanAction(formData: FormData) {
   try {
     const input = createSchema.parse({
@@ -102,4 +114,44 @@ export async function rotateInstallmentLinkAction(formData: FormData) {
   await installmentService.rotatePublicLink(auth.shop.id, planId);
   revalidatePath(`/installments/${planId}`);
   redirect(`/installments/${planId}?linkReset=1`);
+}
+
+export async function updateInstallmentPlanAction(formData: FormData) {
+  const rawPlanId = read(formData, "planId");
+  try {
+    const input = updateSchema.parse({
+      planId: rawPlanId,
+      title: read(formData, "title"),
+      notes: read(formData, "notes"),
+      totalAmount: read(formData, "totalAmount"),
+      installmentCount: read(formData, "installmentCount"),
+      frequency: read(formData, "frequency"),
+      firstDueAt: read(formData, "firstDueAt"),
+    });
+    const auth = await requirePermission("invoices:pay");
+    await installmentService.updatePlan(auth.shop.id, input.planId, input);
+    revalidatePath("/installments");
+    revalidatePath(`/installments/${input.planId}`);
+    redirect(`/installments/${input.planId}?updated=1`);
+  } catch (error) {
+    if (error && typeof error === "object" && "digest" in error) throw error;
+    const destination = z.string().uuid().safeParse(rawPlanId).success
+      ? `/installments/${rawPlanId}/edit`
+      : "/installments";
+    redirect(`${destination}?error=${encodeURIComponent(errorMessage(error))}`);
+  }
+}
+
+export async function deleteInstallmentPlanAction(formData: FormData) {
+  try {
+    const input = planIdSchema.parse({ planId: read(formData, "planId") });
+    const auth = await requirePermission("invoices:void");
+    await installmentService.softDeletePlan(auth.shop.id, input.planId);
+    revalidatePath("/installments");
+    revalidatePath("/invoices");
+    redirect("/installments?deleted=1");
+  } catch (error) {
+    if (error && typeof error === "object" && "digest" in error) throw error;
+    redirect(`/installments?error=${encodeURIComponent(errorMessage(error))}`);
+  }
 }

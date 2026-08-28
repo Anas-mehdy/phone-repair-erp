@@ -19,7 +19,7 @@ import { CopyInstallmentLink } from "./_copy-link";
 
 export const dynamic = "force-dynamic";
 
-export default async function InstallmentDetailsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string; created?: string; paid?: string; linkReset?: string }> }) {
+export default async function InstallmentDetailsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string; created?: string; paid?: string; linkReset?: string; updated?: string }> }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const auth = await requirePermission("invoices:read");
   const plan = await installmentService.getPlanById(auth.shop.id, id);
@@ -41,7 +41,7 @@ export default async function InstallmentDetailsPage({ params, searchParams }: {
       <Button asChild variant="outline"><Link href="/installments/new">خطة جديدة</Link></Button>
     </div>
 
-    {(query.created || query.paid || query.linkReset) && <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-700">{query.created ? "تم إنشاء الخطة وجدول الأقساط بنجاح." : query.paid ? "تم تسجيل الدفعة وتوزيعها على الأقساط بنجاح." : "تم إلغاء الرابط السابق وإصدار رابط جديد."}</div>}
+    {(query.created || query.paid || query.linkReset || query.updated) && <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-700">{query.created ? "تم إنشاء الخطة وجدول الأقساط بنجاح." : query.paid ? "تم تسجيل الدفعة وتوزيعها على الأقساط بنجاح." : query.updated ? "تم حفظ تعديلات خطة الأقساط بنجاح." : "تم إلغاء الرابط السابق وإصدار رابط جديد."}</div>}
     {query.error && <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-700">{query.error}</div>}
 
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

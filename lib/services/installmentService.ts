@@ -37,6 +37,15 @@ export type AddInstallmentPaymentInput = {
   paidAt?: string;
 };
 
+export type UpdateInstallmentPlanInput = {
+  title: string;
+  notes?: string;
+  totalAmount: string;
+  installmentCount: number;
+  frequency: InstallmentFrequency;
+  firstDueAt: string;
+};
+
 const planInclude = {
   customer: true,
   invoice: { select: { id: true, invoiceNumber: true, balanceDue: true, status: true } },
@@ -317,6 +326,110 @@ export async function addPayment(
   return getPlanById(shopId, planId);
 }
 
+export async function updatePlan(
+  shopId: string,
+  planId: string,
+  input: UpdateInstallmentPlanInput,
+) {
+  const firstDueAt = parseDate(input.firstDueAt, "تاريخ أول قسط");
+  const requestedTotalCents = cents(input.totalAmount);
+
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "InstallmentPlan" WHERE id = ${planId}::uuid AND "shopId" = ${shopId}::uuid FOR UPDATE`;
+    const plan = await tx.installmentPlan.findFirst({
+      where: { id: planId, shopId, deletedAt: null },
+      include: {
+        payments: { where: { voidedAt: null }, select: { isDownPayment: true } },
+      },
+    });
+    if (!plan) throw new Error("خطة الأقساط غير موجودة.");
+
+    const currentTotalCents = cents(plan.totalAmount);
+    const downPaymentCents = cents(plan.downPayment);
+    const structureChanged =
+      requestedTotalCents !== currentTotalCents ||
+      input.installmentCount !== plan.installmentCount ||
+      input.frequency !== plan.frequency ||
+      firstDueAt.toISOString().slice(0, 10) !== plan.firstDueAt.toISOString().slice(0, 10);
+    const hasCollectedInstallments = plan.payments.some((payment) => !payment.isDownPayment);
+
+    if (plan.invoiceId && requestedTotalCents !== currentTotalCents) {
+      throw new Error("لا يمكن تغيير مبلغ خطة مرتبطة بفاتورة؛ يمكن تعديل الجدول والوصف فقط.");
+    }
+    if (hasCollectedInstallments && structureChanged) {
+      throw new Error("بعد تسجيل دفعة يمكن تعديل الوصف والملاحظات فقط، حفاظاً على السجل المالي.");
+    }
+
+    if (structureChanged) {
+      if (requestedTotalCents <= downPaymentCents) {
+        throw new Error("المبلغ الإجمالي يجب أن يكون أكبر من الدفعة الأولى.");
+      }
+      const financedCents = requestedTotalCents - downPaymentCents;
+      const schedules = buildInstallmentSchedule(
+        financedCents,
+        input.installmentCount,
+        firstDueAt,
+        input.frequency,
+      );
+      await tx.installmentSchedule.deleteMany({ where: { planId } });
+      await tx.installmentSchedule.createMany({
+        data: schedules.map((schedule) => ({ ...schedule, planId })),
+      });
+      await tx.installmentPlan.update({
+        where: { id: planId },
+        data: {
+          title: input.title.trim(),
+          notes: emptyToNull(input.notes),
+          totalAmount: money(requestedTotalCents),
+          financedAmount: money(financedCents),
+          amountPaid: money(downPaymentCents),
+          balanceDue: money(financedCents),
+          installmentCount: input.installmentCount,
+          frequency: input.frequency,
+          firstDueAt,
+          status: InstallmentPlanStatus.ACTIVE,
+          completedAt: null,
+          version: { increment: 1 },
+        },
+      });
+    } else {
+      await tx.installmentPlan.update({
+        where: { id: planId },
+        data: {
+          title: input.title.trim(),
+          notes: emptyToNull(input.notes),
+          version: { increment: 1 },
+        },
+      });
+    }
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 15_000 });
+}
+
+export async function softDeletePlan(shopId: string, planId: string) {
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "InstallmentPlan" WHERE id = ${planId}::uuid AND "shopId" = ${shopId}::uuid FOR UPDATE`;
+    const plan = await tx.installmentPlan.findFirst({
+      where: { id: planId, shopId, deletedAt: null },
+      include: { _count: { select: { payments: { where: { voidedAt: null } } } } },
+    });
+    if (!plan) throw new Error("خطة الأقساط غير موجودة.");
+    if (plan._count.payments > 0) {
+      throw new Error("لا يمكن حذف خطة سُجلت عليها دفعات. يمكنك الاحتفاظ بها كسجل مالي.");
+    }
+
+    return tx.installmentPlan.update({
+      where: { id: planId },
+      data: {
+        deletedAt: new Date(),
+        status: InstallmentPlanStatus.CANCELLED,
+        publicAccessEnabled: false,
+        invoiceId: null,
+        version: { increment: 1 },
+      },
+    });
+  });
+}
+
 export async function listPlans(shopId: string, search?: string) {
   const value = search?.trim();
   return prisma.installmentPlan.findMany({
@@ -377,6 +490,8 @@ export function getPublicPlan(planId: string, tokenVersion: number) {
 export const installmentService = {
   createPlan,
   addPayment,
+  updatePlan,
+  softDeletePlan,
   listPlans,
   getPlanById,
   getCreationOptions,

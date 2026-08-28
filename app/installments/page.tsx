@@ -1,20 +1,24 @@
 import { InstallmentPlanStatus } from "@prisma/client";
-import { AlertTriangle, CalendarClock, CheckCircle2, Eye, Plus, Search, WalletCards } from "lucide-react";
+import { AlertTriangle, CalendarClock, CheckCircle2, Eye, Pencil, Plus, Search, Trash2, WalletCards } from "lucide-react";
 import Link from "next/link";
 
 import { EmptyState } from "@/components/empty-state";
+import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { requirePermission } from "@/lib/auth/context";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { installmentService } from "@/lib/services/installmentService";
 import { PlanStatus } from "./_components";
+import { deleteInstallmentPlanAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function InstallmentsPage({ searchParams }: { searchParams: Promise<{ search?: string }> }) {
+export default async function InstallmentsPage({ searchParams }: { searchParams: Promise<{ search?: string; error?: string; deleted?: string }> }) {
   const query = await searchParams;
   const auth = await requirePermission("invoices:read");
+  const canEdit = auth.permissions.includes("invoices:pay");
+  const canDelete = auth.permissions.includes("invoices:void");
   const plans = await installmentService.listPlans(auth.shop.id, query.search);
   const now = new Date();
   const active = plans.filter((plan) => plan.status === InstallmentPlanStatus.ACTIVE);
@@ -31,6 +35,9 @@ export default async function InstallmentsPage({ searchParams }: { searchParams:
       <Button asChild className="h-11 rounded-xl font-black"><Link href="/installments/new"><Plus className="ml-2 h-4 w-4" />خطة تقسيط جديدة</Link></Button>
     </div>
 
+    {query.deleted && <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-700">تم حذف خطة الأقساط بنجاح.</div>}
+    {query.error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-700">{query.error}</div>}
+
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       <Summary icon={WalletCards} label="الخطط النشطة" value={String(active.length)} tone="teal" />
       <Summary icon={AlertTriangle} label="خطط متأخرة" value={String(overdue.length)} tone="rose" />
@@ -44,7 +51,7 @@ export default async function InstallmentsPage({ searchParams }: { searchParams:
     </form>
 
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      {plans.length === 0 ? <EmptyState icon={WalletCards} title="لا توجد خطط أقساط" description="أنشئ أول خطة مستقلة أو قسّط رصيد فاتورة موجودة." /> : <div className="overflow-x-auto"><table className="erp-table min-w-[980px]"><thead><tr><th>رقم الخطة</th><th>العميل</th><th>الوصف</th><th>المصدر</th><th>المدفوع</th><th>المتبقي</th><th>القسط القادم</th><th>الحالة</th><th className="text-center">عرض</th></tr></thead><tbody>{plans.map((plan) => {
+      {plans.length === 0 ? <EmptyState icon={WalletCards} title="لا توجد خطط أقساط" description="أنشئ أول خطة مستقلة أو قسّط رصيد فاتورة موجودة." /> : <div className="overflow-x-auto"><table className="erp-table min-w-[1080px]"><thead><tr><th>رقم الخطة</th><th>العميل</th><th>الوصف</th><th>المصدر</th><th>المدفوع</th><th>المتبقي</th><th>القسط القادم</th><th>الحالة</th><th className="text-center">الإجراءات</th></tr></thead><tbody>{plans.map((plan) => {
         const next = plan.schedules[0];
         const isOverdue = plan.status === InstallmentPlanStatus.ACTIVE && next && next.dueAt < now;
         return <tr key={plan.id}>
@@ -56,7 +63,11 @@ export default async function InstallmentsPage({ searchParams }: { searchParams:
           <td className="font-numeric font-black text-amber-700">{formatCurrency(plan.balanceDue, auth.shop.currency)}</td>
           <td>{next ? <div><div className={`font-numeric text-xs font-black ${isOverdue ? "text-rose-700" : "text-slate-800"}`}>{formatCurrency(Number(next.amount) - Number(next.amountPaid), auth.shop.currency)}</div><div className={`text-[10px] ${isOverdue ? "text-rose-600" : "text-slate-400"}`}>{formatDate(next.dueAt)}</div></div> : "-"}</td>
           <td><PlanStatus status={plan.status} overdue={Boolean(isOverdue)} /></td>
-          <td className="text-center"><Button asChild size="sm" variant="outline"><Link href={`/installments/${plan.id}`}><Eye className="h-4 w-4" /></Link></Button></td>
+          <td><div className="flex items-center justify-center gap-1.5">
+            <Button asChild size="sm" variant="outline" title="عرض"><Link href={`/installments/${plan.id}`}><Eye className="h-4 w-4" /></Link></Button>
+            {canEdit && <Button asChild size="sm" variant="outline" className="text-indigo-700" title="تعديل"><Link href={`/installments/${plan.id}/edit`}><Pencil className="ml-1 h-3.5 w-3.5" />تعديل</Link></Button>}
+            {canDelete && <form action={deleteInstallmentPlanAction}><input type="hidden" name="planId" value={plan.id} /><ConfirmSubmitButton type="submit" size="sm" variant="outline" className="border-rose-200 text-rose-700 hover:bg-rose-50" message={`هل تريد حذف خطة ${plan.planNumber}؟ لا يمكن حذف خطة تحتوي دفعات.`}><Trash2 className="ml-1 h-3.5 w-3.5" />حذف</ConfirmSubmitButton></form>}
+          </div></td>
         </tr>;
       })}</tbody></table></div>}
     </div>
