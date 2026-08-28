@@ -116,6 +116,9 @@ export async function getInvoiceById(shopId: string, invoiceId: string) {
           paidAt: "desc",
         },
       },
+      installmentPlan: {
+        select: { id: true, planNumber: true, status: true },
+      },
     },
   });
 }

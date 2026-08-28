@@ -68,7 +68,8 @@ export function AppShell({
     pathname === "/register" ||
     pathname.includes("/print") ||
     pathname.includes("/sticker") ||
-    pathname.startsWith("/track");
+    pathname.startsWith("/track") ||
+    pathname.startsWith("/installment-track");
 
   if (isPublicPage) {
     return <>{children}</>;
@@ -272,4 +273,3 @@ export function AppShell({
     </div>
   );
 }
-

@@ -114,39 +114,23 @@ export async function addPayment(
     throw new Error("قيمة الدفعة يجب أن تكون أكبر من صفر.");
   }
 
-  const invoice = await prisma.invoice.findFirst({
-    where: {
-      id: invoiceId,
-      shopId,
-      deletedAt: null,
-    },
-  });
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "Invoice" WHERE id = ${invoiceId}::uuid AND "shopId" = ${shopId}::uuid FOR UPDATE`;
+    const invoice = await tx.invoice.findFirst({
+      where: { id: invoiceId, shopId, deletedAt: null },
+      include: { installmentPlan: { select: { id: true } } },
+    });
+    if (!invoice) throw new Error("الفاتورة غير موجودة.");
+    if (invoice.status === InvoiceStatus.VOID) throw new Error("لا يمكن إضافة دفعة على فاتورة ملغاة.");
+    if (invoice.installmentPlan) throw new Error("سجّل الدفعة من خطة الأقساط المرتبطة بهذه الفاتورة.");
+    if (amount.gt(invoice.balanceDue)) throw new Error("قيمة الدفعة أكبر من الرصيد المتبقي.");
 
-  if (!invoice) {
-    throw new Error("الفاتورة غير موجودة.");
-  }
+    const newAmountPaid = invoice.amountPaid.add(amount);
+    const newBalanceDue = invoice.total.sub(newAmountPaid);
+    const newStatus = newBalanceDue.lte(0) ? InvoiceStatus.PAID : InvoiceStatus.PARTIALLY_PAID;
+    const paidAt = newBalanceDue.lte(0) ? invoice.paidAt ?? new Date() : invoice.paidAt;
 
-  if (invoice.status === InvoiceStatus.VOID) {
-    throw new Error("لا يمكن إضافة دفعة على فاتورة ملغاة.");
-  }
-
-  if (amount.gt(invoice.balanceDue)) {
-    throw new Error("قيمة الدفعة أكبر من الرصيد المتبقي.");
-  }
-
-  const newAmountPaid = invoice.amountPaid.add(amount);
-  const newBalanceDue = invoice.total.sub(newAmountPaid);
-
-  let newStatus: InvoiceStatus = InvoiceStatus.PARTIALLY_PAID;
-  let paidAt: Date | null = invoice.paidAt;
-
-  if (newBalanceDue.lte(0)) {
-    newStatus = InvoiceStatus.PAID;
-    paidAt = paidAt ?? new Date();
-  }
-
-  const [, updatedInvoice] = await prisma.$transaction([
-    prisma.payment.create({
+    await tx.payment.create({
       data: {
         shopId,
         invoiceId,
@@ -157,8 +141,8 @@ export async function addPayment(
         note: emptyToNull(input.note),
         paidAt: dateOrNow(input.paidAt),
       },
-    }),
-    prisma.invoice.update({
+    });
+    return tx.invoice.update({
       where: {
         id: invoiceId,
       },
@@ -171,10 +155,8 @@ export async function addPayment(
           increment: 1,
         },
       },
-    }),
-  ]);
-
-  return updatedInvoice;
+    });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 10_000 });
 }
 
 export const paymentService = {
