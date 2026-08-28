@@ -14,6 +14,8 @@ import {
   Layers,
   Users,
   UserPlus,
+  Cpu,
+  WalletCards,
   ArrowLeft,
   ChevronDown,
   ChevronUp,
@@ -37,6 +39,8 @@ const ICON_MAP: Record<string, LucideIcon> = {
   Layers,
   Users,
   UserPlus,
+  Cpu,
+  WalletCards,
 };
 
 function getTypeMeta(type: ChangelogType) {
@@ -100,7 +104,7 @@ export function DashboardUpdatesSection() {
                 نشرة التحديثات والميزات الجديدة
               </h3>
               <span className="rounded-full bg-teal-100/80 border border-teal-200 px-2 py-0.5 text-[10px] font-black text-teal-800 font-numeric">
-                v1.3.0
+                v1.5.0
               </span>
             </div>
             <p className="mt-0.5 text-xs text-slate-500 font-medium">

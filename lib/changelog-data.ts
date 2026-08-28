@@ -9,7 +9,7 @@ export interface ChangelogEntry {
   priority: ChangelogPriority;
   title: string;
   description: string;
-  iconName?: "Sparkles" | "Wrench" | "ShoppingCart" | "Boxes" | "Receipt" | "QrCode" | "Zap" | "ShieldCheck" | "Users" | "UserPlus";
+  iconName?: "Sparkles" | "Wrench" | "ShoppingCart" | "Boxes" | "Receipt" | "QrCode" | "Zap" | "ShieldCheck" | "Users" | "UserPlus" | "Cpu" | "WalletCards";
   actionLabel?: string;
   actionHref?: string;
 }
@@ -20,6 +20,30 @@ export const CHANGELOG_STORAGE_KEYS = {
 } as const;
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
+  {
+    id: "feat-installment-plans-v1-5",
+    version: "v1.5.0",
+    date: "2026-08-28",
+    type: "FEATURE",
+    priority: "HIGH",
+    title: "نظام الدفعات والأقساط مع متابعة العميل",
+    description: "أنشئ خطة أقساط مستقلة أو اربطها بفاتورة، ودع النظام يحسب المبالغ والمواعيد تلقائياً. يحصل العميل على رابط وQR لمتابعة ما دفعه، وما تبقى عليه، وموعد القسط القادم.",
+    iconName: "WalletCards",
+    actionLabel: "فتح الدفعات والأقساط",
+    actionHref: "/installments",
+  },
+  {
+    id: "feat-parts-compatibility-v1-4",
+    version: "v1.4.0",
+    date: "2026-08-28",
+    type: "FEATURE",
+    priority: "HIGH",
+    title: "دليل توافق قطع الهواتف مع المخزون",
+    description: "ابحث عن الجهاز واعرف القطع والأجهزة المتوافقة معه بسهولة، مع ربط النتائج بقطع متجرك المتوفرة في المخزون لتسريع قرار الفني وتقليل أخطاء التركيب.",
+    iconName: "Cpu",
+    actionLabel: "فتح دليل التوافقات",
+    actionHref: "/compatibility",
+  },
   {
     id: "feat-team-employee-management-v1-3",
     version: "v1.3.0",
