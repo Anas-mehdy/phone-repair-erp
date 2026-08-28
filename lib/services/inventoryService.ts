@@ -401,6 +401,14 @@ export async function adjustStock(
   return updatedItem;
 }
 
+export async function softDeleteInventoryItem(shopId: string, inventoryItemId: string) {
+  const result = await prisma.inventoryItem.updateMany({
+    where: { id: inventoryItemId, shopId, deletedAt: null },
+    data: { deletedAt: new Date(), version: { increment: 1 } },
+  });
+  if (result.count === 0) throw new Error("قطعة المخزون غير موجودة أو محذوفة مسبقاً.");
+}
+
 export const inventoryService = {
   listInventoryItems,
   getInventoryItemById,
@@ -408,5 +416,6 @@ export const inventoryService = {
   updateInventoryItemDetails,
   addStock,
   adjustStock,
+  softDeleteInventoryItem,
   getInventoryMovements,
 };

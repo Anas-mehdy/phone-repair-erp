@@ -1,9 +1,9 @@
-import { Eye, Search, UserPlus } from "lucide-react";
+import { Eye, Pencil, Search, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { DatabaseUnavailable } from "@/components/database-unavailable";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
-import { getCurrentShopContext } from "@/lib/current-shop";
+import { getAuthContext } from "@/lib/auth/context";
 import { isDatabaseConnectionError } from "@/lib/database-errors";
 import { formatDateTime } from "@/lib/format";
 import { customerService } from "@/lib/services/customerService";
@@ -25,10 +25,12 @@ export default async function CustomersPage({
   const params = await searchParams;
   const search = params.search ?? "";
   let customers: Awaited<ReturnType<typeof customerService.listCustomers>>;
+  let canManage = false;
 
   try {
-    const { shopId } = await getCurrentShopContext();
-    customers = await customerService.listCustomers(shopId, { search });
+    const auth = await getAuthContext();
+    canManage = auth.permissions.includes("customers:manage");
+    customers = await customerService.listCustomers(auth.shop.id, { search });
   } catch (error) {
     if (isDatabaseConnectionError(error)) {
       return <DatabaseUnavailable />;
@@ -135,12 +137,11 @@ export default async function CustomersPage({
                       {formatDateTime(customer.updatedAt)}
                     </td>
                     <td className="text-center">
-                      <Button asChild variant="outline" size="sm" className="font-bold shadow-xs border-slate-300 hover:bg-primary/10 hover:text-primary hover:border-primary/30 rounded-lg">
+                      <div className="flex items-center justify-center gap-1.5"><Button asChild variant="outline" size="sm" title="عرض" className="font-bold shadow-xs border-slate-300 hover:bg-primary/10 hover:text-primary hover:border-primary/30 rounded-lg">
                         <Link href={`/customers/${customer.id}`}>
-                          <Eye className="h-3.5 w-3.5 ml-1" aria-hidden="true" />
-                          عرض
+                          <Eye className="h-3.5 w-3.5" aria-hidden="true" />
                         </Link>
-                      </Button>
+                      </Button>{canManage && <Button asChild variant="outline" size="sm" className="font-bold text-indigo-700"><Link href={`/customers/${customer.id}#edit-customer`}><Pencil className="ml-1 h-3.5 w-3.5" />تعديل</Link></Button>}</div>
                     </td>
                   </tr>
                 ))}
