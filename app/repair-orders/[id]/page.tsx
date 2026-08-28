@@ -1,5 +1,5 @@
 import QRCode from "qrcode";
-import { ArrowRight, Calculator, FileText, Pencil, Printer, QrCode, Tag, Truck, Wrench } from "lucide-react";
+import { AlertTriangle, ArrowRight, Calculator, CheckCircle2, FileText, Pencil, Printer, QrCode, Tag, Truck, Wrench } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -476,6 +476,30 @@ export default async function RepairOrderDetailsPage({
             <div className="border-b border-slate-100/60 pb-3">
               <h4 className="text-xs font-extrabold text-slate-800">إجراءات صيانة سريعة</h4>
             </div>
+
+            {/* Accounting Notice Alert */}
+            {!existingInvoice ? (
+              <div className="rounded-xl border border-amber-200/90 bg-amber-50/90 p-3 text-xs leading-relaxed text-amber-900 shadow-xs">
+                <div className="flex items-start gap-2.5">
+                  <AlertTriangle className="h-4.5 w-4.5 shrink-0 text-amber-600 mt-0.5" aria-hidden="true" />
+                  <div className="space-y-1">
+                    <p className="font-black text-amber-950 text-xs">تنبيه مالي:</p>
+                    <p className="font-medium text-amber-900 text-[11px] leading-normal">
+                      تسجيل التذكرة لا يضيف قيمتها تلقائياً للإيرادات — اضغط على <strong className="font-bold underline decoration-amber-400">&quot;إنشاء فاتورة صيانة&quot;</strong> لاحتسابها في المبيعات والتقارير المالية وضمان الجهاز.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/70 p-2.5 text-xs text-emerald-900 shadow-xs">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
+                  <p className="font-bold text-emerald-950 text-[11px]">
+                    تمت فوترة هذه التذكرة برقم ({existingInvoice.invoiceNumber})
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* WhatsApp Updates Box */}
             <div className="space-y-2.5">
