@@ -35,12 +35,15 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   let canSettings = false;
+  let canReports = false;
 
   try {
     const auth = await getAuthContext({ allowRedirect: false });
     canSettings = can(auth, "shop:settings");
+    canReports = can(auth, "reports:read");
   } catch {
     canSettings = false;
+    canReports = false;
   }
 
   return (
@@ -50,7 +53,7 @@ export default async function RootLayout({
       className={`${cairo.variable} ${outfit.variable} overflow-x-hidden w-full max-w-full`}
     >
       <body className="font-sans antialiased overflow-x-hidden min-h-screen w-full max-w-full">
-        <AppShell canSettings={canSettings}>{children}</AppShell>
+        <AppShell canSettings={canSettings} canReports={canReports}>{children}</AppShell>
       </body>
     </html>
   );
