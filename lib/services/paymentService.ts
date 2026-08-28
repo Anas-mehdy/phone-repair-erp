@@ -1,7 +1,8 @@
 import { InvoiceStatus, PaymentMethod, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { resolvePaymentSource, type PaymentSourceInput } from "./paymentSourceService";
 
-export type AddPaymentInput = {
+export type AddPaymentInput = PaymentSourceInput & {
   amount: string;
   method: PaymentMethod;
   reference?: string;
@@ -125,6 +126,8 @@ export async function addPayment(
     if (invoice.installmentPlan) throw new Error("سجّل الدفعة من خطة الأقساط المرتبطة بهذه الفاتورة.");
     if (amount.gt(invoice.balanceDue)) throw new Error("قيمة الدفعة أكبر من الرصيد المتبقي.");
 
+    const sourceName = await resolvePaymentSource(tx, shopId, input);
+
     const newAmountPaid = invoice.amountPaid.add(amount);
     const newBalanceDue = invoice.total.sub(newAmountPaid);
     const newStatus = newBalanceDue.lte(0) ? InvoiceStatus.PAID : InvoiceStatus.PARTIALLY_PAID;
@@ -136,6 +139,7 @@ export async function addPayment(
         invoiceId,
         createdByUserId,
         method: input.method,
+        sourceName,
         amount,
         reference: emptyToNull(input.reference),
         note: emptyToNull(input.note),

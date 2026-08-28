@@ -11,6 +11,7 @@ import {
 
 import { prisma } from "@/lib/prisma";
 import { normalizePhone } from "./customerService";
+import { resolvePaymentSource, type PaymentSourceInput } from "./paymentSourceService";
 
 export type CreateInstallmentPlanInput = {
   clientGeneratedId?: string;
@@ -28,7 +29,7 @@ export type CreateInstallmentPlanInput = {
   firstDueAt: string;
 };
 
-export type AddInstallmentPaymentInput = {
+export type AddInstallmentPaymentInput = PaymentSourceInput & {
   clientGeneratedId?: string;
   amount: string;
   method: PaymentMethod;
@@ -239,6 +240,8 @@ export async function addPayment(
     if (plan.status !== InstallmentPlanStatus.ACTIVE) throw new Error("لا يمكن تسجيل دفعة على خطة غير نشطة.");
     if (paymentCents > cents(plan.balanceDue)) throw new Error("قيمة الدفعة أكبر من الرصيد المتبقي.");
 
+    const sourceName = await resolvePaymentSource(tx, shopId, input);
+
     const payment = await tx.installmentPayment.create({
       data: {
         shopId,
@@ -247,6 +250,7 @@ export async function addPayment(
         clientGeneratedId: emptyToNull(input.clientGeneratedId),
         amount: money(paymentCents),
         method: input.method,
+        sourceName,
         reference: emptyToNull(input.reference),
         note: emptyToNull(input.note),
         paidAt: paidDate(input.paidAt),
@@ -305,6 +309,7 @@ export async function addPayment(
           clientGeneratedId: input.clientGeneratedId ? `installment:${input.clientGeneratedId}` : null,
           amount: money(paymentCents),
           method: input.method,
+          sourceName,
           reference: emptyToNull(input.reference) || plan.planNumber,
           note: emptyToNull(input.note) || `دفعة أقساط ${plan.planNumber}`,
           paidAt: paidDate(input.paidAt),
@@ -482,7 +487,7 @@ export function getPublicPlan(planId: string, tokenVersion: number) {
       shop: { select: { name: true, phone: true, address: true, currency: true } },
       customer: { select: { name: true } },
       schedules: { orderBy: { installmentNo: "asc" } },
-      payments: { where: { voidedAt: null }, select: { id: true, amount: true, method: true, paidAt: true, isDownPayment: true }, orderBy: { paidAt: "desc" } },
+      payments: { where: { voidedAt: null }, select: { id: true, amount: true, method: true, sourceName: true, paidAt: true, isDownPayment: true }, orderBy: { paidAt: "desc" } },
     },
   });
 }
