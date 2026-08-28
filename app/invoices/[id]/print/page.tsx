@@ -159,7 +159,7 @@ export default async function InvoicePrintPage({ params }: InvoicePrintPageProps
               <span className="font-bold block text-slate-800">سجل الدفعات:</span>
               {invoice.payments.map((pmt) => (
                 <div key={pmt.id} className="flex justify-between font-numeric">
-                  <span>{formatDateTime(pmt.paidAt)} ({pmt.method})</span>
+                  <span>{formatDateTime(pmt.paidAt)} ({pmt.method}{pmt.sourceName ? ` - ${pmt.sourceName}` : ""})</span>
                   <span className="font-bold text-slate-900">{formatCurrency(pmt.amount, currency)}</span>
                 </div>
               ))}

@@ -8,11 +8,13 @@ import { notFound } from "next/navigation";
 import QRCode from "qrcode";
 
 import { SubmitButton } from "@/components/submit-button";
+import { PaymentSourceField } from "@/components/payment-source-field";
 import { Button } from "@/components/ui/button";
 import { requirePermission } from "@/lib/auth/context";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
 import { createInstallmentPublicToken } from "@/lib/installment-public-link";
 import { installmentService } from "@/lib/services/installmentService";
+import { paymentSourceService } from "@/lib/services/paymentSourceService";
 import { addInstallmentPaymentAction, rotateInstallmentLinkAction } from "../actions";
 import { PlanStatus } from "../_components";
 import { CopyInstallmentLink } from "./_copy-link";
@@ -22,7 +24,10 @@ export const dynamic = "force-dynamic";
 export default async function InstallmentDetailsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string; created?: string; paid?: string; linkReset?: string; updated?: string }> }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const auth = await requirePermission("invoices:read");
-  const plan = await installmentService.getPlanById(auth.shop.id, id);
+  const [plan, paymentSources] = await Promise.all([
+    installmentService.getPlanById(auth.shop.id, id),
+    paymentSourceService.listPaymentSourceOptions(auth.shop.id),
+  ]);
   if (!plan) notFound();
 
   const token = await createInstallmentPublicToken(plan.id, plan.publicTokenVersion);
@@ -63,7 +68,7 @@ export default async function InstallmentDetailsPage({ params, searchParams }: {
 
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-100 p-5"><h2 className="font-black text-slate-900">سجل الدفعات</h2></div>
-          {plan.payments.length === 0 ? <div className="p-8 text-center text-sm text-slate-400">لا توجد دفعات مسجلة بعد.</div> : <div className="overflow-x-auto"><table className="erp-table min-w-[620px]"><thead><tr><th>التاريخ</th><th>المبلغ</th><th>الطريقة</th><th>المرجع</th><th>ملاحظات</th></tr></thead><tbody>{plan.payments.map((payment) => <tr key={payment.id}><td>{formatDateTime(payment.paidAt)}</td><td className="font-numeric font-black text-emerald-700">{formatCurrency(payment.amount, auth.shop.currency)}</td><td>{paymentMethod(payment.method)}</td><td>{payment.reference || "-"}</td><td>{payment.isDownPayment ? "دفعة أولى" : payment.note || "-"}</td></tr>)}</tbody></table></div>}
+          {plan.payments.length === 0 ? <div className="p-8 text-center text-sm text-slate-400">لا توجد دفعات مسجلة بعد.</div> : <div className="overflow-x-auto"><table className="erp-table min-w-[720px]"><thead><tr><th>التاريخ</th><th>المبلغ</th><th>الطريقة</th><th>مصدر الدفع</th><th>المرجع</th><th>ملاحظات</th></tr></thead><tbody>{plan.payments.map((payment) => <tr key={payment.id}><td>{formatDateTime(payment.paidAt)}</td><td className="font-numeric font-black text-emerald-700">{formatCurrency(payment.amount, auth.shop.currency)}</td><td>{paymentMethod(payment.method)}</td><td className="font-bold text-indigo-700">{payment.sourceName || "-"}</td><td>{payment.reference || "-"}</td><td>{payment.isDownPayment ? "دفعة أولى" : payment.note || "-"}</td></tr>)}</tbody></table></div>}
         </section>
       </div>
 
@@ -79,6 +84,7 @@ export default async function InstallmentDetailsPage({ params, searchParams }: {
           <h2 className="font-black text-slate-900">تسجيل دفعة جديدة</h2>
           <label className="grid gap-2"><span className="text-xs font-bold">المبلغ</span><input name="amount" className="erp-input" type="number" min="0.01" max={plan.balanceDue.toString()} step="0.01" required /></label>
           <label className="grid gap-2"><span className="text-xs font-bold">طريقة الدفع</span><select name="method" className="erp-input" defaultValue={PaymentMethod.CASH}><option value="CASH">نقدي</option><option value="CARD">بطاقة</option><option value="BANK_TRANSFER">تحويل بنكي</option><option value="OTHER">أخرى</option></select></label>
+          <PaymentSourceField options={paymentSources} />
           <label className="grid gap-2"><span className="text-xs font-bold">المرجع</span><input name="reference" className="erp-input" placeholder="اختياري" /></label>
           <label className="grid gap-2"><span className="text-xs font-bold">تاريخ الدفع</span><input name="paidAt" className="erp-input" type="date" /></label>
           <label className="grid gap-2"><span className="text-xs font-bold">ملاحظات</span><textarea name="note" className="erp-textarea" /></label>

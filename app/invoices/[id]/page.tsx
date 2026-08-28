@@ -11,9 +11,11 @@ import {
 } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/submit-button";
+import { PaymentSourceField } from "@/components/payment-source-field";
 import { getCurrentShopContext } from "@/lib/current-shop";
 import { isDatabaseConnectionError } from "@/lib/database-errors";
 import { invoiceService } from "@/lib/services/invoiceService";
+import { paymentSourceService } from "@/lib/services/paymentSourceService";
 import { whatsappService } from "@/lib/services/whatsappService";
 import {
   Field,
@@ -46,6 +48,7 @@ export default async function InvoiceDetailsPage({
   const { id } = await params;
   const query = await searchParams;
   let invoice: Awaited<ReturnType<typeof invoiceService.getInvoiceById>>;
+  let paymentSources: Awaited<ReturnType<typeof paymentSourceService.listPaymentSourceOptions>> = [];
 
   let currency = "SAR";
   let shopName = "";
@@ -53,7 +56,10 @@ export default async function InvoiceDetailsPage({
     const context = await getCurrentShopContext();
     currency = context.currency;
     shopName = context.shopName;
-    invoice = await invoiceService.getInvoiceById(context.shopId, id);
+    [invoice, paymentSources] = await Promise.all([
+      invoiceService.getInvoiceById(context.shopId, id),
+      paymentSourceService.listPaymentSourceOptions(context.shopId),
+    ]);
   } catch (error) {
     if (isDatabaseConnectionError(error)) {
       return <DatabaseUnavailable />;
@@ -181,6 +187,7 @@ export default async function InvoiceDetailsPage({
                       <tr>
                         <th className="text-slate-700">المبلغ المدفوع</th>
                         <th className="text-slate-700">طريقة الدفع</th>
+                        <th className="text-slate-700">مصدر الدفع</th>
                         <th className="text-slate-700">المرجع / السند</th>
                         <th className="text-slate-700">الملاحظة</th>
                         <th className="text-slate-700">تاريخ الدفع</th>
@@ -193,6 +200,7 @@ export default async function InvoiceDetailsPage({
                           <td>
                             <PaymentMethodBadge method={payment.method} />
                           </td>
+                          <td className="font-bold text-indigo-700">{payment.sourceName ?? "-"}</td>
                           <td className="font-numeric text-slate-500 font-medium">{payment.reference ?? "-"}</td>
                           <td className="text-slate-500 text-xs font-medium">{payment.note ?? "-"}</td>
                           <td className="font-numeric text-slate-500 font-medium">{formatDate(payment.paidAt)}</td>
@@ -242,6 +250,7 @@ export default async function InvoiceDetailsPage({
                   ))}
                 </select>
               </Field>
+              <PaymentSourceField options={paymentSources} disabled={!canAddPayment} />
               <Field label="رقم المرجع (سند القبض)">
                 <input
                   className={inputClassName}
