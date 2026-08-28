@@ -57,15 +57,35 @@ export const navGroups: NavGroup[] = [
     items: [
       { href: "/customers", label: "إدارة العملاء", icon: UserRound },
       { href: "/suppliers", label: "الموردون وقطع الغيار", icon: Truck },
-      { href: "/inventory", label: "المستودع والمخزون", icon: Boxes },
+      {
+        href: "/inventory",
+        label: "المستودع والمخزون",
+        icon: Boxes,
+        badge: {
+          text: "جديد",
+          className: "border-fuchsia-500/30 bg-gradient-to-r from-fuchsia-500 to-violet-600 text-white shadow-sm shadow-fuchsia-500/20",
+        },
+      },
       {
         href: "/compatibility",
         label: "التوافقات والمخزون",
         icon: Cpu,
+        badge: {
+          text: "جديد",
+          className: "border-fuchsia-500/30 bg-gradient-to-r from-fuchsia-500 to-violet-600 text-white shadow-sm shadow-fuchsia-500/20",
+        },
       },
 
       { href: "/invoices", label: "الفواتير والمالية", icon: Receipt },
-      { href: "/installments", label: "الدفعات والأقساط", icon: WalletCards },
+      {
+        href: "/installments",
+        label: "الدفعات والأقساط",
+        icon: WalletCards,
+        badge: {
+          text: "جديد",
+          className: "border-fuchsia-500/30 bg-gradient-to-r from-fuchsia-500 to-violet-600 text-white shadow-sm shadow-fuchsia-500/20",
+        },
+      },
     ],
   },
   {
