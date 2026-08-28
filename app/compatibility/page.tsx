@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AlertTriangle, Battery, Cable, Check, ChevronLeft, Frame,
-  Loader2, PanelsTopLeft, PlugZap, Radio, ScanLine, Search, ShieldCheck,
+  Loader2, PackageCheck, PanelsTopLeft, PlugZap, Radio, ScanLine, Search, ShieldCheck,
   SlidersHorizontal, Smartphone, Tv, X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import Link from "next/link";
 
 import { PageHeader } from "@/components/page-header";
 
@@ -23,6 +24,14 @@ interface DirectoryResult {
   compatibleDevices: DirectoryDevice[];
   partCode: string | null;
   capacityMah: number | null;
+  inventoryItems: {
+    id: string;
+    name: string;
+    sku: string | null;
+    quantity: number;
+    unitPrice: number;
+    currency: string;
+  }[];
 }
 
 type ActiveCategory =
@@ -326,6 +335,47 @@ export default function TechnicianCompatibilityPage() {
                         </div>
                       ))}
                     </div>
+
+                    {selected.inventoryItems.length > 0 ? (
+                      <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4">
+                        <div className="flex items-center gap-2 text-sm font-black text-emerald-900">
+                          <PackageCheck className="h-5 w-5 text-emerald-600" />
+                          متوفر في مخزونك
+                        </div>
+                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                          {selected.inventoryItems.map((item) => (
+                            <Link
+                              key={item.id}
+                              href={`/inventory/${item.id}`}
+                              className="flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-white p-3 transition hover:border-emerald-400 hover:shadow-sm"
+                            >
+                              <div className="min-w-0">
+                                <div className="truncate text-xs font-black text-slate-900">{item.name}</div>
+                                <div className="mt-1 text-[10px] font-bold text-slate-400">{item.sku ? `SKU: ${item.sku}` : "عرض قطعة المخزون"}</div>
+                              </div>
+                              <div className="shrink-0 text-left">
+                                <div className={`text-sm font-black ${item.quantity > 0 ? "text-emerald-700" : "text-rose-600"}`}>{item.quantity} قطعة</div>
+                                <div className="mt-0.5 font-numeric text-[10px] font-bold text-slate-500">{item.unitPrice.toFixed(2)} {item.currency}</div>
+                              </div>
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mt-6 flex flex-col gap-3 rounded-2xl border border-dashed border-violet-200 bg-violet-50/40 p-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <div className="text-xs font-black text-slate-800">لا توجد قطعة من مخزونك مرتبطة بهذه المجموعة</div>
+                          <div className="mt-1 text-[10px] font-medium text-slate-500">يمكنك إضافة القطعة وربطها مباشرة بجميع الأجهزة الظاهرة أعلاه.</div>
+                        </div>
+                        <Link
+                          href={`/inventory/new?groupId=${encodeURIComponent(selected.groupId)}&name=${encodeURIComponent(`${selectedMeta.label} ${selected.deviceName}`)}&category=${encodeURIComponent(selectedMeta.label)}`}
+                          className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 px-4 text-xs font-black text-white shadow-sm"
+                        >
+                          <PackageCheck className="h-4 w-4" />
+                          إضافة وربط بالمخزون
+                        </Link>
+                      </div>
+                    )}
 
                     <div className="mt-6 rounded-xl bg-slate-50 px-4 py-3 text-xs font-medium leading-6 text-slate-500">
                       {selectedMeta.installWarning}

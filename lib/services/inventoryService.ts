@@ -1,4 +1,9 @@
-import { InventoryMovementType, Prisma } from "@prisma/client";
+import {
+  CompatibilityCandidateStatus,
+  CompatibilityImportStatus,
+  InventoryMovementType,
+  Prisma,
+} from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 export type InventoryItemFilters = {
@@ -15,6 +20,7 @@ export type CreateInventoryItemInput = {
   unitPrice: string;
   quantity?: string;
   reorderLevel?: string;
+  compatibilityGroupIds?: string[];
 };
 
 export type UpdateInventoryItemDetailsInput = {
@@ -25,6 +31,7 @@ export type UpdateInventoryItemDetailsInput = {
   unitCost?: string;
   unitPrice: string;
   reorderLevel?: string;
+  compatibilityGroupIds?: string[];
 };
 
 export type AddStockInput = {
@@ -88,6 +95,9 @@ export async function listInventoryItems(
     orderBy: {
       updatedAt: "desc",
     },
+    include: {
+      _count: { select: { compatibilityGroupLinks: true } },
+    },
     take: 100,
   });
 
@@ -106,7 +116,57 @@ export async function getInventoryItemById(
       shopId,
       deletedAt: null,
     },
+    include: {
+      compatibilityGroupLinks: {
+        include: {
+          candidateGroup: {
+            include: {
+              batch: { select: { categoryName: true } },
+              members: {
+                orderBy: { position: "asc" },
+                select: { id: true, rawModelName: true },
+              },
+            },
+          },
+        },
+      },
+    },
   });
+}
+
+function uniqueGroupIds(ids?: string[]) {
+  return [...new Set((ids || []).filter(Boolean))];
+}
+
+async function validateCompatibilityGroups(
+  tx: Prisma.TransactionClient,
+  ids?: string[],
+) {
+  const groupIds = uniqueGroupIds(ids);
+  if (groupIds.length === 0) return groupIds;
+
+  const validGroups = await tx.compatibilityCandidateGroup.count({
+    where: {
+      id: { in: groupIds },
+      status: {
+        in: [
+          CompatibilityCandidateStatus.READY_FOR_CORROBORATION,
+          CompatibilityCandidateStatus.APPROVED,
+        ],
+      },
+      batch: {
+        status: {
+          in: [CompatibilityImportStatus.READY_FOR_REVIEW, CompatibilityImportStatus.IMPORTED],
+        },
+      },
+    },
+  });
+
+  if (validGroups !== groupIds.length) {
+    throw new Error("مجموعة التوافق المحددة غير متاحة أو لم تعد صالحة.");
+  }
+
+  return groupIds;
 }
 
 export async function getInventoryMovements(
@@ -142,6 +202,10 @@ export async function createInventoryItem(
   const initialQuantity = integerOrZero(input.quantity);
 
   return prisma.$transaction(async (tx) => {
+    const compatibilityGroupIds = await validateCompatibilityGroups(
+      tx,
+      input.compatibilityGroupIds,
+    );
     const item = await tx.inventoryItem.create({
       data: {
         shopId,
@@ -155,6 +219,15 @@ export async function createInventoryItem(
         reorderLevel: integerOrZero(input.reorderLevel),
       },
     });
+
+    if (compatibilityGroupIds.length > 0) {
+      await tx.inventoryCompatibilityGroup.createMany({
+        data: compatibilityGroupIds.map((candidateGroupId) => ({
+          inventoryItemId: item.id,
+          candidateGroupId,
+        })),
+      });
+    }
 
     if (initialQuantity > 0) {
       await tx.inventoryMovement.create({
@@ -186,22 +259,39 @@ export async function updateInventoryItemDetails(
     throw new Error("قطعة المخزون غير موجودة.");
   }
 
-  return prisma.inventoryItem.update({
-    where: {
-      id: inventoryItemId,
-    },
-    data: {
-      name: input.name.trim(),
-      category: emptyToNull(input.category),
-      sku: emptyToNull(input.sku),
-      description: emptyToNull(input.description),
-      unitCost: decimalOrNull(input.unitCost),
-      unitPrice: decimalOrZero(input.unitPrice),
-      reorderLevel: integerOrZero(input.reorderLevel),
-      version: {
-        increment: 1,
+  return prisma.$transaction(async (tx) => {
+    const compatibilityGroupIds = await validateCompatibilityGroups(
+      tx,
+      input.compatibilityGroupIds,
+    );
+
+    const item = await tx.inventoryItem.update({
+      where: { id: inventoryItemId },
+      data: {
+        name: input.name.trim(),
+        category: emptyToNull(input.category),
+        sku: emptyToNull(input.sku),
+        description: emptyToNull(input.description),
+        unitCost: decimalOrNull(input.unitCost),
+        unitPrice: decimalOrZero(input.unitPrice),
+        reorderLevel: integerOrZero(input.reorderLevel),
+        version: { increment: 1 },
       },
-    },
+    });
+
+    await tx.inventoryCompatibilityGroup.deleteMany({
+      where: { inventoryItemId },
+    });
+    if (compatibilityGroupIds.length > 0) {
+      await tx.inventoryCompatibilityGroup.createMany({
+        data: compatibilityGroupIds.map((candidateGroupId) => ({
+          inventoryItemId,
+          candidateGroupId,
+        })),
+      });
+    }
+
+    return item;
   });
 }
 

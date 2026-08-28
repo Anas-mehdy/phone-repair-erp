@@ -47,6 +47,7 @@ const createInventoryItemSchema = z.object({
   unitPrice: requiredMoneySchema,
   quantity: nonNegativeIntegerSchema,
   reorderLevel: nonNegativeIntegerSchema,
+  compatibilityGroupIds: z.array(z.string().uuid()).max(5),
 });
 
 const updateInventoryItemDetailsSchema = z.object({
@@ -58,6 +59,7 @@ const updateInventoryItemDetailsSchema = z.object({
   unitCost: optionalMoneySchema,
   unitPrice: requiredMoneySchema,
   reorderLevel: nonNegativeIntegerSchema,
+  compatibilityGroupIds: z.array(z.string().uuid()).max(5),
 });
 
 const addStockSchema = z.object({
@@ -83,6 +85,10 @@ function readString(formData: FormData, key: string) {
   return typeof value === "string" ? value : "";
 }
 
+function readStrings(formData: FormData, key: string) {
+  return formData.getAll(key).filter((value): value is string => typeof value === "string" && value.length > 0);
+}
+
 export async function createInventoryItemAction(formData: FormData) {
   const input = createInventoryItemSchema.parse({
     name: readString(formData, "name"),
@@ -93,6 +99,7 @@ export async function createInventoryItemAction(formData: FormData) {
     unitPrice: readString(formData, "unitPrice"),
     quantity: readString(formData, "quantity"),
     reorderLevel: readString(formData, "reorderLevel"),
+    compatibilityGroupIds: readStrings(formData, "compatibilityGroupIds"),
   });
 
   const auth = await requirePermission("inventory:manage");
@@ -112,6 +119,7 @@ export async function updateInventoryItemDetailsAction(formData: FormData) {
     unitCost: readString(formData, "unitCost"),
     unitPrice: readString(formData, "unitPrice"),
     reorderLevel: readString(formData, "reorderLevel"),
+    compatibilityGroupIds: readStrings(formData, "compatibilityGroupIds"),
   });
 
   const auth = await requirePermission("inventory:manage");

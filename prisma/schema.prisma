@@ -413,11 +413,12 @@ model InventoryItem {
   deletedAt         DateTime?
   version           Int       @default(1)
 
-  shop             Shop                @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  part             Part?               @relation(fields: [partId], references: [id], onDelete: SetNull)
-  movements        InventoryMovement[]
-  saleItems        SaleItem[]
-  repairOrderItems RepairOrderItem[]
+  shop                    Shop                          @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  part                    Part?                         @relation(fields: [partId], references: [id], onDelete: SetNull)
+  movements               InventoryMovement[]
+  saleItems               SaleItem[]
+  repairOrderItems        RepairOrderItem[]
+  compatibilityGroupLinks InventoryCompatibilityGroup[]
 
   @@unique([shopId, clientGeneratedId])
   @@index([shopId, sku])
@@ -665,28 +666,28 @@ model InstallmentSchedule {
 }
 
 model InstallmentPayment {
-  id              String        @id @default(uuid()) @db.Uuid
-  shopId          String        @db.Uuid
-  planId          String        @db.Uuid
-  createdByUserId String?       @db.Uuid
+  id                String        @id @default(uuid()) @db.Uuid
+  shopId            String        @db.Uuid
+  planId            String        @db.Uuid
+  createdByUserId   String?       @db.Uuid
   clientGeneratedId String?
-  amount          Decimal       @db.Decimal(12, 2)
-  method          PaymentMethod
-  reference       String?
-  note            String?
-  isDownPayment   Boolean       @default(false)
-  paidAt          DateTime      @default(now())
-  createdAt       DateTime      @default(now())
-  voidedAt        DateTime?
-  voidReason      String?
+  amount            Decimal       @db.Decimal(12, 2)
+  method            PaymentMethod
+  reference         String?
+  note              String?
+  isDownPayment     Boolean       @default(false)
+  paidAt            DateTime      @default(now())
+  createdAt         DateTime      @default(now())
+  voidedAt          DateTime?
+  voidReason        String?
 
   shop          Shop                           @relation(fields: [shopId], references: [id], onDelete: Cascade)
   plan          InstallmentPlan                @relation(fields: [planId], references: [id], onDelete: Restrict)
   createdByUser User?                          @relation("InstallmentPaymentCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
   allocations   InstallmentPaymentAllocation[]
 
-  @@index([shopId, planId, paidAt])
   @@unique([shopId, clientGeneratedId])
+  @@index([shopId, planId, paidAt])
   @@index([shopId, createdByUserId])
   @@index([createdByUserId])
   @@index([planId, voidedAt])
@@ -1034,11 +1035,27 @@ model CompatibilityCandidateGroup {
   updatedAt       DateTime                       @updatedAt
   batch           CompatibilityImportBatch       @relation(fields: [batchId], references: [id], onDelete: Cascade)
   members         CompatibilityCandidateMember[]
+  inventoryLinks  InventoryCompatibilityGroup[]
 
   @@unique([batchId, sourceGroupId])
   @@index([status])
   @@index([mappedCategory])
   @@index([brandSection])
+}
+
+/// ربط صريح بين صنف المخزون ومجموعة توافق؛ لا يعتمد على تشابه الأسماء.
+model InventoryCompatibilityGroup {
+  id               String   @id @default(uuid()) @db.Uuid
+  inventoryItemId  String   @db.Uuid
+  candidateGroupId String   @db.Uuid
+  createdAt        DateTime @default(now())
+
+  inventoryItem  InventoryItem               @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+  candidateGroup CompatibilityCandidateGroup @relation(fields: [candidateGroupId], references: [id], onDelete: Cascade)
+
+  @@unique([inventoryItemId, candidateGroupId])
+  @@index([inventoryItemId])
+  @@index([candidateGroupId])
 }
 
 /// اسم جهاز خام داخل مجموعة مرشحة، مع إمكانية ربطه بجهاز دقيق بعد المراجعة.

@@ -25,6 +25,16 @@ export interface CompatibilityDirectoryResult {
   compatibleDevices: CompatibilityDirectoryDevice[];
   partCode: string | null;
   capacityMah: number | null;
+  inventoryItems: CompatibilityDirectoryInventoryItem[];
+}
+
+export interface CompatibilityDirectoryInventoryItem {
+  id: string;
+  name: string;
+  sku: string | null;
+  quantity: number;
+  unitPrice: number;
+  currency: string;
 }
 
 const VISIBLE_CANDIDATE_STATUSES: CompatibilityCandidateStatus[] = [
@@ -49,7 +59,7 @@ function relevanceScore(deviceName: string, normalizedQuery: string): number {
  */
 export async function searchCompatibilityDirectory(
   query: string,
-  options: { dataset?: CompatibilityDatasetKey; limit?: number } = {}
+  options: { shopId: string; dataset?: CompatibilityDatasetKey; limit?: number }
 ): Promise<CompatibilityDirectoryResult[]> {
   const normalizedQuery = normalizeSearchString(query);
   if (normalizedQuery.length < 2) return [];
@@ -84,6 +94,26 @@ export async function searchCompatibilityDirectory(
           members: {
             orderBy: { position: "asc" },
             select: { id: true, rawModelName: true },
+          },
+          inventoryLinks: {
+            where: {
+              inventoryItem: {
+                shopId: options.shopId,
+                deletedAt: null,
+              },
+            },
+            select: {
+              inventoryItem: {
+                select: {
+                  id: true,
+                  name: true,
+                  sku: true,
+                  quantity: true,
+                  unitPrice: true,
+                  shop: { select: { currency: true } },
+                },
+              },
+            },
           },
         },
       },
@@ -124,10 +154,38 @@ export async function searchCompatibilityDirectory(
       })),
       partCode: batteryDetails?.batteryCode || null,
       capacityMah: batteryDetails?.capacityMah || null,
+      inventoryItems: match.candidateGroup.inventoryLinks.map(({ inventoryItem }) => ({
+        id: inventoryItem.id,
+        name: inventoryItem.name,
+        sku: inventoryItem.sku,
+        quantity: inventoryItem.quantity,
+        unitPrice: Number(inventoryItem.unitPrice),
+        currency: inventoryItem.shop.currency,
+      })),
     });
 
     if (results.length >= limit) break;
   }
 
   return results;
+}
+
+export async function getCompatibilityGroupSelection(groupId: string) {
+  return prisma.compatibilityCandidateGroup.findFirst({
+    where: {
+      id: groupId,
+      status: { in: VISIBLE_CANDIDATE_STATUSES },
+      batch: { status: { in: SEARCHABLE_BATCH_STATUSES } },
+    },
+    select: {
+      id: true,
+      brandSection: true,
+      mappedCategory: true,
+      batch: { select: { categoryName: true } },
+      members: {
+        orderBy: { position: "asc" },
+        select: { id: true, rawModelName: true },
+      },
+    },
+  });
 }
