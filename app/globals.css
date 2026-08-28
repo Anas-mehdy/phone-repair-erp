@@ -288,8 +288,181 @@
 
 @media (prefers-reduced-motion: reduce) {
   .masar-path-beam,
-  .masar-stage-icon {
-    animation: none;
+  .masar-stage-icon,
+  .masar-wave-track,
+  .masar-ambient-orb {
+    animation: none !important;
   }
 }
+
+/* ==========================================================================
+   Masar Antigravity-Inspired Fluid Wave Background (Flowing Right to Left)
+   ========================================================================== */
+
+.masar-wave-container {
+  background: linear-gradient(
+    135deg,
+    rgba(240, 253, 250, 0.8) 0%,
+    rgba(255, 255, 255, 0.95) 45%,
+    rgba(245, 247, 255, 0.85) 100%
+  );
+}
+
+.masar-ambient-orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(52px);
+  pointer-events: none;
+  opacity: 0.7;
+  will-change: transform;
+}
+
+.masar-orb-teal {
+  top: -15%;
+  right: -8%;
+  width: 22rem;
+  height: 22rem;
+  background: radial-gradient(circle, rgba(20, 184, 166, 0.28) 0%, rgba(6, 182, 212, 0.12) 60%, transparent 75%);
+  animation: masar-orb-float-1 18s ease-in-out infinite alternate;
+}
+
+.masar-orb-indigo {
+  bottom: -22%;
+  left: -8%;
+  width: 25rem;
+  height: 25rem;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.22) 0%, rgba(168, 85, 247, 0.1) 60%, transparent 75%);
+  animation: masar-orb-float-2 22s ease-in-out infinite alternate;
+}
+
+.masar-orb-sky {
+  top: 15%;
+  left: 35%;
+  width: 18rem;
+  height: 18rem;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.2) 0%, transparent 70%);
+  animation: masar-orb-float-3 15s ease-in-out infinite alternate;
+}
+
+.masar-subtle-grid {
+  position: absolute;
+  inset: 0;
+  opacity: 0.03;
+  background-image: radial-gradient(#0f172a 1.2px, transparent 1.2px);
+  background-size: 26px 26px;
+  pointer-events: none;
+}
+
+.masar-wave-track {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  width: 200%;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.masar-wave-svg {
+  width: 50%;
+  height: 100%;
+  flex-shrink: 0;
+  display: block;
+}
+
+.masar-wave-track-1 {
+  height: 115px;
+  z-index: 3;
+  animation: masar-wave-flow-1 15s linear infinite;
+}
+
+.masar-wave-track-2 {
+  height: 145px;
+  z-index: 2;
+  animation: masar-wave-flow-2 22s linear infinite;
+}
+
+.masar-wave-track-3 {
+  height: 180px;
+  z-index: 1;
+  animation: masar-wave-flow-3 32s linear infinite;
+}
+
+.masar-glass-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.45) 0%,
+    rgba(255, 255, 255, 0.05) 55%,
+    rgba(255, 255, 255, 0.4) 100%
+  );
+  pointer-events: none;
+}
+
+/* Fluid Right-to-Left continuous wave flow keyframes with harmonic vertical breathing */
+@keyframes masar-wave-flow-1 {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(-25%, 3px, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+@keyframes masar-wave-flow-2 {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(-25%, -5px, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+@keyframes masar-wave-flow-3 {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(-25%, 4px, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+@keyframes masar-orb-float-1 {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    transform: translate3d(-25px, 18px, 0) scale(1.1);
+  }
+}
+
+@keyframes masar-orb-float-2 {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    transform: translate3d(30px, -20px, 0) scale(1.12);
+  }
+}
+
+@keyframes masar-orb-float-3 {
+  0% {
+    transform: translate3d(0, 0, 0) scale(0.95);
+  }
+  100% {
+    transform: translate3d(-18px, -15px, 0) scale(1.08);
+  }
+}
+
 

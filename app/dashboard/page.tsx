@@ -25,6 +25,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { dashboardService } from "@/lib/services/dashboardService";
 import { DashboardUpdatesSection } from "@/components/dashboard/dashboard-updates-section";
 import { MasarJourney } from "@/components/dashboard/masar-journey";
+import { MasarWaveBackground } from "@/components/dashboard/masar-wave-background";
 
 export const dynamic = "force-dynamic";
 
@@ -134,8 +135,7 @@ export default async function DashboardPage() {
     <div className="space-y-8">
       {/* Masar brand and decorative device journey */}
       <section className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm shadow-slate-200/60 sm:p-7">
-        <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-teal-100/50 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-28 -left-24 h-64 w-64 rounded-full bg-indigo-100/40 blur-3xl" />
+        <MasarWaveBackground />
 
         <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold text-slate-500 sm:text-[11px]">
