@@ -19,25 +19,25 @@ enum UserRole {
 
 // Modern Multi-User Membership Roles
 enum MembershipRole {
-  OWNER        // مالك المتجر: تحكم كامل بالمتجر والموظفين والاشتراكات
-  ADMIN        // مدير الفرع: إدارة العمليات والمخزون والفريق (دون الفوترة وحذف المتجر)
-  TECHNICIAN   // فني صيانة: إنشاء وتعديل تذاكر الصيانة وقطع الغيار
-  VIEWER       // مشاهد: قراءة التقارير والتذاكر دون تعديل
+  OWNER // مالك المتجر: تحكم كامل بالمتجر والموظفين والاشتراكات
+  ADMIN // مدير الفرع: إدارة العمليات والمخزون والفريق (دون الفوترة وحذف المتجر)
+  TECHNICIAN // فني صيانة: إنشاء وتعديل تذاكر الصيانة وقطع الغيار
+  VIEWER // مشاهد: قراءة التقارير والتذاكر دون تعديل
 }
 
 // Membership Status Lifecycle
 enum MembershipStatus {
-  ACTIVE       // عضو نشط يحق له الوصول
-  SUSPENDED    // عضو مجمد مؤقتاً بواسطة المالك
-  REMOVED      // عضو ملغى من المتجر مع الحفاظ على سجل عملياته
+  ACTIVE // عضو نشط يحق له الوصول
+  SUSPENDED // عضو مجمد مؤقتاً بواسطة المالك
+  REMOVED // عضو ملغى من المتجر مع الحفاظ على سجل عملياته
 }
 
 // Invitation Lifecycle
 enum InvitationStatus {
-  PENDING      // دعوة قيد الانتظار لم تُقبل بعد
-  ACCEPTED     // دعوة تم قبولها وانضم الموظف
-  REVOKED      // دعوة تم إلغاؤها من قبل الإدارة
-  EXPIRED      // دعوة انتهت صلاحيتها الزمنية
+  PENDING // دعوة قيد الانتظار لم تُقبل بعد
+  ACCEPTED // دعوة تم قبولها وانضم الموظف
+  REVOKED // دعوة تم إلغاؤها من قبل الإدارة
+  EXPIRED // دعوة انتهت صلاحيتها الزمنية
 }
 
 enum RepairStatus {
@@ -80,6 +80,29 @@ enum PaymentMethod {
   OTHER
 }
 
+enum InstallmentPlanSource {
+  MANUAL
+  INVOICE
+}
+
+enum InstallmentFrequency {
+  WEEKLY
+  MONTHLY
+}
+
+enum InstallmentPlanStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum InstallmentScheduleStatus {
+  PENDING
+  PARTIALLY_PAID
+  PAID
+  CANCELLED
+}
+
 enum SaleStatus {
   DRAFT
   COMPLETED
@@ -92,24 +115,24 @@ enum SaleStatus {
 // ---------------------------------------------------------
 
 model Shop {
-  id                    String                @id @default(uuid()) @db.Uuid
-  name                  String
-  phone                 String?
-  address               String?
-  currency              String                @default("SAR")
-  taxNumber             String?
-  taxRate               Decimal               @default(15) @db.Decimal(5, 2)
-  terms                 String?
-  maxSeats              Int                   @default(5) // حد المقاعد المسموح بها وفق خطة الاشتراك
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
-  deletedAt             DateTime?
-  version               Int                   @default(1)
+  id        String    @id @default(uuid()) @db.Uuid
+  name      String
+  phone     String?
+  address   String?
+  currency  String    @default("SAR")
+  taxNumber String?
+  taxRate   Decimal   @default(15) @db.Decimal(5, 2)
+  terms     String?
+  maxSeats  Int       @default(5) // حد المقاعد المسموح بها وفق خطة الاشتراك
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  version   Int       @default(1)
 
   // Relationships
   memberships           Membership[]
   invitations           ShopInvitation[]
-  users                 User[]                // Legacy direct relation (Phase 1 compatibility)
+  users                 User[] // Legacy direct relation (Phase 1 compatibility)
   customers             Customer[]
   suppliers             Supplier[]
   repairOrders          RepairOrder[]
@@ -122,6 +145,8 @@ model Shop {
   invoices              Invoice[]
   payments              Payment[]
   whatsappTemplates     WhatsAppTemplate[]
+  installmentPlans      InstallmentPlan[]
+  installmentPayments   InstallmentPayment[]
 
   @@index([updatedAt])
   @@index([deletedAt])
@@ -132,26 +157,28 @@ model Shop {
 // ---------------------------------------------------------
 
 model User {
-  id                String            @id @default(uuid()) @db.Uuid
-  email             String            @unique
-  name              String
-  phone             String?
-  passwordHash      String?
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  deletedAt         DateTime?
-  lastActiveAt      DateTime?
-  version           Int               @default(1)
+  id           String    @id @default(uuid()) @db.Uuid
+  email        String    @unique
+  name         String
+  phone        String?
+  passwordHash String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+  lastActiveAt DateTime?
+  version      Int       @default(1)
 
   // Modern Multi-Tenancy Relations
-  memberships       Membership[]
-  sentInvitations   ShopInvitation[]  @relation("InvitedByUser")
+  memberships                Membership[]
+  sentInvitations            ShopInvitation[]     @relation("InvitedByUser")
+  createdInstallmentPlans    InstallmentPlan[]    @relation("InstallmentPlanCreator")
+  createdInstallmentPayments InstallmentPayment[] @relation("InstallmentPaymentCreator")
 
   // Legacy Fields (Retained for Phase 1 backward compatibility / safe migration)
   // [DEPRECATED]: These will be removed in a future migration after complete transition to Membership
-  shopId            String            @db.Uuid
-  role              UserRole          @default(OWNER)
-  shop              Shop              @relation(fields: [shopId], references: [id])
+  shopId String   @db.Uuid
+  role   UserRole @default(OWNER)
+  shop   Shop     @relation(fields: [shopId], references: [id])
 
   @@index([email])
   @@index([lastActiveAt])
@@ -160,18 +187,18 @@ model User {
 }
 
 model Membership {
-  id                String            @id @default(uuid()) @db.Uuid
-  shopId            String            @db.Uuid
-  userId            String            @db.Uuid
-  role              MembershipRole    @default(TECHNICIAN)
-  status            MembershipStatus  @default(ACTIVE)
-  joinedAt          DateTime          @default(now())
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  deletedAt         DateTime?
+  id        String           @id @default(uuid()) @db.Uuid
+  shopId    String           @db.Uuid
+  userId    String           @db.Uuid
+  role      MembershipRole   @default(TECHNICIAN)
+  status    MembershipStatus @default(ACTIVE)
+  joinedAt  DateTime         @default(now())
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  deletedAt DateTime?
 
-  shop              Shop              @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([shopId, userId])
   @@index([shopId, status])
@@ -181,22 +208,22 @@ model Membership {
 }
 
 model ShopInvitation {
-  id                String            @id @default(uuid()) @db.Uuid
-  shopId            String            @db.Uuid
-  name              String?           // اسم الموظف المحدد عند إنشاء الدعوة
-  email             String
-  role              MembershipRole    @default(TECHNICIAN)
-  tokenHash         String            @unique // SHA-256 hash of the 32-byte cryptographically secure token
-  status            InvitationStatus  @default(PENDING)
-  invitedByUserId   String?           @db.Uuid
-  expiresAt         DateTime
-  acceptedAt        DateTime?
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  deletedAt         DateTime?
+  id              String           @id @default(uuid()) @db.Uuid
+  shopId          String           @db.Uuid
+  name            String? // اسم الموظف المحدد عند إنشاء الدعوة
+  email           String
+  role            MembershipRole   @default(TECHNICIAN)
+  tokenHash       String           @unique // SHA-256 hash of the 32-byte cryptographically secure token
+  status          InvitationStatus @default(PENDING)
+  invitedByUserId String?          @db.Uuid
+  expiresAt       DateTime
+  acceptedAt      DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
 
-  shop              Shop              @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  invitedBy         User?             @relation("InvitedByUser", fields: [invitedByUserId], references: [id], onDelete: SetNull)
+  shop      Shop  @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  invitedBy User? @relation("InvitedByUser", fields: [invitedByUserId], references: [id], onDelete: SetNull)
 
   @@index([shopId, status])
   @@index([email, status])
@@ -209,23 +236,24 @@ model ShopInvitation {
 // ---------------------------------------------------------
 
 model Customer {
-  id                String        @id @default(uuid()) @db.Uuid
-  shopId            String        @db.Uuid
+  id                String    @id @default(uuid()) @db.Uuid
+  shopId            String    @db.Uuid
   clientGeneratedId String?
   name              String
   phone             String?
   phoneNormalized   String?
   email             String?
   notes             String?
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
   deletedAt         DateTime?
-  version           Int           @default(1)
+  version           Int       @default(1)
 
-  shop              Shop          @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  repairOrders      RepairOrder[]
-  sales             Sale[]
-  invoices          Invoice[]
+  shop             Shop              @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  repairOrders     RepairOrder[]
+  sales            Sale[]
+  invoices         Invoice[]
+  installmentPlans InstallmentPlan[]
 
   @@unique([shopId, clientGeneratedId])
   @@index([shopId, name])
@@ -236,21 +264,21 @@ model Customer {
 }
 
 model Supplier {
-  id                String        @id @default(uuid()) @db.Uuid
-  shopId            String        @db.Uuid
-  name              String
-  phone             String?
-  phoneNormalized   String?
-  address           String?
-  notes             String?
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-  deletedAt         DateTime?
-  version           Int           @default(1)
+  id              String    @id @default(uuid()) @db.Uuid
+  shopId          String    @db.Uuid
+  name            String
+  phone           String?
+  phoneNormalized String?
+  address         String?
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+  version         Int       @default(1)
 
-  shop              Shop          @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  repairOrders      RepairOrder[]
-  repairOrderItems  RepairOrderItem[]
+  shop             Shop              @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  repairOrders     RepairOrder[]
+  repairOrderItems RepairOrderItem[]
 
   @@index([shopId, name])
   @@index([shopId, phone])
@@ -260,36 +288,36 @@ model Supplier {
 }
 
 model RepairOrder {
-  id                 String                @id @default(uuid()) @db.Uuid
-  shopId             String                @db.Uuid
-  customerId         String?               @db.Uuid
-  supplierId         String?               @db.Uuid
-  createdByUserId    String?               @db.Uuid
-  assignedToUserId   String?               @db.Uuid // الفني المسؤول عن تنفيذ طلب الصيانة
-  updatedByUserId    String?               @db.Uuid // آخر مستخدم أجرى تعديلاً على الطلب
-  clientGeneratedId  String?
-  ticketNumber       String
-  status             RepairStatus          @default(PENDING)
-  deviceBrand        String?
-  deviceModel        String?
-  deviceSerial       String?
-  reportedIssue      String
-  diagnosis          String?
-  resolutionNotes    String?
-  estimatedTotal     Decimal?              @db.Decimal(12, 2)
-  finalTotal         Decimal?              @db.Decimal(12, 2)
-  supplierName       String?
-  partName           String?
-  partCost           Decimal?              @db.Decimal(12, 2)
-  deductPartCost     Boolean               @default(true)
-  supplierNotes      String?
-  dueAt              DateTime?
-  completedAt        DateTime?
-  deliveredAt        DateTime?
-  createdAt          DateTime              @default(now())
-  updatedAt          DateTime              @updatedAt
-  deletedAt          DateTime?
-  version            Int                   @default(1)
+  id                String       @id @default(uuid()) @db.Uuid
+  shopId            String       @db.Uuid
+  customerId        String?      @db.Uuid
+  supplierId        String?      @db.Uuid
+  createdByUserId   String?      @db.Uuid
+  assignedToUserId  String?      @db.Uuid // الفني المسؤول عن تنفيذ طلب الصيانة
+  updatedByUserId   String?      @db.Uuid // آخر مستخدم أجرى تعديلاً على الطلب
+  clientGeneratedId String?
+  ticketNumber      String
+  status            RepairStatus @default(PENDING)
+  deviceBrand       String?
+  deviceModel       String?
+  deviceSerial      String?
+  reportedIssue     String
+  diagnosis         String?
+  resolutionNotes   String?
+  estimatedTotal    Decimal?     @db.Decimal(12, 2)
+  finalTotal        Decimal?     @db.Decimal(12, 2)
+  supplierName      String?
+  partName          String?
+  partCost          Decimal?     @db.Decimal(12, 2)
+  deductPartCost    Boolean      @default(true)
+  supplierNotes     String?
+  dueAt             DateTime?
+  completedAt       DateTime?
+  deliveredAt       DateTime?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  deletedAt         DateTime?
+  version           Int          @default(1)
 
   shop               Shop                  @relation(fields: [shopId], references: [id], onDelete: Cascade)
   customer           Customer?             @relation(fields: [customerId], references: [id], onDelete: SetNull)
@@ -312,27 +340,27 @@ model RepairOrder {
 }
 
 model RepairOrderItem {
-  id                String              @id @default(uuid()) @db.Uuid
-  shopId            String              @db.Uuid
-  repairOrderId     String              @db.Uuid
-  inventoryItemId   String?             @db.Uuid
-  supplierId        String?             @db.Uuid
+  id                String    @id @default(uuid()) @db.Uuid
+  shopId            String    @db.Uuid
+  repairOrderId     String    @db.Uuid
+  inventoryItemId   String?   @db.Uuid
+  supplierId        String?   @db.Uuid
   clientGeneratedId String?
   partName          String
-  quantity          Int                 @default(1)
-  unitCost          Decimal?            @db.Decimal(12, 2)
-  unitPrice         Decimal?            @db.Decimal(12, 2)
+  quantity          Int       @default(1)
+  unitCost          Decimal?  @db.Decimal(12, 2)
+  unitPrice         Decimal?  @db.Decimal(12, 2)
   supplierName      String?
   notes             String?
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
   deletedAt         DateTime?
-  version           Int                 @default(1)
+  version           Int       @default(1)
 
-  shop              Shop                @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  repairOrder       RepairOrder         @relation(fields: [repairOrderId], references: [id], onDelete: Cascade)
-  inventoryItem     InventoryItem?      @relation(fields: [inventoryItemId], references: [id], onDelete: SetNull)
-  supplier          Supplier?           @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  shop               Shop                @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  repairOrder        RepairOrder         @relation(fields: [repairOrderId], references: [id], onDelete: Cascade)
+  inventoryItem      InventoryItem?      @relation(fields: [inventoryItemId], references: [id], onDelete: SetNull)
+  supplier           Supplier?           @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   inventoryMovements InventoryMovement[]
 
   @@unique([shopId, clientGeneratedId])
@@ -357,8 +385,8 @@ model RepairStatusHistory {
   deletedAt         DateTime?
   version           Int           @default(1)
 
-  shop              Shop          @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  repairOrder       RepairOrder   @relation(fields: [repairOrderId], references: [id], onDelete: Cascade)
+  shop        Shop        @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  repairOrder RepairOrder @relation(fields: [repairOrderId], references: [id], onDelete: Cascade)
 
   @@unique([shopId, clientGeneratedId])
   @@index([shopId, repairOrderId, createdAt])
@@ -368,33 +396,33 @@ model RepairStatusHistory {
 }
 
 model InventoryItem {
-  id                String              @id @default(uuid()) @db.Uuid
-  shopId            String              @db.Uuid
-  partId            String?             @db.Uuid
+  id                String    @id @default(uuid()) @db.Uuid
+  shopId            String    @db.Uuid
+  partId            String?   @db.Uuid
   clientGeneratedId String?
   sku               String?
   category          String?
   name              String
   description       String?
-  unitCost          Decimal?            @db.Decimal(12, 2)
-  unitPrice         Decimal             @db.Decimal(12, 2)
-  quantity          Int                 @default(0)
-  reorderLevel      Int                 @default(0)
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
+  unitCost          Decimal?  @db.Decimal(12, 2)
+  unitPrice         Decimal   @db.Decimal(12, 2)
+  quantity          Int       @default(0)
+  reorderLevel      Int       @default(0)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
   deletedAt         DateTime?
-  version           Int                 @default(1)
+  version           Int       @default(1)
 
-  shop              Shop                @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  part              Part?               @relation(fields: [partId], references: [id], onDelete: SetNull)
-  movements         InventoryMovement[]
-  saleItems         SaleItem[]
-  repairOrderItems  RepairOrderItem[]
+  shop             Shop                @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  part             Part?               @relation(fields: [partId], references: [id], onDelete: SetNull)
+  movements        InventoryMovement[]
+  saleItems        SaleItem[]
+  repairOrderItems RepairOrderItem[]
 
+  @@unique([shopId, clientGeneratedId])
   @@index([shopId, sku])
   @@index([shopId, partId])
   @@index([partId])
-  @@unique([shopId, clientGeneratedId])
   @@index([shopId, name])
   @@index([shopId, updatedAt])
   @@index([shopId, deletedAt])
@@ -420,12 +448,12 @@ model InventoryMovement {
   deletedAt         DateTime?
   version           Int                   @default(1)
 
-  shop              Shop                  @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  inventoryItem     InventoryItem         @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
-  repairOrder       RepairOrder?          @relation(fields: [repairOrderId], references: [id], onDelete: SetNull)
-  repairOrderItem   RepairOrderItem?      @relation(fields: [repairOrderItemId], references: [id], onDelete: SetNull)
-  sale              Sale?                 @relation(fields: [saleId], references: [id], onDelete: SetNull)
-  saleItem          SaleItem?             @relation(fields: [saleItemId], references: [id], onDelete: SetNull)
+  shop            Shop             @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  inventoryItem   InventoryItem    @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+  repairOrder     RepairOrder?     @relation(fields: [repairOrderId], references: [id], onDelete: SetNull)
+  repairOrderItem RepairOrderItem? @relation(fields: [repairOrderItemId], references: [id], onDelete: SetNull)
+  sale            Sale?            @relation(fields: [saleId], references: [id], onDelete: SetNull)
+  saleItem        SaleItem?        @relation(fields: [saleItemId], references: [id], onDelete: SetNull)
 
   @@unique([shopId, clientGeneratedId])
   @@index([shopId, inventoryItemId, createdAt])
@@ -439,25 +467,25 @@ model InventoryMovement {
 }
 
 model Sale {
-  id                 String     @id @default(uuid()) @db.Uuid
-  shopId             String     @db.Uuid
-  customerId         String?    @db.Uuid
-  createdByUserId    String?    @db.Uuid
-  clientGeneratedId  String?
-  receiptNumber      String?
-  status             SaleStatus @default(COMPLETED)
-  subtotal           Decimal    @db.Decimal(12, 2)
-  discountTotal      Decimal    @default(0) @db.Decimal(12, 2)
-  taxTotal           Decimal    @default(0) @db.Decimal(12, 2)
-  total              Decimal    @db.Decimal(12, 2)
-  soldAt             DateTime   @default(now())
-  createdAt          DateTime   @default(now())
-  updatedAt          DateTime   @updatedAt
-  deletedAt          DateTime?
-  version            Int        @default(1)
+  id                String     @id @default(uuid()) @db.Uuid
+  shopId            String     @db.Uuid
+  customerId        String?    @db.Uuid
+  createdByUserId   String?    @db.Uuid
+  clientGeneratedId String?
+  receiptNumber     String?
+  status            SaleStatus @default(COMPLETED)
+  subtotal          Decimal    @db.Decimal(12, 2)
+  discountTotal     Decimal    @default(0) @db.Decimal(12, 2)
+  taxTotal          Decimal    @default(0) @db.Decimal(12, 2)
+  total             Decimal    @db.Decimal(12, 2)
+  soldAt            DateTime   @default(now())
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  deletedAt         DateTime?
+  version           Int        @default(1)
 
-  shop               Shop       @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  customer           Customer?  @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  shop               Shop                @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  customer           Customer?           @relation(fields: [customerId], references: [id], onDelete: SetNull)
   items              SaleItem[]
   inventoryMovements InventoryMovement[]
   invoices           Invoice[]
@@ -472,24 +500,24 @@ model Sale {
 }
 
 model SaleItem {
-  id                String              @id @default(uuid()) @db.Uuid
-  shopId            String              @db.Uuid
-  saleId            String              @db.Uuid
-  inventoryItemId   String?             @db.Uuid
+  id                String    @id @default(uuid()) @db.Uuid
+  shopId            String    @db.Uuid
+  saleId            String    @db.Uuid
+  inventoryItemId   String?   @db.Uuid
   clientGeneratedId String?
   description       String
   quantity          Int
-  unitPriceSnapshot Decimal             @db.Decimal(12, 2)
-  discountTotal     Decimal             @default(0) @db.Decimal(12, 2)
-  lineTotal         Decimal             @db.Decimal(12, 2)
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
+  unitPriceSnapshot Decimal   @db.Decimal(12, 2)
+  discountTotal     Decimal   @default(0) @db.Decimal(12, 2)
+  lineTotal         Decimal   @db.Decimal(12, 2)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
   deletedAt         DateTime?
-  version           Int                 @default(1)
+  version           Int       @default(1)
 
-  shop              Shop                @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  sale              Sale                @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  inventoryItem     InventoryItem?      @relation(fields: [inventoryItemId], references: [id], onDelete: SetNull)
+  shop               Shop                @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  sale               Sale                @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  inventoryItem      InventoryItem?      @relation(fields: [inventoryItemId], references: [id], onDelete: SetNull)
   inventoryMovements InventoryMovement[]
 
   @@unique([shopId, clientGeneratedId])
@@ -524,11 +552,12 @@ model Invoice {
   deletedAt         DateTime?
   version           Int           @default(1)
 
-  shop              Shop          @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  customer          Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  repairOrder       RepairOrder?  @relation(fields: [repairOrderId], references: [id], onDelete: SetNull)
-  sale              Sale?         @relation(fields: [saleId], references: [id], onDelete: SetNull)
-  payments          Payment[]
+  shop            Shop             @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  customer        Customer?        @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  repairOrder     RepairOrder?     @relation(fields: [repairOrderId], references: [id], onDelete: SetNull)
+  sale            Sale?            @relation(fields: [saleId], references: [id], onDelete: SetNull)
+  payments        Payment[]
+  installmentPlan InstallmentPlan?
 
   @@unique([shopId, invoiceNumber])
   @@unique([shopId, clientGeneratedId])
@@ -559,8 +588,8 @@ model Payment {
   deletedAt         DateTime?
   version           Int           @default(1)
 
-  shop              Shop          @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  invoice           Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  shop    Shop    @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   @@unique([shopId, clientGeneratedId])
   @@index([shopId, invoiceId])
@@ -570,18 +599,125 @@ model Payment {
   @@index([shopId, deletedAt])
 }
 
-model WhatsAppTemplate {
-  id                String    @id @default(uuid()) @db.Uuid
-  shopId            String    @db.Uuid
-  createdByUserId   String?   @db.Uuid
-  title             String
-  templateText      String    @db.Text
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  deletedAt         DateTime?
-  version           Int       @default(1)
+model InstallmentPlan {
+  id                  String                @id @default(uuid()) @db.Uuid
+  shopId              String                @db.Uuid
+  customerId          String                @db.Uuid
+  invoiceId           String?               @unique @db.Uuid
+  createdByUserId     String?               @db.Uuid
+  clientGeneratedId   String?
+  planNumber          String
+  source              InstallmentPlanSource @default(MANUAL)
+  status              InstallmentPlanStatus @default(ACTIVE)
+  title               String
+  notes               String?
+  totalAmount         Decimal               @db.Decimal(12, 2)
+  downPayment         Decimal               @default(0) @db.Decimal(12, 2)
+  financedAmount      Decimal               @db.Decimal(12, 2)
+  amountPaid          Decimal               @default(0) @db.Decimal(12, 2)
+  balanceDue          Decimal               @db.Decimal(12, 2)
+  installmentCount    Int
+  frequency           InstallmentFrequency
+  firstDueAt          DateTime
+  completedAt         DateTime?
+  publicAccessEnabled Boolean               @default(true)
+  publicTokenVersion  Int                   @default(1)
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  deletedAt           DateTime?
+  version             Int                   @default(1)
 
-  shop              Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  shop          Shop                  @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  customer      Customer              @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  invoice       Invoice?              @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  createdByUser User?                 @relation("InstallmentPlanCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  schedules     InstallmentSchedule[]
+  payments      InstallmentPayment[]
+
+  @@unique([shopId, planNumber])
+  @@unique([shopId, clientGeneratedId])
+  @@index([shopId, status, firstDueAt])
+  @@index([shopId, customerId, createdAt])
+  @@index([customerId])
+  @@index([createdByUserId])
+  @@index([shopId, balanceDue])
+  @@index([shopId, deletedAt])
+}
+
+model InstallmentSchedule {
+  id            String                    @id @default(uuid()) @db.Uuid
+  planId        String                    @db.Uuid
+  installmentNo Int
+  dueAt         DateTime
+  amount        Decimal                   @db.Decimal(12, 2)
+  amountPaid    Decimal                   @default(0) @db.Decimal(12, 2)
+  status        InstallmentScheduleStatus @default(PENDING)
+  paidAt        DateTime?
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+
+  plan        InstallmentPlan                @relation(fields: [planId], references: [id], onDelete: Cascade)
+  allocations InstallmentPaymentAllocation[]
+
+  @@unique([planId, installmentNo])
+  @@index([planId, dueAt])
+  @@index([status, dueAt])
+}
+
+model InstallmentPayment {
+  id              String        @id @default(uuid()) @db.Uuid
+  shopId          String        @db.Uuid
+  planId          String        @db.Uuid
+  createdByUserId String?       @db.Uuid
+  clientGeneratedId String?
+  amount          Decimal       @db.Decimal(12, 2)
+  method          PaymentMethod
+  reference       String?
+  note            String?
+  isDownPayment   Boolean       @default(false)
+  paidAt          DateTime      @default(now())
+  createdAt       DateTime      @default(now())
+  voidedAt        DateTime?
+  voidReason      String?
+
+  shop          Shop                           @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  plan          InstallmentPlan                @relation(fields: [planId], references: [id], onDelete: Restrict)
+  createdByUser User?                          @relation("InstallmentPaymentCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  allocations   InstallmentPaymentAllocation[]
+
+  @@index([shopId, planId, paidAt])
+  @@unique([shopId, clientGeneratedId])
+  @@index([shopId, createdByUserId])
+  @@index([createdByUserId])
+  @@index([planId, voidedAt])
+}
+
+model InstallmentPaymentAllocation {
+  id            String   @id @default(uuid()) @db.Uuid
+  paymentId     String   @db.Uuid
+  installmentId String   @db.Uuid
+  amount        Decimal  @db.Decimal(12, 2)
+  createdAt     DateTime @default(now())
+
+  payment     InstallmentPayment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  installment InstallmentSchedule @relation(fields: [installmentId], references: [id], onDelete: Restrict)
+
+  @@unique([paymentId, installmentId])
+  @@index([installmentId])
+}
+
+model WhatsAppTemplate {
+  id              String    @id @default(uuid()) @db.Uuid
+  shopId          String    @db.Uuid
+  createdByUserId String?   @db.Uuid
+  title           String
+  templateText    String    @db.Text
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+  version         Int       @default(1)
+
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
   @@index([shopId, updatedAt])
   @@index([shopId, deletedAt])
@@ -593,38 +729,38 @@ model WhatsAppTemplate {
 // ---------------------------------------------------------
 
 enum PartCategory {
-  SCREEN        // الشاشات واللمس
-  BATTERY       // البطاريات والـ BMS
+  SCREEN // الشاشات واللمس
+  BATTERY // البطاريات والـ BMS
   CHARGING_PORT // منافذ وقواعد وفلاتات الشحن
-  IC_CHIP       // الآيسيات ودوائر الطاقة وإدارة الإشارة
-  CONNECTOR     // كونكترات وفلاتات الربط (FPC)
-  CAMERA        // الكاميرات والمستشعرات
+  IC_CHIP // الآيسيات ودوائر الطاقة وإدارة الإشارة
+  CONNECTOR // كونكترات وفلاتات الربط (FPC)
+  CAMERA // الكاميرات والمستشعرات
   HOUSING_FRAME // الأطر ولواصق التثبيت
   OTHER
 }
 
 enum CompatibilityStatus {
-  VERIFIED                // توافق موثق وفق معيار التحقق المعتمد في النظام
-  PROVISIONALLY_VERIFIED  // موثق مبدئياً بأدلة أولية (يظهر مع تحذير تدقيق ولا يعامل كبديل نهائي)
-  UNVERIFIED              // غير موثق (مسودة / اقتراح جديد قيد المراجعة)
-  INCOMPATIBLE            // غير متوافق نهائياً (تحذير صريح لمنع حدوث تلف في الأجهزة)
+  VERIFIED // توافق موثق وفق معيار التحقق المعتمد في النظام
+  PROVISIONALLY_VERIFIED // موثق مبدئياً بأدلة أولية (يظهر مع تحذير تدقيق ولا يعامل كبديل نهائي)
+  UNVERIFIED // غير موثق (مسودة / اقتراح جديد قيد المراجعة)
+  INCOMPATIBLE // غير متوافق نهائياً (تحذير صريح لمنع حدوث تلف في الأجهزة)
 }
 
 enum CompatibilityType {
-  DIRECT_REPLACEMENT      // بديل مباشر (Drop-in): يركب ويعمل بدون أي تعديل
-  FUNCTIONAL_EQUIVALENT   // متطابق وظيفياً (قد يختلف المظهر الخارجي أو الشركة المصنعة)
-  PHYSICAL_COMPATIBLE     // متطابق فيزيائياً ولكن قد يتطلب تعديلاً بسيطاً (مثل نقل الفلكس)
-  REQUIRES_MODIFICATION   // يتطلب تعديلاً فلكس/لحام/إعادة برمجة (موضح في الملاحظات)
-  PARTIAL_COMPATIBILITY   // توافق جزئي (مثلاً: تعمل الشاشة لكن لا يعمل التردد العالي)
-  INCOMPATIBLE            // غير متوافق
+  DIRECT_REPLACEMENT // بديل مباشر (Drop-in): يركب ويعمل بدون أي تعديل
+  FUNCTIONAL_EQUIVALENT // متطابق وظيفياً (قد يختلف المظهر الخارجي أو الشركة المصنعة)
+  PHYSICAL_COMPATIBLE // متطابق فيزيائياً ولكن قد يتطلب تعديلاً بسيطاً (مثل نقل الفلكس)
+  REQUIRES_MODIFICATION // يتطلب تعديلاً فلكس/لحام/إعادة برمجة (موضح في الملاحظات)
+  PARTIAL_COMPATIBILITY // توافق جزئي (مثلاً: تعمل الشاشة لكن لا يعمل التردد العالي)
+  INCOMPATIBLE // غير متوافق
 }
 
 enum VerificationLevel {
-  OEM_OFFICIAL            // صادر ومؤكد من الشركة المصنعة (Service Manual / OEM Bulletin)
-  ENGINEERING_VERIFIED    // موثق بمخطط هندسي معتمد (Schematic / Boardview / Pinout Matrix)
-  PHYSICAL_TEST_VERIFIED  // تم اختباره والتأكد منه فيزيائياً وميدانياً في ورشة معتمدة
-  TECHNICIAN_REPORTED     // تجربة/تقرير فني خبير (يحتاج مراجعة مهندس معتمد)
-  SUPPLIER_CATALOG        // كتالوج مورد قطع غيار معتمد
+  OEM_OFFICIAL // صادر ومؤكد من الشركة المصنعة (Service Manual / OEM Bulletin)
+  ENGINEERING_VERIFIED // موثق بمخطط هندسي معتمد (Schematic / Boardview / Pinout Matrix)
+  PHYSICAL_TEST_VERIFIED // تم اختباره والتأكد منه فيزيائياً وميدانياً في ورشة معتمدة
+  TECHNICIAN_REPORTED // تجربة/تقرير فني خبير (يحتاج مراجعة مهندس معتمد)
+  SUPPLIER_CATALOG // كتالوج مورد قطع غيار معتمد
 }
 
 enum VerificationSourceType {
@@ -654,10 +790,10 @@ enum CompatibilityImportStatus {
 
 enum CompatibilityCandidateStatus {
   READY_FOR_CORROBORATION // اسم نظيف مبدئياً، لكنه لا يزال بحاجة إلى مصدر مستقل
-  NEEDS_REVIEW            // توجد ملاحظة تستلزم مراجعة قبل البحث عن مصادر إضافية
-  QUARANTINED             // بيانات مشوهة أو مجموعة كبيرة/مشبوهة، ولا يجوز نشرها
-  APPROVED                // تم اعتماد المرشح لاحقاً عبر مسار التحقق
-  REJECTED                // ثبت أن المرشح غير صحيح
+  NEEDS_REVIEW // توجد ملاحظة تستلزم مراجعة قبل البحث عن مصادر إضافية
+  QUARANTINED // بيانات مشوهة أو مجموعة كبيرة/مشبوهة، ولا يجوز نشرها
+  APPROVED // تم اعتماد المرشح لاحقاً عبر مسار التحقق
+  REJECTED // ثبت أن المرشح غير صحيح
 }
 
 enum CompatibilityTestResult {
@@ -680,27 +816,27 @@ enum CompatibilityConflictStatus {
 }
 
 model Device {
-  id                 String                @id @default(uuid()) @db.Uuid
-  brand              String                // Samsung, Xiaomi, Apple, Infinix...
-  commercialName     String                // Galaxy A12, Redmi Note 10 Pro...
-  modelNumber        String                // SM-A125F, M2101K6G...
-  normalizedModel    String                // sma125f, m2101k6g
-  networkVariant     String?               // 4G, 5G, LTE
-  region             String?               // Global, EU, China, India, USA
-  boardRevision      String?               // Rev 0.3, PCB v2.0
-  releaseYear        Int?
-  notes              String?
-  
+  id              String  @id @default(uuid()) @db.Uuid
+  brand           String // Samsung, Xiaomi, Apple, Infinix...
+  commercialName  String // Galaxy A12, Redmi Note 10 Pro...
+  modelNumber     String // SM-A125F, M2101K6G...
+  normalizedModel String // sma125f, m2101k6g
+  networkVariant  String? // 4G, 5G, LTE
+  region          String? // Global, EU, China, India, USA
+  boardRevision   String? // Rev 0.3, PCB v2.0
+  releaseYear     Int?
+  notes           String?
+
   // Archiving (Soft Delete)
-  isArchived         Boolean               @default(false)
-  archivedAt         DateTime?
-  
-  createdAt          DateTime              @default(now())
-  updatedAt          DateTime              @updatedAt
+  isArchived Boolean   @default(false)
+  archivedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // العلاقات (RESTRICT لحماية البيانات التاريخية من الحذف العرضي)
-  compatibilities    DeviceCompatibility[]
-  candidateMembers   CompatibilityCandidateMember[]
+  compatibilities  DeviceCompatibility[]
+  candidateMembers CompatibilityCandidateMember[]
 
   @@index([normalizedModel])
   @@index([brand, commercialName])
@@ -708,24 +844,24 @@ model Device {
 }
 
 model Part {
-  id                 String                @id @default(uuid()) @db.Uuid
+  id                 String       @id @default(uuid()) @db.Uuid
   category           PartCategory
-  name               String                // شاشة كاملة مع الفريم، بطارية 5000mAh...
-  manufacturerCode   String?               // الكود المصنعي الصريح (مثل BN5A, EB-BA125ABY, PM6150)
-  normalizedPartCode String?               // bn5a, ebba125aby, pm6150
-  partAliases        String[]              // أسماء بديلة وأكواد شائعة للقطعة
-  specifications     Json?                 // أبعاد، سعة، فولتية، Pinout، تردد...
-  
+  name               String // شاشة كاملة مع الفريم، بطارية 5000mAh...
+  manufacturerCode   String? // الكود المصنعي الصريح (مثل BN5A, EB-BA125ABY, PM6150)
+  normalizedPartCode String? // bn5a, ebba125aby, pm6150
+  partAliases        String[] // أسماء بديلة وأكواد شائعة للقطعة
+  specifications     Json? // أبعاد، سعة، فولتية، Pinout، تردد...
+
   // Archiving (Soft Delete)
-  isArchived         Boolean               @default(false)
-  archivedAt         DateTime?
-  
-  createdAt          DateTime              @default(now())
-  updatedAt          DateTime              @updatedAt
+  isArchived Boolean   @default(false)
+  archivedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // العلاقات
-  compatibilities    DeviceCompatibility[]
-  inventoryItems     InventoryItem[]
+  compatibilities DeviceCompatibility[]
+  inventoryItems  InventoryItem[]
 
   @@index([category])
   @@index([normalizedPartCode])
@@ -733,47 +869,47 @@ model Part {
 }
 
 model DeviceCompatibility {
-  id                   String                  @id @default(uuid()) @db.Uuid
-  deviceId             String                  @db.Uuid
-  partId               String                  @db.Uuid
-  
+  id       String @id @default(uuid()) @db.Uuid
+  deviceId String @db.Uuid
+  partId   String @db.Uuid
+
   // تصنيف التوافق (بدون default)
-  compatibilityStatus  CompatibilityStatus     @default(UNVERIFIED)
-  compatibilityType    CompatibilityType
-  
+  compatibilityStatus CompatibilityStatus @default(UNVERIFIED)
+  compatibilityType   CompatibilityType
+
   // ملخص التوثيق الفني
-  verificationLevel    VerificationLevel       @default(TECHNICIAN_REPORTED)
-  technicalNotes       String?                 // ملاحظات فنية للتركيب
-  
+  verificationLevel VerificationLevel @default(TECHNICIAN_REPORTED)
+  technicalNotes    String? // ملاحظات فنية للتركيب
+
   // تدقيق وصلاحيات النشر وإثبات من اعتمد السجل
-  createdById          String?                 // معرف من قام بإدخال السجل
-  verifiedById         String?                 // معرف المهندس/المدقق المعتمد الذي راجع واعتمد
-  verifiedAt           DateTime?
-  publishedAt          DateTime?
-  publishedById        String?
-  suspendedAt          DateTime?
-  suspensionReason     String?
-  reviewVersion        Int                     @default(1)
-  corroboratedSourceCount Int                   @default(0)
-  verificationMethod   String?
-  
+  createdById             String? // معرف من قام بإدخال السجل
+  verifiedById            String? // معرف المهندس/المدقق المعتمد الذي راجع واعتمد
+  verifiedAt              DateTime?
+  publishedAt             DateTime?
+  publishedById           String?
+  suspendedAt             DateTime?
+  suspensionReason        String?
+  reviewVersion           Int       @default(1)
+  corroboratedSourceCount Int       @default(0)
+  verificationMethod      String?
+
   // Archiving (Soft Delete - الحذف الفعلي محظور برمجياً)
-  isArchived           Boolean                 @default(false)
-  archivedAt           DateTime?
-  
-  createdAt            DateTime                @default(now())
-  updatedAt            DateTime                @updatedAt
+  isArchived Boolean   @default(false)
+  archivedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // العلاقات (RESTRICT: يمنع حذف الجهاز أو القطعة إذا كانت مرتبطة بسجل توافق)
-  device               Device                  @relation(fields: [deviceId], references: [id], onDelete: Restrict)
-  part                 Part                    @relation(fields: [partId], references: [id], onDelete: Restrict)
-  
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Restrict)
+  part   Part   @relation(fields: [partId], references: [id], onDelete: Restrict)
+
   // أدلة التحقق المتعددة (Decoupled Evidence Model)
-  evidences            CompatibilityEvidence[]
-  reviews              CompatibilityReview[]
-  auditEvents          CompatibilityAuditEvent[]
-  physicalTests        CompatibilityPhysicalTest[]
-  conflictReports      CompatibilityConflictReport[]
+  evidences       CompatibilityEvidence[]
+  reviews         CompatibilityReview[]
+  auditEvents     CompatibilityAuditEvent[]
+  physicalTests   CompatibilityPhysicalTest[]
+  conflictReports CompatibilityConflictReport[]
 
   @@unique([deviceId, partId])
   @@index([deviceId])
@@ -785,20 +921,20 @@ model DeviceCompatibility {
 }
 
 model CompatibilityEvidence {
-  id                   String                  @id @default(uuid()) @db.Uuid
-  compatibilityId      String                  @db.Uuid
-  sourceId             String?                 @db.Uuid
-  sourceType           VerificationSourceType
-  sourceReference      String                  // رقم المخطط، اسم الدليل، رقم الصفحة، رابط المرجع
-  evidenceDetails      String                  // تفاصيل الدليل الفني والشرح الهندسي
-  verifiedBy           String                  // اسم أو معرف المدقق الفني
-  verifiedAt           DateTime                @default(now())
-  
-  createdAt            DateTime                @default(now())
+  id              String                 @id @default(uuid()) @db.Uuid
+  compatibilityId String                 @db.Uuid
+  sourceId        String?                @db.Uuid
+  sourceType      VerificationSourceType
+  sourceReference String // رقم المخطط، اسم الدليل، رقم الصفحة، رابط المرجع
+  evidenceDetails String // تفاصيل الدليل الفني والشرح الهندسي
+  verifiedBy      String // اسم أو معرف المدقق الفني
+  verifiedAt      DateTime               @default(now())
+
+  createdAt DateTime @default(now())
 
   // العلاقات
-  compatibility        DeviceCompatibility     @relation(fields: [compatibilityId], references: [id], onDelete: Cascade)
-  source               CompatibilitySource?    @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  compatibility DeviceCompatibility  @relation(fields: [compatibilityId], references: [id], onDelete: Cascade)
+  source        CompatibilitySource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
 
   @@index([compatibilityId])
   @@index([sourceId])
@@ -806,34 +942,34 @@ model CompatibilityEvidence {
 }
 
 model CompatibilitySource {
-  id             String                 @id @default(uuid()) @db.Uuid
-  name           String
-  publisher      String?
-  sourceType     VerificationSourceType
-  url            String?
-  trustLevel     Int                    @default(1)
-  licenseNotes   String?
-  isActive       Boolean                @default(true)
-  createdAt      DateTime               @default(now())
-  updatedAt      DateTime               @updatedAt
+  id           String                 @id @default(uuid()) @db.Uuid
+  name         String
+  publisher    String?
+  sourceType   VerificationSourceType
+  url          String?
+  trustLevel   Int                    @default(1)
+  licenseNotes String?
+  isActive     Boolean                @default(true)
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
 
-  evidences      CompatibilityEvidence[]
-  importBatches  CompatibilityImportBatch[]
+  evidences     CompatibilityEvidence[]
+  importBatches CompatibilityImportBatch[]
 
   @@index([sourceType, isActive])
   @@index([trustLevel])
 }
 
 model CompatibilityReview {
-  id                String                          @id @default(uuid()) @db.Uuid
-  compatibilityId   String                          @db.Uuid
-  reviewerId        String
-  decision          CompatibilityReviewDecision
-  notes             String?
-  reviewVersion     Int                             @default(1)
-  createdAt         DateTime                        @default(now())
+  id              String                      @id @default(uuid()) @db.Uuid
+  compatibilityId String                      @db.Uuid
+  reviewerId      String
+  decision        CompatibilityReviewDecision
+  notes           String?
+  reviewVersion   Int                         @default(1)
+  createdAt       DateTime                    @default(now())
 
-  compatibility     DeviceCompatibility             @relation(fields: [compatibilityId], references: [id], onDelete: Cascade)
+  compatibility DeviceCompatibility @relation(fields: [compatibilityId], references: [id], onDelete: Cascade)
 
   @@unique([compatibilityId, reviewerId, reviewVersion])
   @@index([compatibilityId, reviewVersion, decision])
@@ -841,17 +977,17 @@ model CompatibilityReview {
 }
 
 model CompatibilityAuditEvent {
-  id                String                  @id @default(uuid()) @db.Uuid
-  compatibilityId   String                  @db.Uuid
-  actorId           String?
-  action            String
-  fromStatus        CompatibilityStatus?
-  toStatus          CompatibilityStatus?
-  reason            String?
-  metadata          Json?
-  createdAt         DateTime                @default(now())
+  id              String               @id @default(uuid()) @db.Uuid
+  compatibilityId String               @db.Uuid
+  actorId         String?
+  action          String
+  fromStatus      CompatibilityStatus?
+  toStatus        CompatibilityStatus?
+  reason          String?
+  metadata        Json?
+  createdAt       DateTime             @default(now())
 
-  compatibility     DeviceCompatibility     @relation(fields: [compatibilityId], references: [id], onDelete: Cascade)
+  compatibility DeviceCompatibility @relation(fields: [compatibilityId], references: [id], onDelete: Cascade)
 
   @@index([compatibilityId, createdAt])
   @@index([actorId, createdAt])
@@ -859,23 +995,23 @@ model CompatibilityAuditEvent {
 }
 
 model CompatibilityImportBatch {
-  id                String                      @id @default(uuid()) @db.Uuid
-  filename          String
-  sourceId          String?                     @db.Uuid
-  status            CompatibilityImportStatus  @default(VALIDATING)
-  totalRows         Int                         @default(0)
-  validRows         Int                         @default(0)
-  invalidRows       Int                         @default(0)
-  createdRecords    Int                         @default(0)
-  validationReport  Json?
-  createdById       String
-  createdAt         DateTime                    @default(now())
-  completedAt       DateTime?
-  sourceFileHash    String?                     @unique
-  categoryName      String?
+  id               String                    @id @default(uuid()) @db.Uuid
+  filename         String
+  sourceId         String?                   @db.Uuid
+  status           CompatibilityImportStatus @default(VALIDATING)
+  totalRows        Int                       @default(0)
+  validRows        Int                       @default(0)
+  invalidRows      Int                       @default(0)
+  createdRecords   Int                       @default(0)
+  validationReport Json?
+  createdById      String
+  createdAt        DateTime                  @default(now())
+  completedAt      DateTime?
+  sourceFileHash   String?                   @unique
+  categoryName     String?
 
-  source            CompatibilitySource?        @relation(fields: [sourceId], references: [id], onDelete: SetNull)
-  groups            CompatibilityCandidateGroup[]
+  source CompatibilitySource?          @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  groups CompatibilityCandidateGroup[]
 
   @@index([status, createdAt])
   @@index([sourceId, createdAt])
@@ -884,20 +1020,20 @@ model CompatibilityImportBatch {
 
 /// مجموعة توافق مرشحة كما وردت من المصدر. وجودها هنا لا يعني صحة التوافق.
 model CompatibilityCandidateGroup {
-  id                 String                         @id @default(uuid()) @db.Uuid
-  batchId            String                         @db.Uuid
-  sourceGroupId      String
-  brandSection       String
-  rawSourceText      String
-  contributor        String?
-  mappedCategory     PartCategory?
-  confidenceScore    Int                            @default(0)
-  status             CompatibilityCandidateStatus  @default(NEEDS_REVIEW)
-  issues             Json?
-  createdAt          DateTime                       @default(now())
-  updatedAt          DateTime                       @updatedAt
-  batch              CompatibilityImportBatch       @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  members            CompatibilityCandidateMember[]
+  id              String                         @id @default(uuid()) @db.Uuid
+  batchId         String                         @db.Uuid
+  sourceGroupId   String
+  brandSection    String
+  rawSourceText   String
+  contributor     String?
+  mappedCategory  PartCategory?
+  confidenceScore Int                            @default(0)
+  status          CompatibilityCandidateStatus   @default(NEEDS_REVIEW)
+  issues          Json?
+  createdAt       DateTime                       @default(now())
+  updatedAt       DateTime                       @updatedAt
+  batch           CompatibilityImportBatch       @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  members         CompatibilityCandidateMember[]
 
   @@unique([batchId, sourceGroupId])
   @@index([status])
@@ -907,17 +1043,17 @@ model CompatibilityCandidateGroup {
 
 /// اسم جهاز خام داخل مجموعة مرشحة، مع إمكانية ربطه بجهاز دقيق بعد المراجعة.
 model CompatibilityCandidateMember {
-  id                  String                       @id @default(uuid()) @db.Uuid
-  candidateGroupId    String                       @db.Uuid
+  id                  String                      @id @default(uuid()) @db.Uuid
+  candidateGroupId    String                      @db.Uuid
   rawModelName        String
   normalizedModelName String
   position            Int
-  matchedDeviceId     String?                      @db.Uuid
+  matchedDeviceId     String?                     @db.Uuid
   matchConfidence     Int?
   matchNotes          String?
-  createdAt           DateTime                     @default(now())
-  candidateGroup      CompatibilityCandidateGroup  @relation(fields: [candidateGroupId], references: [id], onDelete: Cascade)
-  matchedDevice       Device?                      @relation(fields: [matchedDeviceId], references: [id], onDelete: SetNull)
+  createdAt           DateTime                    @default(now())
+  candidateGroup      CompatibilityCandidateGroup @relation(fields: [candidateGroupId], references: [id], onDelete: Cascade)
+  matchedDevice       Device?                     @relation(fields: [matchedDeviceId], references: [id], onDelete: SetNull)
 
   @@unique([candidateGroupId, position])
   @@index([normalizedModelName])
@@ -925,36 +1061,36 @@ model CompatibilityCandidateMember {
 }
 
 model CompatibilityPhysicalTest {
-  id                String                    @id @default(uuid()) @db.Uuid
-  compatibilityId   String                    @db.Uuid
-  testerId          String
-  result            CompatibilityTestResult
-  protocolVersion   String
-  checklist         Json
-  notes             String?
-  testedAt          DateTime                  @default(now())
-  approvedById      String?
-  approvedAt        DateTime?
+  id              String                  @id @default(uuid()) @db.Uuid
+  compatibilityId String                  @db.Uuid
+  testerId        String
+  result          CompatibilityTestResult
+  protocolVersion String
+  checklist       Json
+  notes           String?
+  testedAt        DateTime                @default(now())
+  approvedById    String?
+  approvedAt      DateTime?
 
-  compatibility     DeviceCompatibility       @relation(fields: [compatibilityId], references: [id], onDelete: Cascade)
+  compatibility DeviceCompatibility @relation(fields: [compatibilityId], references: [id], onDelete: Cascade)
 
   @@index([compatibilityId, result, testedAt])
   @@index([testerId, testedAt])
 }
 
 model CompatibilityConflictReport {
-  id                String                         @id @default(uuid()) @db.Uuid
-  compatibilityId   String                         @db.Uuid
-  reportedById      String?
-  severity          CompatibilityConflictSeverity
-  status            CompatibilityConflictStatus   @default(OPEN)
-  reason            String
-  createdAt         DateTime                       @default(now())
-  resolvedById      String?
-  resolvedAt        DateTime?
-  resolutionNotes   String?
+  id              String                        @id @default(uuid()) @db.Uuid
+  compatibilityId String                        @db.Uuid
+  reportedById    String?
+  severity        CompatibilityConflictSeverity
+  status          CompatibilityConflictStatus   @default(OPEN)
+  reason          String
+  createdAt       DateTime                      @default(now())
+  resolvedById    String?
+  resolvedAt      DateTime?
+  resolutionNotes String?
 
-  compatibility     DeviceCompatibility            @relation(fields: [compatibilityId], references: [id], onDelete: Cascade)
+  compatibility DeviceCompatibility @relation(fields: [compatibilityId], references: [id], onDelete: Cascade)
 
   @@index([compatibilityId, status, severity])
   @@index([status, createdAt])

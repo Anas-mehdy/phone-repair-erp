@@ -12,6 +12,7 @@ import {
   Truck,
   UserRound,
   Wrench,
+  WalletCards,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -64,6 +65,7 @@ export const navGroups: NavGroup[] = [
       },
 
       { href: "/invoices", label: "الفواتير والمالية", icon: Receipt },
+      { href: "/installments", label: "الدفعات والأقساط", icon: WalletCards },
     ],
   },
   {

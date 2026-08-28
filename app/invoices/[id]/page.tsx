@@ -1,5 +1,5 @@
 import { InvoiceStatus, InvoiceType } from "@prisma/client";
-import { Ban, MessageCircle, Printer, ArrowRight, FileText } from "lucide-react";
+import { Ban, MessageCircle, Printer, ArrowRight, FileText, WalletCards } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -71,7 +71,8 @@ export default async function InvoiceDetailsPage({
   const canAddPayment =
     invoice.status !== InvoiceStatus.VOID &&
     invoice.status !== InvoiceStatus.PAID &&
-    Number(invoice.balanceDue) > 0;
+    Number(invoice.balanceDue) > 0 &&
+    !invoice.installmentPlan;
   const canVoid =
     invoice.status !== InvoiceStatus.VOID && invoice.payments.length === 0;
 
@@ -277,6 +278,21 @@ export default async function InvoiceDetailsPage({
               <h3 className="font-bold text-slate-800 text-sm font-numeric">خيارات وإجراءات الفاتورة</h3>
             </div>
             <div className="grid gap-3">
+              {invoice.installmentPlan ? (
+                <Button asChild className="w-full h-11 rounded-xl text-xs font-black">
+                  <Link href={`/installments/${invoice.installmentPlan.id}`}>
+                    <WalletCards className="h-4 w-4 ml-1.5" />
+                    عرض خطة الأقساط {invoice.installmentPlan.planNumber}
+                  </Link>
+                </Button>
+              ) : canAddPayment && invoice.customer ? (
+                <Button asChild variant="outline" className="w-full h-11 rounded-xl text-xs font-black border-teal-300 text-teal-700 hover:bg-teal-50">
+                  <Link href={`/installments/new?invoiceId=${invoice.id}`}>
+                    <WalletCards className="h-4 w-4 ml-1.5" />
+                    تحويل الرصيد المتبقي إلى أقساط
+                  </Link>
+                </Button>
+              ) : null}
               <Button asChild variant="outline" className="w-full font-bold shadow-sm border-slate-200/80 hover:bg-slate-50 rounded-xl h-11 text-xs justify-center">
                 <Link href={`/invoices/${invoice.id}/print`} target="_blank">
                   <Printer className="h-4 w-4 ml-1.5 shrink-0 text-slate-700" aria-hidden="true" />
@@ -341,4 +357,3 @@ function ErrorBox({ message }: { message: string }) {
     </div>
   );
 }
-
