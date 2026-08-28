@@ -44,3 +44,10 @@ export type CompatibilityDatasetKey = keyof typeof COMPATIBILITY_DATASETS;
 export function isCompatibilityDatasetKey(value: string): value is CompatibilityDatasetKey {
   return Object.prototype.hasOwnProperty.call(COMPATIBILITY_DATASETS, value);
 }
+
+export function datasetKeyForSourceCategory(sourceCategory?: string | null): CompatibilityDatasetKey {
+  const match = Object.entries(COMPATIBILITY_DATASETS).find(
+    ([, config]) => config.sourceCategory === sourceCategory,
+  );
+  return (match?.[0] as CompatibilityDatasetKey | undefined) || "SCREEN";
+}

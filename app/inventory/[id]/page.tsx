@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { getCurrentShopContext } from "@/lib/current-shop";
 import { isDatabaseConnectionError } from "@/lib/database-errors";
 import { inventoryService } from "@/lib/services/inventoryService";
+import { datasetKeyForSourceCategory } from "@/lib/services/compatibility/compatibility-datasets";
 import {
   Field,
   formatDate,
@@ -19,6 +20,7 @@ import {
   isLowStock,
   textareaClassName,
 } from "../_components";
+import { CompatibilityGroupPicker } from "../_compatibility-group-picker";
 import {
   addStockAction,
   adjustStockAction,
@@ -61,6 +63,14 @@ export default async function InventoryItemDetailsPage({
   }
 
   const lowStock = isLowStock(item.quantity, item.reorderLevel);
+  const linkedGroup = item.compatibilityGroupLinks[0]?.candidateGroup;
+  const initialCompatibilitySelection = linkedGroup ? {
+    groupId: linkedGroup.id,
+    brandSection: linkedGroup.brandSection,
+    deviceName: linkedGroup.members[0]?.rawModelName || "مجموعة توافق",
+    compatibleDevices: linkedGroup.members.map((member) => ({ id: member.id, name: member.rawModelName })),
+    dataset: datasetKeyForSourceCategory(linkedGroup.batch.categoryName),
+  } : null;
 
   return (
     <div className="space-y-6">
@@ -121,6 +131,12 @@ export default async function InventoryItemDetailsPage({
                   label={lowStock ? "مخزون منخفض" : "طبيعي"}
                 />
               } />
+              <Info
+                label="دليل التوافق"
+                value={linkedGroup
+                  ? <span className="text-violet-700">مرتبط مع {linkedGroup.members.map((member) => member.rawModelName).join("، ")}</span>
+                  : <span className="text-slate-400">غير مرتبط</span>}
+              />
             </div>
             {item.description ? (
               <div className="mt-5 border-t border-slate-100/60 pt-4">
@@ -159,6 +175,9 @@ export default async function InventoryItemDetailsPage({
                   <textarea className={textareaClassName} name="description" defaultValue={item.description ?? ""} />
                 </Field>
               </div>
+            </div>
+            <div className="mt-6">
+              <CompatibilityGroupPicker initialSelection={initialCompatibilitySelection} />
             </div>
             <div className="mt-6 flex justify-end">
               <Button type="submit" className="font-bold shadow-sm px-6 rounded-xl h-11">
@@ -281,4 +300,3 @@ function Info({ label, value }: { label: string; value: React.ReactNode }) {
     </div>
   );
 }
-

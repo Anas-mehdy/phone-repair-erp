@@ -142,7 +142,14 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
 
                   return (
                     <tr key={item.id} className={cn("align-middle", lowStock ? "bg-rose-50/40 hover:bg-rose-50/60" : "")}>
-                      <td className="font-black text-slate-900">{item.name}</td>
+                      <td className="font-black text-slate-900">
+                        {item.name}
+                        {item._count.compatibilityGroupLinks > 0 && (
+                          <div className="mt-1 inline-flex rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[9px] font-black text-violet-700">
+                            مرتبط بالتوافقات
+                          </div>
+                        )}
+                      </td>
                       <td className="font-semibold text-slate-600">{item.category ?? "-"}</td>
                       <td className="font-numeric text-slate-600 font-medium">{item.sku ?? "-"}</td>
                       <td className={cn("text-center font-black font-numeric text-base", lowStock ? "text-rose-700" : "text-slate-900")}>

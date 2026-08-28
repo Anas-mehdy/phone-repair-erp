@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
     }
 
     const results = await searchCompatibilityDirectory(query, {
+      shopId: session.shopId,
       dataset,
       limit,
     });

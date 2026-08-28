@@ -4,8 +4,25 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { createInventoryItemAction } from "../actions";
 import { Field, inputClassName, textareaClassName } from "../_components";
+import { CompatibilityGroupPicker } from "../_compatibility-group-picker";
+import { getCompatibilityGroupSelection } from "@/lib/services/compatibility/compatibility-directory.service";
+import { datasetKeyForSourceCategory } from "@/lib/services/compatibility/compatibility-datasets";
 
-export default function NewInventoryItemPage() {
+export default async function NewInventoryItemPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ groupId?: string; name?: string; category?: string }>;
+}) {
+  const params = await searchParams;
+  const group = params.groupId ? await getCompatibilityGroupSelection(params.groupId) : null;
+  const initialSelection = group ? {
+    groupId: group.id,
+    brandSection: group.brandSection,
+    deviceName: group.members[0]?.rawModelName || "مجموعة توافق",
+    compatibleDevices: group.members.map((member) => ({ id: member.id, name: member.rawModelName })),
+    dataset: datasetKeyForSourceCategory(group.batch.categoryName),
+  } : null;
+
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <PageHeader
@@ -30,10 +47,10 @@ export default function NewInventoryItemPage() {
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="اسم القطعة">
-            <input className={inputClassName} name="name" required placeholder="مثال: شاشة آيفون 11 برو الأصلية" />
+            <input className={inputClassName} name="name" required placeholder="مثال: شاشة آيفون 11 برو الأصلية" defaultValue={params.name || ""} />
           </Field>
           <Field label="التصنيف">
-            <input className={inputClassName} name="category" placeholder="مثال: شاشات، بطاريات، إكسسوارات" />
+            <input className={inputClassName} name="category" placeholder="مثال: شاشات، بطاريات، إكسسوارات" defaultValue={params.category || ""} />
           </Field>
           <Field label="SKU / رمز المنتج" helper="كود تتبع فريد للمنتج">
             <input className={`${inputClassName} font-numeric`} name="sku" placeholder="مثال: SCR-IPH11P-ORG" />
@@ -86,6 +103,9 @@ export default function NewInventoryItemPage() {
               <textarea className={textareaClassName} name="description" placeholder="اكتب أية تفاصيل إضافية حول المنتج ومواصفاته..." />
             </Field>
           </div>
+        </div>
+        <div className="mt-6">
+          <CompatibilityGroupPicker initialSelection={initialSelection} />
         </div>
         <div className="mt-6 flex justify-end">
           <Button type="submit" size="lg" className="font-semibold shadow-md px-6">
