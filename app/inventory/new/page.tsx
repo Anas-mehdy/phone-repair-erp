@@ -11,7 +11,7 @@ import { datasetKeyForSourceCategory } from "@/lib/services/compatibility/compat
 export default async function NewInventoryItemPage({
   searchParams,
 }: {
-  searchParams: Promise<{ groupId?: string; name?: string; category?: string }>;
+  searchParams: Promise<{ groupId?: string; name?: string; category?: string; error?: string }>;
 }) {
   const params = await searchParams;
   const group = params.groupId ? await getCompatibilityGroupSelection(params.groupId) : null;
@@ -37,6 +37,12 @@ export default async function NewInventoryItemPage({
           </Button>
         }
       />
+
+      {params.error ? (
+        <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-700">
+          {params.error}
+        </div>
+      ) : null}
 
       <form action={createInventoryItemAction} className="erp-section">
         <div className="border-b border-slate-100/60 pb-3 mb-5">
