@@ -26,6 +26,8 @@ export interface CompatibilityDirectoryResult {
   partCode: string | null;
   capacityMah: number | null;
   inventoryItems: CompatibilityDirectoryInventoryItem[];
+  matchType: "EXACT" | "PREFIX" | "PARTIAL";
+  alternativeGroupCount: number;
 }
 
 export interface CompatibilityDirectoryInventoryItem {
@@ -47,11 +49,20 @@ const SEARCHABLE_BATCH_STATUSES: CompatibilityImportStatus[] = [
   CompatibilityImportStatus.IMPORTED,
 ];
 
-function relevanceScore(deviceName: string, normalizedQuery: string): number {
+export function classifyCompatibilityDirectoryMatch(
+  deviceName: string,
+  query: string,
+): "EXACT" | "PREFIX" | "PARTIAL" {
   const normalizedName = normalizeSearchString(deviceName);
-  if (normalizedName === normalizedQuery) return 0;
-  if (normalizedName.startsWith(normalizedQuery)) return 1;
-  return 2;
+  const normalizedQuery = normalizeSearchString(query);
+  if (normalizedName === normalizedQuery || normalizedName.endsWith(normalizedQuery)) return "EXACT";
+  if (normalizedName.startsWith(normalizedQuery) || normalizedName.includes(normalizedQuery)) return "PREFIX";
+  return "PARTIAL";
+}
+
+function relevanceScore(deviceName: string, normalizedQuery: string): number {
+  const matchType = classifyCompatibilityDirectoryMatch(deviceName, normalizedQuery);
+  return matchType === "EXACT" ? 0 : matchType === "PREFIX" ? 1 : 2;
 }
 
 /**
@@ -130,19 +141,29 @@ export async function searchCompatibilityDirectory(
     return a.rawModelName.localeCompare(b.rawModelName, "en", { numeric: true });
   });
 
-  const seen = new Set<string>();
   const results: CompatibilityDirectoryResult[] = [];
+  const resultMeta = new Map<string, { index: number; signatures: Set<string> }>();
 
   for (const match of matches) {
     const uniqueKey = `${match.candidateGroup.brandSection.toLowerCase()}::${match.normalizedModelName}`;
-    if (seen.has(uniqueKey)) continue;
-    seen.add(uniqueKey);
+    const signature = match.candidateGroup.members
+      .map((member) => normalizeSearchString(member.rawModelName))
+      .sort()
+      .join("::");
+    const existing = resultMeta.get(uniqueKey);
+    if (existing) {
+      existing.signatures.add(signature);
+      results[existing.index].alternativeGroupCount = Math.max(0, existing.signatures.size - 1);
+      continue;
+    }
+    if (results.length >= limit) continue;
 
     const batteryDetails = dataset === "BATTERY"
       ? parseBatterySourceText(match.candidateGroup.rawSourceText)
       : null;
 
-    results.push({
+    const normalizedName = match.normalizedModelName;
+    const result: CompatibilityDirectoryResult = {
       id: match.id,
       groupId: match.candidateGroup.id,
       deviceName: match.rawModelName,
@@ -162,9 +183,11 @@ export async function searchCompatibilityDirectory(
         unitPrice: Number(inventoryItem.unitPrice),
         currency: inventoryItem.shop.currency,
       })),
-    });
-
-    if (results.length >= limit) break;
+      matchType: classifyCompatibilityDirectoryMatch(normalizedName, normalizedQuery),
+      alternativeGroupCount: 0,
+    };
+    results.push(result);
+    resultMeta.set(uniqueKey, { index: results.length - 1, signatures: new Set([signature]) });
   }
 
   return results;

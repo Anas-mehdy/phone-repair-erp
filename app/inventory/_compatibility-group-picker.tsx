@@ -1,6 +1,6 @@
 "use client";
 
-import { Link2, Loader2, Search, Sparkles, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Link2, Loader2, Search, Smartphone, Sparkles, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 type DatasetKey =
@@ -20,9 +20,13 @@ export type CompatibilityGroupSelection = {
   deviceName: string;
   compatibleDevices: { id: string; name: string }[];
   dataset: DatasetKey;
+  alternativeGroupCount?: number;
 };
 
-type SearchResult = Omit<CompatibilityGroupSelection, "dataset">;
+type SearchResult = Omit<CompatibilityGroupSelection, "dataset"> & {
+  matchType: "EXACT" | "PREFIX" | "PARTIAL";
+  alternativeGroupCount: number;
+};
 
 const DATASETS: { value: DatasetKey; label: string }[] = [
   { value: "SCREEN", label: "شاشة" },
@@ -35,6 +39,14 @@ const DATASETS: { value: DatasetKey; label: string }[] = [
   { value: "TEMPERED_GLASS", label: "لاصقة حماية" },
   { value: "TOUCH_GLASS", label: "زجاج لمس / OCA" },
 ];
+
+function extractDeviceName(value: string) {
+  return value
+    .replace(/\b(screen|display|battery|flex|frame|cover|connector|charging|port|original|copy|high|quality)\b/gi, " ")
+    .replace(/(شاشة|شاشه|بطارية|بطاريه|فلاتة|فلاته|باور|صوت|منفذ|شحن|كونكتر|فريم|غطاء|خلفي|لاصقة|حماية|زجاج|لمس|قطعة)/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 export function CompatibilityGroupPicker({
   initialSelection,
@@ -87,7 +99,7 @@ export function CompatibilityGroupPicker({
   function suggestFromItemName(button: HTMLButtonElement) {
     const form = button.closest("form");
     const nameInput = form?.querySelector<HTMLInputElement>('input[name="name"]');
-    if (nameInput?.value.trim()) setQuery(nameInput.value.trim());
+    if (nameInput?.value.trim()) setQuery(extractDeviceName(nameInput.value));
   }
 
   return (
@@ -109,13 +121,20 @@ export function CompatibilityGroupPicker({
           <input type="hidden" name="compatibilityGroupIds" value={selected.groupId} />
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-[10px] font-black text-emerald-700">مرتبط بنجاح • {selected.brandSection}</div>
-              <div className="mt-1 text-sm font-black text-slate-900">
-                {selected.compatibleDevices.map((device) => device.name).join("، ")}
+              <div className="flex items-center gap-1.5 text-[10px] font-black text-emerald-700"><CheckCircle2 className="h-3.5 w-3.5" />تم اختيار الهاتف</div>
+              <div className="mt-1 text-base font-black text-slate-900">{selected.deviceName}</div>
+              <div className="mt-3 text-[11px] font-bold text-slate-600">سيُظهر النظام هذه القطعة تلقائيًا عند البحث عن:</div>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {selected.compatibleDevices.map((device) => (
+                  <span key={device.id} className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-black text-emerald-800">{device.name}</span>
+                ))}
               </div>
-              <div className="mt-2 text-[11px] font-medium text-slate-500">
-                ستظهر القطعة في مخزون التوافقات لجميع هذه الأجهزة.
-              </div>
+              {(selected.alternativeGroupCount || 0) > 0 && (
+                <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-[10px] font-bold leading-5 text-amber-800">
+                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  يوجد أكثر من إصدار مسجل لهذا الهاتف؛ اختير السجل الأعلى ثقة. طابق كود القطعة وإصدار 4G أو 5G قبل الحفظ.
+                </div>
+              )}
             </div>
             <button
               type="button"
@@ -159,22 +178,27 @@ export function CompatibilityGroupPicker({
 
           {error && <div className="rounded-lg bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">{error}</div>}
           {!loading && query.trim().length >= 2 && results.length === 0 && !error && (
-            <div className="rounded-lg bg-white/70 px-3 py-3 text-center text-xs font-medium text-slate-500">لم نجد مجموعة مطابقة. جرّب جزءًا أقصر من اسم الجهاز.</div>
+            <div className="rounded-lg bg-white/70 px-3 py-3 text-center text-xs font-medium text-slate-500">لم نجد هاتفًا مطابقًا. جرّب جزءًا أقصر من اسم الجهاز.</div>
           )}
           {results.length > 0 && (
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="space-y-2">
               {results.map((result) => (
                 <button
-                  key={result.groupId}
+                  key={`${result.groupId}:${result.deviceName}`}
                   type="button"
                   onClick={() => setSelected({ ...result, dataset })}
-                  className="rounded-xl border border-slate-200 bg-white p-3 text-right hover:border-violet-400 hover:bg-violet-50"
+                  className={`flex w-full items-center justify-between gap-3 rounded-xl border bg-white p-3 text-right transition hover:border-violet-400 hover:bg-violet-50 ${result.matchType === "EXACT" ? "border-emerald-300 ring-1 ring-emerald-100" : "border-slate-200"}`}
                 >
-                  <div className="text-[10px] font-black text-violet-600">{result.brandSection}</div>
-                  <div className="mt-1 text-xs font-black text-slate-900">
-                    {result.compatibleDevices.map((device) => device.name).join("، ")}
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${result.matchType === "EXACT" ? "bg-emerald-100 text-emerald-700" : "bg-violet-100 text-violet-700"}`}><Smartphone className="h-4 w-4" /></span>
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-black text-slate-900">{result.deviceName}</div>
+                      <div className="mt-0.5 text-[10px] font-bold text-slate-400">{result.brandSection}</div>
+                    </div>
                   </div>
-                  <div className="mt-2 text-[10px] font-bold text-slate-400">اضغط لاختيار هذه المجموعة</div>
+                  <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black ${result.matchType === "EXACT" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
+                    {result.matchType === "EXACT" ? "مطابقة مباشرة" : "نتيجة قريبة"}
+                  </span>
                 </button>
               ))}
             </div>
