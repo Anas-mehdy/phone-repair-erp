@@ -33,12 +33,16 @@ type InventoryItemDetailsPageProps = {
   params: Promise<{
     id: string;
   }>;
+  searchParams: Promise<{
+    error?: string;
+  }>;
 };
 
 export default async function InventoryItemDetailsPage({
   params,
+  searchParams,
 }: InventoryItemDetailsPageProps) {
-  const { id } = await params;
+  const [{ id }, query] = await Promise.all([params, searchParams]);
   let item: Awaited<ReturnType<typeof inventoryService.getInventoryItemById>>;
   let movements: Awaited<ReturnType<typeof inventoryService.getInventoryMovements>>;
 
@@ -74,6 +78,12 @@ export default async function InventoryItemDetailsPage({
 
   return (
     <div className="space-y-6">
+      {query.error ? (
+        <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-700">
+          {query.error}
+        </div>
+      ) : null}
+
       {/* Top summary hero card */}
       <div className="rounded-3xl border border-slate-200/50 bg-white/95 p-6 shadow-sm shadow-slate-100/40">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">

@@ -38,6 +38,14 @@ const positiveIntegerSchema = z
     message: "الكمية يجب أن تكون أكبر من صفر",
   });
 
+// PostgreSQL accepts UUID-shaped identifiers regardless of the RFC version/variant
+// bits. Some imported compatibility groups use that valid PostgreSQL form, so
+// z.string().uuid() is intentionally too strict for these external identifiers.
+const postgresUuidSchema = z.string().regex(
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+  "معرّف التوافق غير صالح",
+);
+
 const createInventoryItemSchema = z.object({
   name: z.string().trim().min(1, "اسم القطعة مطلوب"),
   category: z.string().optional(),
@@ -47,7 +55,7 @@ const createInventoryItemSchema = z.object({
   unitPrice: requiredMoneySchema,
   quantity: nonNegativeIntegerSchema,
   reorderLevel: nonNegativeIntegerSchema,
-  compatibilityGroupIds: z.array(z.string().uuid()).max(5),
+  compatibilityGroupIds: z.array(postgresUuidSchema).max(5, "يمكن ربط القطعة بخمسة أجهزة كحد أقصى"),
 });
 
 const updateInventoryItemDetailsSchema = z.object({
@@ -59,7 +67,7 @@ const updateInventoryItemDetailsSchema = z.object({
   unitCost: optionalMoneySchema,
   unitPrice: requiredMoneySchema,
   reorderLevel: nonNegativeIntegerSchema,
-  compatibilityGroupIds: z.array(z.string().uuid()).max(5),
+  compatibilityGroupIds: z.array(postgresUuidSchema).max(5, "يمكن ربط القطعة بخمسة أجهزة كحد أقصى"),
 });
 
 const addStockSchema = z.object({
@@ -89,8 +97,16 @@ function readStrings(formData: FormData, key: string) {
   return formData.getAll(key).filter((value): value is string => typeof value === "string" && value.length > 0);
 }
 
+function errorMessage(error: unknown) {
+  if (error instanceof z.ZodError) {
+    return error.issues[0]?.message || "تحقق من بيانات القطعة وحاول مجدداً.";
+  }
+
+  return error instanceof Error ? error.message : "تعذر حفظ القطعة. حاول مجدداً.";
+}
+
 export async function createInventoryItemAction(formData: FormData) {
-  const input = createInventoryItemSchema.parse({
+  const parsed = createInventoryItemSchema.safeParse({
     name: readString(formData, "name"),
     category: readString(formData, "category"),
     sku: readString(formData, "sku"),
@@ -102,15 +118,24 @@ export async function createInventoryItemAction(formData: FormData) {
     compatibilityGroupIds: readStrings(formData, "compatibilityGroupIds"),
   });
 
+  if (!parsed.success) {
+    redirect(`/inventory/new?error=${encodeURIComponent(errorMessage(parsed.error))}`);
+  }
+
   const auth = await requirePermission("inventory:manage");
-  const item = await inventoryService.createInventoryItem(auth.shop.id, auth.user.id, input);
+  let item: Awaited<ReturnType<typeof inventoryService.createInventoryItem>>;
+  try {
+    item = await inventoryService.createInventoryItem(auth.shop.id, auth.user.id, parsed.data);
+  } catch (error) {
+    redirect(`/inventory/new?error=${encodeURIComponent(errorMessage(error))}`);
+  }
 
   revalidatePath("/inventory");
   redirect(`/inventory/${item.id}`);
 }
 
 export async function updateInventoryItemDetailsAction(formData: FormData) {
-  const input = updateInventoryItemDetailsSchema.parse({
+  const parsed = updateInventoryItemDetailsSchema.safeParse({
     inventoryItemId: readString(formData, "inventoryItemId"),
     name: readString(formData, "name"),
     category: readString(formData, "category"),
@@ -122,16 +147,28 @@ export async function updateInventoryItemDetailsAction(formData: FormData) {
     compatibilityGroupIds: readStrings(formData, "compatibilityGroupIds"),
   });
 
+  if (!parsed.success) {
+    const itemId = readString(formData, "inventoryItemId");
+    const destination = z.string().uuid().safeParse(itemId).success
+      ? `/inventory/${itemId}`
+      : "/inventory";
+    redirect(`${destination}?error=${encodeURIComponent(errorMessage(parsed.error))}`);
+  }
+
   const auth = await requirePermission("inventory:manage");
-  await inventoryService.updateInventoryItemDetails(
-    auth.shop.id,
-    input.inventoryItemId,
-    input,
-  );
+  try {
+    await inventoryService.updateInventoryItemDetails(
+      auth.shop.id,
+      parsed.data.inventoryItemId,
+      parsed.data,
+    );
+  } catch (error) {
+    redirect(`/inventory/${parsed.data.inventoryItemId}?error=${encodeURIComponent(errorMessage(error))}`);
+  }
 
   revalidatePath("/inventory");
-  revalidatePath(`/inventory/${input.inventoryItemId}`);
-  redirect(`/inventory/${input.inventoryItemId}`);
+  revalidatePath(`/inventory/${parsed.data.inventoryItemId}`);
+  redirect(`/inventory/${parsed.data.inventoryItemId}`);
 }
 
 export async function addStockAction(formData: FormData) {
