@@ -25,8 +25,8 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "إدارة الصيانة | Phone Repair OS",
-  description: "نظام متكامل لإدارة صيانة الهواتف الذكية والمبيعات والمخزون",
+  title: "مسار | إدارة صيانة الهواتف",
+  description: "مسار متكامل لإدارة صيانة الهواتف من الاستلام حتى التسليم",
 };
 
 export default async function RootLayout({

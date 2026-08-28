@@ -12,6 +12,7 @@ import {
   Sparkles,
   ChevronLeft,
   ArrowRightLeft,
+  Route,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -23,6 +24,7 @@ import { isDatabaseConnectionError } from "@/lib/database-errors";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { dashboardService } from "@/lib/services/dashboardService";
 import { DashboardUpdatesSection } from "@/components/dashboard/dashboard-updates-section";
+import { MasarJourney } from "@/components/dashboard/masar-journey";
 
 export const dynamic = "force-dynamic";
 
@@ -130,35 +132,32 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      {/* SaaS Hero Welcome Card */}
-      <div className="relative overflow-hidden rounded-3xl border border-slate-200/50 bg-gradient-to-br from-teal-800 via-primary to-teal-900 p-6 text-white shadow-lg shadow-teal-950/10">
-        <div className="absolute -left-16 -top-16 h-48 w-48 rounded-full bg-teal-600/10 blur-2xl" />
-        <div className="absolute -right-16 -bottom-16 h-48 w-48 rounded-full bg-amber-500/5 blur-2xl" />
-        
-        <div className="relative flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-[10px] font-bold backdrop-blur-sm">
-              <Sparkles className="h-3.5 w-3.5 text-amber-400" />
-              <span>{shopContext.shopName}</span>
-            </div>
-            <h2 className="text-2xl font-black tracking-tight">أهلاً بك، {shopContext.userName} 👋</h2>
-            <p className="max-w-xl text-xs font-medium leading-relaxed text-slate-100/90">
-              تابع وأدر أعمال الصيانة اليومية، وتفقد المبيعات وسجل الأجهزة وحركات المخزون والمقبوضات المالية بكل سهولة ودقة.
-            </p>
-            <div className="pt-1 text-[11px] font-bold text-teal-200/90 flex items-center gap-1.5 font-numeric">
-              <Clock className="h-3.5 w-3.5 text-teal-300" />
-              <span>توقيت النظام: {todayStr}</span>
-            </div>
+      {/* Masar brand and decorative device journey */}
+      <section className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm shadow-slate-200/60 sm:p-7">
+        <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-teal-100/50 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-28 -left-24 h-64 w-64 rounded-full bg-indigo-100/40 blur-3xl" />
+
+        <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold text-slate-500 sm:text-[11px]">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-teal-100 bg-teal-50 px-3 py-1.5 text-teal-800">
+              <Sparkles className="h-3.5 w-3.5 text-teal-600" />
+              {shopContext.shopName}
+            </span>
+            <span>أهلاً بك، {shopContext.userName}</span>
+            <span className="inline-flex items-center gap-1.5 font-numeric text-slate-400">
+              <Clock className="h-3.5 w-3.5" />
+              {todayStr}
+            </span>
           </div>
-          
+
           <div className="flex flex-wrap gap-2.5 shrink-0">
-            <Button asChild className="bg-white text-primary hover:bg-slate-50 font-bold shadow-md rounded-xl text-xs h-11 px-5 border-0">
+            <Button asChild className="h-10 rounded-xl border-0 bg-primary px-4 text-xs font-bold text-white shadow-md shadow-primary/15 hover:bg-teal-700">
               <Link href="/repair-orders/new">
                 <Plus className="h-4.5 w-4.5 ml-1.5" aria-hidden="true" />
                 طلب صيانة جديد
               </Link>
             </Button>
-            <Button asChild variant="outline" className="bg-white/10 hover:bg-white/20 border-white/20 text-white font-bold rounded-xl text-xs h-11 px-5">
+            <Button asChild variant="outline" className="h-10 rounded-xl border-slate-200 bg-white px-4 text-xs font-bold text-slate-700 hover:border-primary/30 hover:bg-teal-50 hover:text-primary">
               <Link href="/sales/new">
                 <ShoppingCart className="h-4.5 w-4.5 ml-1.5" />
                 عملية بيع POS جديدة
@@ -166,7 +165,23 @@ export default async function DashboardPage() {
             </Button>
           </div>
         </div>
-      </div>
+
+        <div className="relative mt-7 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-500 to-indigo-600 text-white shadow-lg shadow-teal-600/20">
+            <Route className="h-6 w-6" aria-hidden="true" />
+          </div>
+          <h1 className="mt-3 text-4xl font-black tracking-tight text-slate-900 sm:text-5xl">مسار</h1>
+          <p className="mt-1.5 text-xs font-extrabold text-teal-700 sm:text-sm">
+            رحلة الجهاز من الاستلام حتى التسليم
+          </p>
+        </div>
+
+        <MasarJourney />
+
+        <p className="relative mt-5 text-center text-[10px] font-bold text-slate-400 sm:text-[11px]">
+          من أول خطوة... حتى يعود الجهاز لصاحبه
+        </p>
+      </section>
 
       {/* KPI Cards Grid */}
       <section className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
