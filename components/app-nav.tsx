@@ -13,6 +13,7 @@ import {
   UserRound,
   Wrench,
   WalletCards,
+  ChartNoAxesCombined,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -86,6 +87,15 @@ export const navGroups: NavGroup[] = [
           className: "border-fuchsia-500/30 bg-gradient-to-r from-fuchsia-500 to-violet-600 text-white shadow-sm shadow-fuchsia-500/20",
         },
       },
+      {
+        href: "/reports",
+        label: "التقارير والأرباح",
+        icon: ChartNoAxesCombined,
+        badge: {
+          text: "جديد",
+          className: "border-emerald-500/30 bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-sm shadow-emerald-500/20",
+        },
+      },
     ],
   },
   {
@@ -107,11 +117,13 @@ function isActivePath(pathname: string, href: string) {
 export function AppNav({
   onNavigate,
   canSettings = false,
+  canReports = false,
   compact = false,
 }: {
   onNavigate?: () => void;
   compact?: boolean;
   canSettings?: boolean;
+  canReports?: boolean;
 }) {
   const pathname = usePathname();
 
@@ -119,9 +131,11 @@ export function AppNav({
     <nav className={cn("mt-2", compact ? "space-y-3" : "space-y-5")}>
       {navGroups.map((group, groupIdx) => {
         // Filter out Settings navigation item if user lacks shop:settings permission (non-OWNER)
-        const visibleItems = group.items.filter(
-          (item) => item.href !== "/settings" || canSettings
-        );
+        const visibleItems = group.items.filter((item) => {
+          if (item.href === "/settings") return canSettings;
+          if (item.href === "/reports") return canReports;
+          return true;
+        });
 
         if (visibleItems.length === 0) return null;
 

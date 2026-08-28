@@ -22,6 +22,8 @@ export type AppPermission =
   | "customers:manage"
   | "customers:delete"
   | "suppliers:manage"
+  | "reports:read"
+  | "expenses:manage"
   | "shop:settings"
   | "team:read"
   | "team:invite"
@@ -46,6 +48,8 @@ export const ALL_APP_PERMISSIONS: readonly AppPermission[] = [
   "customers:manage",
   "customers:delete",
   "suppliers:manage",
+  "reports:read",
+  "expenses:manage",
   "shop:settings",
   "team:read",
   "team:invite",
@@ -78,6 +82,8 @@ export const ROLE_PERMISSIONS_MATRIX: Record<MembershipRole, readonly AppPermiss
     "customers:manage",
     "customers:delete",
     "suppliers:manage",
+    "reports:read",
+    "expenses:manage",
     "team:read",
     "team:invite",
     "team:manage",
@@ -104,6 +110,7 @@ export const ROLE_PERMISSIONS_MATRIX: Record<MembershipRole, readonly AppPermiss
     "sales:read",
     "inventory:read",
     "invoices:read",
+    "reports:read",
     "team:read",
   ],
 };

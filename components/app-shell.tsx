@@ -12,9 +12,11 @@ import { UserPresenceHeartbeat } from "@/components/user-presence-heartbeat";
 export function AppShell({
   children,
   canSettings = false,
+  canReports = false,
 }: {
   children: ReactNode;
   canSettings?: boolean;
+  canReports?: boolean;
 }) {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -148,7 +150,7 @@ export function AppShell({
 
           {/* Navigation Items */}
           <div className="mt-4 flex-1">
-            <AppNav canSettings={canSettings} compact={isCollapsed} />
+            <AppNav canSettings={canSettings} canReports={canReports} compact={isCollapsed} />
           </div>
 
           {/* User / Logout footer in sidebar */}
@@ -228,7 +230,7 @@ export function AppShell({
 
           {/* Nav Items */}
           <div className="mt-4 flex-1">
-            <AppNav canSettings={canSettings} onNavigate={() => setMobileMenuOpen(false)} compact={false} />
+            <AppNav canSettings={canSettings} canReports={canReports} onNavigate={() => setMobileMenuOpen(false)} compact={false} />
           </div>
 
           {/* Drawer Footer */}
