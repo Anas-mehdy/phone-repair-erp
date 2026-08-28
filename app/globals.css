@@ -296,19 +296,19 @@
 }
 
 /* ==========================================================================
-   Masar Option 2: Precision Dot Matrix Grid & Luminous Light Sweep
+   Masar Native Dot Grid Wave Canvas Background
    ========================================================================== */
 
-.masar-luxury-bg {
+.masar-dot-grid-container {
   background: linear-gradient(
     145deg,
     rgba(255, 255, 255, 0.98) 0%,
-    rgba(240, 253, 250, 0.7) 45%,
+    rgba(240, 253, 250, 0.65) 45%,
     rgba(248, 250, 252, 0.95) 100%
   );
 }
 
-/* 1. Ambient luxury glow orbs (Soft, breathing background light) */
+/* 1. Ambient subtle corner glow */
 .masar-ambient-glow {
   position: absolute;
   border-radius: 9999px;
