@@ -1,6 +1,6 @@
 import Link from "next/link";
+import Image from "next/image";
 import {
-  Route,
   Wrench,
   MessageSquareCode,
   ShoppingCart,
@@ -29,8 +29,14 @@ export default function LandingPage() {
       <header className="sticky top-0 z-50 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-xl w-full">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-2">
           <Link href="/" className="flex items-center gap-2 sm:gap-3 shrink-0 min-w-0">
-            <div className="flex h-9 w-9 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl bg-gradient-to-br from-teal-400 to-primary text-slate-950 shadow-lg shadow-teal-500/20">
-              <Route className="h-5 w-5 sm:h-6 sm:w-6" />
+            <div className="flex h-9 w-9 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl bg-white p-1.5 sm:p-2 shadow-lg shadow-teal-500/10">
+              <Image
+                src="/masar-icon.png"
+                alt="مسار"
+                width={32}
+                height={32}
+                className="h-full w-full object-contain"
+              />
             </div>
             <div className="min-w-0">
               <span className="text-base sm:text-xl font-black tracking-tight text-white block truncate">مسار</span>
@@ -346,7 +352,13 @@ export default function LandingPage() {
       <footer className="border-t border-slate-900 bg-slate-950 py-8 text-center text-xs text-slate-500 w-full overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <Route className="h-4 w-4 text-teal-400 shrink-0" />
+            <Image
+              src="/masar-icon.png"
+              alt="مسار"
+              width={20}
+              height={20}
+              className="h-4.5 w-4.5 object-contain"
+            />
             <span className="font-bold text-slate-400">مسار - جميع الحقوق محفوظة {new Date().getFullYear()}</span>
           </div>
           <div className="flex items-center gap-4 sm:gap-6 font-medium">

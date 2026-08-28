@@ -1,6 +1,7 @@
 "use client";
 
-import { Route, LogOut, Menu, X, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { LogOut, Menu, X, ChevronsLeft, ChevronsRight } from "lucide-react";
+import Image from "next/image";
 import { useState, useEffect, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { AppNav } from "@/components/app-nav";
@@ -100,19 +101,31 @@ export function AppShell({
               <div
                 title="مسار - منظومة إدارة الصيانة"
                 onClick={toggleSidebar}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-primary/95 to-teal-800 text-primary-foreground shadow-md shadow-primary/20 cursor-pointer transition hover:scale-105"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white p-2 border border-slate-200/80 shadow-md shadow-slate-200/50 cursor-pointer transition hover:scale-105 hover:border-teal-300"
               >
-                <Route className="h-5.5 w-5.5" aria-hidden="true" />
+                <Image
+                  src="/masar-icon.png"
+                  alt="مسار"
+                  width={28}
+                  height={28}
+                  className="h-7 w-7 object-contain"
+                />
               </div>
             </div>
           ) : (
-            <div className="flex items-center justify-between gap-2 rounded-2xl border border-slate-200/60 bg-slate-50/40 p-3.5 transition-all duration-300 hover:border-primary/10">
+            <div className="flex items-center justify-between gap-2 rounded-2xl border border-slate-200/60 bg-slate-50/50 p-3 transition-all duration-300 hover:border-teal-200/60">
               <div className="flex items-center gap-3 overflow-hidden">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-primary/95 to-teal-800 text-primary-foreground shadow-md shadow-primary/20">
-                  <Route className="h-5.5 w-5.5" aria-hidden="true" />
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white p-2 border border-slate-200/80 shadow-xs">
+                  <Image
+                    src="/masar-icon.png"
+                    alt="مسار"
+                    width={28}
+                    height={28}
+                    className="h-7 w-7 object-contain"
+                  />
                 </div>
                 <div className="overflow-hidden">
-                  <h1 className="text-base font-extrabold tracking-tight text-slate-800 bg-gradient-to-l from-slate-900 to-slate-700 bg-clip-text text-transparent truncate">
+                  <h1 className="text-base font-black tracking-tight text-slate-900 truncate">
                     مسار
                   </h1>
                   <p className="mt-0.5 text-[10px] font-bold text-teal-700 uppercase tracking-wide truncate">
@@ -188,8 +201,14 @@ export function AppShell({
           {/* Drawer Header */}
           <div className="flex items-center justify-between pb-4 border-b border-slate-100">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-primary/95 to-teal-800 text-primary-foreground shadow-md shadow-primary/20">
-                <Route className="h-5 w-5" aria-hidden="true" />
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white p-2 border border-slate-200 shadow-xs">
+                <Image
+                  src="/masar-icon.png"
+                  alt="مسار"
+                  width={24}
+                  height={24}
+                  className="h-6 w-6 object-contain"
+                />
               </div>
               <div>
                 <h2 className="text-sm font-extrabold text-slate-800">مسار</h2>
@@ -243,8 +262,14 @@ export function AppShell({
               </button>
 
               <div className="flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-primary/95 to-teal-800 text-primary-foreground shadow-xs shadow-primary/10">
-                  <Route className="h-4.5 w-4.5" aria-hidden="true" />
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white p-1.5 border border-slate-200 shadow-2xs">
+                  <Image
+                    src="/masar-icon.png"
+                    alt="مسار"
+                    width={22}
+                    height={22}
+                    className="h-5 w-5 object-contain"
+                  />
                 </div>
                 <div>
                   <h1 className="font-extrabold text-slate-800 text-sm leading-tight">مسار</h1>

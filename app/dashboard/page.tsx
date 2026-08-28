@@ -12,9 +12,9 @@ import {
   Sparkles,
   ChevronLeft,
   ArrowRightLeft,
-  Route,
   type LucideIcon,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { DatabaseUnavailable } from "@/components/database-unavailable";
@@ -166,12 +166,18 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        <div className="relative mt-7 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-500 to-indigo-600 text-white shadow-lg shadow-teal-600/20">
-            <Route className="h-6 w-6" aria-hidden="true" />
+        <div className="relative mt-6 text-center">
+          <div className="mx-auto flex justify-center">
+            <Image
+              src="/masar-logo.png"
+              alt="مسار"
+              width={220}
+              height={198}
+              priority
+              className="h-24 sm:h-28 w-auto object-contain drop-shadow-xs transition-transform duration-300 hover:scale-105"
+            />
           </div>
-          <h1 className="mt-3 text-4xl font-black tracking-tight text-slate-900 sm:text-5xl">مسار</h1>
-          <p className="mt-1.5 text-xs font-extrabold text-teal-700 sm:text-sm">
+          <p className="mt-2 text-xs font-extrabold text-teal-700 sm:text-sm">
             رحلة الجهاز من الاستلام حتى التسليم
           </p>
         </div>
