@@ -21,10 +21,16 @@ const shopIdSchema = z.object({
   shopId: z.string().uuid("معرف المتجر غير صالح"),
 });
 
+const optionalText = (max: number, label: string) =>
+  z.string().trim().max(max, `${label} طويل جداً`).optional().or(z.literal(""));
+
 const activateSubscriptionSchema = shopIdSchema.extend({
   plan: z.nativeEnum(SubscriptionPlan),
   billingInterval: z.nativeEnum(SubscriptionBillingInterval),
   extraDays: z.coerce.number().int().min(0).max(3660).default(0),
+  adminNotes: optionalText(2000, "الملاحظة الإدارية"),
+  paymentReference: optionalText(200, "مرجع الدفع"),
+  paymentMethod: optionalText(50, "وسيلة الدفع"),
 });
 
 const gracePeriodSchema = shopIdSchema.extend({
@@ -97,6 +103,7 @@ export async function adminImpersonateShopAction(formData: FormData) {
 }
 
 export async function adminActivateSubscriptionAction(formData: FormData) {
+  // Defense in depth: Action AND service both require Super Admin.
   await requireSuperAdmin();
 
   try {
@@ -105,9 +112,20 @@ export async function adminActivateSubscriptionAction(formData: FormData) {
       plan: formData.get("plan"),
       billingInterval: formData.get("billingInterval"),
       extraDays: formData.get("extraDays") || 0,
+      adminNotes: formData.get("adminNotes") || "",
+      paymentReference: formData.get("paymentReference") || "",
+      paymentMethod: formData.get("paymentMethod") || "",
     });
 
-    const subscription = await subscriptionAdminService.activateSubscription(parsed);
+    const subscription = await subscriptionAdminService.activateSubscription({
+      shopId: parsed.shopId,
+      plan: parsed.plan,
+      billingInterval: parsed.billingInterval,
+      extraDays: parsed.extraDays,
+      adminNotes: parsed.adminNotes || null,
+      paymentReference: parsed.paymentReference || null,
+      paymentMethod: parsed.paymentMethod || null,
+    });
     revalidateSubscriptionAdmin(parsed.shopId);
     return { success: true, subscription };
   } catch (error) {
