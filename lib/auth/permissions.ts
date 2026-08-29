@@ -28,7 +28,8 @@ export type AppPermission =
   | "shop:settings"
   | "team:read"
   | "team:invite"
-  | "team:manage";
+  | "team:manage"
+  | "subscription:manage";
 
 export const ALL_APP_PERMISSIONS: readonly AppPermission[] = [
   "repairs:read",
@@ -56,6 +57,7 @@ export const ALL_APP_PERMISSIONS: readonly AppPermission[] = [
   "team:read",
   "team:invite",
   "team:manage",
+  "subscription:manage",
 ] as const;
 
 /**
