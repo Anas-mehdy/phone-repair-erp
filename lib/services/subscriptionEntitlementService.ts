@@ -348,9 +348,9 @@ export async function withRepairOrderLimitGuard<T>(
 
   const outcome = await prisma.$transaction(
     async (tx) => {
-      // A 64-bit hash gives a stable lock key. Hash collisions only cause extra
-      // serialization; they cannot allow a limit bypass.
-      await tx.$queryRaw`
+      // pg_advisory_xact_lock returns PostgreSQL void. $executeRaw is required
+      // so Prisma does not attempt to deserialize the void result column.
+      await tx.$executeRaw`
         SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))
       `;
 
