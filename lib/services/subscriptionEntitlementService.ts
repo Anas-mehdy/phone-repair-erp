@@ -1,15 +1,11 @@
 /**
- * subscriptionEntitlementService.ts
+ * Central Subscription Entitlement Service for Massar ERP.
  *
- * Central Entitlement Service — the ONLY source of truth for subscription
- * and usage gate-keeping across Massar ERP.
- *
- * SECURITY CONTRACT:
- *  1. shopId MUST be sourced from verified server-side context, never browser input.
- *  2. plan, status, and subscription timestamps are database-authoritative.
- *  3. Every tenant query is scoped by shopId.
- *  4. Subscription mutations are Super Admin operations and MUST use requireSuperAdmin().
- *  5. Prisma is used server-side; these tables are not exposed to the client directly.
+ * Security contract:
+ * - shopId comes from verified server-side context, never browser authorization input.
+ * - plan/status/timestamps are database-authoritative.
+ * - tenant queries are scoped by shopId.
+ * - Subscription mutations are Super Admin operations protected by requireSuperAdmin().
  */
 
 import {
@@ -114,6 +110,11 @@ function utcStartOfMonth(date: Date): Date {
 
 function utcStartOfNextMonth(date: Date): Date {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 1));
+}
+
+function utcMonthLockKey(shopId: string, date: Date): string {
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  return `repair-limit:${shopId}:${date.getUTCFullYear()}-${month}`;
 }
 
 export function computeEffectiveStatus(
@@ -231,10 +232,8 @@ async function countMonthlyRepairOrders(shopId: string, now: Date): Promise<numb
 }
 
 /**
- * Counts active seats while preserving compatibility with legacy shops that
- * still authenticate through User.shopId/User.role and do not yet have an
- * OWNER Membership row. Production contains such shops, so a legacy owner must
- * still count as the one BASIC seat rather than being reported as zero.
+ * Legacy shops can authenticate without an OWNER Membership row. Their legacy
+ * owner still occupies the single BASIC seat and must not be reported as zero.
  */
 async function countActiveSeats(shopId: string): Promise<number> {
   const [activeMemberships, activeOwnerMembership] = await Promise.all([
@@ -318,27 +317,22 @@ export async function incrementCompatibilitySearchEnforced(
   return result[0]?.searchCount ?? null;
 }
 
-function isSerializableRetryableError(error: unknown): boolean {
-  if (!(error instanceof Error)) return false;
-
-  const code = "code" in error ? String((error as { code?: unknown }).code ?? "") : "";
-  if (code === "40001" || code === "P2034") return true;
-
-  const meta = "meta" in error ? (error as { meta?: Record<string, unknown> }).meta : undefined;
-  const metaCode = meta?.code ? String(meta.code) : "";
-  return metaCode === "40001";
-}
-
 /**
- * Runs the entitlement check, monthly COUNT and the real RepairOrder CREATE
- * callback inside one SERIALIZABLE transaction. The callback MUST use the
- * supplied TransactionClient; otherwise the concurrency guarantee is lost.
+ * Concurrency-safe RepairOrder creation guard.
+ *
+ * A transaction-scoped PostgreSQL advisory lock serializes creation attempts
+ * for the same shop + UTC calendar month. The lock remains held while the
+ * callback runs, even if the existing RepairOrder service uses its own Prisma
+ * transaction. Therefore a second guarded request cannot perform its COUNT
+ * until the first creation has committed and released the lock.
+ *
+ * This avoids duplicating the large RepairOrder creation workflow or requiring
+ * its inventory/customer logic to be rewritten solely for subscription limits.
  */
 export async function withRepairOrderLimitGuard<T>(
   shopId: string,
   callback: RepairOrderCreateCallback<T>,
   now: Date = new Date(),
-  maxRetries = 4,
 ): Promise<
   | { result: T }
   | {
@@ -350,105 +344,100 @@ export async function withRepairOrderLimitGuard<T>(
 > {
   const monthStart = utcStartOfMonth(now);
   const nextMonthStart = utcStartOfNextMonth(now);
+  const lockKey = utcMonthLockKey(shopId, now);
 
-  for (let attempt = 0; attempt < maxRetries; attempt += 1) {
-    try {
-      const outcome = await prisma.$transaction(
-        async (tx) => {
-          const sub = await tx.subscription.findUnique({
-            where: { shopId },
-            select: {
-              plan: true,
-              status: true,
-              trialEndsAt: true,
-              currentPeriodStartedAt: true,
-              currentPeriodEndsAt: true,
-              gracePeriodEndsAt: true,
-            },
-          });
+  const outcome = await prisma.$transaction(
+    async (tx) => {
+      // A 64-bit hash gives a stable lock key. Hash collisions only cause extra
+      // serialization; they cannot allow a limit bypass.
+      await tx.$queryRaw`
+        SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))
+      `;
 
-          if (!sub) {
-            return {
-              denied: true,
-              code: "SUBSCRIPTION_EXPIRED" as EntitlementDenyCode,
-              message:
-                "انتهت فترة استخدامك. بياناتك محفوظة بالكامل، اختر خطة لمتابعة إنشاء عمليات جديدة.",
-              upgradeUrl: UPGRADE_URL,
-            } as const;
-          }
-
-          const effectiveStatus = computeEffectiveStatus(
-            sub.status,
-            sub.trialEndsAt,
-            sub.currentPeriodStartedAt ?? null,
-            sub.currentPeriodEndsAt ?? null,
-            sub.gracePeriodEndsAt ?? null,
-            now,
-          );
-
-          const isOperationallyActive =
-            effectiveStatus === "TRIALING" ||
-            effectiveStatus === "ACTIVE" ||
-            effectiveStatus === "GRACE_PERIOD";
-
-          if (!isOperationallyActive) {
-            return {
-              denied: true,
-              code: "SUBSCRIPTION_EXPIRED" as EntitlementDenyCode,
-              message:
-                "انتهت فترة استخدامك. بياناتك محفوظة بالكامل، اختر خطة لمتابعة إنشاء عمليات جديدة.",
-              upgradeUrl: UPGRADE_URL,
-            } as const;
-          }
-
-          const effectivePlan = computeEffectivePlan(effectiveStatus, sub.plan);
-          const limit = PLAN_LIMITS[effectivePlan].monthlyRepairOrders;
-
-          if (limit !== null) {
-            const count = await tx.repairOrder.count({
-              where: {
-                shopId,
-                createdAt: { gte: monthStart, lt: nextMonthStart },
-                deletedAt: null,
-              },
-            });
-
-            if (count >= limit) {
-              return {
-                denied: true,
-                code: "REPAIR_LIMIT_REACHED" as EntitlementDenyCode,
-                message: `استخدمت ${limit} من أصل ${limit} تذكرة لهذا الشهر.`,
-                upgradeUrl: UPGRADE_URL,
-              } as const;
-            }
-          }
-
-          const created = await callback(tx);
-          return { created } as const;
+      const sub = await tx.subscription.findUnique({
+        where: { shopId },
+        select: {
+          plan: true,
+          status: true,
+          trialEndsAt: true,
+          currentPeriodStartedAt: true,
+          currentPeriodEndsAt: true,
+          gracePeriodEndsAt: true,
         },
-        { isolationLevel: "Serializable", timeout: 15000 },
-      );
+      });
 
-      if ("denied" in outcome && outcome.denied) {
+      if (!sub) {
         return {
           denied: true,
-          code: outcome.code,
-          message: outcome.message,
-          upgradeUrl: outcome.upgradeUrl,
-        };
+          code: "SUBSCRIPTION_EXPIRED" as EntitlementDenyCode,
+          message:
+            "انتهت فترة استخدامك. بياناتك محفوظة بالكامل، اختر خطة لمتابعة إنشاء عمليات جديدة.",
+          upgradeUrl: UPGRADE_URL,
+        } as const;
       }
 
-      return { result: (outcome as { created: T }).created };
-    } catch (error) {
-      if (isSerializableRetryableError(error) && attempt < maxRetries - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 10 * 2 ** attempt));
-        continue;
+      const effectiveStatus = computeEffectiveStatus(
+        sub.status,
+        sub.trialEndsAt,
+        sub.currentPeriodStartedAt ?? null,
+        sub.currentPeriodEndsAt ?? null,
+        sub.gracePeriodEndsAt ?? null,
+        now,
+      );
+
+      const isOperationallyActive =
+        effectiveStatus === "TRIALING" ||
+        effectiveStatus === "ACTIVE" ||
+        effectiveStatus === "GRACE_PERIOD";
+
+      if (!isOperationallyActive) {
+        return {
+          denied: true,
+          code: "SUBSCRIPTION_EXPIRED" as EntitlementDenyCode,
+          message:
+            "انتهت فترة استخدامك. بياناتك محفوظة بالكامل، اختر خطة لمتابعة إنشاء عمليات جديدة.",
+          upgradeUrl: UPGRADE_URL,
+        } as const;
       }
-      throw error;
-    }
+
+      const effectivePlan = computeEffectivePlan(effectiveStatus, sub.plan);
+      const limit = PLAN_LIMITS[effectivePlan].monthlyRepairOrders;
+
+      if (limit !== null) {
+        const count = await tx.repairOrder.count({
+          where: {
+            shopId,
+            createdAt: { gte: monthStart, lt: nextMonthStart },
+            deletedAt: null,
+          },
+        });
+
+        if (count >= limit) {
+          return {
+            denied: true,
+            code: "REPAIR_LIMIT_REACHED" as EntitlementDenyCode,
+            message: `استخدمت ${limit} من أصل ${limit} تذكرة لهذا الشهر.`,
+            upgradeUrl: UPGRADE_URL,
+          } as const;
+        }
+      }
+
+      const created = await callback(tx);
+      return { created } as const;
+    },
+    { isolationLevel: "ReadCommitted", timeout: 30000 },
+  );
+
+  if ("denied" in outcome && outcome.denied) {
+    return {
+      denied: true,
+      code: outcome.code,
+      message: outcome.message,
+      upgradeUrl: outcome.upgradeUrl,
+    };
   }
 
-  throw new Error("تعذر إتمام العملية بأمان بعد عدة محاولات متزامنة. حاول مرة أخرى.");
+  return { result: (outcome as { created: T }).created };
 }
 
 export async function getEntitlementContext(
@@ -473,9 +462,8 @@ export async function getEntitlementContext(
     isOperationallyActive &&
     (limits.monthlyRepairOrders === null || repairOrdersThisMonth < limits.monthlyRepairOrders);
 
-  // BASIC is explicitly an owner-only plan. Do not infer permission to add a
-  // worker from activeSeats < 1 because legacy shops can have no Membership row
-  // for the owner. Existing employees are preserved; only NEW additions are denied.
+  // BASIC is explicitly owner-only. Existing employees are preserved, but no
+  // new employee or reactivation is allowed while BASIC governs entitlements.
   const canAddEmployee = isOperationallyActive && limits.totalSeats === null;
 
   const canPerformCompatibilitySearch =
@@ -494,7 +482,6 @@ export async function getEntitlementContext(
   };
 }
 
-/** Generic guard for creation types that have no BASIC quota beyond subscription activity. */
 export async function checkCanCreateNewOperation(
   shopId: string,
   now: Date = new Date(),
