@@ -1,7 +1,7 @@
 "use server";
 
 import { authService, type RegisterInput, type LoginInput } from "@/lib/services/authService";
-import { validatePhoneForCountry } from "@/lib/countries";
+import { COUNTRY_DIAL_CODES, validatePhoneForCountry } from "@/lib/countries";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
@@ -11,7 +11,7 @@ export async function registerAction(formData: FormData) {
   const password = (formData.get("password") as string) || "";
   const shopName = (formData.get("shopName") as string)?.trim() || "";
   const rawPhone = (formData.get("phone") as string)?.trim() || "";
-  const dialCode = (formData.get("dialCode") as string) || "+966";
+  const countryCode = ((formData.get("countryCode") as string) || "").trim().toUpperCase();
   const currency = (formData.get("currency") as string) || "SAR";
   const address = (formData.get("address") as string)?.trim() || "";
 
@@ -35,7 +35,12 @@ export async function registerAction(formData: FormData) {
     return { success: false, error: "رقم هاتف المتجر / الواتساب مطلوب لإنشاء الحساب" };
   }
 
-  const phoneValidation = validatePhoneForCountry(dialCode, rawPhone);
+  const selectedCountry = COUNTRY_DIAL_CODES.find((country) => country.code === countryCode);
+  if (!selectedCountry) {
+    return { success: false, error: "يرجى اختيار الدولة التي يقع فيها المتجر" };
+  }
+
+  const phoneValidation = validatePhoneForCountry(selectedCountry.code, rawPhone);
   if (!phoneValidation.isValid) {
     return {
       success: false,
@@ -52,6 +57,7 @@ export async function registerAction(formData: FormData) {
       password,
       shopName,
       phone,
+      countryCode: selectedCountry.code,
       currency,
       address,
     };

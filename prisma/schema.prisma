@@ -120,24 +120,43 @@ enum ExpenseCategory {
   OTHER
 }
 
+enum SubscriptionPlan {
+  BASIC
+  PROFESSIONAL
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  GRACE_PERIOD
+  EXPIRED
+  CANCELED
+}
+
+enum SubscriptionBillingInterval {
+  SIX_MONTHS
+  ANNUAL
+}
+
 // ---------------------------------------------------------
 // TENANT / BUSINESS MODEL
 // ---------------------------------------------------------
 
 model Shop {
-  id        String    @id @default(uuid()) @db.Uuid
-  name      String
-  phone     String?
-  address   String?
-  currency  String    @default("SAR")
-  taxNumber String?
-  taxRate   Decimal   @default(15) @db.Decimal(5, 2)
-  terms     String?
-  maxSeats  Int       @default(5) // حد المقاعد المسموح بها وفق خطة الاشتراك
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
-  version   Int       @default(1)
+  id          String    @id @default(uuid()) @db.Uuid
+  name        String
+  phone       String?
+  address     String?
+  countryCode String    @default("US") @db.VarChar(2)
+  currency    String    @default("SAR")
+  taxNumber   String?
+  taxRate     Decimal   @default(15) @db.Decimal(5, 2)
+  terms       String?
+  maxSeats    Int       @default(5) // حد المقاعد المسموح بها وفق خطة الاشتراك
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+  version     Int       @default(1)
 
   // Relationships
   memberships               Membership[]
@@ -160,9 +179,47 @@ model Shop {
   installmentPayments       InstallmentPayment[]
   paymentSourceOptions      PaymentSourceOption[]
   expenses                  Expense[]
+  subscription              Subscription?
 
   @@index([updatedAt])
   @@index([deletedAt])
+  @@index([countryCode])
+}
+
+model Subscription {
+  id                     String                       @id @default(uuid()) @db.Uuid
+  shopId                 String                       @unique @db.Uuid
+  plan                   SubscriptionPlan             @default(PROFESSIONAL)
+  status                 SubscriptionStatus           @default(TRIALING)
+  billingInterval        SubscriptionBillingInterval?
+  trialStartedAt         DateTime
+  trialEndsAt            DateTime
+  currentPeriodStartedAt DateTime?
+  currentPeriodEndsAt    DateTime?
+  activatedAt            DateTime?
+  canceledAt             DateTime?
+  createdAt              DateTime                     @default(now())
+  updatedAt              DateTime                     @updatedAt
+
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([status, trialEndsAt])
+  @@index([plan, status])
+  @@index([currentPeriodEndsAt])
+}
+
+model SubscriptionPrice {
+  id              String                      @id @default(uuid()) @db.Uuid
+  countryCode     String                      @db.VarChar(2)
+  plan            SubscriptionPlan
+  billingInterval SubscriptionBillingInterval
+  currencyCode    String                      @db.VarChar(3)
+  amount          Decimal                     @db.Decimal(12, 2)
+  createdAt       DateTime                    @default(now())
+  updatedAt       DateTime                    @updatedAt
+
+  @@unique([countryCode, plan, billingInterval])
+  @@index([countryCode])
 }
 
 // ---------------------------------------------------------
