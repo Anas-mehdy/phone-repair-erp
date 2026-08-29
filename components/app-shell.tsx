@@ -8,6 +8,7 @@ import { AppNav } from "@/components/app-nav";
 import { logoutAction } from "@/app/actions/authActions";
 import { cn } from "@/lib/utils";
 import { UserPresenceHeartbeat } from "@/components/user-presence-heartbeat";
+import { GlobalSubscriptionBanner } from "@/components/subscription/global-subscription-banner";
 
 export function AppShell({
   children,
@@ -298,6 +299,7 @@ export function AppShell({
 
         <main className="mx-auto min-h-screen max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
           <UserPresenceHeartbeat />
+          <GlobalSubscriptionBanner />
           {children}
         </main>
       </div>

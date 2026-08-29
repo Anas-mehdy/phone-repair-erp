@@ -29,7 +29,6 @@ import { DashboardUpdatesSection } from "@/components/dashboard/dashboard-update
 import { MasarJourney } from "@/components/dashboard/masar-journey";
 import { MasarWaveBackground } from "@/components/dashboard/masar-wave-background";
 import { DomainAnnouncement } from "@/components/dashboard/domain-announcement";
-import { GlobalSubscriptionBanner } from "@/components/subscription/global-subscription-banner";
 import { subscriptionService, type SubscriptionOverview } from "@/lib/services/subscriptionService";
 
 export const dynamic = "force-dynamic";
@@ -143,7 +142,6 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-8">
       <DomainAnnouncement />
-      <GlobalSubscriptionBanner />
 
       {subscriptionOverview?.effectiveStatus === SubscriptionStatus.TRIALING && (
         <section className="flex flex-col gap-4 rounded-2xl border border-cyan-200 bg-gradient-to-l from-cyan-50 via-white to-teal-50 px-5 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">

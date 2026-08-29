@@ -1,62 +1,78 @@
-import React from "react";
-import { getAuthContext } from "@/lib/auth/context";
-import { entitlementService } from "@/lib/services/subscriptionEntitlementService";
+"use client";
+
+import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import {
+  getOwnerSubscriptionNoticeAction,
+  type OwnerSubscriptionNotice,
+} from "@/app/actions/subscriptionActions";
 import {
   SubscriptionExpiredBanner,
   SubscriptionGracePeriodBanner,
 } from "./entitlement-alert";
 
-export async function GlobalSubscriptionBanner() {
-  try {
-    const auth = await getAuthContext({ allowRedirect: false });
-    if (!auth || auth.membership.role !== "OWNER") {
-      return null;
+export function GlobalSubscriptionBanner() {
+  const pathname = usePathname();
+  const [notice, setNotice] = useState<OwnerSubscriptionNotice>(null);
+
+  useEffect(() => {
+    // Exclude public pages, auth routes, admin, tracking, and receipts
+    const isExcluded =
+      pathname === "/" ||
+      pathname === "/login" ||
+      pathname === "/register" ||
+      pathname === "/forgot-password" ||
+      pathname === "/reset-password" ||
+      pathname.startsWith("/admin") ||
+      pathname.startsWith("/track") ||
+      pathname.startsWith("/installment-track") ||
+      pathname.includes("/print") ||
+      pathname.includes("/sticker");
+
+    if (isExcluded) {
+      setNotice(null);
+      return;
     }
 
-    const entitlement = await entitlementService.getEntitlementContext(auth.shop.id);
-    const effectiveStatus = entitlement.subscription.effectiveStatus;
+    let isMounted = true;
+    getOwnerSubscriptionNoticeAction()
+      .then((res) => {
+        if (isMounted) setNotice(res);
+      })
+      .catch(() => {
+        if (isMounted) setNotice(null);
+      });
 
-    if (effectiveStatus === "EXPIRED" || effectiveStatus === "CANCELED") {
-      return (
-        <div className="mb-6">
-          <SubscriptionExpiredBanner
-            message="انتهت فترة استخدامك. بياناتك محفوظة بالكامل، ويمكنك الاطلاع على بياناتك الحالية. تواصل مع الدعم لتجديد الاشتراك."
-            actionHref="/support"
-            actionLabel="تواصل مع الدعم لتجديد الاشتراك"
-          />
-        </div>
-      );
-    }
+    return () => {
+      isMounted = false;
+    };
+  }, [pathname]);
 
-    if (effectiveStatus === "GRACE_PERIOD") {
-      const now = new Date();
-      const graceEnd = entitlement.subscription.gracePeriodEndsAt;
-      const graceRemainingMs = graceEnd
-        ? Math.max(0, graceEnd.getTime() - now.getTime())
-        : 0;
-      const remainingDays = Math.floor(graceRemainingMs / (24 * 60 * 60 * 1000));
-      const remainingHours = Math.floor(
-        (graceRemainingMs % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000)
-      );
-      const remainingText =
-        graceRemainingMs > 0
-          ? `${remainingDays} يوم و${remainingHours} ساعة`
-          : "انتهت المهلة";
+  if (!notice) return null;
 
-      return (
-        <div className="mb-6">
-          <SubscriptionGracePeriodBanner
-            remainingText={remainingText}
-            actionHref="/support"
-            actionLabel="تواصل مع الدعم للتجديد"
-          />
-        </div>
-      );
-    }
-
-    return null;
-  } catch {
-    // If any auth or DB reading fails, fail safe without breaking UI rendering
-    return null;
+  if (notice.effectiveStatus === "EXPIRED" || notice.effectiveStatus === "CANCELED") {
+    return (
+      <div className="mb-6">
+        <SubscriptionExpiredBanner
+          message="انتهت فترة استخدامك. بياناتك محفوظة بالكامل، ويمكنك الاطلاع على بياناتك الحالية. تواصل مع الدعم لتجديد الاشتراك."
+          actionHref="/support"
+          actionLabel="تواصل مع الدعم لتجديد الاشتراك"
+        />
+      </div>
+    );
   }
+
+  if (notice.effectiveStatus === "GRACE_PERIOD") {
+    return (
+      <div className="mb-6">
+        <SubscriptionGracePeriodBanner
+          remainingText={notice.graceRemainingText}
+          actionHref="/support"
+          actionLabel="تواصل مع الدعم للتجديد"
+        />
+      </div>
+    );
+  }
+
+  return null;
 }
