@@ -20,7 +20,12 @@ import {
   addCalendarMonthsUtc,
 } from "@/lib/services/subscriptionAdminService";
 import {
+  calculateDiscountedPrice,
+  validateOfferSettings,
+} from "@/lib/services/subscriptionOfferService";
+import {
   SubscriptionBillingInterval,
+
   SubscriptionPlan,
   SubscriptionStatus,
 } from "@prisma/client";
@@ -239,7 +244,84 @@ function runPureUnitTests() {
 
   const endWithExtra = calculateSubscriptionEnd(start, SubscriptionBillingInterval.SIX_MONTHS, 10);
   assertEqual(endWithExtra.getTime() - end6.getTime(), 10 * DAY_MS, "Extra 10 days added precisely");
+
+  // ── 6. Founders Offer Pricing & Validation Unit Tests ─────────────────────
+  console.log("\n[PURE 6] Founders Offer Pricing & Validation Unit Tests");
+
+  // Discount Calculation Tests
+  assertEqual(calculateDiscountedPrice(1000, 0), 1000, "0% discount on 1000 => 1000");
+  assertEqual(calculateDiscountedPrice(1000, 20), 800, "20% discount on 1000 => 800");
+  assertEqual(calculateDiscountedPrice(1000, 100), 0, "100% discount on 1000 => 0");
+  assertEqual(calculateDiscountedPrice(1000, -10), 1000, "Negative discount (-10%) rejected to original price 1000");
+  assertEqual(calculateDiscountedPrice(1000, 120), 0, "Excess discount (>100%) clamped to 0");
+  assertEqual(calculateDiscountedPrice(199.99, 15), 169.99, "15% discount on 199.99 with 2-decimal rounding => 169.99");
+  assertEqual(calculateDiscountedPrice(0, 50), 0, "50% discount on 0 => 0");
+
+  // Validation Rule Tests
+  const validOffer = validateOfferSettings({
+    isActive: true,
+    totalEligible: 50,
+    remainingEligible: 40,
+    sixMonthsDiscountPercent: 20,
+    annualDiscountPercent: 30,
+  });
+  assert(validOffer.valid, "Valid offer settings accepted");
+
+  const invalidRemainingExcess = validateOfferSettings({
+    isActive: true,
+    totalEligible: 50,
+    remainingEligible: 51,
+    sixMonthsDiscountPercent: 20,
+    annualDiscountPercent: 30,
+  });
+  assert(!invalidRemainingExcess.valid, "remainingEligible > totalEligible rejected");
+
+  const invalidRemainingNegative = validateOfferSettings({
+    isActive: true,
+    totalEligible: 50,
+    remainingEligible: -1,
+    sixMonthsDiscountPercent: 20,
+    annualDiscountPercent: 30,
+  });
+  assert(!invalidRemainingNegative.valid, "Negative remainingEligible rejected");
+
+  const invalidTotalZero = validateOfferSettings({
+    isActive: true,
+    totalEligible: 0,
+    remainingEligible: 0,
+    sixMonthsDiscountPercent: 20,
+    annualDiscountPercent: 30,
+  });
+  assert(!invalidTotalZero.valid, "totalEligible < 1 rejected");
+
+  const invalidTotalTooLarge = validateOfferSettings({
+    isActive: true,
+    totalEligible: 100001,
+    remainingEligible: 50,
+    sixMonthsDiscountPercent: 20,
+    annualDiscountPercent: 30,
+  });
+  assert(!invalidTotalTooLarge.valid, "totalEligible > 100000 rejected");
+
+  const invalidDiscountAbove100 = validateOfferSettings({
+    isActive: true,
+    totalEligible: 50,
+    remainingEligible: 40,
+    sixMonthsDiscountPercent: 101,
+    annualDiscountPercent: 30,
+  });
+  assert(!invalidDiscountAbove100.valid, "Discount > 100% rejected");
+
+  const invalidDiscountNegative = validateOfferSettings({
+    isActive: true,
+    totalEligible: 50,
+    remainingEligible: 40,
+    sixMonthsDiscountPercent: -5,
+    annualDiscountPercent: 30,
+  });
+  assert(!invalidDiscountNegative.valid, "Negative discount rejected");
 }
+
 
 function main() {
   console.log("=".repeat(70));

@@ -4,6 +4,7 @@ import {
 import { SubscriptionPlan } from "@prisma/client";
 import { adminService } from "@/lib/services/adminService";
 import { subscriptionAdminService } from "@/lib/services/subscriptionAdminService";
+import { subscriptionOfferService } from "@/lib/services/subscriptionOfferService";
 import { prisma } from "@/lib/prisma";
 import { AdminOnlineUsers } from "./_admin-online-users";
 import { AdminTabsView } from "./_admin-tabs-view";
@@ -11,7 +12,7 @@ import { AdminTabsView } from "./_admin-tabs-view";
 export const dynamic = "force-dynamic";
 
 export default async function SuperAdminDashboardPage() {
-  const [stats, shops, subscriptions, rawPrices] = await Promise.all([
+  const [stats, shops, subscriptions, rawPrices, offer] = await Promise.all([
     adminService.getPlatformStats(),
     adminService.listAllShops(),
     subscriptionAdminService.listSubscriptionsForAdmin(),
@@ -22,6 +23,7 @@ export default async function SuperAdminDashboardPage() {
         { billingInterval: "asc" },
       ],
     }),
+    subscriptionOfferService.getOfferSettings(),
   ]);
 
   const serializedPrices = rawPrices.map((p) => ({
@@ -42,7 +44,7 @@ export default async function SuperAdminDashboardPage() {
             <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            مراقبة حية لأداء المنصة، إدارة اشتراكات المتاجر، وتعديل أسعار الاشتراكات حسب الدولة
+            مراقبة حية لأداء المنصة، إدارة اشتراكات المتاجر، وتعديل أسعار الاشتراكات وعرض المشتركين الأوائل
           </p>
         </div>
 
@@ -62,6 +64,7 @@ export default async function SuperAdminDashboardPage() {
         shops={shops}
         subscriptions={subscriptions}
         prices={serializedPrices}
+        offer={offer}
       />
     </div>
   );

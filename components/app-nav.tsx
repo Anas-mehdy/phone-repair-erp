@@ -15,8 +15,10 @@ import {
   WalletCards,
   ChartNoAxesCombined,
   ShieldCheck,
+  Crown,
   type LucideIcon,
 } from "lucide-react";
+
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -103,12 +105,12 @@ export const navGroups: NavGroup[] = [
     title: "المساعدة والتهيئة",
     items: [
       { href: "/account/security", label: "أمان الحساب", icon: ShieldCheck },
-      // /subscription is intentionally hidden while subscription pricing is being revised.
-      // The route itself also redirects to /dashboard, so direct URL access is blocked.
+      { href: "/subscription", label: "اشتراكي", icon: Crown },
       { href: "/settings", label: "إعدادات المتجر", icon: Settings },
       { href: "/support", label: "الدعم الفني والواتساب", icon: Headphones },
     ],
   },
+
 ];
 
 function isActivePath(pathname: string, href: string) {

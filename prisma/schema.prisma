@@ -232,6 +232,18 @@ model SubscriptionPrice {
   @@index([countryCode])
 }
 
+model SubscriptionOfferSettings {
+  id                       String   @id @default("FOUNDERS_OFFER")
+  isActive                 Boolean  @default(true)
+  totalEligible            Int      @default(50)
+  remainingEligible        Int      @default(50)
+  sixMonthsDiscountPercent Int      @default(0)
+  annualDiscountPercent    Int      @default(0)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+}
+
+
 // ---------------------------------------------------------
 // USER IDENTITY & MEMBERSHIP
 // ---------------------------------------------------------
