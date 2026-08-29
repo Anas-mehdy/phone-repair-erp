@@ -22,7 +22,8 @@
     "compatibility:corroborate:screens": "tsx scripts/run-screen-auto-corroboration.ts",
     "compatibility:test:corroboration": "tsx scripts/test-screen-auto-corroboration.ts",
     "installments:test": "tsx scripts/test-installment-schedule.ts",
-    "entitlement:test": "tsx scripts/test-entitlement-service.ts"
+    "entitlement:test": "tsx scripts/test-entitlement-service.ts",
+    "entitlement:test:integration": "tsx scripts/test-subscription-integration.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.1.0",
