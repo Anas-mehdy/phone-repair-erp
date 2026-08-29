@@ -1,5 +1,5 @@
 import { RepairStatus } from "@prisma/client";
-import { Eye, Pencil, Plus, Search, Truck, Wrench } from "lucide-react";
+import { Eye, Pencil, Plus, Search, Sparkles, Truck, UserRoundCheck, Wrench } from "lucide-react";
 import Link from "next/link";
 import { DatabaseUnavailable } from "@/components/database-unavailable";
 import { EmptyState } from "@/components/empty-state";
@@ -24,6 +24,7 @@ type RepairOrdersPageProps = {
   searchParams: Promise<{
     status?: string;
     search?: string;
+    assignment?: string;
   }>;
 };
 
@@ -37,21 +38,30 @@ function toStatus(value?: string) {
     : "ALL";
 }
 
+function toAssignment(value?: string): "ALL" | "MINE" | "UNASSIGNED" {
+  return value === "MINE" || value === "UNASSIGNED" ? value : "ALL";
+}
+
 export default async function RepairOrdersPage({
   searchParams,
 }: RepairOrdersPageProps) {
   const params = await searchParams;
   const status = toStatus(params.status);
   const search = params.search ?? "";
+  const assignment = toAssignment(params.assignment);
   let repairOrders: Awaited<ReturnType<typeof repairOrderService.listRepairOrders>>;
 
   let currency = "SAR";
+  let currentUserId: string | null = null;
   try {
     const context = await getCurrentShopContext();
     currency = context.currency;
+    currentUserId = context.userId;
     repairOrders = await repairOrderService.listRepairOrders(context.shopId, {
       status,
       search,
+      assignment,
+      currentUserId: context.userId ?? undefined,
     });
   } catch (error) {
     if (isDatabaseConnectionError(error)) {
@@ -67,12 +77,20 @@ export default async function RepairOrdersPage({
         title="طلبات الصيانة"
         description="تابع الأجهزة من لحظة الاستلام حتى التسليم"
         actions={
-          <Button asChild className="font-semibold shadow-sm">
-            <Link href="/repair-orders/new">
-              <Plus className="h-4 w-4 ml-1.5" aria-hidden="true" />
-              طلب صيانة جديد
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant={assignment === "MINE" ? "default" : "outline"} className="font-bold shadow-sm">
+              <Link href="/repair-orders?assignment=MINE">
+                <UserRoundCheck className="h-4 w-4 ml-1.5" aria-hidden="true" />
+                تذاكري
+              </Link>
+            </Button>
+            <Button asChild className="font-semibold shadow-sm">
+              <Link href="/repair-orders/new">
+                <Plus className="h-4 w-4 ml-1.5" aria-hidden="true" />
+                طلب صيانة جديد
+              </Link>
+            </Button>
+          </div>
         }
       />
 
@@ -90,7 +108,7 @@ export default async function RepairOrdersPage({
       </div>
 
       {/* Premium Filter Card */}
-      <form className="erp-filter-card grid gap-5 sm:grid-cols-[1fr_220px_auto] items-end">
+      <form className="erp-filter-card grid gap-5 sm:grid-cols-2 xl:grid-cols-[1fr_210px_210px_auto] items-end">
         <div className="grid gap-2 text-xs font-extrabold text-slate-700">
           <span>بحث نصي</span>
           <div className="relative">
@@ -102,6 +120,14 @@ export default async function RepairOrdersPage({
               defaultValue={search}
             />
           </div>
+        </div>
+        <div className="grid gap-2 text-xs font-extrabold text-slate-700">
+          <span>الفني المسؤول</span>
+          <select className={selectClassName} name="assignment" defaultValue={assignment}>
+            <option value="ALL">جميع التذاكر</option>
+            <option value="MINE">تذاكري فقط</option>
+            <option value="UNASSIGNED">غير مسندة</option>
+          </select>
         </div>
         <div className="grid gap-2 text-xs font-extrabold text-slate-700">
           <span>تصفية بحسب الحالة</span>
@@ -127,8 +153,12 @@ export default async function RepairOrdersPage({
         {repairOrders.length === 0 ? (
           <EmptyState
             icon={Wrench}
-            title="لا توجد طلبات صيانة بعد"
-            description="ابدأ بإنشاء طلب صيانة جديد للعميل وسيظهر هنا مع حالته وتاريخه."
+            title={assignment === "MINE" ? "لا توجد تذاكر مسندة إليك" : "لا توجد طلبات صيانة بعد"}
+            description={
+              assignment === "MINE"
+                ? "عندما يسند المالك أو المدير تذكرة إليك ستظهر هنا مباشرة."
+                : "ابدأ بإنشاء طلب صيانة جديد للعميل وسيظهر هنا مع حالته وتاريخه."
+            }
             actionHref="/repair-orders/new"
             actionLabel="طلب صيانة جديد"
           />
@@ -145,6 +175,7 @@ export default async function RepairOrdersPage({
                   <th className="whitespace-nowrap text-slate-800">الحالة</th>
                   <th className="whitespace-nowrap text-slate-800">التكلفة</th>
                   <th className="whitespace-nowrap text-slate-800">المنشئ</th>
+                  <th className="whitespace-nowrap text-slate-800">الفني المسؤول</th>
                   <th className="whitespace-nowrap text-slate-800">تاريخ الإنشاء</th>
                   <th className="whitespace-nowrap text-slate-800">التسليم المتوقع</th>
                   <th className="sticky left-0 z-20 bg-slate-100/95 backdrop-blur-xs text-slate-800 text-center whitespace-nowrap px-3 shadow-[-6px_0_12px_rgba(0,0,0,0.06)]">
@@ -198,6 +229,30 @@ export default async function RepairOrdersPage({
                         </div>
                       ) : (
                         <span className="text-slate-400 font-medium text-xs">-</span>
+                      )}
+                    </td>
+                    <td className="whitespace-nowrap">
+                      {repairOrder.assignedToUser ? (
+                        <div className="flex items-center gap-2">
+                          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-50 text-violet-700">
+                            <UserRoundCheck className="h-3.5 w-3.5" />
+                          </span>
+                          <div>
+                            <div className="font-bold text-slate-900 text-xs">
+                              {repairOrder.assignedToUser.name}
+                            </div>
+                            {repairOrder.assignedToUserId === currentUserId && !repairOrder.assignmentSeenAt ? (
+                              <span className="mt-0.5 inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[9px] font-black text-amber-800">
+                                <Sparkles className="h-2.5 w-2.5" />
+                                جديدة
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-bold text-slate-500">
+                          غير مسندة
+                        </span>
                       )}
                     </td>
                     <td className="font-numeric text-slate-600 font-medium whitespace-nowrap">{formatDate(repairOrder.createdAt)}</td>

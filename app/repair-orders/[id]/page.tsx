@@ -1,5 +1,5 @@
 import QRCode from "qrcode";
-import { AlertTriangle, ArrowRight, Calculator, CheckCircle2, FileText, Pencil, Printer, QrCode, Tag, Truck, Wrench } from "lucide-react";
+import { AlertTriangle, ArrowRight, Calculator, CheckCircle2, FileText, History, Pencil, Printer, QrCode, Tag, Truck, UserRoundCheck, Wrench } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -19,6 +19,7 @@ import {
   formatDate,
   formatMoney,
   inputClassName,
+  selectClassName,
   textareaClassName,
 } from "../_components";
 import { SupplierFields } from "../_supplier-fields";
@@ -27,8 +28,10 @@ import { StatusUpdateForm } from "../_status-form";
 import { DeleteRepairOrderButton } from "../_delete-button";
 import { CopyTrackingLinkButton } from "../_copy-tracking-button";
 import {
+  assignRepairOrderAction,
   updateRepairOrderDetailsAction,
 } from "../actions";
+import { AssignmentSeenMarker } from "../_assignment-seen-marker";
 
 export const dynamic = "force-dynamic";
 
@@ -58,19 +61,27 @@ export default async function RepairOrderDetailsPage({
   let repairOrder: Awaited<ReturnType<typeof repairOrderService.getRepairOrderById>>;
   let suppliers: Awaited<ReturnType<typeof supplierService.listSuppliers>> = [];
   let inventoryItems: Awaited<ReturnType<typeof inventoryService.listInventoryItems>> = [];
+  let technicians: Awaited<ReturnType<typeof repairOrderService.listAssignableTechnicians>> = [];
 
   let shopId = "";
   let currency = "SAR";
   let shopName = "";
+  let currentUserId: string | null = null;
+  let canAssign = false;
   try {
     const context = await getCurrentShopContext();
     shopId = context.shopId;
     currency = context.currency;
     shopName = context.shopName;
-    [repairOrder, suppliers, inventoryItems] = await Promise.all([
+    currentUserId = context.userId;
+    canAssign = context.permissions.includes("repairs:assign");
+    [repairOrder, suppliers, inventoryItems, technicians] = await Promise.all([
       repairOrderService.getRepairOrderById(context.shopId, id),
       supplierService.listSuppliers(context.shopId),
       inventoryService.listInventoryItems(context.shopId),
+      canAssign
+        ? repairOrderService.listAssignableTechnicians(context.shopId)
+        : Promise.resolve([]),
     ]);
   } catch (error) {
     if (isDatabaseConnectionError(error)) {
@@ -83,6 +94,9 @@ export default async function RepairOrderDetailsPage({
   if (!repairOrder) {
     notFound();
   }
+
+  const isNewAssignmentForCurrentUser =
+    repairOrder.assignedToUserId === currentUserId && !repairOrder.assignmentSeenAt;
 
   const serializedInventory = inventoryItems.map((item) => ({
     id: item.id,
@@ -111,6 +125,9 @@ export default async function RepairOrderDetailsPage({
 
   return (
     <div className="space-y-6 min-w-0 max-w-full">
+      {isNewAssignmentForCurrentUser ? (
+        <AssignmentSeenMarker repairOrderId={repairOrder.id} />
+      ) : null}
       {/* Top summary hero card */}
       <div className="rounded-3xl border border-slate-200/80 bg-white p-4 sm:p-6 shadow-sm shadow-slate-200/50 min-w-0 max-w-full overflow-hidden">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -174,6 +191,7 @@ export default async function RepairOrderDetailsPage({
               <Info label="الرقم التسلسلي" value={<span className="font-numeric">{repairOrder.deviceSerial ?? "-"}</span>} />
               <Info label="سعر الصيانة المتوقع" value={<span className="font-numeric">{formatMoney(repairOrder.estimatedTotal, currency)}</span>} />
               <Info label="سعر الصيانة النهائي" value={<span className="font-numeric">{formatMoney(repairOrder.finalTotal, currency)}</span>} />
+              <Info label="الفني المسؤول" value={repairOrder.assignedToUser?.name ?? "غير مسندة"} />
               <Info
                 label="أنشئت بواسطة"
                 value={
@@ -449,6 +467,76 @@ export default async function RepairOrderDetailsPage({
 
         {/* Side Panel Column */}
         <div className="space-y-6">
+          <div className="erp-section">
+            <div className="flex items-center gap-3 border-b border-slate-100/60 pb-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 text-violet-700">
+                <UserRoundCheck className="h-5 w-5" />
+              </span>
+              <div>
+                <h3 className="text-xs font-black text-slate-900">الفني المسؤول</h3>
+                <p className="mt-0.5 text-[11px] font-bold text-slate-500">
+                  {repairOrder.assignedToUser?.name ?? "لم تُسند التذكرة بعد"}
+                </p>
+              </div>
+            </div>
+
+            {repairOrder.assignedToUser ? (
+              <div className="mt-3 rounded-xl border border-violet-100 bg-violet-50/60 p-3 text-[11px] font-semibold text-violet-900">
+                {repairOrder.assignmentSeenAt
+                  ? "فتح الفني هذه التذكرة وأصبحت ضمن مهامه."
+                  : "التذكرة جديدة ولم يفتحها الفني بعد."}
+              </div>
+            ) : null}
+
+            {canAssign ? (
+              <form action={assignRepairOrderAction} className="mt-4 space-y-3">
+                <input type="hidden" name="repairOrderId" value={repairOrder.id} />
+                <label className="grid gap-2 text-xs font-extrabold text-slate-700">
+                  اختيار أو تغيير الفني
+                  <select
+                    className={selectClassName}
+                    name="assignedToUserId"
+                    defaultValue={repairOrder.assignedToUserId ?? ""}
+                  >
+                    <option value="">غير مسندة</option>
+                    {technicians.map((technician) => (
+                      <option key={technician.id} value={technician.id}>
+                        {technician.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <SubmitButton className="w-full rounded-xl font-bold" loadingText="جاري الإسناد...">
+                  حفظ الإسناد
+                </SubmitButton>
+              </form>
+            ) : null}
+
+            {repairOrder.assignmentHistory.length > 0 ? (
+              <div className="mt-4 border-t border-slate-100 pt-3">
+                <div className="mb-2 flex items-center gap-1.5 text-[11px] font-black text-slate-700">
+                  <History className="h-3.5 w-3.5 text-slate-400" />
+                  آخر عمليات الإسناد
+                </div>
+                <div className="space-y-2">
+                  {repairOrder.assignmentHistory.slice(0, 4).map((event) => (
+                    <div key={event.id} className="rounded-lg bg-slate-50 px-2.5 py-2 text-[10px] leading-relaxed text-slate-600">
+                      <span className="font-black text-slate-800">
+                        {event.toUser?.name ?? "إلغاء الإسناد"}
+                      </span>
+                      {event.changedByUser ? (
+                        <span> بواسطة {event.changedByUser.name}</span>
+                      ) : null}
+                      <span className="mt-0.5 block font-numeric text-slate-400">
+                        {formatDate(event.createdAt)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
+
           {/* QR Code and Actions Box */}
           <div className="erp-section text-center">
             <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/5 text-primary ring-1 ring-primary/10 shadow-sm shadow-primary/5">
@@ -582,4 +670,3 @@ function Info({ label, value }: { label: string; value: React.ReactNode }) {
     </div>
   );
 }
-

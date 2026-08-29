@@ -30,6 +30,7 @@ const createRepairOrderSchema = z.object({
   estimatedTotal: z.string().optional(),
   dueAt: z.string().optional(),
   notes: z.string().optional(),
+  assignedToUserId: z.string().uuid().optional(),
   supplierId: z.string().optional(),
   supplierName: z.string().optional(),
   partName: z.string().optional(),
@@ -68,6 +69,11 @@ const updateRepairOrderStatusSchema = z.object({
   repairOrderId: z.string().uuid(),
   status: z.nativeEnum(RepairStatus),
   note: z.string().optional(),
+});
+
+const assignRepairOrderSchema = z.object({
+  repairOrderId: z.string().uuid("معرف تذكرة الصيانة غير صحيح"),
+  assignedToUserId: z.string().uuid("الفني المحدد غير صحيح").nullable(),
 });
 
 function readString(formData: FormData, key: string) {
@@ -118,6 +124,7 @@ export async function createRepairOrderAction(formData: FormData) {
     estimatedTotal: readString(formData, "estimatedTotal"),
     dueAt: readString(formData, "dueAt"),
     notes: readString(formData, "notes"),
+    assignedToUserId: readString(formData, "assignedToUserId") || undefined,
     supplierId: readString(formData, "supplierId"),
     supplierName: readString(formData, "supplierName"),
     partName: readString(formData, "partName"),
@@ -128,6 +135,9 @@ export async function createRepairOrderAction(formData: FormData) {
   });
 
   const auth = await requirePermission("repairs:create");
+  if (input.assignedToUserId) {
+    await requirePermission("repairs:assign");
+  }
   if (input.items && input.items.some((i) => Boolean(i.inventoryItemId))) {
     await requirePermission("inventory:use_parts");
   }
@@ -140,6 +150,38 @@ export async function createRepairOrderAction(formData: FormData) {
 
   revalidatePath("/repair-orders");
   redirect(`/repair-orders/${repairOrder.id}`);
+}
+
+export async function assignRepairOrderAction(formData: FormData) {
+  const rawAssignedToUserId = readString(formData, "assignedToUserId");
+  const input = assignRepairOrderSchema.parse({
+    repairOrderId: readString(formData, "repairOrderId"),
+    assignedToUserId: rawAssignedToUserId || null,
+  });
+
+  const auth = await requirePermission("repairs:assign");
+  await repairOrderService.assignRepairOrder(
+    auth.shop.id,
+    input.repairOrderId,
+    auth.user.id,
+    input.assignedToUserId,
+  );
+
+  revalidatePath("/repair-orders");
+  revalidatePath(`/repair-orders/${input.repairOrderId}`);
+  revalidatePath("/dashboard");
+}
+
+export async function markRepairAssignmentSeenAction(repairOrderId: string) {
+  const parsedId = z.string().uuid().parse(repairOrderId);
+  const auth = await requirePermission("repairs:read");
+  await repairOrderService.markRepairAssignmentSeen(
+    auth.shop.id,
+    parsedId,
+    auth.user.id,
+  );
+
+  revalidatePath("/repair-orders");
 }
 
 export async function updateRepairOrderDetailsAction(formData: FormData) {
@@ -236,4 +278,3 @@ export async function deleteRepairOrderAction(formData: FormData) {
   revalidatePath("/dashboard");
   redirect("/repair-orders");
 }
-

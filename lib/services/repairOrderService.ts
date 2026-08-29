@@ -1,4 +1,4 @@
-import { InvoiceStatus, Prisma, RepairStatus } from "@prisma/client";
+import { InvoiceStatus, MembershipRole, MembershipStatus, Prisma, RepairStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 const repairOrderInclude = {
@@ -19,6 +19,11 @@ const repairOrderInclude = {
   statusHistory: {
     orderBy: {
       createdAt: "asc",
+    },
+  },
+  assignmentHistory: {
+    orderBy: {
+      createdAt: "desc",
     },
   },
   inventoryMovements: {
@@ -48,6 +53,8 @@ const repairOrderInclude = {
 export type RepairOrderListFilters = {
   status?: RepairStatus | "ALL";
   search?: string;
+  assignment?: "ALL" | "MINE" | "UNASSIGNED";
+  currentUserId?: string;
 };
 
 export type RepairOrderItemInput = {
@@ -73,6 +80,7 @@ export type CreateRepairOrderInput = {
   estimatedTotal?: string;
   dueAt?: string;
   notes?: string;
+  assignedToUserId?: string;
   // Legacy single part fields for backward compatibility
   supplierId?: string;
   supplierName?: string;
@@ -82,6 +90,12 @@ export type CreateRepairOrderInput = {
   supplierNotes?: string;
   // New multi-item parts
   items?: RepairOrderItemInput[];
+};
+
+export type AssignableTechnician = {
+  id: string;
+  name: string;
+  email: string;
 };
 
 export type UpdateRepairOrderDetailsInput = {
@@ -168,6 +182,52 @@ function dateOrNull(value?: string) {
   return parsed;
 }
 
+export async function listAssignableTechnicians(shopId: string): Promise<AssignableTechnician[]> {
+  const memberships = await prisma.membership.findMany({
+    where: {
+      shopId,
+      role: MembershipRole.TECHNICIAN,
+      status: MembershipStatus.ACTIVE,
+      deletedAt: null,
+      user: { deletedAt: null },
+    },
+    select: {
+      user: {
+        select: { id: true, name: true, email: true },
+      },
+    },
+    orderBy: { user: { name: "asc" } },
+  });
+
+  return memberships.map(({ user }) => ({
+    id: user.id,
+    name: user.name?.trim() || "فني صيانة",
+    email: user.email,
+  }));
+}
+
+async function validateAssignableTechnician(
+  db: Prisma.TransactionClient | typeof prisma,
+  shopId: string,
+  userId: string,
+) {
+  const membership = await db.membership.findFirst({
+    where: {
+      shopId,
+      userId,
+      role: MembershipRole.TECHNICIAN,
+      status: MembershipStatus.ACTIVE,
+      deletedAt: null,
+      user: { deletedAt: null },
+    },
+    select: { userId: true },
+  });
+
+  if (!membership) {
+    throw new Error("لا يمكن إسناد التذكرة: الفني غير نشط أو لا ينتمي إلى هذا المتجر.");
+  }
+}
+
 export async function findOrCreateCustomerForRepair(
   shopId: string,
   input: CreateRepairOrderInput,
@@ -247,12 +307,20 @@ export async function listRepairOrders(
   const search = filters.search?.trim();
   const status =
     filters.status && filters.status !== "ALL" ? filters.status : undefined;
+  const assignment = filters.assignment ?? "ALL";
+  const assignmentWhere =
+    assignment === "MINE" && filters.currentUserId
+      ? { assignedToUserId: filters.currentUserId }
+      : assignment === "UNASSIGNED"
+        ? { assignedToUserId: null }
+        : {};
 
   const orders = await prisma.repairOrder.findMany({
     where: {
       shopId,
       deletedAt: null,
       ...(status ? { status } : {}),
+      ...assignmentWhere,
       ...(search
         ? {
             OR: [
@@ -292,20 +360,24 @@ export async function listRepairOrders(
   });
 
   // Batched resolution of creators for the listed tickets
-  const creatorUserIds = Array.from(
-    new Set(orders.map((o) => o.createdByUserId).filter((id): id is string => Boolean(id)))
+  const relatedUserIds = Array.from(
+    new Set(
+      orders
+        .flatMap((order) => [order.createdByUserId, order.assignedToUserId])
+        .filter((id): id is string => Boolean(id)),
+    ),
   );
 
   const usersMap = new Map<string, { id: string; name: string; role: string }>();
 
-  if (creatorUserIds.length > 0) {
+  if (relatedUserIds.length > 0) {
     const [users, memberships] = await Promise.all([
       prisma.user.findMany({
-        where: { id: { in: creatorUserIds } },
+        where: { id: { in: relatedUserIds } },
         select: { id: true, name: true, shopId: true, role: true },
       }),
       prisma.membership.findMany({
-        where: { shopId, userId: { in: creatorUserIds } },
+        where: { shopId, userId: { in: relatedUserIds } },
         select: { userId: true, role: true },
       }),
     ]);
@@ -330,6 +402,7 @@ export async function listRepairOrders(
   return orders.map((order) => ({
     ...order,
     createdByUser: order.createdByUserId ? usersMap.get(order.createdByUserId) || null : null,
+    assignedToUser: order.assignedToUserId ? usersMap.get(order.assignedToUserId) || null : null,
   }));
 }
 
@@ -352,6 +425,12 @@ export async function getRepairOrderById(shopId: string, repairOrderId: string) 
     repairOrder.createdByUserId,
     repairOrder.updatedByUserId,
     repairOrder.assignedToUserId,
+    repairOrder.assignedByUserId,
+    ...repairOrder.assignmentHistory.flatMap((event) => [
+      event.fromUserId,
+      event.toUserId,
+      event.changedByUserId,
+    ]),
   ].filter((id): id is string => Boolean(id));
 
   const usersMap = new Map<string, { id: string; name: string; role: string }>();
@@ -411,11 +490,24 @@ export async function getRepairOrderById(shopId: string, repairOrderId: string) 
     ? usersMap.get(repairOrder.assignedToUserId) || null
     : null;
 
+  const assignedByUser = repairOrder.assignedByUserId
+    ? usersMap.get(repairOrder.assignedByUserId) || null
+    : null;
+
   return {
     ...repairOrder,
     createdByUser,
     updatedByUser,
     assignedToUser,
+    assignedByUser,
+    assignmentHistory: repairOrder.assignmentHistory.map((event) => ({
+      ...event,
+      fromUser: event.fromUserId ? usersMap.get(event.fromUserId) || null : null,
+      toUser: event.toUserId ? usersMap.get(event.toUserId) || null : null,
+      changedByUser: event.changedByUserId
+        ? usersMap.get(event.changedByUserId) || null
+        : null,
+    })),
   };
 }
 
@@ -556,6 +648,10 @@ export async function createRepairOrder(
   return prisma.$transaction(async (tx) => {
     const ticketNumber = await generateTicketNumber(shopId, tx);
 
+    if (input.assignedToUserId) {
+      await validateAssignableTechnician(tx, shopId, input.assignedToUserId);
+    }
+
     // 1. Resolve main supplier if legacy supplier fields are provided
     const mainSupplier = await resolveSupplierForPart(
       tx,
@@ -571,6 +667,10 @@ export async function createRepairOrder(
         customerId: customer.id,
         createdByUserId,
         updatedByUserId: createdByUserId,
+        assignedToUserId: input.assignedToUserId || null,
+        assignedByUserId: input.assignedToUserId ? createdByUserId : null,
+        assignedAt: input.assignedToUserId ? new Date() : null,
+        assignmentSeenAt: null,
         ticketNumber,
         status: RepairStatus.PENDING,
         deviceBrand: emptyToNull(input.deviceBrand),
@@ -599,6 +699,18 @@ export async function createRepairOrder(
         note: "تم إنشاء طلب الصيانة",
       },
     });
+
+    if (input.assignedToUserId) {
+      await tx.repairOrderAssignmentHistory.create({
+        data: {
+          shopId,
+          repairOrderId: repairOrder.id,
+          fromUserId: null,
+          toUserId: input.assignedToUserId,
+          changedByUserId: createdByUserId,
+        },
+      });
+    }
 
     // 3. Process RepairOrderItems & Atomic Inventory Deduction
     let totalItemsCost = new Prisma.Decimal(0);
@@ -713,6 +825,72 @@ export async function createRepairOrder(
     }
 
     return repairOrder;
+  });
+}
+
+export async function assignRepairOrder(
+  shopId: string,
+  repairOrderId: string,
+  changedByUserId: string,
+  assignedToUserId: string | null,
+) {
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.repairOrder.findFirst({
+      where: { id: repairOrderId, shopId, deletedAt: null },
+      select: { id: true, assignedToUserId: true },
+    });
+
+    if (!existing) {
+      throw new Error("تذكرة الصيانة غير موجودة.");
+    }
+
+    if (assignedToUserId) {
+      await validateAssignableTechnician(tx, shopId, assignedToUserId);
+    }
+
+    if (existing.assignedToUserId === assignedToUserId) {
+      return existing;
+    }
+
+    const updated = await tx.repairOrder.update({
+      where: { id: existing.id },
+      data: {
+        assignedToUserId,
+        assignedByUserId: changedByUserId,
+        assignedAt: assignedToUserId ? new Date() : null,
+        assignmentSeenAt: null,
+        updatedByUserId: changedByUserId,
+      },
+    });
+
+    await tx.repairOrderAssignmentHistory.create({
+      data: {
+        shopId,
+        repairOrderId: existing.id,
+        fromUserId: existing.assignedToUserId,
+        toUserId: assignedToUserId,
+        changedByUserId,
+      },
+    });
+
+    return updated;
+  });
+}
+
+export async function markRepairAssignmentSeen(
+  shopId: string,
+  repairOrderId: string,
+  userId: string,
+) {
+  return prisma.repairOrder.updateMany({
+    where: {
+      id: repairOrderId,
+      shopId,
+      assignedToUserId: userId,
+      assignmentSeenAt: null,
+      deletedAt: null,
+    },
+    data: { assignmentSeenAt: new Date() },
   });
 }
 
@@ -1530,8 +1708,11 @@ export async function deleteRepairOrder(
 
 export const repairOrderService = {
   listRepairOrders,
+  listAssignableTechnicians,
   getRepairOrderById,
   createRepairOrder,
+  assignRepairOrder,
+  markRepairAssignmentSeen,
   updateRepairOrderDetails,
   updateRepairOrderStatus,
   deleteRepairOrder,
@@ -1539,4 +1720,3 @@ export const repairOrderService = {
   findOrCreateCustomerForRepair,
   normalizePhone,
 };
-

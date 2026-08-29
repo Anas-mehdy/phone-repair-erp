@@ -8,6 +8,7 @@ export type AppPermission =
   | "repairs:create"
   | "repairs:update"
   | "repairs:update_status"
+  | "repairs:assign"
   | "repairs:delete"
   | "sales:read"
   | "sales:create"
@@ -34,6 +35,7 @@ export const ALL_APP_PERMISSIONS: readonly AppPermission[] = [
   "repairs:create",
   "repairs:update",
   "repairs:update_status",
+  "repairs:assign",
   "repairs:delete",
   "sales:read",
   "sales:create",
@@ -68,6 +70,7 @@ export const ROLE_PERMISSIONS_MATRIX: Record<MembershipRole, readonly AppPermiss
     "repairs:create",
     "repairs:update",
     "repairs:update_status",
+    "repairs:assign",
     "repairs:delete",
     "sales:read",
     "sales:create",

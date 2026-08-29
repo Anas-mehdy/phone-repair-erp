@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { ArrowRight, Save, Loader2, User, Smartphone } from "lucide-react";
+import { ArrowRight, Save, Loader2, User, Smartphone, UserRoundCheck } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { createRepairOrderAction } from "../actions";
@@ -12,10 +12,12 @@ export function CreateRepairOrderForm({
   suppliers,
   inventoryItems = [],
   currency,
+  technicians = [],
 }: {
   suppliers: SupplierOption[];
   inventoryItems?: InventoryItemOption[];
   currency: string;
+  technicians?: Array<{ id: string; name: string; email: string }>;
 }) {
   const [isPending, startTransition] = useTransition();
 
@@ -157,6 +159,37 @@ export function CreateRepairOrderForm({
           </div>
         </div>
       </section>
+
+      {technicians.length > 0 ? (
+        <section className="erp-section">
+          <div className="flex items-center gap-2 border-b border-slate-100/60 pb-3 mb-4">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-50 text-violet-700">
+              <UserRoundCheck className="h-4 w-4" />
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-800 text-sm">الفني المسؤول</h3>
+              <p className="text-xs text-slate-400 font-medium mt-0.5">
+                يمكنك إسناد التذكرة الآن أو تركها غير مسندة واختيار الفني لاحقاً.
+              </p>
+            </div>
+          </div>
+          <Field label="إسناد التذكرة إلى">
+            <select
+              className={inputClassName}
+              name="assignedToUserId"
+              disabled={isPending}
+              defaultValue=""
+            >
+              <option value="">غير مسندة حالياً</option>
+              {technicians.map((technician) => (
+                <option key={technician.id} value={technician.id}>
+                  {technician.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </section>
+      ) : null}
 
       {/* Supplier & Parts Section */}
       <SupplierFields
