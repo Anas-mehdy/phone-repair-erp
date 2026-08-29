@@ -1,24 +1,13 @@
 "use client";
 
-import Link from "next/link";
 import { useActionState } from "react";
-import { CheckCircle2, LockKeyhole } from "lucide-react";
+import { LockKeyhole } from "lucide-react";
 import { resetPasswordAction, type PasswordActionState } from "@/app/actions/passwordActions";
 
 const initialState: PasswordActionState = {};
 
 export function ResetPasswordForm({ token }: { token: string }) {
   const [state, action, pending] = useActionState(resetPasswordAction, initialState);
-
-  if (state.success) {
-    return (
-      <div className="mt-7 text-center">
-        <CheckCircle2 className="mx-auto h-10 w-10 text-emerald-400" />
-        <p className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-xs font-bold leading-6 text-emerald-300">{state.success}</p>
-        <Link href="/login?passwordChanged=1" className="mt-5 inline-flex rounded-xl bg-teal-500 px-5 py-3 text-xs font-black text-slate-950">تسجيل الدخول</Link>
-      </div>
-    );
-  }
 
   return (
     <form action={action} className="mt-7 space-y-4">
