@@ -1,6 +1,7 @@
 import {
   ShieldCheck,
 } from "lucide-react";
+import { SubscriptionPlan } from "@prisma/client";
 import { adminService } from "@/lib/services/adminService";
 import { subscriptionAdminService } from "@/lib/services/subscriptionAdminService";
 import { prisma } from "@/lib/prisma";
@@ -15,9 +16,9 @@ export default async function SuperAdminDashboardPage() {
     adminService.listAllShops(),
     subscriptionAdminService.listSubscriptionsForAdmin(),
     prisma.subscriptionPrice.findMany({
+      where: { plan: SubscriptionPlan.PROFESSIONAL },
       orderBy: [
         { countryCode: "asc" },
-        { plan: "asc" },
         { billingInterval: "asc" },
       ],
     }),
@@ -34,7 +35,6 @@ export default async function SuperAdminDashboardPage() {
 
   return (
     <div className="space-y-8">
-      {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
@@ -42,7 +42,7 @@ export default async function SuperAdminDashboardPage() {
             <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            مراقبة حية لأداء المنصة، إدارة اشتراكات المتاجر، وتعديل أسعار الباقات حسب الدولة
+            مراقبة حية لأداء المنصة، إدارة اشتراكات المتاجر، وتعديل سعر الخطة الشاملة حسب الدولة
           </p>
         </div>
 
@@ -52,13 +52,11 @@ export default async function SuperAdminDashboardPage() {
         </div>
       </div>
 
-      {/* Live Presence Section */}
       <AdminOnlineUsers
         initialOnlineCount={stats.onlineUsersCount}
         initialActiveShopsCount={stats.activeOnlineShopsCount}
       />
 
-      {/* Main Tabs Container */}
       <AdminTabsView
         stats={stats}
         shops={shops}
