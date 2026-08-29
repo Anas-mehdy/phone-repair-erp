@@ -5,6 +5,7 @@ import {
 } from "@prisma/client";
 import { requireSuperAdmin } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
+import { computeEffectiveStatus } from "@/lib/services/subscriptionEntitlementService";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -78,10 +79,10 @@ async function requireExistingSubscription(shopId: string) {
   return subscription;
 }
 
-export async function listSubscriptionsForAdmin() {
+export async function listSubscriptionsForAdmin(now = new Date()) {
   await requireSuperAdmin();
 
-  return prisma.subscription.findMany({
+  const subscriptions = await prisma.subscription.findMany({
     include: {
       shop: {
         select: {
@@ -92,8 +93,20 @@ export async function listSubscriptionsForAdmin() {
         },
       },
     },
-    orderBy: [{ status: "asc" }, { updatedAt: "desc" }],
+    orderBy: [{ updatedAt: "desc" }],
   });
+
+  return subscriptions.map((subscription) => ({
+    ...subscription,
+    effectiveStatus: computeEffectiveStatus(
+      subscription.status,
+      subscription.trialEndsAt,
+      subscription.currentPeriodStartedAt,
+      subscription.currentPeriodEndsAt,
+      subscription.gracePeriodEndsAt,
+      now,
+    ),
+  }));
 }
 
 /** Activates a paid subscription without modifying historical trial dates. */
