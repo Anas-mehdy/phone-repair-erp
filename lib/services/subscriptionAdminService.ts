@@ -14,6 +14,9 @@ export type ActivateSubscriptionInput = {
   plan: SubscriptionPlan;
   billingInterval: SubscriptionBillingInterval;
   extraDays?: number;
+  adminNotes?: string | null;
+  paymentReference?: string | null;
+  paymentMethod?: string | null;
 };
 
 function daysInUtcMonth(year: number, monthIndex: number): number {
@@ -55,6 +58,12 @@ export function calculateSubscriptionEnd(
   }
 
   return new Date(baseEnd.getTime() + extraDays * DAY_MS);
+}
+
+function nullableTrimmed(value?: string | null): string | null | undefined {
+  if (value === undefined) return undefined;
+  const trimmed = value?.trim() ?? "";
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 async function requireExistingSubscription(shopId: string) {
@@ -114,7 +123,7 @@ export async function activateSubscription(
   input: ActivateSubscriptionInput,
   now = new Date(),
 ) {
-  await requireSuperAdmin();
+  const adminSession = await requireSuperAdmin();
   await requireExistingSubscription(input.shopId);
 
   const currentPeriodStartedAt = new Date(now);
@@ -133,8 +142,12 @@ export async function activateSubscription(
       currentPeriodStartedAt,
       currentPeriodEndsAt,
       activatedAt: now,
+      activatedById: adminSession.userId,
       canceledAt: null,
       gracePeriodEndsAt: null,
+      adminNotes: nullableTrimmed(input.adminNotes),
+      paymentReference: nullableTrimmed(input.paymentReference),
+      paymentMethod: nullableTrimmed(input.paymentMethod),
     },
   });
 }
