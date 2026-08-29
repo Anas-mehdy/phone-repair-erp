@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Cairo, Outfit } from "next/font/google";
 import { AppShell } from "@/components/app-shell";
 import { getAuthContext, can } from "@/lib/auth/context";
+import { APP_URL } from "@/lib/app-url";
 import "./globals.css";
 
 const cairo = Cairo({
@@ -25,6 +26,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  metadataBase: new URL(APP_URL),
   title: "مسار | إدارة صيانة الهواتف",
   description: "مسار متكامل لإدارة صيانة الهواتف من الاستلام حتى التسليم",
 };

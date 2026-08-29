@@ -4,9 +4,9 @@ import Image from "next/image";
 import { getCurrentShopContext } from "@/lib/current-shop";
 import { repairOrderService } from "@/lib/services/repairOrderService";
 import { shopService } from "@/lib/services/shopService";
-import { headers } from "next/headers";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { PrintActions } from "@/components/print-actions";
+import { buildAppUrl } from "@/lib/app-url";
 
 export const dynamic = "force-dynamic";
 
@@ -30,15 +30,7 @@ export default async function RepairOrderStickerPage({ params }: StickerPageProp
   }
 
   // Construct full live tracking URL for quick scanner / phone camera
-  const headersList = await headers();
-  const host =
-    headersList.get("x-forwarded-host") ||
-    headersList.get("host") ||
-    "localhost:3000";
-  const protocol =
-    headersList.get("x-forwarded-proto") ||
-    (host.includes("localhost") ? "http" : "https");
-  const trackingUrl = `${protocol}://${host}/track/${repairOrder.id}`;
+  const trackingUrl = buildAppUrl(`/track/${repairOrder.id}`);
 
   const qrCodeDataUrl = await QRCode.toDataURL(trackingUrl, {
     margin: 0,
