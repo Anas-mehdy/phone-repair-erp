@@ -25,21 +25,19 @@ import { COUNTRY_DIAL_CODES, validatePhoneForCountry, findCountryByDialCode } fr
 export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [selectedCountryCode, setSelectedCountryCode] = useState("SA");
   const [selectedCurrency, setSelectedCurrency] = useState("SAR");
-  const [selectedDialCode, setSelectedDialCode] = useState("+966");
   const [phoneValue, setPhoneValue] = useState("");
 
-  function handleCurrencyChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const newCurr = e.target.value;
-    setSelectedCurrency(newCurr);
-    const matchingCountry = COUNTRY_DIAL_CODES.find((c) => c.currency === newCurr);
-    if (matchingCountry) {
-      setSelectedDialCode(matchingCountry.dialCode);
-    }
+  function handleCountryChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const country = findCountryByDialCode(e.target.value);
+    setSelectedCountryCode(country.code);
+    setSelectedCurrency(country.currency);
+    setPhoneValue("");
   }
 
-  const currentCountry = findCountryByDialCode(selectedDialCode);
-  const phoneValidation = validatePhoneForCountry(selectedDialCode, phoneValue);
+  const currentCountry = findCountryByDialCode(selectedCountryCode);
+  const phoneValidation = validatePhoneForCountry(selectedCountryCode, phoneValue);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -180,6 +178,33 @@ export default function RegisterPage() {
                 <h3 className="text-xs font-black text-white uppercase tracking-wider">بيانات متجر / مركز الصيانة</h3>
               </div>
 
+              <div>
+                <label className="block text-xs font-extrabold text-slate-300 mb-1.5">
+                  بلد المتجر <span className="text-rose-400">*</span>
+                </label>
+                <div className="relative">
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-slate-500">
+                    <MapPin className="h-4 w-4" />
+                  </div>
+                  <select
+                    name="countryCode"
+                    required
+                    value={selectedCountryCode}
+                    onChange={handleCountryChange}
+                    className="w-full rounded-xl border border-slate-800 bg-slate-950/60 py-2.5 pr-9 pl-3 text-sm text-white focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 transition"
+                  >
+                    {COUNTRY_DIAL_CODES.map((country) => (
+                      <option key={country.code} value={country.code} className="bg-slate-900 text-white">
+                        {country.flag} {country.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <p className="mt-1.5 text-[10px] font-medium text-slate-500">
+                  سيُستخدم البلد لعرض خطط الاشتراك بالسعر والعملة المخصصين له.
+                </p>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-extrabold text-slate-300 mb-1.5">
@@ -212,7 +237,7 @@ export default function RegisterPage() {
                       name="currency"
                       required
                       value={selectedCurrency}
-                      onChange={handleCurrencyChange}
+                      onChange={(event) => setSelectedCurrency(event.target.value)}
                       className="w-full rounded-xl border border-slate-800 bg-slate-950/60 py-2.5 pr-9 pl-3 text-sm text-white focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 transition"
                     >
                       {currencies.map((curr) => (
@@ -236,21 +261,9 @@ export default function RegisterPage() {
                     </span>
                   </div>
                   <div className="flex items-center gap-2" dir="ltr">
-                    {/* Country Code Selector */}
-                    <div className="relative w-[130px] shrink-0">
-                      <select
-                        name="dialCode"
-                        required
-                        value={selectedDialCode}
-                        onChange={(e) => setSelectedDialCode(e.target.value)}
-                        className="w-full rounded-xl border border-slate-800 bg-slate-950/80 py-2.5 px-2 text-xs font-bold text-teal-400 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500 transition cursor-pointer"
-                      >
-                        {COUNTRY_DIAL_CODES.map((item) => (
-                          <option key={item.code} value={item.dialCode} className="bg-slate-900 text-white">
-                            {item.flag} {item.dialCode} {item.name}
-                          </option>
-                        ))}
-                      </select>
+                    {/* Country calling code follows the selected shop country. */}
+                    <div className="flex h-[42px] w-[105px] shrink-0 items-center justify-center rounded-xl border border-slate-800 bg-slate-950/80 px-2 text-xs font-bold text-teal-400">
+                      {currentCountry.flag} {currentCountry.dialCode}
                     </div>
 
                     {/* Local Phone Input */}
@@ -331,7 +344,7 @@ export default function RegisterPage() {
               </div>
               <div className="flex items-center gap-2 text-xs font-bold text-slate-300">
                 <CheckCircle2 className="h-4 w-4 text-teal-400" />
-                <span>تفعيل فوري لجميع أدوات الصيانة، الـ POS، ومزامنة الواتساب</span>
+                <span>تجربة احترافية مجانية لمدة 10 أيام تبدأ فور إنشاء الحساب</span>
               </div>
             </div>
 
@@ -345,7 +358,7 @@ export default function RegisterPage() {
                   <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
                   <span className="flex items-center justify-center gap-2">
-                    إنشاء الحساب وبدء العمل
+                    إنشاء الحساب وبدء التجربة المجانية
                     <ArrowLeft className="h-4 w-4" />
                   </span>
                 )}

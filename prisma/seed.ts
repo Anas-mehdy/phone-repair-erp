@@ -86,15 +86,27 @@ async function resetDemoDatabase() {
 async function main() {
   await resetDemoDatabase();
 
+  const trialStartedAt = new Date();
+  const trialEndsAt = new Date(trialStartedAt.getTime() + 10 * 24 * 60 * 60 * 1000);
+
   const shop = await prisma.shop.create({
     data: {
       name: "مركز النخبة لصيانة الجوالات",
       phone: "+966 11 555 8899",
       address: "الرياض، حي العليا، شارع التحلية",
+      countryCode: "SA",
       currency: "SAR",
       taxNumber: "300052345600003",
       taxRate: 15,
       maxSeats: 5,
+      subscription: {
+        create: {
+          plan: "PROFESSIONAL",
+          status: "TRIALING",
+          trialStartedAt,
+          trialEndsAt,
+        },
+      },
     },
   });
 

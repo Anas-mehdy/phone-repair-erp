@@ -1,6 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { hashPassword, verifyPassword, setSessionCookie, clearSessionCookie, getSession } from "@/lib/auth";
+import { COUNTRY_DIAL_CODES } from "@/lib/countries";
 import { z } from "zod";
+
+const TRIAL_DURATION_MS = 10 * 24 * 60 * 60 * 1000;
+const supportedCountryCodes = new Set(COUNTRY_DIAL_CODES.map((country) => country.code));
 
 export const registerSchema = z.object({
   name: z.string().min(2, "الاسم الكامل مطلوب ويجب ألا يقل عن حرفين"),
@@ -8,6 +12,11 @@ export const registerSchema = z.object({
   password: z.string().min(6, "كلمة المرور مطلوبة ويجب ألا تقل عن 6 أحرف"),
   shopName: z.string().min(2, "اسم المتجر مطلوب ويجب ألا يقل عن حرفين"),
   phone: z.string().min(6, "رقم هاتف المتجر مطلوب لإنشاء الحساب"),
+  countryCode: z
+    .string()
+    .trim()
+    .transform((value) => value.toUpperCase())
+    .refine((value) => supportedCountryCodes.has(value), "الدولة المختارة غير مدعومة"),
   currency: z.string().min(1, "العملة الرسمية مطلوبة").default("SAR"),
   address: z.string().optional().default(""),
 });
@@ -35,6 +44,8 @@ export const authService = {
     }
 
     const passwordHash = await hashPassword(validated.password);
+    const trialStartedAt = new Date();
+    const trialEndsAt = new Date(trialStartedAt.getTime() + TRIAL_DURATION_MS);
 
     // Create shop and owner in a transaction
     const result = await prisma.$transaction(async (tx) => {
@@ -42,9 +53,18 @@ export const authService = {
         data: {
           name: validated.shopName.trim(),
           phone: validated.phone?.trim() || null,
+          countryCode: validated.countryCode,
           currency: validated.currency.trim() || "SAR",
           address: validated.address?.trim() || null,
           taxRate: 15,
+          subscription: {
+            create: {
+              plan: "PROFESSIONAL",
+              status: "TRIALING",
+              trialStartedAt,
+              trialEndsAt,
+            },
+          },
         },
       });
 
