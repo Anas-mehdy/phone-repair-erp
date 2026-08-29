@@ -3,7 +3,6 @@ import { AlertTriangle, ArrowRight, Calculator, CheckCircle2, FileText, History,
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { headers } from "next/headers";
 import { DatabaseUnavailable } from "@/components/database-unavailable";
 import { RepairStatusBadge, repairStatusLabels } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -32,6 +31,7 @@ import {
   updateRepairOrderDetailsAction,
 } from "../actions";
 import { AssignmentSeenMarker } from "../_assignment-seen-marker";
+import { buildAppUrl } from "@/lib/app-url";
 
 export const dynamic = "force-dynamic";
 
@@ -112,10 +112,7 @@ export default async function RepairOrderDetailsPage({
   const netProfit = repairOrder.deductPartCost ? Math.max(0, repairPrice - partCostNum) : repairPrice;
 
   const existingInvoice = repairOrder.invoices[0];
-  const headersList = await headers();
-  const host = headersList.get("x-forwarded-host") || headersList.get("host") || "localhost:3000";
-  const protocol = headersList.get("x-forwarded-proto") || (host.includes("localhost") ? "http" : "https");
-  const trackingUrl = `${protocol}://${host}/track/${repairOrder.id}`;
+  const trackingUrl = buildAppUrl(`/track/${repairOrder.id}`);
 
   const qrCodeDataUrl = await QRCode.toDataURL(trackingUrl, {
     margin: 1,

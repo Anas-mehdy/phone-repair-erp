@@ -26,6 +26,7 @@ import { dashboardService } from "@/lib/services/dashboardService";
 import { DashboardUpdatesSection } from "@/components/dashboard/dashboard-updates-section";
 import { MasarJourney } from "@/components/dashboard/masar-journey";
 import { MasarWaveBackground } from "@/components/dashboard/masar-wave-background";
+import { DomainAnnouncement } from "@/components/dashboard/domain-announcement";
 
 export const dynamic = "force-dynamic";
 
@@ -133,6 +134,8 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-8">
+      <DomainAnnouncement />
+
       {/* Masar brand and decorative device journey */}
       <section className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm shadow-slate-200/60 sm:p-7">
         <MasarWaveBackground />

@@ -27,6 +27,7 @@ import {
   revokeInvitationAction,
 } from "@/app/actions/teamActions";
 import { formatDate } from "@/lib/format";
+import { buildAppUrl } from "@/lib/app-url";
 
 export interface TeamMemberItem {
   id: string;
@@ -133,8 +134,7 @@ export function TeamManagementSection({
     startTransition(async () => {
       const result = await inviteTeamMemberAction(formData);
       if (result.success && result.rawToken) {
-        const origin = window.location.origin;
-        const fullUrl = `${origin}/invite/${result.rawToken}`;
+        const fullUrl = buildAppUrl(`/invite/${result.rawToken}`);
         setGeneratedInviteUrl(fullUrl);
         setGeneratedInviteEmail(result.email || "");
       } else {

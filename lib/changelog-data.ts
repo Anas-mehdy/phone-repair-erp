@@ -21,6 +21,16 @@ export const CHANGELOG_STORAGE_KEYS = {
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   {
+    id: "imp-official-massar-domain-v1-7",
+    version: "v1.7.0",
+    date: "2026-08-29",
+    type: "IMPROVEMENT",
+    priority: "HIGH",
+    title: "إطلاق الدومين الرسمي لمنصة مسار",
+    description: "أصبح massarerp.com العنوان الرسمي للنظام، وستستخدم روابط متابعة الصيانة والأقساط ورموز QR ودعوات الموظفين الدومين الجديد تلقائياً.",
+    iconName: "Sparkles",
+  },
+  {
     id: "feat-repair-technician-assignment-v1-6",
     version: "v1.6.0",
     date: "2026-08-28",

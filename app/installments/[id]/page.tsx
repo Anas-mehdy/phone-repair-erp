@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { InstallmentPlanStatus, InstallmentScheduleStatus, PaymentMethod } from "@prisma/client";
 import { ArrowRight, CalendarDays, CheckCircle2, ExternalLink, MessageCircle, QrCode, Receipt, RefreshCw, UserRound, WalletCards } from "lucide-react";
-import { headers } from "next/headers";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -18,6 +17,7 @@ import { paymentSourceService } from "@/lib/services/paymentSourceService";
 import { addInstallmentPaymentAction, rotateInstallmentLinkAction } from "../actions";
 import { PlanStatus } from "../_components";
 import { CopyInstallmentLink } from "./_copy-link";
+import { buildAppUrl } from "@/lib/app-url";
 
 export const dynamic = "force-dynamic";
 
@@ -31,10 +31,7 @@ export default async function InstallmentDetailsPage({ params, searchParams }: {
   if (!plan) notFound();
 
   const token = await createInstallmentPublicToken(plan.id, plan.publicTokenVersion);
-  const headerList = await headers();
-  const host = headerList.get("x-forwarded-host") || headerList.get("host") || "localhost:3000";
-  const protocol = headerList.get("x-forwarded-proto") || (host.includes("localhost") ? "http" : "https");
-  const publicUrl = `${protocol}://${host}/installment-track/${token}`;
+  const publicUrl = buildAppUrl(`/installment-track/${token}`);
   const qrData = await QRCode.toDataURL(publicUrl, { width: 220, margin: 1, errorCorrectionLevel: "M" });
   const next = plan.schedules.find((item) => item.status !== InstallmentScheduleStatus.PAID && item.status !== InstallmentScheduleStatus.CANCELLED);
   const overdue = plan.status === InstallmentPlanStatus.ACTIVE && Boolean(next && next.dueAt < new Date());
