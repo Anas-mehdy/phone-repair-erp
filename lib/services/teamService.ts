@@ -1,7 +1,8 @@
 import crypto from "crypto";
-import { MembershipRole, MembershipStatus, InvitationStatus } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
+import { InvitationStatus, MembershipRole, MembershipStatus } from "@prisma/client";
 import { hashPassword } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { entitlementService } from "@/lib/services/subscriptionEntitlementService";
 
 export interface CreateInvitationInput {
   name: string;
@@ -21,27 +22,22 @@ export interface SeatUsageInfo {
   maxSeats: number;
   remainingSeats: number;
   canInvite: boolean;
+  isUnlimited: boolean;
+}
+
+function entitlementErrorMessage(result: Awaited<ReturnType<typeof entitlementService.checkCanAddEmployee>>) {
+  return result.allowed
+    ? ""
+    : result.message;
 }
 
 /**
- * Calculates current seat usage for a shop (active memberships + pending invitations).
+ * Seat information is derived from the Subscription Entitlement Service.
+ * Shop.maxSeats is legacy metadata and is not an authorization source.
  */
 export async function getShopSeatUsage(shopId: string): Promise<SeatUsageInfo> {
-  const shop = await prisma.shop.findUnique({
-    where: { id: shopId },
-    select: { maxSeats: true },
-  });
-
-  const maxSeats = shop?.maxSeats ?? 5;
-
-  const [activeMembersCount, pendingInvitesCount] = await Promise.all([
-    prisma.membership.count({
-      where: {
-        shopId,
-        status: { not: MembershipStatus.REMOVED },
-        deletedAt: null,
-      },
-    }),
+  const [entitlement, pendingInvitesCount] = await Promise.all([
+    entitlementService.getEntitlementContext(shopId),
     prisma.shopInvitation.count({
       where: {
         shopId,
@@ -52,29 +48,26 @@ export async function getShopSeatUsage(shopId: string): Promise<SeatUsageInfo> {
     }),
   ]);
 
+  const activeMembersCount = entitlement.usage.activeSeats;
   const usedSeats = activeMembersCount + pendingInvitesCount;
-  const remainingSeats = Math.max(0, maxSeats - usedSeats);
-  const canInvite = usedSeats < maxSeats;
+  const limit = entitlement.limits.totalSeats;
+  const isUnlimited = limit === null;
 
   return {
     usedSeats,
     activeMembersCount,
     pendingInvitesCount,
-    maxSeats,
-    remainingSeats,
-    canInvite,
+    // Keep numeric fields for the existing UI contract. UI can use isUnlimited
+    // to render "غير محدود" instead of this display fallback.
+    maxSeats: limit ?? Math.max(usedSeats, 1),
+    remainingSeats: limit === null ? 0 : Math.max(0, limit - usedSeats),
+    canInvite: entitlement.canAddEmployee,
+    isUnlimited,
   };
 }
 
-/**
- * Lists all active team members and pending invitations for a shop.
- */
 export async function listTeamMembers(shopId: string) {
-  const [shop, memberships, pendingInvitations] = await Promise.all([
-    prisma.shop.findUnique({
-      where: { id: shopId },
-      select: { maxSeats: true },
-    }),
+  const [memberships, pendingInvitations, entitlement] = await Promise.all([
     prisma.membership.findMany({
       where: {
         shopId,
@@ -92,10 +85,7 @@ export async function listTeamMembers(shopId: string) {
           },
         },
       },
-      orderBy: [
-        { role: "asc" },
-        { createdAt: "asc" },
-      ],
+      orderBy: [{ role: "asc" }, { createdAt: "asc" }],
     }),
     prisma.shopInvitation.findMany({
       where: {
@@ -114,22 +104,22 @@ export async function listTeamMembers(shopId: string) {
       },
       orderBy: { createdAt: "desc" },
     }),
+    entitlementService.getEntitlementContext(shopId),
   ]);
 
-  const maxSeats = shop?.maxSeats ?? 5;
-  const activeMembersCount = memberships.length;
+  const activeMembersCount = entitlement.usage.activeSeats;
   const pendingInvitesCount = pendingInvitations.length;
   const usedSeats = activeMembersCount + pendingInvitesCount;
-  const remainingSeats = Math.max(0, maxSeats - usedSeats);
-  const canInvite = usedSeats < maxSeats;
+  const limit = entitlement.limits.totalSeats;
 
   const seatUsage: SeatUsageInfo = {
     usedSeats,
     activeMembersCount,
     pendingInvitesCount,
-    maxSeats,
-    remainingSeats,
-    canInvite,
+    maxSeats: limit ?? Math.max(usedSeats, 1),
+    remainingSeats: limit === null ? 0 : Math.max(0, limit - usedSeats),
+    canInvite: entitlement.canAddEmployee,
+    isUnlimited: limit === null,
   };
 
   return {
@@ -139,14 +129,10 @@ export async function listTeamMembers(shopId: string) {
   };
 }
 
-/**
- * Creates a cryptographically secure invitation for an employee to join a shop.
- * Storing name and role on ShopInvitation directly without creating placeholder User.
- */
 export async function createInvitation(
   shopId: string,
   input: CreateInvitationInput,
-  invitedByUserId: string
+  invitedByUserId: string,
 ) {
   const name = input.name.trim();
   const email = input.email.trim().toLowerCase();
@@ -155,7 +141,6 @@ export async function createInvitation(
     throw new Error("اسم الموظف مطلوب (حرفان على الأقل).");
   }
 
-  // Validate allowed roles (Strictly forbid inviting an OWNER)
   if (input.role === MembershipRole.OWNER) {
     throw new Error("لا يمكن إنشاء أو دعوة مالك متجر جديد. يمكنك فقط دعوة مدير أو فني أو مشاهد.");
   }
@@ -170,7 +155,13 @@ export async function createInvitation(
     throw new Error("الدور المحدد غير صالح.");
   }
 
-  // Check if email already has an active membership in this shop
+  // Entitlement Service is the authoritative seat/subscription gate.
+  // BASIC is owner-only, regardless of legacy Shop.maxSeats.
+  const employeeEntitlement = await entitlementService.checkCanAddEmployee(shopId);
+  if (!employeeEntitlement.allowed) {
+    throw new Error(entitlementErrorMessage(employeeEntitlement));
+  }
+
   const existingMember = await prisma.membership.findFirst({
     where: {
       shopId,
@@ -184,15 +175,6 @@ export async function createInvitation(
     throw new Error("المستخدم مسجل كعضو بالفعل في هذا المتجر.");
   }
 
-  // Check seat capacity
-  const seatUsage = await getShopSeatUsage(shopId);
-  if (!seatUsage.canInvite) {
-    throw new Error(
-      `تم بلوغ الحد الأقصى لعدد المقاعد المتاحة في هذا المتجر (${seatUsage.maxSeats} مقاعد). يرجى ترقية الباقة لإضافة المزيد.`
-    );
-  }
-
-  // Revoke any previous pending invitation for this email in this shop
   await prisma.shopInvitation.updateMany({
     where: {
       shopId,
@@ -205,11 +187,8 @@ export async function createInvitation(
     },
   });
 
-  // Generate 32-byte cryptographically secure token and SHA-256 hash
   const rawToken = crypto.randomBytes(32).toString("hex");
   const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
-
-  // 7-day expiration window
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
   const invitation = await prisma.shopInvitation.create({
@@ -236,16 +215,12 @@ export async function createInvitation(
   };
 }
 
-/**
- * Updates a team member's role (ADMIN ↔ TECHNICIAN ↔ VIEWER).
- */
 export async function updateMemberRole(
   shopId: string,
   membershipId: string,
   newRole: MembershipRole,
-  actorUserId: string
+  actorUserId: string,
 ) {
-  // Disallow assigning OWNER role
   if (newRole === MembershipRole.OWNER) {
     throw new Error("لا يمكن ترقية موظف إلى رتبة مالك متجر.");
   }
@@ -286,14 +261,11 @@ export async function updateMemberRole(
   });
 }
 
-/**
- * Toggles a member's status (ACTIVE ↔ SUSPENDED).
- */
 export async function toggleMemberStatus(
   shopId: string,
   membershipId: string,
   newStatus: MembershipStatus,
-  actorUserId: string
+  actorUserId: string,
 ) {
   if (newStatus !== MembershipStatus.ACTIVE && newStatus !== MembershipStatus.SUSPENDED) {
     throw new Error("الحالة المحددة غير صالحة.");
@@ -316,7 +288,16 @@ export async function toggleMemberStatus(
   }
 
   if (target.userId === actorUserId) {
-    throw new Error("لا يمكنك تجميد حسابك الخاص.");
+    throw new Error("لا يمكنك تجميد حسابك الخاص بنفسك.");
+  }
+
+  // Reactivating a suspended worker is a new active seat and therefore must
+  // obey the current subscription. Suspending remains allowed at all times.
+  if (newStatus === MembershipStatus.ACTIVE && target.status !== MembershipStatus.ACTIVE) {
+    const employeeEntitlement = await entitlementService.checkCanAddEmployee(shopId);
+    if (!employeeEntitlement.allowed) {
+      throw new Error(entitlementErrorMessage(employeeEntitlement));
+    }
   }
 
   return prisma.membership.update({
@@ -325,13 +306,10 @@ export async function toggleMemberStatus(
   });
 }
 
-/**
- * Removes a member from the shop (Soft-delete membership).
- */
 export async function removeMember(
   shopId: string,
   membershipId: string,
-  actorUserId: string
+  actorUserId: string,
 ) {
   const target = await prisma.membership.findFirst({
     where: {
@@ -362,13 +340,7 @@ export async function removeMember(
   });
 }
 
-/**
- * Revokes a pending invitation.
- */
-export async function revokeInvitation(
-  shopId: string,
-  invitationId: string
-) {
+export async function revokeInvitation(shopId: string, invitationId: string) {
   const invitation = await prisma.shopInvitation.findFirst({
     where: {
       id: invitationId,
@@ -390,9 +362,6 @@ export async function revokeInvitation(
   });
 }
 
-/**
- * Verifies an invitation token for public acceptance.
- */
 export async function getInvitationByToken(rawToken: string) {
   if (!rawToken || rawToken.length !== 64) {
     return { valid: false, error: "رمز الدعوة غير صالح." as const };
@@ -438,19 +407,18 @@ export async function getInvitationByToken(rawToken: string) {
   return { valid: true, invitation };
 }
 
-/**
- * Accepts an invitation: sets password, activates membership, and creates the User record upon acceptance.
- */
-export async function acceptInvitation(
-  rawToken: string,
-  input: AcceptInvitationInput
-) {
+export async function acceptInvitation(rawToken: string, input: AcceptInvitationInput) {
   const check = await getInvitationByToken(rawToken);
   if (!check.valid || !check.invitation) {
     throw new Error(check.error || "الدعوة غير صالحة.");
   }
 
   const invitation = check.invitation;
+  const employeeEntitlement = await entitlementService.checkCanAddEmployee(invitation.shopId);
+  if (!employeeEntitlement.allowed) {
+    throw new Error(entitlementErrorMessage(employeeEntitlement));
+  }
+
   const name = (input.name?.trim() || invitation.name?.trim()) || "عضو فريق العمل";
   const password = input.password;
 
@@ -465,32 +433,27 @@ export async function acceptInvitation(
   const passwordHash = await hashPassword(password);
 
   return prisma.$transaction(async (tx) => {
-    // Check seat limit inside atomic transaction
-    const activeCount = await tx.membership.count({
+    // Re-read the invitation inside the mutation transaction so a revoked or
+    // already-accepted token cannot race with this acceptance.
+    const liveInvitation = await tx.shopInvitation.findFirst({
       where: {
+        id: invitation.id,
         shopId: invitation.shopId,
-        status: { not: MembershipStatus.REMOVED },
+        status: InvitationStatus.PENDING,
         deletedAt: null,
+        expiresAt: { gt: new Date() },
       },
     });
 
-    const shop = await tx.shop.findUnique({
-      where: { id: invitation.shopId },
-      select: { maxSeats: true },
-    });
-
-    const maxSeats = shop?.maxSeats ?? 5;
-    if (activeCount >= maxSeats) {
-      throw new Error("عفواً، لا يمكن الانضمام حالياً بسبب اكتمال عدد المقاعد المتاحة في المتجر.");
+    if (!liveInvitation) {
+      throw new Error("رابط الدعوة لم يعد صالحاً أو تم استخدامه بالفعل.");
     }
 
-    // Find or create User record upon invitation acceptance
     let user = await tx.user.findUnique({
       where: { email: invitation.email.toLowerCase() },
     });
 
     if (user) {
-      // User already exists in database -> update name & password
       user = await tx.user.update({
         where: { id: user.id },
         data: {
@@ -501,7 +464,6 @@ export async function acceptInvitation(
         },
       });
     } else {
-      // New user record created only now upon acceptance
       user = await tx.user.create({
         data: {
           email: invitation.email.toLowerCase(),
@@ -513,7 +475,6 @@ export async function acceptInvitation(
       });
     }
 
-    // Create or reactivate Membership
     const membership = await tx.membership.upsert({
       where: {
         shopId_userId: {
@@ -534,7 +495,6 @@ export async function acceptInvitation(
       },
     });
 
-    // Mark invitation as ACCEPTED
     await tx.shopInvitation.update({
       where: { id: invitation.id },
       data: {
