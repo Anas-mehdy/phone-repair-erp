@@ -15,6 +15,7 @@ import {
   WalletCards,
   ChartNoAxesCombined,
   ShieldCheck,
+  Crown,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -103,6 +104,15 @@ export const navGroups: NavGroup[] = [
     title: "المساعدة والتهيئة",
     items: [
       { href: "/account/security", label: "أمان الحساب", icon: ShieldCheck },
+      {
+        href: "/subscription",
+        label: "اشتراكي",
+        icon: Crown,
+        badge: {
+          text: "جديد",
+          className: "border-amber-500/30 bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-sm shadow-amber-500/20",
+        },
+      },
       { href: "/settings", label: "إعدادات المتجر", icon: Settings },
       { href: "/support", label: "الدعم الفني والواتساب", icon: Headphones },
     ],
@@ -120,12 +130,14 @@ export function AppNav({
   onNavigate,
   canSettings = false,
   canReports = false,
+  canManageSubscription = false,
   compact = false,
 }: {
   onNavigate?: () => void;
   compact?: boolean;
   canSettings?: boolean;
   canReports?: boolean;
+  canManageSubscription?: boolean;
 }) {
   const pathname = usePathname();
 
@@ -136,6 +148,7 @@ export function AppNav({
         const visibleItems = group.items.filter((item) => {
           if (item.href === "/settings") return canSettings;
           if (item.href === "/reports") return canReports;
+          if (item.href === "/subscription") return canManageSubscription;
           return true;
         });
 
