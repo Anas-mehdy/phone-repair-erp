@@ -91,6 +91,32 @@ export default async function SubscriptionPage({ searchParams }: SubscriptionPag
   const isGracePeriod = effectiveStatus === "GRACE_PERIOD";
   const isBasic = entitlement.subscription.effectivePlan === "BASIC";
 
+  const now = new Date();
+
+  // Grace Period countdown calculated server-side from gracePeriodEndsAt
+  const graceEnd = entitlement.subscription.gracePeriodEndsAt;
+  const graceRemainingMs = graceEnd
+    ? Math.max(0, graceEnd.getTime() - now.getTime())
+    : 0;
+  const graceRemainingDays = Math.floor(graceRemainingMs / (24 * 60 * 60 * 1000));
+  const graceRemainingHours = Math.floor(
+    (graceRemainingMs % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000)
+  );
+  const graceRemainingText =
+    graceRemainingMs > 0
+      ? `${graceRemainingDays} يوم و${graceRemainingHours} ساعة`
+      : "انتهت المهلة";
+
+  // Differentiate expired trial vs expired paid subscription
+  const isTrialExpired =
+    isExpired &&
+    (overview.storedStatus === SubscriptionStatus.TRIALING ||
+      !entitlement.subscription.currentPeriodEndsAt);
+
+  const expiredMessage = isTrialExpired
+    ? "انتهت الفترة التجريبية. اختر الخطة المناسبة لمتابعة إنشاء عمليات جديدة."
+    : "انتهى اشتراكك. اختر الخطة المناسبة لمتابعة إنشاء عمليات جديدة.";
+
   const remainingLabel =
     overview.remainingMilliseconds > 0
       ? `${overview.remainingDays} يوم و${overview.remainingHours} ساعة`
@@ -105,9 +131,9 @@ export default async function SubscriptionPage({ searchParams }: SubscriptionPag
       />
 
       {/* Expiration or Grace Period Alerts */}
-      {isExpired && <SubscriptionExpiredBanner />}
+      {isExpired && <SubscriptionExpiredBanner message={expiredMessage} />}
       {isGracePeriod && (
-        <SubscriptionGracePeriodBanner remainingDays={overview.remainingDays} />
+        <SubscriptionGracePeriodBanner remainingText={graceRemainingText} />
       )}
 
       {/* Main Status Hero Card */}
@@ -132,7 +158,7 @@ export default async function SubscriptionPage({ searchParams }: SubscriptionPag
               {isTrial
                 ? "تستخدم الآن جميع مزايا الخطة الاحترافية مجاناً خلال الفترة التجريبية."
                 : isExpired
-                ? "انتهت الفترة التجريبية. اختر الخطة المناسبة لمتابعة إنشاء عمليات جديدة."
+                ? expiredMessage
                 : isGracePeriod
                 ? "اشتراك متجرك في مهلة التجديد. يرجى تجديد الخطة للاستمرار بلا انقطاع."
                 : "اشتراك متجرك نشط ويمكنك متابعة العمل بصورة طبيعية."}
@@ -220,7 +246,7 @@ export default async function SubscriptionPage({ searchParams }: SubscriptionPag
           <div>
             <h2 className="text-xl font-black text-slate-900">اختر الخطة المناسبة</h2>
             <p className="mt-1 text-xs font-semibold text-slate-500">
-              الأسعار التالية مخصصة لبلد متجرك، وتتضمن تفعيلاً فورياً وتأكيداً مباشراً.
+              الأسعار التالية مخصصة لبلد متجرك، ويمكنك طلب الاشتراك عبر واتساب.
             </p>
           </div>
           <div className="inline-flex w-fit rounded-2xl border border-slate-200 bg-slate-100 p-1 shadow-xs">

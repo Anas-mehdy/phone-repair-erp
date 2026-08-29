@@ -116,10 +116,16 @@ export function EntitlementAlert({
  * Banner shown on the subscription page or global view when subscription is EXPIRED.
  */
 export function SubscriptionExpiredBanner({
+  message,
   className = "",
 }: {
+  message?: string;
   className?: string;
 }) {
+  const displayMessage =
+    message ||
+    "انتهت فترة استخدامك. بياناتك محفوظة بالكامل، اختر خطة لمتابعة إنشاء عمليات جديدة.";
+
   return (
     <div
       className={`relative overflow-hidden rounded-2xl border border-rose-300 bg-gradient-to-br from-rose-50 via-white to-amber-50 p-5 text-rose-950 shadow-sm ${className}`}
@@ -134,7 +140,7 @@ export function SubscriptionExpiredBanner({
               انتهت فترة استخدامك في مسار
             </h3>
             <p className="text-xs font-semibold leading-relaxed text-slate-700 sm:text-sm">
-              انتهت فترة استخدامك. بياناتك محفوظة بالكامل، اختر خطة لمتابعة إنشاء عمليات جديدة.
+              {displayMessage}
             </p>
           </div>
         </div>
@@ -157,12 +163,17 @@ export function SubscriptionExpiredBanner({
  * Banner shown during the GRACE_PERIOD window to warn about imminent expiration.
  */
 export function SubscriptionGracePeriodBanner({
+  remainingText,
   remainingDays,
   className = "",
 }: {
+  remainingText?: string;
   remainingDays?: number;
   className?: string;
 }) {
+  const timeText =
+    remainingText || (remainingDays !== undefined ? `${remainingDays} يوم` : "");
+
   return (
     <div
       className={`relative overflow-hidden rounded-2xl border border-amber-300 bg-gradient-to-br from-amber-50 via-white to-yellow-50 p-4 sm:p-5 text-amber-950 shadow-sm ${className}`}
@@ -178,7 +189,7 @@ export function SubscriptionGracePeriodBanner({
             </h4>
             <p className="text-xs font-semibold text-slate-700 leading-relaxed">
               اشتراك متجرك في مهلة التجديد
-              {remainingDays !== undefined ? ` (متبقي ${remainingDays} يوم)` : ""}
+              {timeText ? ` (متبقي ${timeText})` : ""}
               . يرجى اختيار خطة وتجديد الاشتراك للاستمرار في استخدام جميع مزايا النظام دون انقطاع.
             </p>
           </div>
