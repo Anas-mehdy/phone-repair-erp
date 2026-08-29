@@ -12,6 +12,7 @@ import {
   entitlementService,
   withRepairOrderLimitGuard,
 } from "@/lib/services/subscriptionEntitlementService";
+import { teamService } from "@/lib/services/teamService";
 
 const prisma = new PrismaClient();
 
@@ -119,7 +120,264 @@ async function cleanupShop(shopId: string) {
   await prisma.shop.delete({ where: { id: shopId } }).catch(() => undefined);
 }
 
-async function testUnlimitedRepairsConcurrency() {
+async function testConcurrentInvitations() {
+  const { shopId } = await createShopFixture("integration-concurrent-invites");
+
+  try {
+    // 1 Owner
+    const owner = await prisma.user.create({
+      data: {
+        email: `owner-${shopId.slice(0, 8)}@test.local`,
+        name: "Shop Owner",
+        passwordHash: "fake-hash",
+        shopId,
+        role: UserRole.OWNER,
+      },
+    });
+    await prisma.membership.create({
+      data: {
+        shopId,
+        userId: owner.id,
+        role: MembershipRole.OWNER,
+        status: MembershipStatus.ACTIVE,
+      },
+    });
+
+    // 3 Active Staff (Total used seats = 4)
+    for (let i = 1; i <= 3; i++) {
+      const staff = await prisma.user.create({
+        data: {
+          email: `staff-${i}-${shopId.slice(0, 8)}@test.local`,
+          name: `Staff Member ${i}`,
+          passwordHash: "fake-hash",
+          shopId,
+          role: UserRole.STAFF,
+        },
+      });
+      await prisma.membership.create({
+        data: {
+          shopId,
+          userId: staff.id,
+          role: MembershipRole.TECHNICIAN,
+          status: MembershipStatus.ACTIVE,
+        },
+      });
+    }
+
+    const initialUsage = await teamService.getShopSeatUsage(shopId);
+    if (initialUsage.usedSeats !== 4) {
+      throw new Error(`Expected initial usedSeats = 4, got ${initialUsage.usedSeats}`);
+    }
+
+    // Attempt 2 simultaneous invitations
+    const [res1, res2] = await Promise.allSettled([
+      teamService.createInvitation(
+        shopId,
+        { name: "Candidate 1", email: `cand-1-${shopId.slice(0, 8)}@test.local`, role: MembershipRole.TECHNICIAN },
+        owner.id,
+      ),
+      teamService.createInvitation(
+        shopId,
+        { name: "Candidate 2", email: `cand-2-${shopId.slice(0, 8)}@test.local`, role: MembershipRole.TECHNICIAN },
+        owner.id,
+      ),
+    ]);
+
+    const successes = [res1, res2].filter((r) => r.status === "fulfilled");
+    const rejections = [res1, res2].filter((r) => r.status === "rejected");
+
+    if (successes.length !== 1) {
+      throw new Error(`Concurrent invitations failed: expected exactly 1 success, got ${successes.length}.`);
+    }
+    if (rejections.length !== 1) {
+      throw new Error(`Concurrent invitations failed: expected exactly 1 rejection, got ${rejections.length}.`);
+    }
+
+    const rejectedError = (rejections[0] as PromiseRejectedResult).reason;
+    const errorMsg = rejectedError instanceof Error ? rejectedError.message : String(rejectedError);
+    if (!errorMsg.includes("وصلت إلى الحد الأقصى المسموح به وهو 5 مستخدمين للمتجر")) {
+      throw new Error(`Unexpected rejection error message: ${errorMsg}`);
+    }
+
+    const finalUsage = await teamService.getShopSeatUsage(shopId);
+    if (finalUsage.usedSeats !== 5) {
+      throw new Error(`Concurrent invitations failed: expected final usedSeats = 5, got ${finalUsage.usedSeats}`);
+    }
+
+    console.log("✅ Test A — Concurrent Invitations: 4 seats + 2 simultaneous invites => exactly 1 accepted, 1 denied, final usedSeats=5");
+  } finally {
+    await cleanupShop(shopId);
+  }
+}
+
+async function testConcurrentReactivation() {
+  const { shopId } = await createShopFixture("integration-concurrent-reactivate");
+
+  try {
+    // 1 Owner
+    const owner = await prisma.user.create({
+      data: {
+        email: `owner-${shopId.slice(0, 8)}@test.local`,
+        name: "Shop Owner",
+        passwordHash: "fake-hash",
+        shopId,
+        role: UserRole.OWNER,
+      },
+    });
+    await prisma.membership.create({
+      data: {
+        shopId,
+        userId: owner.id,
+        role: MembershipRole.OWNER,
+        status: MembershipStatus.ACTIVE,
+      },
+    });
+
+    // 3 Active Staff (Total active seats = 4)
+    for (let i = 1; i <= 3; i++) {
+      const staff = await prisma.user.create({
+        data: {
+          email: `active-staff-${i}-${shopId.slice(0, 8)}@test.local`,
+          name: `Active Staff ${i}`,
+          passwordHash: "fake-hash",
+          shopId,
+          role: UserRole.STAFF,
+        },
+      });
+      await prisma.membership.create({
+        data: {
+          shopId,
+          userId: staff.id,
+          role: MembershipRole.TECHNICIAN,
+          status: MembershipStatus.ACTIVE,
+        },
+      });
+    }
+
+    // 2 Suspended Staff
+    const suspendedMembers = [];
+    for (let i = 1; i <= 2; i++) {
+      const staff = await prisma.user.create({
+        data: {
+          email: `suspended-staff-${i}-${shopId.slice(0, 8)}@test.local`,
+          name: `Suspended Staff ${i}`,
+          passwordHash: "fake-hash",
+          shopId,
+          role: UserRole.STAFF,
+        },
+      });
+      const membership = await prisma.membership.create({
+        data: {
+          shopId,
+          userId: staff.id,
+          role: MembershipRole.TECHNICIAN,
+          status: MembershipStatus.SUSPENDED,
+        },
+      });
+      suspendedMembers.push(membership);
+    }
+
+    const initialUsage = await teamService.getShopSeatUsage(shopId);
+    if (initialUsage.usedSeats !== 4) {
+      throw new Error(`Expected initial usedSeats = 4, got ${initialUsage.usedSeats}`);
+    }
+
+    // Attempt concurrent reactivation of both suspended members
+    const [res1, res2] = await Promise.allSettled([
+      teamService.toggleMemberStatus(shopId, suspendedMembers[0].id, MembershipStatus.ACTIVE, owner.id),
+      teamService.toggleMemberStatus(shopId, suspendedMembers[1].id, MembershipStatus.ACTIVE, owner.id),
+    ]);
+
+    const successes = [res1, res2].filter((r) => r.status === "fulfilled");
+    const rejections = [res1, res2].filter((r) => r.status === "rejected");
+
+    if (successes.length !== 1) {
+      throw new Error(`Concurrent reactivation failed: expected exactly 1 success, got ${successes.length}.`);
+    }
+    if (rejections.length !== 1) {
+      throw new Error(`Concurrent reactivation failed: expected exactly 1 rejection, got ${rejections.length}.`);
+    }
+
+    const rejectedError = (rejections[0] as PromiseRejectedResult).reason;
+    const errorMsg = rejectedError instanceof Error ? rejectedError.message : String(rejectedError);
+    if (!errorMsg.includes("وصلت إلى الحد الأقصى المسموح به وهو 5 مستخدمين للمتجر")) {
+      throw new Error(`Unexpected rejection error message: ${errorMsg}`);
+    }
+
+    const finalActiveMembers = await prisma.membership.count({
+      where: { shopId, status: MembershipStatus.ACTIVE, deletedAt: null },
+    });
+    if (finalActiveMembers !== 5) {
+      throw new Error(`Concurrent reactivation failed: expected 5 active members, got ${finalActiveMembers}`);
+    }
+
+    console.log("✅ Test B — Concurrent Reactivation: 4 active + 2 suspended reactivated simultaneously => exactly 1 active, 1 blocked, final active seats=5");
+  } finally {
+    await cleanupShop(shopId);
+  }
+}
+
+async function testTenantIsolation() {
+  const shopA = await createShopFixture("integration-tenant-lock-a", SubscriptionStatus.ACTIVE);
+  const shopB = await createShopFixture("integration-tenant-lock-b", SubscriptionStatus.ACTIVE);
+
+  try {
+    // Both shops have 4 seats
+    for (const shop of [shopA, shopB]) {
+      const owner = await prisma.user.create({
+        data: {
+          email: `owner-${shop.shopId.slice(0, 8)}@test.local`,
+          name: "Owner",
+          passwordHash: "fake",
+          shopId: shop.shopId,
+          role: UserRole.OWNER,
+        },
+      });
+      await prisma.membership.create({
+        data: { shopId: shop.shopId, userId: owner.id, role: MembershipRole.OWNER, status: MembershipStatus.ACTIVE },
+      });
+      for (let i = 1; i <= 3; i++) {
+        const staff = await prisma.user.create({
+          data: { email: `staff-${i}-${shop.shopId.slice(0, 8)}@test.local`, name: "Staff", passwordHash: "fake", shopId: shop.shopId, role: UserRole.STAFF },
+        });
+        await prisma.membership.create({
+          data: { shopId: shop.shopId, userId: staff.id, role: MembershipRole.TECHNICIAN, status: MembershipStatus.ACTIVE },
+        });
+      }
+    }
+
+    // Both shops create a 5th seat simultaneously
+    const [ownerA, ownerB] = await Promise.all([
+      prisma.user.findFirstOrThrow({ where: { shopId: shopA.shopId, role: UserRole.OWNER } }),
+      prisma.user.findFirstOrThrow({ where: { shopId: shopB.shopId, role: UserRole.OWNER } }),
+    ]);
+
+    const [resA, resB] = await Promise.allSettled([
+      teamService.createInvitation(shopA.shopId, { name: "A5", email: `a5-${shopA.shopId.slice(0, 8)}@test.local`, role: MembershipRole.TECHNICIAN }, ownerA.id),
+      teamService.createInvitation(shopB.shopId, { name: "B5", email: `b5-${shopB.shopId.slice(0, 8)}@test.local`, role: MembershipRole.TECHNICIAN }, ownerB.id),
+    ]);
+
+    if (resA.status !== "fulfilled" || resB.status !== "fulfilled") {
+      throw new Error("Tenant isolation failed: Independent shops at 4/5 should both succeed concurrently.");
+    }
+
+    const [usageA, usageB] = await Promise.all([
+      teamService.getShopSeatUsage(shopA.shopId),
+      teamService.getShopSeatUsage(shopB.shopId),
+    ]);
+
+    if (usageA.usedSeats !== 5 || usageB.usedSeats !== 5) {
+      throw new Error(`Tenant isolation failed: expected 5 seats on both shops, got A=${usageA.usedSeats}, B=${usageB.usedSeats}`);
+    }
+
+    console.log("✅ Test C — Tenant Isolation: Separate shops under concurrent mutations lock independently; zero cross-tenant blocking");
+  } finally {
+    await cleanupShop(shopA.shopId);
+    await cleanupShop(shopB.shopId);
+  }
+}
+
+async function testUnlimitedRepairs() {
   const { shopId, now } = await createShopFixture("integration-unlimited-repairs");
 
   try {
@@ -175,91 +433,6 @@ async function testUnlimitedRepairsConcurrency() {
   }
 }
 
-async function testSeatCap() {
-  const { shopId } = await createShopFixture("integration-seat-cap");
-
-  try {
-    const owner = await prisma.user.create({
-      data: {
-        email: `owner-${shopId.slice(0, 8)}@test.local`,
-        name: "Shop Owner",
-        passwordHash: "fake-hash",
-        shopId,
-        role: UserRole.OWNER,
-      },
-    });
-    await prisma.membership.create({
-      data: {
-        shopId,
-        userId: owner.id,
-        role: MembershipRole.OWNER,
-        status: MembershipStatus.ACTIVE,
-      },
-    });
-
-    for (let index = 1; index <= 4; index++) {
-      const staff = await prisma.user.create({
-        data: {
-          email: `staff-${index}-${shopId.slice(0, 8)}@test.local`,
-          name: `Staff Member ${index}`,
-          passwordHash: "fake-hash",
-          shopId,
-          role: UserRole.STAFF,
-        },
-      });
-      await prisma.membership.create({
-        data: {
-          shopId,
-          userId: staff.id,
-          role: MembershipRole.TECHNICIAN,
-          status: MembershipStatus.ACTIVE,
-        },
-      });
-    }
-
-    const ctx = await entitlementService.getEntitlementContext(shopId);
-    if (ctx.usage.activeSeats !== 5) {
-      throw new Error(`Seat cap failed: activeSeats is ${ctx.usage.activeSeats}, expected 5.`);
-    }
-
-    const seatCheck = await entitlementService.checkCanAddEmployee(shopId);
-    if (seatCheck.allowed) {
-      throw new Error("Seat cap failed: checkCanAddEmployee should be denied at 5 seats.");
-    }
-    if (seatCheck.code !== "EMPLOYEE_LIMIT_REACHED") {
-      throw new Error(`Seat cap failed: expected code EMPLOYEE_LIMIT_REACHED, got ${seatCheck.code}.`);
-    }
-
-    console.log("✅ 5-Seat Cap: 1 Owner + 4 Staff (5 total) => activeSeats=5, checkCanAddEmployee correctly blocked with EMPLOYEE_LIMIT_REACHED");
-  } finally {
-    await cleanupShop(shopId);
-  }
-}
-
-async function testTenantIsolation() {
-  const activeShop = await createShopFixture("integration-tenant-active", SubscriptionStatus.ACTIVE);
-  const expiredShop = await createShopFixture("integration-tenant-expired", SubscriptionStatus.EXPIRED);
-
-  try {
-    const [activeResult, expiredResult] = await Promise.all([
-      entitlementService.checkCanCreateRepairOrder(activeShop.shopId, activeShop.now),
-      entitlementService.checkCanCreateRepairOrder(expiredShop.shopId, expiredShop.now),
-    ]);
-
-    if (!activeResult.allowed) {
-      throw new Error("Tenant isolation failed: active shop should be allowed.");
-    }
-    if (expiredResult.allowed || expiredResult.code !== "SUBSCRIPTION_EXPIRED") {
-      throw new Error("Tenant isolation failed: expired shop should be denied with SUBSCRIPTION_EXPIRED.");
-    }
-
-    console.log("✅ Tenant isolation: ACTIVE shop allowed, EXPIRED shop denied; zero cross-tenant contamination");
-  } finally {
-    await cleanupShop(activeShop.shopId);
-    await cleanupShop(expiredShop.shopId);
-  }
-}
-
 async function main() {
   const url = assertLocalDatabaseSafety();
   console.log(
@@ -268,9 +441,10 @@ async function main() {
   console.log("   No production/remote database is permitted by this harness.\n");
 
   await assertRequiredSchema();
-  await testUnlimitedRepairsConcurrency();
-  await testSeatCap();
+  await testConcurrentInvitations();
+  await testConcurrentReactivation();
   await testTenantIsolation();
+  await testUnlimitedRepairs();
 
   console.log("\n✅ All local PostgreSQL subscription integration tests passed.");
 }

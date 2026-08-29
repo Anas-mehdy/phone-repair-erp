@@ -7,6 +7,8 @@
  * - Compatibility Searches: Unlimited.
  * - Sales / Invoices / Installments: Unlimited.
  * - Total Seats Limit: 5 users total (including shop OWNER).
+ * - Concurrency: PostgreSQL transaction-scoped advisory lock (seat-limit:<shopId>)
+ *   protects all seat creation/reactivation mutations against races.
  *
  * Security contract:
  * - shopId comes from verified server-side context, never browser authorization input.
@@ -16,7 +18,9 @@
  */
 
 import {
+  InvitationStatus,
   MembershipRole,
+  MembershipStatus,
   SubscriptionPlan,
   SubscriptionStatus,
   UserRole,
@@ -84,7 +88,26 @@ export type RepairOrderCreateCallback<T> = (
   tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]
 ) => Promise<T>;
 
-const UPGRADE_URL = "/subscription";
+export type SeatMutationCallback<T> = (
+  tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]
+) => Promise<T>;
+
+export type SeatLimitGuardOptions = {
+  /** If accepting a pending invitation, pass its ID so it isn't counted twice against the limit. */
+  acceptingInvitationId?: string;
+  now?: Date;
+};
+
+export type SeatGuardOutcome<T> =
+  | { result: T }
+  | {
+      denied: true;
+      code: EntitlementDenyCode;
+      message: string;
+      upgradeUrl: string;
+    };
+
+const UPGRADE_URL = "/support";
 export const TOTAL_SEAT_LIMIT = 5;
 
 export const PLAN_LIMITS: Record<EffectivePlan, PlanLimits> = {
@@ -104,14 +127,6 @@ export const PLAN_LIMITS: Record<EffectivePlan, PlanLimits> = {
     dailyCompatibilitySearches: null,
   },
 };
-
-function utcStartOfMonth(date: Date): Date {
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
-}
-
-function utcStartOfNextMonth(date: Date): Date {
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 1));
-}
 
 export function computeEffectiveStatus(
   storedStatus: SubscriptionStatus,
@@ -212,19 +227,6 @@ async function getSubscriptionSnapshot(
   };
 }
 
-async function countMonthlyRepairOrders(shopId: string, now: Date): Promise<number> {
-  return prisma.repairOrder.count({
-    where: {
-      shopId,
-      createdAt: {
-        gte: utcStartOfMonth(now),
-        lt: utcStartOfNextMonth(now),
-      },
-      deletedAt: null,
-    },
-  });
-}
-
 /**
  * Counts total active seats including active memberships, pending unexpired invitations,
  * and legacy OWNER users if no active OWNER membership exists.
@@ -232,13 +234,13 @@ async function countMonthlyRepairOrders(shopId: string, now: Date): Promise<numb
 async function countActiveSeats(shopId: string): Promise<number> {
   const [activeMemberships, activeOwnerMembership, pendingInvitesCount] = await Promise.all([
     prisma.membership.count({
-      where: { shopId, status: "ACTIVE", deletedAt: null },
+      where: { shopId, status: MembershipStatus.ACTIVE, deletedAt: null },
     }),
     prisma.membership.findFirst({
       where: {
         shopId,
         role: MembershipRole.OWNER,
-        status: "ACTIVE",
+        status: MembershipStatus.ACTIVE,
         deletedAt: null,
       },
       select: { id: true },
@@ -246,7 +248,7 @@ async function countActiveSeats(shopId: string): Promise<number> {
     prisma.shopInvitation.count({
       where: {
         shopId,
-        status: "PENDING",
+        status: InvitationStatus.PENDING,
         deletedAt: null,
         expiresAt: { gt: new Date() },
       },
@@ -306,7 +308,7 @@ export async function withRepairOrderLimitGuard<T>(
       denied: true,
       code: "SUBSCRIPTION_EXPIRED",
       message:
-        "انتهت فترة استخدامك. بياناتك محفوظة بالكامل، اختر خطة لمتابعة إنشاء عمليات جديدة.",
+        "انتهت فترة استخدامك. بياناتك محفوظة بالكامل، تواصل مع الدعم لتجديد الاشتراك.",
       upgradeUrl: UPGRADE_URL,
     };
   }
@@ -330,7 +332,7 @@ export async function withRepairOrderLimitGuard<T>(
       denied: true,
       code: "SUBSCRIPTION_EXPIRED",
       message:
-        "انتهت فترة استخدامك. بياناتك محفوظة بالكامل، اختر خطة لمتابعة إنشاء عمليات جديدة.",
+        "انتهت فترة استخدامك. بياناتك محفوظة بالكامل، تواصل مع الدعم لتجديد الاشتراك.",
       upgradeUrl: UPGRADE_URL,
     };
   }
@@ -339,13 +341,130 @@ export async function withRepairOrderLimitGuard<T>(
   return { result: created };
 }
 
+/**
+ * Concurrency-safe seat mutation guard.
+ * Uses PostgreSQL transaction-scoped advisory lock `seat-limit:<shopId>` to serialize
+ * invitations, reactivations, and invitation acceptances per shop.
+ */
+export async function withSeatLimitGuard<T>(
+  shopId: string,
+  callback: SeatMutationCallback<T>,
+  options?: SeatLimitGuardOptions,
+): Promise<SeatGuardOutcome<T>> {
+  const now = options?.now ?? new Date();
+
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`seat-limit:${shopId}`}))`;
+
+    const sub = await tx.subscription.findUnique({
+      where: { shopId },
+      select: {
+        plan: true,
+        status: true,
+        trialEndsAt: true,
+        currentPeriodStartedAt: true,
+        currentPeriodEndsAt: true,
+        gracePeriodEndsAt: true,
+      },
+    });
+
+    if (!sub) {
+      return {
+        denied: true,
+        code: "SUBSCRIPTION_EXPIRED",
+        message:
+          "انتهت فترة استخدامك. بياناتك محفوظة بالكامل، تواصل مع الدعم لتجديد الاشتراك.",
+        upgradeUrl: UPGRADE_URL,
+      };
+    }
+
+    const effectiveStatus = computeEffectiveStatus(
+      sub.status,
+      sub.trialEndsAt,
+      sub.currentPeriodStartedAt ?? null,
+      sub.currentPeriodEndsAt ?? null,
+      sub.gracePeriodEndsAt ?? null,
+      now,
+    );
+
+    const isOperationallyActive =
+      effectiveStatus === "TRIALING" ||
+      effectiveStatus === "ACTIVE" ||
+      effectiveStatus === "GRACE_PERIOD";
+
+    if (!isOperationallyActive) {
+      return {
+        denied: true,
+        code: "SUBSCRIPTION_EXPIRED",
+        message:
+          "انتهت فترة استخدامك. بياناتك محفوظة بالكامل، تواصل مع الدعم لتجديد الاشتراك.",
+        upgradeUrl: UPGRADE_URL,
+      };
+    }
+
+    const [activeMemberships, activeOwnerMembership, pendingInvitesCount] = await Promise.all([
+      tx.membership.count({
+        where: { shopId, status: MembershipStatus.ACTIVE, deletedAt: null },
+      }),
+      tx.membership.findFirst({
+        where: {
+          shopId,
+          role: MembershipRole.OWNER,
+          status: MembershipStatus.ACTIVE,
+          deletedAt: null,
+        },
+        select: { id: true },
+      }),
+      tx.shopInvitation.count({
+        where: {
+          shopId,
+          status: InvitationStatus.PENDING,
+          deletedAt: null,
+          expiresAt: { gt: now },
+          ...(options?.acceptingInvitationId
+            ? { id: { not: options.acceptingInvitationId } }
+            : {}),
+        },
+      }),
+    ]);
+
+    let usedSeats = activeMemberships;
+    if (!activeOwnerMembership) {
+      const legacyOwner = await tx.user.findFirst({
+        where: {
+          shopId,
+          role: UserRole.OWNER,
+          deletedAt: null,
+        },
+        select: { id: true },
+      });
+      if (legacyOwner) {
+        usedSeats += 1;
+      }
+    }
+    usedSeats += pendingInvitesCount;
+
+    if (usedSeats >= TOTAL_SEAT_LIMIT) {
+      return {
+        denied: true,
+        code: "EMPLOYEE_LIMIT_REACHED",
+        message:
+          "وصلت إلى الحد الأقصى المسموح به وهو 5 مستخدمين للمتجر، شامل مالك المتجر.",
+        upgradeUrl: UPGRADE_URL,
+      };
+    }
+
+    const result = await callback(tx);
+    return { result };
+  });
+}
+
 export async function getEntitlementContext(
   shopId: string,
   now: Date = new Date()
 ): Promise<EntitlementContext> {
-  const [snapshot, repairOrdersThisMonth, activeSeats] = await Promise.all([
+  const [snapshot, activeSeats] = await Promise.all([
     getSubscriptionSnapshot(shopId, now),
-    countMonthlyRepairOrders(shopId, now),
     countActiveSeats(shopId),
   ]);
 
@@ -362,7 +481,7 @@ export async function getEntitlementContext(
   return {
     subscription: snapshot,
     limits,
-    usage: { repairOrdersThisMonth, activeSeats, compatibilitySearchesToday: 0 },
+    usage: { repairOrdersThisMonth: 0, activeSeats, compatibilitySearchesToday: 0 },
     isOperationallyActive,
     canCreateRepairOrder,
     canAddEmployee,
@@ -380,7 +499,7 @@ export async function checkCanCreateNewOperation(
       allowed: false,
       code: "SUBSCRIPTION_EXPIRED",
       message:
-        "انتهت فترة استخدامك. بياناتك محفوظة بالكامل، اختر خطة لمتابعة إنشاء عمليات جديدة.",
+        "انتهت فترة استخدامك. بياناتك محفوظة بالكامل، تواصل مع الدعم لتجديد الاشتراك.",
       upgradeUrl: UPGRADE_URL,
     };
   }
@@ -397,7 +516,7 @@ export async function checkCanCreateRepairOrder(
       allowed: false,
       code: "SUBSCRIPTION_EXPIRED",
       message:
-        "انتهت فترة استخدامك. بياناتك محفوظة بالكامل، اختر خطة لمتابعة إنشاء عمليات جديدة.",
+        "انتهت فترة استخدامك. بياناتك محفوظة بالكامل، تواصل مع الدعم لتجديد الاشتراك.",
       upgradeUrl: UPGRADE_URL,
     };
   }
@@ -414,7 +533,7 @@ export async function checkCanAddEmployee(
       allowed: false,
       code: "SUBSCRIPTION_EXPIRED",
       message:
-        "انتهت فترة استخدامك. بياناتك محفوظة بالكامل، اختر خطة لمتابعة إنشاء عمليات جديدة.",
+        "انتهت فترة استخدامك. بياناتك محفوظة بالكامل، تواصل مع الدعم لتجديد الاشتراك.",
       upgradeUrl: UPGRADE_URL,
     };
   }
@@ -440,7 +559,7 @@ export async function checkCanPerformCompatibilitySearch(
       allowed: false,
       code: "SUBSCRIPTION_EXPIRED",
       message:
-        "انتهت فترة استخدامك. بياناتك محفوظة بالكامل، اختر خطة لمتابعة إنشاء عمليات جديدة.",
+        "انتهت فترة استخدامك. بياناتك محفوظة بالكامل، تواصل مع الدعم لتجديد الاشتراك.",
       upgradeUrl: UPGRADE_URL,
     };
   }
@@ -454,4 +573,5 @@ export const entitlementService = {
   checkCanAddEmployee,
   checkCanPerformCompatibilitySearch,
   withRepairOrderLimitGuard,
+  withSeatLimitGuard,
 };

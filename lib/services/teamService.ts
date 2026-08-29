@@ -25,12 +25,6 @@ export interface SeatUsageInfo {
   isUnlimited: boolean;
 }
 
-function entitlementErrorMessage(result: Awaited<ReturnType<typeof entitlementService.checkCanAddEmployee>>) {
-  return result.allowed
-    ? ""
-    : result.message;
-}
-
 /**
  * Seat information is derived from the Subscription Entitlement Service.
  * Shop.maxSeats is legacy metadata and is not an authorization source.
@@ -152,64 +146,68 @@ export async function createInvitation(
     throw new Error("الدور المحدد غير صالح.");
   }
 
-  // Entitlement Service is the authoritative seat/subscription gate (5 seats maximum).
-  const employeeEntitlement = await entitlementService.checkCanAddEmployee(shopId);
-  if (!employeeEntitlement.allowed) {
-    throw new Error(entitlementErrorMessage(employeeEntitlement));
-  }
-
-
-  const existingMember = await prisma.membership.findFirst({
-    where: {
-      shopId,
-      user: { email },
-      deletedAt: null,
-      status: { not: MembershipStatus.REMOVED },
-    },
-  });
-
-  if (existingMember) {
-    throw new Error("المستخدم مسجل كعضو بالفعل في هذا المتجر.");
-  }
-
-  await prisma.shopInvitation.updateMany({
-    where: {
-      shopId,
-      email,
-      status: InvitationStatus.PENDING,
-    },
-    data: {
-      status: InvitationStatus.REVOKED,
-      deletedAt: new Date(),
-    },
-  });
-
   const rawToken = crypto.randomBytes(32).toString("hex");
   const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-  const invitation = await prisma.shopInvitation.create({
-    data: {
-      shopId,
-      name,
-      email,
-      role: input.role,
-      tokenHash,
-      status: InvitationStatus.PENDING,
-      invitedByUserId,
-      expiresAt,
-    },
-    include: {
-      shop: {
-        select: { name: true },
-      },
-    },
-  });
+  const guarded = await entitlementService.withSeatLimitGuard(
+    shopId,
+    async (tx) => {
+      const existingMember = await tx.membership.findFirst({
+        where: {
+          shopId,
+          user: { email },
+          deletedAt: null,
+          status: { not: MembershipStatus.REMOVED },
+        },
+      });
 
-  return {
-    invitation,
-    rawToken,
-  };
+      if (existingMember) {
+        throw new Error("المستخدم مسجل كعضو بالفعل في هذا المتجر.");
+      }
+
+      await tx.shopInvitation.updateMany({
+        where: {
+          shopId,
+          email,
+          status: InvitationStatus.PENDING,
+        },
+        data: {
+          status: InvitationStatus.REVOKED,
+          deletedAt: new Date(),
+        },
+      });
+
+      const invitation = await tx.shopInvitation.create({
+        data: {
+          shopId,
+          name,
+          email,
+          role: input.role,
+          tokenHash,
+          status: InvitationStatus.PENDING,
+          invitedByUserId,
+          expiresAt,
+        },
+        include: {
+          shop: {
+            select: { name: true },
+          },
+        },
+      });
+
+      return {
+        invitation,
+        rawToken,
+      };
+    },
+  );
+
+  if ("denied" in guarded) {
+    throw new Error(guarded.message);
+  }
+
+  return guarded.result;
 }
 
 export async function updateMemberRole(
@@ -289,12 +287,23 @@ export async function toggleMemberStatus(
   }
 
   // Reactivating a suspended worker is a new active seat and therefore must
-  // obey the current subscription. Suspending remains allowed at all times.
+  // obey the transactional seat limit guard. Suspending remains allowed at all times.
   if (newStatus === MembershipStatus.ACTIVE && target.status !== MembershipStatus.ACTIVE) {
-    const employeeEntitlement = await entitlementService.checkCanAddEmployee(shopId);
-    if (!employeeEntitlement.allowed) {
-      throw new Error(entitlementErrorMessage(employeeEntitlement));
+    const guarded = await entitlementService.withSeatLimitGuard(
+      shopId,
+      async (tx) => {
+        return tx.membership.update({
+          where: { id: membershipId },
+          data: { status: newStatus },
+        });
+      },
+    );
+
+    if ("denied" in guarded) {
+      throw new Error(guarded.message);
     }
+
+    return guarded.result;
   }
 
   return prisma.membership.update({
@@ -328,13 +337,37 @@ export async function removeMember(
     throw new Error("لا يمكنك إزالة نفسك من المتجر.");
   }
 
-  return prisma.membership.update({
-    where: { id: membershipId },
-    data: {
-      status: MembershipStatus.REMOVED,
-      deletedAt: new Date(),
-    },
+  const result = await prisma.$transaction(async (tx) => {
+    const updated = await tx.membership.update({
+      where: { id: membershipId },
+      data: {
+        status: MembershipStatus.REMOVED,
+        deletedAt: new Date(),
+      },
+    });
+
+    const activeMemberships = await tx.membership.count({
+      where: {
+        userId: target.userId,
+        status: { not: MembershipStatus.REMOVED },
+        deletedAt: null,
+      },
+    });
+
+    if (activeMemberships === 0) {
+      await tx.user.update({
+        where: { id: target.userId },
+        data: {
+          deletedAt: new Date(),
+          version: { increment: 1 },
+        },
+      });
+    }
+
+    return updated;
   });
+
+  return result;
 }
 
 export async function revokeInvitation(shopId: string, invitationId: string) {
@@ -342,12 +375,13 @@ export async function revokeInvitation(shopId: string, invitationId: string) {
     where: {
       id: invitationId,
       shopId,
+      status: InvitationStatus.PENDING,
       deletedAt: null,
     },
   });
 
   if (!invitation) {
-    throw new Error("الدعوة غير موجودة.");
+    throw new Error("الدعوة غير موجودة أو لم تعد قيد الانتظار.");
   }
 
   return prisma.shopInvitation.update({
@@ -360,10 +394,6 @@ export async function revokeInvitation(shopId: string, invitationId: string) {
 }
 
 export async function getInvitationByToken(rawToken: string) {
-  if (!rawToken || rawToken.length !== 64) {
-    return { valid: false, error: "رمز الدعوة غير صالح." as const };
-  }
-
   const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
 
   const invitation = await prisma.shopInvitation.findUnique({
@@ -374,6 +404,7 @@ export async function getInvitationByToken(rawToken: string) {
           id: true,
           name: true,
           currency: true,
+          countryCode: true,
         },
       },
       invitedBy: {
@@ -385,36 +416,48 @@ export async function getInvitationByToken(rawToken: string) {
     },
   });
 
-  if (!invitation || invitation.deletedAt !== null) {
-    return { valid: false, error: "رابط الدعوة غير صالح أو تم إلغاؤه." as const };
+  if (!invitation || invitation.deletedAt) {
+    return {
+      valid: false,
+      error: "رابط الدعوة غير صالح أو تم حذفه.",
+      invitation: null,
+    };
   }
 
-  if (invitation.status === InvitationStatus.ACCEPTED) {
-    return { valid: false, error: "تم قبول هذه الدعوة مسبقاً والتسجيل بها." as const };
-  }
-
-  if (invitation.status === InvitationStatus.REVOKED) {
-    return { valid: false, error: "تم إلغاء رابط الدعوة من قِبل إدارة المتجر." as const };
+  if (invitation.status !== InvitationStatus.PENDING) {
+    return {
+      valid: false,
+      error: "رابط الدعوة تم استخدامه مسبقاً أو تم إلغاؤه.",
+      invitation: null,
+    };
   }
 
   if (invitation.expiresAt < new Date()) {
-    return { valid: false, error: "انتهت صلاحية رابط الدعوة (تجاوز 7 أيام)." as const };
+    return {
+      valid: false,
+      error: "رابط الدعوة منتهي الصلاحية.",
+      invitation: null,
+    };
   }
 
-  return { valid: true, invitation };
+  return {
+    valid: true,
+    error: null,
+    invitation,
+  };
 }
 
-export async function acceptInvitation(rawToken: string, input: AcceptInvitationInput) {
-  const check = await getInvitationByToken(rawToken);
+export async function acceptInvitation(
+  token: string,
+  input: AcceptInvitationInput,
+) {
+  const check = await getInvitationByToken(token);
+
   if (!check.valid || !check.invitation) {
-    throw new Error(check.error || "الدعوة غير صالحة.");
+    throw new Error(check.error || "رابط الدعوة غير صالح.");
   }
 
   const invitation = check.invitation;
-  const employeeEntitlement = await entitlementService.checkCanAddEmployee(invitation.shopId);
-  if (!employeeEntitlement.allowed) {
-    throw new Error(entitlementErrorMessage(employeeEntitlement));
-  }
 
   const name = (input.name?.trim() || invitation.name?.trim()) || "عضو فريق العمل";
   const password = input.password;
@@ -429,93 +472,98 @@ export async function acceptInvitation(rawToken: string, input: AcceptInvitation
 
   const passwordHash = await hashPassword(password);
 
-  return prisma.$transaction(async (tx) => {
-    // Re-read the invitation inside the mutation transaction so a revoked or
-    // already-accepted token cannot race with this acceptance.
-    const liveInvitation = await tx.shopInvitation.findFirst({
-      where: {
-        id: invitation.id,
-        shopId: invitation.shopId,
-        status: InvitationStatus.PENDING,
-        deletedAt: null,
-        expiresAt: { gt: new Date() },
-      },
-    });
+  const guarded = await entitlementService.withSeatLimitGuard(
+    invitation.shopId,
+    async (tx) => {
+      // Re-read the invitation inside the mutation transaction so a revoked or
+      // already-accepted token cannot race with this acceptance.
+      const liveInvitation = await tx.shopInvitation.findFirst({
+        where: {
+          id: invitation.id,
+          shopId: invitation.shopId,
+          status: InvitationStatus.PENDING,
+          deletedAt: null,
+          expiresAt: { gt: new Date() },
+        },
+      });
 
-    if (!liveInvitation) {
-      throw new Error("رابط الدعوة لم يعد صالحاً أو تم استخدامه بالفعل.");
-    }
+      if (!liveInvitation) {
+        throw new Error("رابط الدعوة لم يعد صالحاً أو تم استخدامه بالفعل.");
+      }
 
-    const employeeEntitlement = await entitlementService.checkCanAddEmployee(invitation.shopId);
-    if (!employeeEntitlement.allowed) {
-      throw new Error(entitlementErrorMessage(employeeEntitlement));
-    }
+      let user = await tx.user.findUnique({
+        where: { email: invitation.email.toLowerCase() },
+      });
 
-    let user = await tx.user.findUnique({
-      where: { email: invitation.email.toLowerCase() },
-    });
+      if (user) {
+        user = await tx.user.update({
+          where: { id: user.id },
+          data: {
+            name,
+            passwordHash,
+            version: { increment: 1 },
+            deletedAt: null,
+          },
+        });
+      } else {
+        user = await tx.user.create({
+          data: {
+            email: invitation.email.toLowerCase(),
+            name,
+            passwordHash,
+            shopId: invitation.shopId,
+            role: "STAFF",
+          },
+        });
+      }
 
-    if (user) {
-      user = await tx.user.update({
-        where: { id: user.id },
-        data: {
-          name,
-          passwordHash,
-          version: { increment: 1 },
+      const membership = await tx.membership.upsert({
+        where: {
+          shopId_userId: {
+            shopId: invitation.shopId,
+            userId: user.id,
+          },
+        },
+        create: {
+          shopId: invitation.shopId,
+          userId: user.id,
+          role: invitation.role,
+          status: MembershipStatus.ACTIVE,
+        },
+        update: {
+          role: invitation.role,
+          status: MembershipStatus.ACTIVE,
           deletedAt: null,
         },
       });
-    } else {
-      user = await tx.user.create({
+
+      await tx.shopInvitation.update({
+        where: { id: invitation.id },
         data: {
-          email: invitation.email.toLowerCase(),
-          name,
-          passwordHash,
-          shopId: invitation.shopId,
-          role: "STAFF",
+          status: InvitationStatus.ACCEPTED,
+          acceptedAt: new Date(),
         },
       });
-    }
 
-    const membership = await tx.membership.upsert({
-      where: {
-        shopId_userId: {
-          shopId: invitation.shopId,
-          userId: user.id,
+      return {
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          version: user.version,
         },
-      },
-      create: {
-        shopId: invitation.shopId,
-        userId: user.id,
-        role: invitation.role,
-        status: MembershipStatus.ACTIVE,
-      },
-      update: {
-        role: invitation.role,
-        status: MembershipStatus.ACTIVE,
-        deletedAt: null,
-      },
-    });
+        shop: invitation.shop,
+        membership,
+      };
+    },
+    { acceptingInvitationId: invitation.id },
+  );
 
-    await tx.shopInvitation.update({
-      where: { id: invitation.id },
-      data: {
-        status: InvitationStatus.ACCEPTED,
-        acceptedAt: new Date(),
-      },
-    });
+  if ("denied" in guarded) {
+    throw new Error(guarded.message);
+  }
 
-    return {
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        version: user.version,
-      },
-      shop: invitation.shop,
-      membership,
-    };
-  });
+  return guarded.result;
 }
 
 export const teamService = {
