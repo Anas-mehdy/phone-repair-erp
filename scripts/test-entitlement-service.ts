@@ -20,7 +20,14 @@ import {
   addCalendarMonthsUtc,
 } from "@/lib/services/subscriptionAdminService";
 import {
+  calculateDiscountedPrice,
+  validateOfferSettings,
+} from "@/lib/services/subscriptionOfferService";
+import { resolveEffectiveOffer } from "@/lib/subscription/offer-pricing";
+import {
+
   SubscriptionBillingInterval,
+
   SubscriptionPlan,
   SubscriptionStatus,
 } from "@prisma/client";
@@ -239,7 +246,212 @@ function runPureUnitTests() {
 
   const endWithExtra = calculateSubscriptionEnd(start, SubscriptionBillingInterval.SIX_MONTHS, 10);
   assertEqual(endWithExtra.getTime() - end6.getTime(), 10 * DAY_MS, "Extra 10 days added precisely");
+
+  // ── 6. Founders Offer Pricing & Validation Unit Tests ─────────────────────
+  console.log("\n[PURE 6] Founders Offer Pricing & Validation Unit Tests");
+
+  // Discount Calculation Tests
+  assertEqual(calculateDiscountedPrice(1000, 0), 1000, "0% discount on 1000 => 1000");
+  assertEqual(calculateDiscountedPrice(1000, 20), 800, "20% discount on 1000 => 800");
+  assertEqual(calculateDiscountedPrice(1000, 100), 0, "100% discount on 1000 => 0");
+  assertEqual(calculateDiscountedPrice(1000, -10), 1000, "Negative discount (-10%) rejected to original price 1000");
+  assertEqual(calculateDiscountedPrice(1000, 120), 0, "Excess discount (>100%) clamped to 0");
+  assertEqual(calculateDiscountedPrice(199.99, 15), 169.99, "15% discount on 199.99 with 2-decimal rounding => 169.99");
+  assertEqual(calculateDiscountedPrice(0, 50), 0, "50% discount on 0 => 0");
+
+  // Validation Rule Tests
+  const validOffer = validateOfferSettings({
+    isActive: true,
+    totalEligible: 50,
+    remainingEligible: 40,
+    sixMonthsDiscountPercent: 20,
+    annualDiscountPercent: 30,
+  });
+  assert(validOffer.valid, "Valid offer settings accepted");
+
+  const invalidRemainingExcess = validateOfferSettings({
+    isActive: true,
+    totalEligible: 50,
+    remainingEligible: 51,
+    sixMonthsDiscountPercent: 20,
+    annualDiscountPercent: 30,
+  });
+  assert(!invalidRemainingExcess.valid, "remainingEligible > totalEligible rejected");
+
+  const invalidRemainingNegative = validateOfferSettings({
+    isActive: true,
+    totalEligible: 50,
+    remainingEligible: -1,
+    sixMonthsDiscountPercent: 20,
+    annualDiscountPercent: 30,
+  });
+  assert(!invalidRemainingNegative.valid, "Negative remainingEligible rejected");
+
+  const invalidTotalZero = validateOfferSettings({
+    isActive: true,
+    totalEligible: 0,
+    remainingEligible: 0,
+    sixMonthsDiscountPercent: 20,
+    annualDiscountPercent: 30,
+  });
+  assert(!invalidTotalZero.valid, "totalEligible < 1 rejected");
+
+  const invalidTotalTooLarge = validateOfferSettings({
+    isActive: true,
+    totalEligible: 100001,
+    remainingEligible: 50,
+    sixMonthsDiscountPercent: 20,
+    annualDiscountPercent: 30,
+  });
+  assert(!invalidTotalTooLarge.valid, "totalEligible > 100000 rejected");
+
+  const invalidDiscountAbove100 = validateOfferSettings({
+    isActive: true,
+    totalEligible: 50,
+    remainingEligible: 40,
+    sixMonthsDiscountPercent: 101,
+    annualDiscountPercent: 30,
+  });
+  assert(!invalidDiscountAbove100.valid, "Discount > 100% rejected");
+
+  const invalidDiscountNegative = validateOfferSettings({
+    isActive: true,
+    totalEligible: 50,
+    remainingEligible: 40,
+    sixMonthsDiscountPercent: -5,
+    annualDiscountPercent: 30,
+  });
+  assert(!invalidDiscountNegative.valid, "Negative discount rejected");
+
+  // ── 7. Per-Subscription Founders Offer Resolution & Lifetime Preservation ─
+  console.log("\n[PURE 7] Per-Subscription Founders Offer Resolution & Lifetime Preservation");
+
+  const activeGlobalOffer = {
+    isActive: true,
+    remainingEligible: 40,
+    sixMonthsDiscountPercent: 20,
+    annualDiscountPercent: 30,
+  };
+
+  const changedGlobalOffer = {
+    isActive: true,
+    remainingEligible: 30,
+    sixMonthsDiscountPercent: 10,
+    annualDiscountPercent: 15,
+  };
+
+  const disabledGlobalOffer = {
+    isActive: false,
+    remainingEligible: 40,
+    sixMonthsDiscountPercent: 20,
+    annualDiscountPercent: 30,
+  };
+
+  const soldOutGlobalOffer = {
+    isActive: true,
+    remainingEligible: 0,
+    sixMonthsDiscountPercent: 20,
+    annualDiscountPercent: 30,
+  };
+
+  // Test 1: New subscriber + active global offer (20% & 30%)
+  const test1 = resolveEffectiveOffer(
+    { foundersOfferEligible: false },
+    activeGlobalOffer,
+  );
+  assertEqual(test1.isEligible, true, "Test 1: New subscriber is eligible for active global offer");
+  assertEqual(test1.isFrozen, false, "Test 1: isFrozen is false for prospective subscriber");
+  assertEqual(test1.sixMonthsDiscountPercent, 20, "Test 1: six-month discount is 20%");
+  assertEqual(test1.annualDiscountPercent, 30, "Test 1: annual discount is 30%");
+
+  // Test 2: Founders eligible frozen (20% & 25%), global changed to 10% & 15%
+  const test2 = resolveEffectiveOffer(
+    {
+      foundersOfferEligible: true,
+      foundersOfferSixMonthsDiscountPercent: 20,
+      foundersOfferAnnualDiscountPercent: 25,
+    },
+    changedGlobalOffer,
+  );
+  assertEqual(test2.isEligible, true, "Test 2: Existing founder is eligible");
+  assertEqual(test2.isFrozen, true, "Test 2: isFrozen is true");
+  assertEqual(test2.sixMonthsDiscountPercent, 20, "Test 2: Retains frozen 20% six-month discount");
+  assertEqual(test2.annualDiscountPercent, 25, "Test 2: Retains frozen 25% annual discount (ignores 15% global change)");
+
+  // Test 3: Founders eligible frozen (20% & 25%), global disabled
+  const test3 = resolveEffectiveOffer(
+    {
+      foundersOfferEligible: true,
+      foundersOfferSixMonthsDiscountPercent: 20,
+      foundersOfferAnnualDiscountPercent: 25,
+    },
+    disabledGlobalOffer,
+  );
+  assertEqual(test3.isEligible, true, "Test 3: Existing founder retains offer even when global is disabled");
+  assertEqual(test3.isFrozen, true, "Test 3: isFrozen is true");
+  assertEqual(test3.annualDiscountPercent, 25, "Test 3: Retains frozen discount when global disabled");
+
+  // Test 4: Non-eligible subscriber + global disabled
+  const test4 = resolveEffectiveOffer(
+    { foundersOfferEligible: false },
+    disabledGlobalOffer,
+  );
+  assertEqual(test4.isEligible, false, "Test 4: Non-eligible gets no offer when global is disabled");
+  assertEqual(test4.annualDiscountPercent, 0, "Test 4: 0% discount");
+
+  // Test 5: Non-eligible subscriber + remaining = 0
+  const test5 = resolveEffectiveOffer(
+    { foundersOfferEligible: false },
+    soldOutGlobalOffer,
+  );
+  assertEqual(test5.isEligible, false, "Test 5: Non-eligible gets no offer when remaining = 0");
+  assertEqual(test5.annualDiscountPercent, 0, "Test 5: 0% discount when sold out");
+
+  // Test 6 & 7: Pure preservation logic on renewal
+  const originalDate = new Date("2026-06-01T10:00:00.000Z");
+  const existingSubSnapshot = {
+    foundersOfferEligible: true,
+    foundersOfferGrantedAt: originalDate,
+    foundersOfferSixMonthsDiscountPercent: 25,
+    foundersOfferAnnualDiscountPercent: 35,
+  };
+
+  // Renewal with grantFoundersOffer = false
+  const renewalWithoutGrant = {
+    foundersOfferEligible: existingSubSnapshot.foundersOfferEligible ? true : false,
+    foundersOfferGrantedAt: existingSubSnapshot.foundersOfferEligible
+      ? existingSubSnapshot.foundersOfferGrantedAt
+      : null,
+    foundersOfferSixMonthsDiscountPercent: existingSubSnapshot.foundersOfferEligible
+      ? existingSubSnapshot.foundersOfferSixMonthsDiscountPercent
+      : null,
+    foundersOfferAnnualDiscountPercent: existingSubSnapshot.foundersOfferEligible
+      ? existingSubSnapshot.foundersOfferAnnualDiscountPercent
+      : null,
+  };
+  assertEqual(renewalWithoutGrant.foundersOfferEligible, true, "Test 6: Eligible preserved on renewal with grant=false");
+  assertEqual(renewalWithoutGrant.foundersOfferSixMonthsDiscountPercent, 25, "Test 6: Six-months discount preserved");
+  assertEqual(renewalWithoutGrant.foundersOfferAnnualDiscountPercent, 35, "Test 6: Annual discount preserved");
+  assertEqual(renewalWithoutGrant.foundersOfferGrantedAt?.getTime(), originalDate.getTime(), "Test 6: GrantedAt timestamp preserved");
+
+  // Renewal with grantFoundersOffer = true on already-eligible
+  const renewalWithGrantAgain = {
+    foundersOfferEligible: existingSubSnapshot.foundersOfferEligible ? true : true,
+    foundersOfferGrantedAt: existingSubSnapshot.foundersOfferEligible
+      ? existingSubSnapshot.foundersOfferGrantedAt
+      : new Date(),
+    foundersOfferSixMonthsDiscountPercent: existingSubSnapshot.foundersOfferEligible
+      ? existingSubSnapshot.foundersOfferSixMonthsDiscountPercent
+      : 10,
+    foundersOfferAnnualDiscountPercent: existingSubSnapshot.foundersOfferEligible
+      ? existingSubSnapshot.foundersOfferAnnualDiscountPercent
+      : 15,
+  };
+  assertEqual(renewalWithGrantAgain.foundersOfferSixMonthsDiscountPercent, 25, "Test 7: Frozen discounts NOT overwritten if grant=true again");
+  assertEqual(renewalWithGrantAgain.foundersOfferGrantedAt?.getTime(), originalDate.getTime(), "Test 7: GrantedAt NOT overwritten if grant=true again");
 }
+
+
 
 function main() {
   console.log("=".repeat(70));

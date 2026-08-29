@@ -12,6 +12,7 @@ import { requireSuperAdmin } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
 import { adminService } from "@/lib/services/adminService";
 import { subscriptionAdminService } from "@/lib/services/subscriptionAdminService";
+import { subscriptionOfferService } from "@/lib/services/subscriptionOfferService";
 import { setSessionCookie } from "@/lib/auth";
 
 const resetPasswordSchema = z.object({
@@ -32,6 +33,7 @@ const activateSubscriptionSchema = shopIdSchema.extend({
   adminNotes: optionalText(2000, "الملاحظة الإدارية"),
   paymentReference: optionalText(200, "مرجع الدفع"),
   paymentMethod: optionalText(50, "وسيلة الدفع"),
+  grantFoundersOffer: z.boolean().default(false),
 });
 
 const gracePeriodSchema = shopIdSchema.extend({
@@ -107,6 +109,10 @@ export async function adminActivateSubscriptionAction(formData: FormData) {
   await requireSuperAdmin();
 
   try {
+    const rawGrant = formData.get("grantFoundersOffer");
+    const grantFoundersOffer =
+      rawGrant === "true" || rawGrant === "on" || rawGrant === "1";
+
     const parsed = activateSubscriptionSchema.parse({
       shopId: formData.get("shopId"),
       billingInterval: formData.get("billingInterval"),
@@ -114,6 +120,7 @@ export async function adminActivateSubscriptionAction(formData: FormData) {
       adminNotes: formData.get("adminNotes") || "",
       paymentReference: formData.get("paymentReference") || "",
       paymentMethod: formData.get("paymentMethod") || "",
+      grantFoundersOffer,
     });
 
     const subscription = await subscriptionAdminService.activateSubscription({
@@ -123,6 +130,7 @@ export async function adminActivateSubscriptionAction(formData: FormData) {
       adminNotes: parsed.adminNotes || null,
       paymentReference: parsed.paymentReference || null,
       paymentMethod: parsed.paymentMethod || null,
+      grantFoundersOffer: parsed.grantFoundersOffer,
     });
     revalidateSubscriptionAdmin(parsed.shopId);
     return { success: true, subscription };
@@ -275,3 +283,64 @@ export async function adminUpdateSubscriptionPriceAction(formData: FormData) {
     };
   }
 }
+
+const updateOfferSettingsSchema = z
+  .object({
+    isActive: z.boolean(),
+    totalEligible: z.coerce
+      .number()
+      .int()
+      .min(1, "إجمالي العدد المؤهل يجب أن يكون على الأقل 1")
+      .max(100000, "إجمالي العدد المؤهل يجب ألا يتجاوز 100,000"),
+    remainingEligible: z.coerce
+      .number()
+      .int()
+      .min(0, "العدد المتبقي لا يمكن أن يكون سالباً"),
+    sixMonthsDiscountPercent: z.coerce
+      .number()
+      .int()
+      .min(0, "نسبة الخصم لا يمكن أن تكون أقل من 0%")
+      .max(100, "نسبة الخصم لا يمكن أن تتجاوز 100%"),
+    annualDiscountPercent: z.coerce
+      .number()
+      .int()
+      .min(0, "نسبة الخصم لا يمكن أن تكون أقل من 0%")
+      .max(100, "نسبة الخصم لا يمكن أن تتجاوز 100%"),
+  })
+  .refine((data) => data.remainingEligible <= data.totalEligible, {
+    message: "العدد المتبقي لا يمكن أن يتجاوز إجمالي العدد المؤهل.",
+    path: ["remainingEligible"],
+  });
+
+export async function adminUpdateOfferSettingsAction(formData: FormData) {
+  await requireSuperAdmin();
+
+  try {
+    const rawIsActive = formData.get("isActive");
+    const isActive = rawIsActive === "true" || rawIsActive === "on" || rawIsActive === "1";
+
+    const parsed = updateOfferSettingsSchema.parse({
+      isActive,
+      totalEligible: formData.get("totalEligible"),
+      remainingEligible: formData.get("remainingEligible"),
+      sixMonthsDiscountPercent: formData.get("sixMonthsDiscountPercent"),
+      annualDiscountPercent: formData.get("annualDiscountPercent"),
+    });
+
+    const updated = await subscriptionOfferService.updateOfferSettings(parsed);
+
+    revalidatePath("/admin");
+    revalidatePath("/subscription");
+
+    return {
+      success: true,
+      offer: updated,
+    };
+  } catch (error: unknown) {
+    return {
+      success: false,
+      error: actionError(error, "تعذر حفظ إعدادات العرض."),
+    };
+  }
+}
+

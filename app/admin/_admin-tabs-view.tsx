@@ -11,6 +11,7 @@ import {
   Truck,
   Activity,
   Globe2,
+  Tag,
 } from "lucide-react";
 import { AdminShopTable, ShopRowData } from "./_admin-shop-table";
 import {
@@ -21,6 +22,9 @@ import {
   AdminPricingManagement,
   SubscriptionPriceRecord,
 } from "./_admin-pricing-management";
+import { AdminOfferManagement } from "./_admin-offer-management";
+import type { SubscriptionOfferData } from "@/lib/subscription/offer-pricing";
+
 
 interface AdminTabsViewProps {
   stats: {
@@ -37,6 +41,7 @@ interface AdminTabsViewProps {
   shops: ShopRowData[];
   subscriptions: SubscriptionItemData[];
   prices: SubscriptionPriceRecord[];
+  offer: SubscriptionOfferData;
 }
 
 export function AdminTabsView({
@@ -44,10 +49,11 @@ export function AdminTabsView({
   shops,
   subscriptions,
   prices,
+  offer,
 }: AdminTabsViewProps) {
-  const [activeTab, setActiveTab] = useState<"shops" | "subscriptions" | "pricing">(
-    "shops"
-  );
+  const [activeTab, setActiveTab] = useState<
+    "shops" | "subscriptions" | "pricing" | "offer"
+  >("shops");
 
   return (
     <div className="space-y-6">
@@ -115,6 +121,27 @@ export function AdminTabsView({
             {new Set(prices.map((p) => p.countryCode)).size} دولة
           </span>
         </button>
+
+        <button
+          onClick={() => setActiveTab("offer")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition cursor-pointer shrink-0 ${
+            activeTab === "offer"
+              ? "bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20"
+              : "bg-slate-900/60 text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-800"
+          }`}
+        >
+          <Tag className="h-4 w-4" />
+          <span>عرض المشتركين الأوائل</span>
+          <span
+            className={`px-1.5 py-0.5 rounded-md text-[10px] font-numeric ${
+              activeTab === "offer"
+                ? "bg-amber-600 text-slate-950 font-black"
+                : "bg-slate-800 text-slate-400"
+            }`}
+          >
+            {offer.isActive ? `${offer.remainingEligible} متبقي` : "متوقف"}
+          </span>
+        </button>
       </div>
 
       {/* Tab 1: Overview & Shops */}
@@ -144,12 +171,12 @@ export function AdminTabsView({
             </div>
 
             {/* Total Repair Orders */}
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 relative overflow-hidden shadow-lg group hover:border-teal-500/50 transition">
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 relative overflow-hidden shadow-lg group hover:border-blue-500/50 transition">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-extrabold text-slate-400">
                   تذاكر الصيانة
                 </span>
-                <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-teal-500/10 text-teal-400">
+                <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
                   <Wrench className="h-4 w-4" />
                 </div>
               </div>
@@ -158,18 +185,18 @@ export function AdminTabsView({
                   {stats.totalRepairOrders}
                 </span>
               </div>
-              <div className="mt-2 text-[10px] font-bold text-slate-400">
-                عبر كل الورش
+              <div className="mt-2 text-[10px] font-bold text-slate-500">
+                عبر كافة المتاجر
               </div>
             </div>
 
             {/* Total Customers */}
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 relative overflow-hidden shadow-lg group hover:border-blue-500/50 transition">
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 relative overflow-hidden shadow-lg group hover:border-emerald-500/50 transition">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-extrabold text-slate-400">
                   العملاء المسجلون
                 </span>
-                <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
+                <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
                   <Users className="h-4 w-4" />
                 </div>
               </div>
@@ -178,8 +205,8 @@ export function AdminTabsView({
                   {stats.totalCustomers}
                 </span>
               </div>
-              <div className="mt-2 text-[10px] font-bold text-slate-400">
-                قاعدة بيانات المنصة
+              <div className="mt-2 text-[10px] font-bold text-slate-500">
+                سجل العملاء التراكمي
               </div>
             </div>
 
@@ -187,7 +214,7 @@ export function AdminTabsView({
             <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 relative overflow-hidden shadow-lg group hover:border-amber-500/50 transition">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-extrabold text-slate-400">
-                  الفواتير المنشأة
+                  الفواتير الصادرة
                 </span>
                 <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-amber-500/10 text-amber-400">
                   <FileText className="h-4 w-4" />
@@ -198,18 +225,18 @@ export function AdminTabsView({
                   {stats.totalInvoices}
                 </span>
               </div>
-              <div className="mt-2 text-[10px] font-bold text-slate-400">
+              <div className="mt-2 text-[10px] font-bold text-slate-500">
                 صيانة ومبيعات
               </div>
             </div>
 
             {/* Total Suppliers */}
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 relative overflow-hidden shadow-lg group hover:border-indigo-500/50 transition">
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 relative overflow-hidden shadow-lg group hover:border-fuchsia-500/50 transition">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-extrabold text-slate-400">
                   الموردون
                 </span>
-                <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-400">
+                <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-fuchsia-500/10 text-fuchsia-400">
                   <Truck className="h-4 w-4" />
                 </div>
               </div>
@@ -218,18 +245,18 @@ export function AdminTabsView({
                   {stats.totalSuppliers}
                 </span>
               </div>
-              <div className="mt-2 text-[10px] font-bold text-slate-400">
-                قطع الغيار
+              <div className="mt-2 text-[10px] font-bold text-slate-500">
+                مورد وتاجر جملة
               </div>
             </div>
 
-            {/* Total Users */}
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 relative overflow-hidden shadow-lg group hover:border-rose-500/50 transition">
+            {/* Total System Users */}
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4 relative overflow-hidden shadow-lg group hover:border-cyan-500/50 transition">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-extrabold text-slate-400">
                   المستخدمون
                 </span>
-                <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-rose-500/10 text-rose-400">
+                <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-400">
                   <Activity className="h-4 w-4" />
                 </div>
               </div>
@@ -238,65 +265,76 @@ export function AdminTabsView({
                   {stats.totalUsers}
                 </span>
               </div>
-              <div className="mt-2 text-[10px] font-bold text-slate-400">
-                ملاك وفنيين
+              <div className="mt-2 text-[10px] font-bold text-slate-500">
+                مالك وفني وموظف
               </div>
             </div>
           </div>
 
-          {/* Breakdown Cards */}
+          {/* Breakdown Stats */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
-                <div className="flex items-center gap-2">
-                  <Globe2 className="h-4 w-4 text-violet-400" />
-                  <h3 className="text-xs font-black text-white">
-                    توزيع المتاجر حسب العملة / الدولة
-                  </h3>
-                </div>
-                <span className="text-[10px] font-bold text-slate-400">
-                  {stats.currencyBreakdown.length} دول/عملات
-                </span>
+            {/* Status Breakdown */}
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5 shadow-lg">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-black text-white flex items-center gap-2">
+                  <Activity className="h-4 w-4 text-teal-400" />
+                  <span>توزيع المتاجر حسب الحالة التشغيلية</span>
+                </h3>
               </div>
-
-              <div className="flex flex-wrap gap-2">
-                {stats.currencyBreakdown.map((item) => (
+              <div className="space-y-2.5">
+                {stats.statusBreakdown.map((item) => (
                   <div
-                    key={item.currency}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-950/80 border border-slate-800 text-xs font-bold"
+                    key={item.status}
+                    className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80"
                   >
-                    <span className="font-numeric text-violet-300">
-                      {item.currency}
-                    </span>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-violet-500/20 text-white font-numeric">
-                      {item.count} متجر
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`h-2 w-2 rounded-full ${
+                          item.status === "ACTIVE"
+                            ? "bg-emerald-500"
+                            : item.status === "TRIALING"
+                            ? "bg-amber-500"
+                            : "bg-slate-500"
+                        }`}
+                      />
+                      <span className="text-xs font-bold text-slate-300">
+                        {item.status === "ACTIVE"
+                          ? "اشتراك نشط"
+                          : item.status === "TRIALING"
+                          ? "فترة تجريبية"
+                          : item.status === "GRACE_PERIOD"
+                          ? "مهلة سماح"
+                          : item.status === "EXPIRED"
+                          ? "منتهي"
+                          : item.status}
+                      </span>
+                    </div>
+                    <span className="text-xs font-black text-white font-numeric">
+                      {item.count}
                     </span>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
-                <div className="flex items-center gap-2">
-                  <Activity className="h-4 w-4 text-teal-400" />
-                  <h3 className="text-xs font-black text-white">
-                    حالات تذاكر الصيانة المنشأة
-                  </h3>
-                </div>
-                <span className="text-[10px] font-bold text-slate-400">
-                  إجمالي {stats.totalRepairOrders} تذكرة
-                </span>
+            {/* Currency Breakdown */}
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5 shadow-lg">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-black text-white flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-emerald-400" />
+                  <span>توزيع العملات المستخدمة</span>
+                </h3>
               </div>
-
-              <div className="flex flex-wrap gap-2">
-                {stats.statusBreakdown.map((item) => (
+              <div className="space-y-2.5">
+                {stats.currencyBreakdown.map((item) => (
                   <div
-                    key={item.status}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-950/80 border border-slate-800 text-xs font-bold"
+                    key={item.currency}
+                    className="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80"
                   >
-                    <span className="text-slate-300">{item.status}</span>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-teal-500/20 text-teal-300 font-numeric">
+                    <span className="text-xs font-bold text-slate-300 font-numeric">
+                      {item.currency}
+                    </span>
+                    <span className="text-xs font-black text-emerald-400 font-numeric">
                       {item.count}
                     </span>
                   </div>
@@ -345,11 +383,18 @@ export function AdminTabsView({
               كتالوج أسعار الاشتراكات حسب الدولة
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
-              إدارة وتعديل أسعار الخطط الأساسية والاحترافية بحسب الدولة والعملة المحلية
+              إدارة وتعديل أسعار الخطة الشاملة (6 أشهر وسنة) بحسب الدولة والعملة المحلية
             </p>
           </div>
 
           <AdminPricingManagement initialPrices={prices} />
+        </div>
+      )}
+
+      {/* Tab 4: Founders Offer Settings */}
+      {activeTab === "offer" && (
+        <div className="space-y-4">
+          <AdminOfferManagement initialOffer={offer} />
         </div>
       )}
     </div>
