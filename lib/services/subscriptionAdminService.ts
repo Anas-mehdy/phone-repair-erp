@@ -16,7 +16,9 @@ export type ActivateSubscriptionInput = {
   adminNotes?: string | null;
   paymentReference?: string | null;
   paymentMethod?: string | null;
+  grantFoundersOffer?: boolean;
 };
+
 
 function daysInUtcMonth(year: number, monthIndex: number): number {
   return new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
@@ -123,7 +125,7 @@ export async function activateSubscription(
   now = new Date(),
 ) {
   const adminSession = await requireSuperAdmin();
-  await requireExistingSubscription(input.shopId);
+  const existingSub = await requireExistingSubscription(input.shopId);
 
   const currentPeriodStartedAt = new Date(now);
   const currentPeriodEndsAt = calculateSubscriptionEnd(
@@ -131,6 +133,44 @@ export async function activateSubscription(
     input.billingInterval,
     input.extraDays ?? 0,
   );
+
+  let foundersOfferEligible = existingSub.foundersOfferEligible;
+  let foundersOfferGrantedAt = existingSub.foundersOfferGrantedAt;
+  let foundersOfferSixMonthsDiscountPercent =
+    existingSub.foundersOfferSixMonthsDiscountPercent;
+  let foundersOfferAnnualDiscountPercent =
+    existingSub.foundersOfferAnnualDiscountPercent;
+
+  if (existingSub.foundersOfferEligible) {
+    // If shop was already granted founders offer, preserve existing frozen values permanently
+    foundersOfferEligible = true;
+    foundersOfferGrantedAt = existingSub.foundersOfferGrantedAt ?? now;
+    foundersOfferSixMonthsDiscountPercent =
+      existingSub.foundersOfferSixMonthsDiscountPercent;
+    foundersOfferAnnualDiscountPercent =
+      existingSub.foundersOfferAnnualDiscountPercent;
+  } else if (input.grantFoundersOffer) {
+    // Granting new founders offer: read active global offer from DB
+    const globalOffer = await prisma.subscriptionOfferSettings.findUnique({
+      where: { id: "FOUNDERS_OFFER" },
+    });
+
+    if (
+      !globalOffer ||
+      !globalOffer.isActive ||
+      globalOffer.remainingEligible <= 0
+    ) {
+      throw new Error(
+        "عرض المشتركين الأوائل غير متاح حالياً أو اكتمل العدد المخصص.",
+      );
+    }
+
+    foundersOfferEligible = true;
+    foundersOfferGrantedAt = now;
+    foundersOfferSixMonthsDiscountPercent =
+      globalOffer.sixMonthsDiscountPercent;
+    foundersOfferAnnualDiscountPercent = globalOffer.annualDiscountPercent;
+  }
 
   return prisma.subscription.update({
     where: { shopId: input.shopId },
@@ -149,9 +189,14 @@ export async function activateSubscription(
       adminNotes: nullableTrimmed(input.adminNotes),
       paymentReference: nullableTrimmed(input.paymentReference),
       paymentMethod: nullableTrimmed(input.paymentMethod),
+      foundersOfferEligible,
+      foundersOfferGrantedAt,
+      foundersOfferSixMonthsDiscountPercent,
+      foundersOfferAnnualDiscountPercent,
     },
   });
 }
+
 
 /** Explicit renewal grace period; never starts automatically and never applies to trials. */
 export async function startGracePeriod(

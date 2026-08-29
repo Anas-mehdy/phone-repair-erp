@@ -7,8 +7,11 @@
 --   - Creates singleton table SubscriptionOfferSettings for marketing offer controls.
 --   - Adds SQL constraints for total, remaining, and discount percentages.
 --   - Seeds default FOUNDERS_OFFER row.
+--   - Adds founders offer fields to Subscription (default false, NULL discounts).
+--   - Adds SQL CHECK constraints for Subscription founders discount percentages.
 -- ============================================================================
 
+-- 1. Create SubscriptionOfferSettings singleton table
 CREATE TABLE "SubscriptionOfferSettings" (
     "id" TEXT NOT NULL DEFAULT 'FOUNDERS_OFFER',
     "isActive" BOOLEAN NOT NULL DEFAULT true,
@@ -26,6 +29,7 @@ CREATE TABLE "SubscriptionOfferSettings" (
     CONSTRAINT "SubscriptionOfferSettings_annualDiscountPercent_check" CHECK ("annualDiscountPercent" >= 0 AND "annualDiscountPercent" <= 100)
 );
 
+-- 2. Seed default singleton row
 INSERT INTO "SubscriptionOfferSettings" (
     "id",
     "isActive",
@@ -46,3 +50,19 @@ INSERT INTO "SubscriptionOfferSettings" (
     CURRENT_TIMESTAMP
 )
 ON CONFLICT ("id") DO NOTHING;
+
+-- 3. Add founders offer columns to Subscription
+ALTER TABLE "Subscription"
+    ADD COLUMN "foundersOfferEligible" BOOLEAN NOT NULL DEFAULT false,
+    ADD COLUMN "foundersOfferGrantedAt" TIMESTAMP(3),
+    ADD COLUMN "foundersOfferSixMonthsDiscountPercent" INTEGER,
+    ADD COLUMN "foundersOfferAnnualDiscountPercent" INTEGER;
+
+-- 4. Add check constraints for Subscription discount percentage ranges
+ALTER TABLE "Subscription"
+    ADD CONSTRAINT "Subscription_foundersOfferSixMonthsDiscountPercent_check"
+    CHECK ("foundersOfferSixMonthsDiscountPercent" IS NULL OR ("foundersOfferSixMonthsDiscountPercent" >= 0 AND "foundersOfferSixMonthsDiscountPercent" <= 100));
+
+ALTER TABLE "Subscription"
+    ADD CONSTRAINT "Subscription_foundersOfferAnnualDiscountPercent_check"
+    CHECK ("foundersOfferAnnualDiscountPercent" IS NULL OR ("foundersOfferAnnualDiscountPercent" >= 0 AND "foundersOfferAnnualDiscountPercent" <= 100));

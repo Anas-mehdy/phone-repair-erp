@@ -33,6 +33,7 @@ const activateSubscriptionSchema = shopIdSchema.extend({
   adminNotes: optionalText(2000, "الملاحظة الإدارية"),
   paymentReference: optionalText(200, "مرجع الدفع"),
   paymentMethod: optionalText(50, "وسيلة الدفع"),
+  grantFoundersOffer: z.boolean().default(false),
 });
 
 const gracePeriodSchema = shopIdSchema.extend({
@@ -108,6 +109,10 @@ export async function adminActivateSubscriptionAction(formData: FormData) {
   await requireSuperAdmin();
 
   try {
+    const rawGrant = formData.get("grantFoundersOffer");
+    const grantFoundersOffer =
+      rawGrant === "true" || rawGrant === "on" || rawGrant === "1";
+
     const parsed = activateSubscriptionSchema.parse({
       shopId: formData.get("shopId"),
       billingInterval: formData.get("billingInterval"),
@@ -115,6 +120,7 @@ export async function adminActivateSubscriptionAction(formData: FormData) {
       adminNotes: formData.get("adminNotes") || "",
       paymentReference: formData.get("paymentReference") || "",
       paymentMethod: formData.get("paymentMethod") || "",
+      grantFoundersOffer,
     });
 
     const subscription = await subscriptionAdminService.activateSubscription({
@@ -124,6 +130,7 @@ export async function adminActivateSubscriptionAction(formData: FormData) {
       adminNotes: parsed.adminNotes || null,
       paymentReference: parsed.paymentReference || null,
       paymentMethod: parsed.paymentMethod || null,
+      grantFoundersOffer: parsed.grantFoundersOffer,
     });
     revalidateSubscriptionAdmin(parsed.shopId);
     return { success: true, subscription };

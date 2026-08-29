@@ -47,7 +47,12 @@ export interface SubscriptionItemData {
   paymentMethod: string | null;
   paymentReference: string | null;
   adminNotes: string | null;
+  foundersOfferEligible: boolean;
+  foundersOfferGrantedAt: Date | string | null;
+  foundersOfferSixMonthsDiscountPercent: number | null;
+  foundersOfferAnnualDiscountPercent: number | null;
   shop: {
+
     id: string;
     name: string;
     countryCode: string;
@@ -117,6 +122,7 @@ export function AdminSubscriptionManagement({
   const [activatePaymentMethod, setActivatePaymentMethod] = useState("");
   const [activatePaymentRef, setActivatePaymentRef] = useState("");
   const [activateNotes, setActivateNotes] = useState("");
+  const [activateGrantFoundersOffer, setActivateGrantFoundersOffer] = useState(false);
 
   const [graceDays, setGraceDays] = useState(3);
   const [extraDaysCount, setExtraDaysCount] = useState(30);
@@ -160,6 +166,7 @@ export function AdminSubscriptionManagement({
       setActivatePaymentMethod(sub.paymentMethod || "");
       setActivatePaymentRef(sub.paymentReference || "");
       setActivateNotes(sub.adminNotes || "");
+      setActivateGrantFoundersOffer(false);
     } else if (modal === "grace") {
       setGraceDays(3);
     } else if (modal === "extraDays") {
@@ -184,6 +191,8 @@ export function AdminSubscriptionManagement({
     formData.append("paymentMethod", activatePaymentMethod);
     formData.append("paymentReference", activatePaymentRef);
     formData.append("adminNotes", activateNotes);
+    formData.append("grantFoundersOffer", String(activateGrantFoundersOffer));
+
 
     startTransition(async () => {
       const res = await adminActivateSubscriptionAction(formData);
@@ -390,11 +399,17 @@ export function AdminSubscriptionManagement({
                           <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-black bg-teal-500/20 text-teal-300">
                             الخطة الشاملة
                           </span>
+                          {sub.foundersOfferEligible && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                              ✨ مشترك مبكر (%{sub.foundersOfferAnnualDiscountPercent ?? 0})
+                            </span>
+                          )}
                           {sub.plan === "BASIC" && (
                             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-800 text-slate-400 border border-slate-700">
                               Legacy record
                             </span>
                           )}
+
                         </div>
                         {sub.billingInterval && (
                           <p className="text-[10px] text-slate-400 font-numeric">
@@ -651,10 +666,60 @@ export function AdminSubscriptionManagement({
                   </div>
                 </div>
 
+                {/* Founders Offer Grant / Frozen Status */}
+                {selectedSub?.foundersOfferEligible ? (
+                  <div className="bg-amber-950/30 border border-amber-500/30 rounded-2xl p-3.5 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-amber-500/20 text-amber-400">
+                        <Sparkles className="h-3.5 w-3.5" />
+                      </span>
+                      <span className="text-xs font-black text-amber-300">
+                        عرض المشتركين الأوائل مثبت لهذا المتجر
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold text-amber-200">
+                      <span className="bg-amber-950/80 px-2 py-0.5 rounded-md border border-amber-500/20">
+                        خصم 6 أشهر: %{selectedSub.foundersOfferSixMonthsDiscountPercent ?? 0}
+                      </span>
+                      <span className="bg-amber-950/80 px-2 py-0.5 rounded-md border border-amber-500/20">
+                        خصم السنة: %{selectedSub.foundersOfferAnnualDiscountPercent ?? 0}
+                      </span>
+                      {selectedSub.foundersOfferGrantedAt && (
+                        <span className="text-slate-400 font-normal">
+                          منذ: {formatDate(selectedSub.foundersOfferGrantedAt)}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-slate-400">
+                      الخصم المثبت سيبقى محفوظاً تلقائياً لهذا المتجر عند التجديد.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-3.5 space-y-1">
+                    <label className="flex items-center gap-2.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={activateGrantFoundersOffer}
+                        onChange={(e) =>
+                          setActivateGrantFoundersOffer(e.target.checked)
+                        }
+                        className="h-4 w-4 rounded border-slate-700 bg-slate-900 text-amber-500 focus:ring-amber-500/30"
+                      />
+                      <span className="text-xs font-black text-amber-300">
+                        منح عرض المشتركين الأوائل لهذا المتجر
+                      </span>
+                    </label>
+                    <p className="text-[11px] text-slate-400 pr-6">
+                      سيتم تثبيت نسب الخصم الحالية لهذا المتجر عند التفعيل ولن تتغير بتغيير العرض العام لاحقاً.
+                    </p>
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-xs font-bold text-slate-300 mb-1.5">
                     ملاحظات الإدارة
                   </label>
+
                   <textarea
                     value={activateNotes}
                     onChange={(e) => setActivateNotes(e.target.value)}

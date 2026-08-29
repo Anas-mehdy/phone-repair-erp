@@ -14,15 +14,16 @@ import {
   Crown,
   Calendar,
   ArrowUpRight,
+  Lock,
 } from "lucide-react";
-
 import { Button } from "@/components/ui/button";
 import {
   calculateDiscountedPrice,
+  resolveEffectiveOffer,
   type SubscriptionOfferData,
+  type SubscriptionFoundersOfferSnapshot,
 } from "@/lib/subscription/offer-pricing";
 import type { EntitlementContext } from "@/lib/services/subscriptionEntitlementService";
-
 
 interface PriceInfo {
   amount: number;
@@ -37,6 +38,7 @@ interface SubscriptionViewProps {
   };
   entitlement: EntitlementContext;
   offer: SubscriptionOfferData;
+  foundersOfferSnapshot?: SubscriptionFoundersOfferSnapshot | null;
   sixMonthsPrice: PriceInfo | null;
   annualPrice: PriceInfo | null;
 }
@@ -45,6 +47,7 @@ export function SubscriptionView({
   shop,
   entitlement,
   offer,
+  foundersOfferSnapshot,
   sixMonthsPrice,
   annualPrice,
 }: SubscriptionViewProps) {
@@ -54,14 +57,22 @@ export function SubscriptionView({
 
   const sub = entitlement.subscription;
   const effectiveStatus = sub.effectiveStatus;
-  const isOfferActive = offer.isActive && offer.remainingEligible > 0;
-  const isOfferSoldOut = offer.isActive && offer.remainingEligible === 0;
 
-  // Derived offer progress
+  // Resolve discount based on whether shop has a frozen founders offer or relies on global offer
+  const effectiveOffer = resolveEffectiveOffer(foundersOfferSnapshot, offer);
+
+  const isGlobalOfferActive = offer.isActive && offer.remainingEligible > 0;
+  const isGlobalOfferSoldOut =
+    !effectiveOffer.isFrozen && offer.isActive && offer.remainingEligible === 0;
+
+  // Derived global offer progress for prospective subscribers
   const claimedCount = Math.max(0, offer.totalEligible - offer.remainingEligible);
   const claimedPercentage =
     offer.totalEligible > 0
-      ? Math.min(100, Math.max(0, Math.round((claimedCount / offer.totalEligible) * 100)))
+      ? Math.min(
+          100,
+          Math.max(0, Math.round((claimedCount / offer.totalEligible) * 100)),
+        )
       : 0;
 
   // Selected pricing calculation
@@ -70,11 +81,10 @@ export function SubscriptionView({
   const basePrice = currentPriceInfo?.amount ?? 0;
   const currencyCode = currentPriceInfo?.currencyCode || shop.currency || "SAR";
 
-  const discountPercent = isOfferActive
-    ? selectedInterval === "ANNUAL"
-      ? offer.annualDiscountPercent
-      : offer.sixMonthsDiscountPercent
-    : 0;
+  const discountPercent =
+    selectedInterval === "ANNUAL"
+      ? effectiveOffer.annualDiscountPercent
+      : effectiveOffer.sixMonthsDiscountPercent;
 
   const finalPrice = calculateDiscountedPrice(basePrice, discountPercent);
 
@@ -99,7 +109,10 @@ export function SubscriptionView({
       };
     }
     if (effectiveStatus === "ACTIVE" && sub.currentPeriodEndsAt) {
-      const ms = Math.max(0, new Date(sub.currentPeriodEndsAt).getTime() - now.getTime());
+      const ms = Math.max(
+        0,
+        new Date(sub.currentPeriodEndsAt).getTime() - now.getTime(),
+      );
       const days = Math.floor(ms / (24 * 60 * 60 * 1000));
       return {
         label: "اشتراك نشط",
@@ -112,7 +125,10 @@ export function SubscriptionView({
       };
     }
     if (effectiveStatus === "GRACE_PERIOD" && sub.gracePeriodEndsAt) {
-      const ms = Math.max(0, new Date(sub.gracePeriodEndsAt).getTime() - now.getTime());
+      const ms = Math.max(
+        0,
+        new Date(sub.gracePeriodEndsAt).getTime() - now.getTime(),
+      );
       const days = Math.floor(ms / (24 * 60 * 60 * 1000));
       const hours = Math.floor((ms % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
       return {
@@ -150,20 +166,26 @@ export function SubscriptionView({
     const priceInfo = interval === "ANNUAL" ? annualPrice : sixMonthsPrice;
     const base = priceInfo?.amount ?? 0;
     const curr = priceInfo?.currencyCode || shop.currency || "SAR";
-    const disc = isOfferActive
-      ? interval === "ANNUAL"
-        ? offer.annualDiscountPercent
-        : offer.sixMonthsDiscountPercent
-      : 0;
+    const disc =
+      interval === "ANNUAL"
+        ? effectiveOffer.annualDiscountPercent
+        : effectiveOffer.sixMonthsDiscountPercent;
     const final = calculateDiscountedPrice(base, disc);
 
     const cleanPhone = "905350215375";
-    let message = `مرحباً، أريد الاشتراك في خطة مسار الشاملة لمدة ${intervalLabel} لمتجري (${shop.name})`;
+    let message = "";
 
-    if (isOfferActive && disc > 0) {
-      message += ` بسعر (${final} ${curr}) ضمن عرض المشتركين الأوائل (خصم ${disc}% من ${base} ${curr}).`;
+    if (effectiveOffer.isFrozen) {
+      message = `مرحباً، لدي عرض المشتركين الأوائل المثبت على اشتراكي وأريد تجديد خطة مسار الشاملة لمدة ${intervalLabel} لمتجري (${shop.name}) بسعر (${final} ${curr})`;
+      if (disc > 0) {
+        message += ` مع الخصم المثبت (%${disc} من أصل ${base} ${curr}).`;
+      } else {
+        message += `.`;
+      }
+    } else if (effectiveOffer.isEligible && disc > 0) {
+      message = `مرحباً، أريد الاشتراك في خطة مسار الشاملة لمدة ${intervalLabel} لمتجري (${shop.name}) بسعر (${final} ${curr}) مع الاستفادة من عرض المشتركين الأوائل (خصم %${disc} من أصل ${base} ${curr}).`;
     } else {
-      message += ` بسعر (${final} ${curr}).`;
+      message = `مرحباً، أريد الاشتراك في خطة مسار الشاملة لمدة ${intervalLabel} لمتجري (${shop.name}) بسعر (${final} ${curr}).`;
     }
 
     return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
@@ -239,7 +261,7 @@ export function SubscriptionView({
             </div>
 
             <div className="space-y-1">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs font-black uppercase tracking-wider text-slate-500">
                   الحالة الحالية
                 </span>
@@ -256,6 +278,13 @@ export function SubscriptionView({
                 >
                   {statusInfo.label}
                 </span>
+
+                {effectiveOffer.isFrozen && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/15 text-amber-900 border border-amber-500/30 flex items-center gap-1">
+                    <Lock className="h-3 w-3 text-amber-700" />
+                    <span>سعر المشتركين الأوائل محفوظ لك</span>
+                  </span>
+                )}
               </div>
               <h3 className="text-base sm:text-lg font-black text-slate-900">
                 {statusInfo.detail}
@@ -288,8 +317,53 @@ export function SubscriptionView({
         </div>
       </div>
 
-      {/* 3. Founders Offer Banner */}
-      {isOfferActive && (
+      {/* 3A. Frozen Founders Offer Banner (For already granted shops) */}
+      {effectiveOffer.isFrozen && (
+        <div className="bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-yellow-500/15 border-2 border-amber-400/50 rounded-3xl p-6 sm:p-7 relative overflow-hidden shadow-md shadow-amber-500/5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-2 max-w-2xl">
+              <div className="flex items-center gap-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-amber-500 text-slate-950 font-black shadow-xs">
+                  <Crown className="h-4 w-4 fill-current" />
+                </span>
+                <h3 className="text-base sm:text-lg font-black text-amber-950">
+                  سعر المشتركين الأوائل محفوظ لك
+                </h3>
+                <span className="bg-amber-500/20 text-amber-900 text-[10px] font-black px-2.5 py-0.5 rounded-full border border-amber-500/30">
+                  عرض المؤسسين المثبت ✨
+                </span>
+              </div>
+
+              <p className="text-xs sm:text-sm text-slate-800 font-medium leading-relaxed">
+                تم تثبيت خصمك الخاص عند الاشتراك. خصمك الخاص مثبت على اشتراك
+                متجرك ولا يتأثر بتغير العرض العام.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 bg-white/90 border border-amber-300 rounded-2xl p-3.5 shrink-0">
+              <div className="text-center px-3 border-l border-amber-200">
+                <span className="text-[10px] text-slate-500 block font-bold">
+                  خصم 6 أشهر
+                </span>
+                <span className="text-sm font-black text-amber-700 font-numeric">
+                  %{effectiveOffer.sixMonthsDiscountPercent}
+                </span>
+              </div>
+              <div className="text-center px-3">
+                <span className="text-[10px] text-slate-500 block font-bold">
+                  خصم سنة كاملة
+                </span>
+                <span className="text-sm font-black text-amber-700 font-numeric">
+                  %{effectiveOffer.annualDiscountPercent}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3B. Prospective Founders Offer Banner (For new / non-granted shops when global offer is active) */}
+      {!effectiveOffer.isFrozen && isGlobalOfferActive && (
         <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-yellow-500/10 border-2 border-amber-400/40 rounded-3xl p-6 sm:p-7 relative overflow-hidden shadow-md shadow-amber-500/5">
           <div className="absolute -top-10 -left-10 w-40 h-40 bg-amber-400/10 rounded-full blur-2xl pointer-events-none" />
 
@@ -313,8 +387,8 @@ export function SubscriptionView({
               </p>
 
               <p className="text-[11px] text-amber-900/80 font-bold">
-                سعر الإطلاق الخاص بك يبقى محفوظاً لك ما دام اشتراكك مستمراً وفق
-                شروط العرض.
+                عند اعتماد اشتراكك ضمن العرض، يتم تثبيت سعر العرض الخاص بك على
+                اشتراك متجرك.
               </p>
             </div>
 
@@ -348,7 +422,8 @@ export function SubscriptionView({
         </div>
       )}
 
-      {isOfferSoldOut && (
+      {/* 3C. Sold out banner (for non-granted shops when global offer is sold out) */}
+      {isGlobalOfferSoldOut && (
         <div className="bg-slate-100 border border-slate-300 p-4 rounded-2xl flex items-center gap-3 text-xs font-bold text-slate-700">
           <Tag className="h-4 w-4 text-slate-500" />
           <span>اكتمل العدد المخصص لعرض المشتركين الأوائل.</span>
@@ -423,7 +498,7 @@ export function SubscriptionView({
                 }`}
               >
                 <span>سنة كاملة</span>
-                {offer.annualDiscountPercent > 0 && isOfferActive && (
+                {effectiveOffer.annualDiscountPercent > 0 && (
                   <span
                     className={`text-[9px] font-black px-1.5 rounded-full ${
                       selectedInterval === "ANNUAL"
@@ -431,7 +506,7 @@ export function SubscriptionView({
                         : "bg-amber-500/20 text-amber-400"
                     }`}
                   >
-                    خصم %{offer.annualDiscountPercent}
+                    خصم %{effectiveOffer.annualDiscountPercent}
                   </span>
                 )}
               </button>
@@ -446,7 +521,7 @@ export function SubscriptionView({
                 }`}
               >
                 <span>6 أشهر</span>
-                {offer.sixMonthsDiscountPercent > 0 && isOfferActive && (
+                {effectiveOffer.sixMonthsDiscountPercent > 0 && (
                   <span
                     className={`text-[9px] font-black px-1.5 rounded-full ${
                       selectedInterval === "SIX_MONTHS"
@@ -454,7 +529,7 @@ export function SubscriptionView({
                         : "bg-amber-500/20 text-amber-400"
                     }`}
                   >
-                    خصم %{offer.sixMonthsDiscountPercent}
+                    خصم %{effectiveOffer.sixMonthsDiscountPercent}
                   </span>
                 )}
               </button>
@@ -484,7 +559,9 @@ export function SubscriptionView({
             {discountPercent > 0 && (
               <div className="inline-flex items-center gap-1.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 px-3 py-1 rounded-full text-xs font-black">
                 <Tag className="h-3.5 w-3.5" />
-                <span>وفرت {Math.round(basePrice - finalPrice)} {currencyCode} (خصم %{discountPercent})</span>
+                <span>
+                  وفرت {Math.round(basePrice - finalPrice)} {currencyCode} (خصم %{discountPercent})
+                </span>
               </div>
             )}
           </div>

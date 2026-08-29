@@ -10,12 +10,21 @@ export const dynamic = "force-dynamic";
 export default async function SubscriptionPage() {
   const auth = await requirePermission("subscription:manage");
 
-  const [entitlement, offer, shopDetails] = await Promise.all([
+  const [entitlement, offer, shopDetails, subscriptionRow] = await Promise.all([
     entitlementService.getEntitlementContext(auth.shop.id),
     subscriptionOfferService.getOfferSettings(),
     prisma.shop.findUnique({
       where: { id: auth.shop.id },
       select: { countryCode: true },
+    }),
+    prisma.subscription.findUnique({
+      where: { shopId: auth.shop.id },
+      select: {
+        foundersOfferEligible: true,
+        foundersOfferGrantedAt: true,
+        foundersOfferSixMonthsDiscountPercent: true,
+        foundersOfferAnnualDiscountPercent: true,
+      },
     }),
   ]);
 
@@ -70,6 +79,7 @@ export default async function SubscriptionPage() {
         }}
         entitlement={entitlement}
         offer={offer}
+        foundersOfferSnapshot={subscriptionRow}
         sixMonthsPrice={sixMonthsPrice}
         annualPrice={annualPrice}
       />

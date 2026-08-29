@@ -201,12 +201,18 @@ model Subscription {
   activatedAt            DateTime?
   canceledAt             DateTime?
   gracePeriodEndsAt      DateTime?
-  adminNotes             String?                      @db.Text
-  paymentReference       String?
-  paymentMethod          String?                      @db.VarChar(50)
-  activatedById          String?                      @db.Uuid
-  createdAt              DateTime                     @default(now())
-  updatedAt              DateTime                     @updatedAt
+  adminNotes                            String?                      @db.Text
+  paymentReference                      String?
+  paymentMethod                         String?                      @db.VarChar(50)
+  activatedById                         String?                      @db.Uuid
+  foundersOfferEligible                 Boolean                      @default(false)
+  foundersOfferGrantedAt                DateTime?
+  foundersOfferSixMonthsDiscountPercent Int?
+  foundersOfferAnnualDiscountPercent    Int?
+  createdAt                             DateTime                     @default(now())
+  updatedAt                             DateTime                     @updatedAt
+
+
 
   shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
 

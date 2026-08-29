@@ -90,22 +90,27 @@ export function validateOfferSettings(input: UpdateOfferSettingsInput): {
 }
 
 /**
- * Reads the singleton subscription offer settings.
- * Returns default values safely if not yet seeded.
+ * Reads the singleton subscription offer settings (READ-ONLY, no DB writes).
+ * Returns safe in-memory defaults if row is not yet created.
  */
 export async function getOfferSettings(): Promise<SubscriptionOfferData> {
-  const row = await prisma.subscriptionOfferSettings.upsert({
+  const row = await prisma.subscriptionOfferSettings.findUnique({
     where: { id: DEFAULT_OFFER_ID },
-    create: {
+  });
+
+  if (!row) {
+    return {
       id: DEFAULT_OFFER_ID,
       isActive: true,
       totalEligible: 50,
       remainingEligible: 50,
+      claimedEligible: 0,
       sixMonthsDiscountPercent: 0,
       annualDiscountPercent: 0,
-    },
-    update: {},
-  });
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+  }
 
   return {
     id: row.id,
@@ -119,6 +124,7 @@ export async function getOfferSettings(): Promise<SubscriptionOfferData> {
     updatedAt: row.updatedAt,
   };
 }
+
 
 /**
  * Super Admin mutation to manually update marketing offer settings.
