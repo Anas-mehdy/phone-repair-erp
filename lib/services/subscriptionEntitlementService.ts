@@ -146,8 +146,12 @@ export function computeEffectiveStatus(
 
 export function computeEffectivePlan(
   effectiveStatus: EffectiveStatus,
-  _storedPlan: SubscriptionPlan,
+  storedPlan: SubscriptionPlan,
 ): EffectivePlan {
+  // BASIC remains in the persisted enum for backward compatibility only.
+  // Reading the parameter makes that compatibility contract explicit while
+  // mapping every non-trial subscription to the single comprehensive plan.
+  void storedPlan;
   return effectiveStatus === "TRIALING" ? "TRIAL_AS_PROFESSIONAL" : "PROFESSIONAL";
 }
 
