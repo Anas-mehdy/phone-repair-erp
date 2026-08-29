@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requirePermission } from "@/lib/auth/context";
 import { salesService } from "@/lib/services/salesService";
+import { entitlementService } from "@/lib/services/subscriptionEntitlementService";
 
 export type SaleActionState = {
   error?: string;
@@ -64,6 +65,13 @@ export async function createSaleAction(
     });
 
     const auth = await requirePermission("sales:create");
+    const entitlement = await entitlementService.getEntitlementContext(auth.shop.id);
+    if (!entitlement.isOperationallyActive) {
+      return {
+        error: "انتهت فترة استخدامك. بياناتك محفوظة بالكامل، اختر خطة لمتابعة إنشاء عمليات جديدة.",
+      };
+    }
+
     const sale = await salesService.createSale(auth.shop.id, auth.user.id, {
       customerName: parsed.customerName,
       customerPhone: parsed.customerPhone,
