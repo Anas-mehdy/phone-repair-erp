@@ -54,10 +54,11 @@ export async function resetPasswordAction(
   try {
     await passwordResetService.resetPassword(token, password);
     await clearSessionCookie();
-    return { success: "تم تغيير كلمة المرور بنجاح. يمكنك الآن تسجيل الدخول." };
   } catch (error) {
     return { error: error instanceof Error ? error.message : "تعذر تغيير كلمة المرور." };
   }
+
+  redirect("/login?passwordChanged=1");
 }
 
 export async function changePasswordAction(
