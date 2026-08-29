@@ -152,7 +152,7 @@ export async function createRepairOrderAction(formData: FormData) {
     ),
   );
 
-  if ("denied" in guarded && guarded.denied) {
+  if (!("result" in guarded)) {
     redirect(`/repair-orders/new?entitlement=${encodeURIComponent(guarded.code)}`);
   }
 
