@@ -27,7 +27,6 @@ const optionalText = (max: number, label: string) =>
   z.string().trim().max(max, `${label} طويل جداً`).optional().or(z.literal(""));
 
 const activateSubscriptionSchema = shopIdSchema.extend({
-  plan: z.nativeEnum(SubscriptionPlan),
   billingInterval: z.nativeEnum(SubscriptionBillingInterval),
   extraDays: z.coerce.number().int().min(0).max(3660).default(0),
   adminNotes: optionalText(2000, "الملاحظة الإدارية"),
@@ -105,13 +104,11 @@ export async function adminImpersonateShopAction(formData: FormData) {
 }
 
 export async function adminActivateSubscriptionAction(formData: FormData) {
-  // Defense in depth: Action AND service both require Super Admin.
   await requireSuperAdmin();
 
   try {
     const parsed = activateSubscriptionSchema.parse({
       shopId: formData.get("shopId"),
-      plan: formData.get("plan"),
       billingInterval: formData.get("billingInterval"),
       extraDays: formData.get("extraDays") || 0,
       adminNotes: formData.get("adminNotes") || "",
@@ -121,7 +118,6 @@ export async function adminActivateSubscriptionAction(formData: FormData) {
 
     const subscription = await subscriptionAdminService.activateSubscription({
       shopId: parsed.shopId,
-      plan: parsed.plan,
       billingInterval: parsed.billingInterval,
       extraDays: parsed.extraDays,
       adminNotes: parsed.adminNotes || null,
@@ -221,7 +217,6 @@ const updatePriceSchema = z.object({
     .trim()
     .toUpperCase()
     .regex(/^[A-Z]{2}$/, "رمز الدولة يجب أن يتكون من حرفين كبيرين"),
-  plan: z.nativeEnum(SubscriptionPlan),
   billingInterval: z.nativeEnum(SubscriptionBillingInterval),
   amount: z.coerce.number().positive("المبلغ يجب أن يكون رقماً موجباً أكبر من صفر"),
   currencyCode: z
@@ -232,13 +227,11 @@ const updatePriceSchema = z.object({
 });
 
 export async function adminUpdateSubscriptionPriceAction(formData: FormData) {
-  // Defense in depth: Super Admin only
   await requireSuperAdmin();
 
   try {
     const parsed = updatePriceSchema.parse({
       countryCode: formData.get("countryCode"),
-      plan: formData.get("plan"),
       billingInterval: formData.get("billingInterval"),
       amount: formData.get("amount"),
       currencyCode: formData.get("currencyCode"),
@@ -248,7 +241,7 @@ export async function adminUpdateSubscriptionPriceAction(formData: FormData) {
       where: {
         countryCode_plan_billingInterval: {
           countryCode: parsed.countryCode,
-          plan: parsed.plan,
+          plan: SubscriptionPlan.PROFESSIONAL,
           billingInterval: parsed.billingInterval,
         },
       },
