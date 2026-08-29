@@ -13,7 +13,9 @@ import {
   ChevronLeft,
   ArrowRightLeft,
   type LucideIcon,
+  Crown,
 } from "lucide-react";
+import { SubscriptionStatus } from "@prisma/client";
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -27,6 +29,7 @@ import { DashboardUpdatesSection } from "@/components/dashboard/dashboard-update
 import { MasarJourney } from "@/components/dashboard/masar-journey";
 import { MasarWaveBackground } from "@/components/dashboard/masar-wave-background";
 import { DomainAnnouncement } from "@/components/dashboard/domain-announcement";
+import { subscriptionService, type SubscriptionOverview } from "@/lib/services/subscriptionService";
 
 export const dynamic = "force-dynamic";
 
@@ -34,13 +37,17 @@ export default async function DashboardPage() {
   let metrics: Awaited<ReturnType<typeof dashboardService.getDashboardMetrics>>;
   let activity: Awaited<ReturnType<typeof dashboardService.getRecentActivity>>;
   let shopContext: Awaited<ReturnType<typeof getCurrentShopContext>>;
+  let subscriptionOverview: SubscriptionOverview | null = null;
 
   try {
     shopContext = await getCurrentShopContext();
     const { shopId } = shopContext;
-    [metrics, activity] = await Promise.all([
+    [metrics, activity, subscriptionOverview] = await Promise.all([
       dashboardService.getDashboardMetrics(shopId),
       dashboardService.getRecentActivity(shopId),
+      shopContext.membershipRole === "OWNER"
+        ? subscriptionService.getSubscriptionOverview(shopId).catch(() => null)
+        : Promise.resolve(null),
     ]);
   } catch (error) {
     if (isDatabaseConnectionError(error)) {
@@ -135,6 +142,25 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-8">
       <DomainAnnouncement />
+
+      {subscriptionOverview?.effectiveStatus === SubscriptionStatus.TRIALING && (
+        <section className="flex flex-col gap-4 rounded-2xl border border-cyan-200 bg-gradient-to-l from-cyan-50 via-white to-teal-50 px-5 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-600 to-cyan-600 text-white shadow-md shadow-cyan-500/20">
+              <Crown className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="text-sm font-black text-slate-900">تجربتك الاحترافية فعّالة</p>
+              <p className="mt-1 text-[11px] font-bold text-slate-600">
+                بقي {subscriptionOverview.remainingDays} يوم و{subscriptionOverview.remainingHours} ساعة — جميع مزايا مسار متاحة لك الآن.
+              </p>
+            </div>
+          </div>
+          <Button asChild variant="outline" className="h-10 rounded-xl border-teal-200 bg-white text-xs font-black text-teal-700 hover:bg-teal-50">
+            <Link href="/subscription">عرض الاشتراك والأسعار <ChevronLeft className="mr-1.5 h-4 w-4" /></Link>
+          </Button>
+        </section>
+      )}
 
       {/* Masar brand and decorative device journey */}
       <section className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm shadow-slate-200/60 sm:p-7">
