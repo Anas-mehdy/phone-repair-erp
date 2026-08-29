@@ -5,13 +5,18 @@ import { Button } from "@/components/ui/button";
 import { getCurrentShopContext } from "@/lib/current-shop";
 import { supplierService } from "@/lib/services/supplierService";
 import { inventoryService } from "@/lib/services/inventoryService";
+import { repairOrderService } from "@/lib/services/repairOrderService";
 import { CreateRepairOrderForm } from "./_create-form";
 
 export default async function NewRepairOrderPage() {
-  const { shopId, currency } = await getCurrentShopContext();
-  const [suppliers, inventoryItems] = await Promise.all([
-    supplierService.listSuppliers(shopId),
-    inventoryService.listInventoryItems(shopId),
+  const context = await getCurrentShopContext();
+  const canAssign = context.permissions.includes("repairs:assign");
+  const [suppliers, inventoryItems, technicians] = await Promise.all([
+    supplierService.listSuppliers(context.shopId),
+    inventoryService.listInventoryItems(context.shopId),
+    canAssign
+      ? repairOrderService.listAssignableTechnicians(context.shopId)
+      : Promise.resolve([]),
   ]);
 
   const serializedInventory = inventoryItems.map((item) => ({
@@ -41,9 +46,9 @@ export default async function NewRepairOrderPage() {
       <CreateRepairOrderForm
         suppliers={suppliers}
         inventoryItems={serializedInventory}
-        currency={currency}
+        currency={context.currency}
+        technicians={technicians}
       />
     </div>
   );
 }
-

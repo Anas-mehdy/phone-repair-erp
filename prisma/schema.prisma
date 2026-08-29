@@ -140,25 +140,26 @@ model Shop {
   version   Int       @default(1)
 
   // Relationships
-  memberships           Membership[]
-  invitations           ShopInvitation[]
-  users                 User[] // Legacy direct relation (Phase 1 compatibility)
-  customers             Customer[]
-  suppliers             Supplier[]
-  repairOrders          RepairOrder[]
-  repairOrderItems      RepairOrderItem[]
-  repairStatusHistories RepairStatusHistory[]
-  inventoryItems        InventoryItem[]
-  inventoryMovements    InventoryMovement[]
-  sales                 Sale[]
-  saleItems             SaleItem[]
-  invoices              Invoice[]
-  payments              Payment[]
-  whatsappTemplates     WhatsAppTemplate[]
-  installmentPlans      InstallmentPlan[]
-  installmentPayments   InstallmentPayment[]
-  paymentSourceOptions  PaymentSourceOption[]
-  expenses              Expense[]
+  memberships               Membership[]
+  invitations               ShopInvitation[]
+  users                     User[] // Legacy direct relation (Phase 1 compatibility)
+  customers                 Customer[]
+  suppliers                 Supplier[]
+  repairOrders              RepairOrder[]
+  repairOrderItems          RepairOrderItem[]
+  repairStatusHistories     RepairStatusHistory[]
+  repairAssignmentHistories RepairOrderAssignmentHistory[]
+  inventoryItems            InventoryItem[]
+  inventoryMovements        InventoryMovement[]
+  sales                     Sale[]
+  saleItems                 SaleItem[]
+  invoices                  Invoice[]
+  payments                  Payment[]
+  whatsappTemplates         WhatsAppTemplate[]
+  installmentPlans          InstallmentPlan[]
+  installmentPayments       InstallmentPayment[]
+  paymentSourceOptions      PaymentSourceOption[]
+  expenses                  Expense[]
 
   @@index([updatedAt])
   @@index([deletedAt])
@@ -307,6 +308,9 @@ model RepairOrder {
   supplierId        String?      @db.Uuid
   createdByUserId   String?      @db.Uuid
   assignedToUserId  String?      @db.Uuid // الفني المسؤول عن تنفيذ طلب الصيانة
+  assignedByUserId  String?      @db.Uuid // المالك أو المدير الذي أجرى آخر إسناد
+  assignedAt        DateTime?
+  assignmentSeenAt  DateTime? // وقت فتح الفني للتذكرة بعد آخر إسناد
   updatedByUserId   String?      @db.Uuid // آخر مستخدم أجرى تعديلاً على الطلب
   clientGeneratedId String?
   ticketNumber      String
@@ -332,11 +336,12 @@ model RepairOrder {
   deletedAt         DateTime?
   version           Int          @default(1)
 
-  shop               Shop                  @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  customer           Customer?             @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  supplier           Supplier?             @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  shop               Shop                           @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  customer           Customer?                      @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  supplier           Supplier?                      @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   items              RepairOrderItem[]
   statusHistory      RepairStatusHistory[]
+  assignmentHistory  RepairOrderAssignmentHistory[]
   inventoryMovements InventoryMovement[]
   invoices           Invoice[]
 
@@ -347,9 +352,27 @@ model RepairOrder {
   @@index([shopId, supplierId])
   @@index([shopId, createdByUserId])
   @@index([shopId, assignedToUserId])
+  @@index([shopId, assignedByUserId])
   @@index([shopId, updatedByUserId])
   @@index([shopId, updatedAt])
   @@index([shopId, deletedAt])
+}
+
+model RepairOrderAssignmentHistory {
+  id              String   @id @default(uuid()) @db.Uuid
+  shopId          String   @db.Uuid
+  repairOrderId   String   @db.Uuid
+  fromUserId      String?  @db.Uuid
+  toUserId        String?  @db.Uuid
+  changedByUserId String?  @db.Uuid
+  createdAt       DateTime @default(now())
+
+  shop        Shop        @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  repairOrder RepairOrder @relation(fields: [repairOrderId], references: [id], onDelete: Cascade)
+
+  @@index([shopId, repairOrderId, createdAt])
+  @@index([shopId, toUserId])
+  @@index([shopId, changedByUserId])
 }
 
 model RepairOrderItem {

@@ -21,6 +21,18 @@ export const CHANGELOG_STORAGE_KEYS = {
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   {
+    id: "feat-repair-technician-assignment-v1-6",
+    version: "v1.6.0",
+    date: "2026-08-28",
+    type: "FEATURE",
+    priority: "HIGH",
+    title: "إسناد تذاكر الصيانة للفنيين",
+    description: "يمكن للمالك أو المدير إسناد كل تذكرة إلى فني محدد، بينما يجد الفني مهامه بسرعة داخل قسم «تذاكري» مع تنبيه واضح للتذاكر الجديدة.",
+    iconName: "UserPlus",
+    actionLabel: "عرض تذاكر الصيانة",
+    actionHref: "/repair-orders",
+  },
+  {
     id: "feat-installment-plans-v1-5",
     version: "v1.5.0",
     date: "2026-08-28",
