@@ -1,30 +1,50 @@
 -- ============================================================================
 -- Migration: add_entitlement_foundation
--- Scope: additive only – no destructive changes, no data loss.
+-- Branch: feat/subscription-enforcement
+-- Applied: NOT YET — do not apply to production without Super Admin review.
 --
--- 1. Adds gracePeriodEndsAt to Subscription table.
---    Used by EntitlementService for precise grace-period boundary checking.
---    NULL = no active grace period.
+-- Scope: additive only.
+--   - NO DROP statements.
+--   - NO destructive changes.
+--   - NO trial date modifications.
+--   - NO subscription record recreation.
+--   - NO price reseed.
+--
+-- Why no IF NOT EXISTS?
+--   IF NOT EXISTS silently swallows unexpected schema state. If a column or
+--   table already exists with a different definition (schema drift), this
+--   migration must FAIL LOUDLY rather than silently proceed. Deterministic
+--   DDL ensures we notice drift before it reaches production.
+--
+-- 1. Adds gracePeriodEndsAt to Subscription.
+--    NULL = no active grace period. Only Super Admin can set this field.
+--    Used by EntitlementService to compute GRACE_PERIOD effective status
+--    from wall-clock time instead of trusting the stored status column.
 --
 -- 2. Creates CompatibilitySearchUsage table.
---    One row per (shopId, usageDate UTC).
---    Increments are atomic (PostgreSQL UPDATE ... RETURNING).
---    RLS enabled; anon/authenticated roles have no access.
+--    One row per (shopId, usageDate UTC calendar day).
+--    usageDate is PostgreSQL DATE (no time, no timezone) — avoids timestamp
+--    TZ ambiguity across Vercel edge regions.
+--    Increments are atomic via single-statement INSERT ... ON CONFLICT DO UPDATE.
+--    RLS enabled; anon/authenticated roles revoked.
+--    The @@unique([shopId, usageDate]) index covers all lookups — no extra
+--    non-unique index added.
 -- ============================================================================
 
--- 1. Add gracePeriodEndsAt column to Subscription
+-- 1. Add gracePeriodEndsAt to Subscription (deterministic — fails if already exists)
 ALTER TABLE "Subscription"
-  ADD COLUMN IF NOT EXISTS "gracePeriodEndsAt" TIMESTAMP(3);
+  ADD COLUMN "gracePeriodEndsAt" TIMESTAMP(3);
 
-CREATE INDEX IF NOT EXISTS "Subscription_gracePeriodEndsAt_idx"
+CREATE INDEX "Subscription_gracePeriodEndsAt_idx"
   ON "Subscription"("gracePeriodEndsAt");
 
--- 2. Create CompatibilitySearchUsage table
-CREATE TABLE IF NOT EXISTS "CompatibilitySearchUsage" (
+-- 2. Create CompatibilitySearchUsage (deterministic — fails if already exists)
+CREATE TABLE "CompatibilitySearchUsage" (
   "id"          UUID         NOT NULL DEFAULT gen_random_uuid(),
   "shopId"      UUID         NOT NULL,
-  -- usageDate is always "YYYY-MM-DD" UTC – varchar avoids timestamp TZ ambiguity
-  "usageDate"   VARCHAR(10)  NOT NULL,
+  -- DATE: no time component, no timezone. Always set to the UTC calendar date
+  -- via toUtcDateOnly() helper. Stable across all Vercel edge server timezones.
+  "usageDate"   DATE         NOT NULL,
   "searchCount" INTEGER      NOT NULL DEFAULT 0,
   "createdAt"   TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt"   TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -35,12 +55,13 @@ CREATE TABLE IF NOT EXISTS "CompatibilitySearchUsage" (
     ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS "CompatibilitySearchUsage_shopId_usageDate_key"
+-- Unique index covers all (shopId, usageDate) lookups — no additional
+-- non-unique index is needed for the query planner on this access pattern.
+CREATE UNIQUE INDEX "CompatibilitySearchUsage_shopId_usageDate_key"
   ON "CompatibilitySearchUsage"("shopId", "usageDate");
 
-CREATE INDEX IF NOT EXISTS "CompatibilitySearchUsage_shopId_usageDate_idx"
-  ON "CompatibilitySearchUsage"("shopId", "usageDate");
-
--- RLS: table is server-managed; no direct Supabase Data API access allowed.
+-- RLS: this table is managed exclusively via Prisma server-side.
+-- Direct access from the Supabase Data API (anon/authenticated roles) is
+-- blocked to prevent client-side tampering with usage counters.
 ALTER TABLE "CompatibilitySearchUsage" ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE "CompatibilitySearchUsage" FROM anon, authenticated;

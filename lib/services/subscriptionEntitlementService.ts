@@ -1,20 +1,39 @@
-﻿/**
+/**
  * subscriptionEntitlementService.ts
  *
- * Central Entitlement Service - the ONLY source of truth for subscription
+ * Central Entitlement Service — the ONLY source of truth for subscription
  * and usage gate-keeping across Massar ERP.
  *
+ * ═══════════════════════════════════════════════════════
  * SECURITY CONTRACT (non-negotiable):
- *  1. shopId is ALWAYS sourced from the verified Auth Context, never from
- *     browser-supplied parameters.
- *  2. plan, status, and all dates are read from the database only.
+ *
+ *  1. shopId MUST be sourced from getAuthContext().shop.id — never from
+ *     browser-supplied body/query parameters.
+ *  2. plan, status, and all timestamps are read from the database only.
  *  3. No client-supplied values are ever trusted for authorization decisions.
  *  4. Every database query is scoped by shopId.
- *  5. Prisma server-side only - no Supabase client-side access.
+ *  5. Prisma server-side only — no Supabase client-side access for these tables.
  *
- * Effective state is computed from the current UTC wall-clock time against
- * database timestamps; the stored `status` field is treated as a hint, not
- * as ground truth.
+ * SUBSCRIPTION MUTATIONS:
+ *  Any write to the Subscription table (plan, status, dates, billing) is a
+ *  Super Admin operation and MUST be guarded by requireSuperAdmin() server-side.
+ *  The "subscription:manage" AppPermission is intentionally read-only:
+ *  it controls only whether a shop OWNER can VIEW /subscription.
+ *  It must never be used to gate an actual mutation.
+ *  See: lib/adminAuth.ts → requireSuperAdmin()
+ *
+ * EFFECTIVE STATE:
+ *  The stored `status` field is a hint, not ground truth. Effective status is
+ *  computed by comparing timestamps against wall-clock time so that:
+ *  - A TRIALING record whose trialEndsAt has passed is treated as EXPIRED.
+ *  - An ACTIVE record whose currentPeriodEndsAt has passed is treated as EXPIRED.
+ *  - A GRACE_PERIOD record with null/past gracePeriodEndsAt is treated as EXPIRED.
+ *
+ * MISSING SUBSCRIPTION:
+ *  If a shop has no Subscription record (should not happen after backfill but
+ *  possible in tests or edge cases), the service fails CLOSED — new operations
+ *  are denied, but no exception is thrown. Existing data reads are unaffected.
+ * ═══════════════════════════════════════════════════════
  */
 
 import { SubscriptionPlan, SubscriptionStatus } from "@prisma/client";
@@ -24,7 +43,10 @@ import { prisma } from "@/lib/prisma";
 // PUBLIC TYPES
 // ---------------------------------------------------------------------------
 
-/** All error/deny codes emitted by this service. UI must never parse strings. */
+/**
+ * All error/deny codes emitted by this service.
+ * UI MUST use these codes, not parse the message strings.
+ */
 export type EntitlementDenyCode =
   | "SUBSCRIPTION_EXPIRED"
   | "REPAIR_LIMIT_REACHED"
@@ -33,16 +55,16 @@ export type EntitlementDenyCode =
 
 /** Effective subscription lifecycle state computed from wall-clock time. */
 export type EffectiveStatus =
-  | "TRIALING"       // trial active: trialEndsAt > now
-  | "ACTIVE"         // paid period active: currentPeriodEndsAt > now
-  | "GRACE_PERIOD"   // grace window active: gracePeriodEndsAt > now
-  | "EXPIRED"        // all windows elapsed
-  | "CANCELED";      // manually canceled
+  | "TRIALING"      // trial active:      trialEndsAt > now
+  | "ACTIVE"        // paid period active: currentPeriodEndsAt > now
+  | "GRACE_PERIOD"  // grace window:       gracePeriodEndsAt > now
+  | "EXPIRED"       // all windows elapsed — fail-closed
+  | "CANCELED";     // manually canceled — fail-closed
 
-/** Effective plan entitlements. */
+/** Plan entitlements that actually apply at this moment. */
 export type EffectivePlan = "TRIAL_AS_PROFESSIONAL" | "BASIC" | "PROFESSIONAL";
 
-/** Computed subscription snapshot. */
+/** Computed subscription snapshot — immutable value object. */
 export type SubscriptionSnapshot = {
   shopId: string;
   storedPlan: SubscriptionPlan;
@@ -51,25 +73,29 @@ export type SubscriptionSnapshot = {
   computedAt: Date;
   trialStartedAt: Date;
   trialEndsAt: Date;
+  currentPeriodStartedAt: Date | null;
   currentPeriodEndsAt: Date | null;
   gracePeriodEndsAt: Date | null;
 };
 
 /** Per-plan usage limits. null = unlimited. */
 export type PlanLimits = {
+  /** Max RepairOrders creatable in the current UTC calendar month. null = unlimited. */
   monthlyRepairOrders: number | null;
+  /** Max total active Membership seats. null = unlimited. */
   totalSeats: number | null;
+  /** Max Compatibility searches per UTC calendar day. null = unlimited. */
   dailyCompatibilitySearches: number | null;
 };
 
-/** Live usage snapshot for a shop. */
+/** Live usage figures, scoped to the relevant windows. */
 export type UsageSnapshot = {
   repairOrdersThisMonth: number;
   activeSeats: number;
   compatibilitySearchesToday: number;
 };
 
-/** Full entitlement context. */
+/** Full entitlement picture. */
 export type EntitlementContext = {
   subscription: SubscriptionSnapshot;
   limits: PlanLimits;
@@ -80,18 +106,33 @@ export type EntitlementContext = {
   canPerformCompatibilitySearch: boolean;
 };
 
-/** Typed result returned by check* helpers. */
+/** Typed allow/deny result. Use code for control flow, message for the user. */
 export type EntitlementResult =
   | { allowed: true }
-  | { allowed: false; code: EntitlementDenyCode; message: string; upgradeUrl: string };
+  | {
+      allowed: false;
+      code: EntitlementDenyCode;
+      message: string;
+      upgradeUrl: string;
+    };
+
+/**
+ * Callback type for withRepairOrderLimitGuard.
+ * Receives the Prisma transaction client so the INSERT happens inside the
+ * same atomic boundary as the COUNT.
+ */
+export type RepairOrderCreateCallback<T> = (
+  tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]
+) => Promise<T>;
 
 // ---------------------------------------------------------------------------
 // CONSTANTS
 // ---------------------------------------------------------------------------
 
 const UPGRADE_URL = "/subscription";
+const REPAIR_ORDER_MONTHLY_LIMIT = 100;
 
-const PLAN_LIMITS: Record<EffectivePlan, PlanLimits> = {
+export const PLAN_LIMITS: Record<EffectivePlan, PlanLimits> = {
   TRIAL_AS_PROFESSIONAL: {
     monthlyRepairOrders: null,
     totalSeats: null,
@@ -103,50 +144,94 @@ const PLAN_LIMITS: Record<EffectivePlan, PlanLimits> = {
     dailyCompatibilitySearches: null,
   },
   BASIC: {
-    monthlyRepairOrders: 100,
+    monthlyRepairOrders: REPAIR_ORDER_MONTHLY_LIMIT,
     totalSeats: 1,
     dailyCompatibilitySearches: 10,
   },
 };
 
 // ---------------------------------------------------------------------------
-// INTERNAL HELPERS
+// UTC DATE HELPERS
 // ---------------------------------------------------------------------------
 
 /**
- * Computes effective lifecycle status from database timestamps.
+ * Returns a Date object representing the start of the UTC calendar day.
+ * This is the canonical helper for all daily-bucket calculations.
+ * Uses UTC methods exclusively — never relies on server local timezone.
  *
- * The stored `status` column is treated as a starting hint; this function
- * derives ground-truth state from wall-clock comparisons.
- *
- * Why not trust `status` alone?
- *   - Cron-based status updaters can lag behind actual expiry time.
- *   - A TRIALING row whose trialEndsAt is in the past must be treated EXPIRED.
- *   - A GRACE_PERIOD row whose gracePeriodEndsAt is null/past must be EXPIRED.
+ * Example: toUtcDateOnly(new Date("2026-08-29T23:59:59+03:00"))
+ *          → Date("2026-08-29T00:00:00.000Z")
  */
-function computeEffectiveStatus(
+export function toUtcDateOnly(date: Date): Date {
+  return new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
+  );
+}
+
+/** Returns the UTC start-of-month Date for monthly RepairOrder counting. */
+function utcStartOfMonth(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+}
+
+// ---------------------------------------------------------------------------
+// EFFECTIVE STATE COMPUTATION
+// ---------------------------------------------------------------------------
+
+/**
+ * Derives the real subscription state from timestamps, ignoring stored status
+ * when timestamps tell a different story.
+ *
+ * ACTIVE edge cases:
+ *   - currentPeriodEndsAt null   → EXPIRED (no paid period established)
+ *   - currentPeriodEndsAt <= now → EXPIRED (paid period lapsed)
+ *
+ * GRACE_PERIOD edge cases:
+ *   - gracePeriodEndsAt null   → EXPIRED (grace never set)
+ *   - gracePeriodEndsAt <= now → EXPIRED (grace lapsed)
+ *
+ * MISSING SUBSCRIPTION (sub = null):
+ *   Handled by callers — returns fail-closed snapshot without throwing.
+ */
+export function computeEffectiveStatus(
   storedStatus: SubscriptionStatus,
   trialEndsAt: Date,
+  currentPeriodStartedAt: Date | null,
   currentPeriodEndsAt: Date | null,
   gracePeriodEndsAt: Date | null,
   now: Date
 ): EffectiveStatus {
-  if (storedStatus === SubscriptionStatus.TRIALING) {
-    return trialEndsAt.getTime() > now.getTime() ? "TRIALING" : "EXPIRED";
+  switch (storedStatus) {
+    case SubscriptionStatus.TRIALING:
+      return trialEndsAt.getTime() > now.getTime() ? "TRIALING" : "EXPIRED";
+
+    case SubscriptionStatus.ACTIVE:
+      // If the subscription period has not started yet (future start date), it is not active
+      if (currentPeriodStartedAt && currentPeriodStartedAt.getTime() > now.getTime()) {
+        return "EXPIRED";
+      }
+      if (!currentPeriodEndsAt) return "EXPIRED";
+      return currentPeriodEndsAt.getTime() > now.getTime() ? "ACTIVE" : "EXPIRED";
+
+    case SubscriptionStatus.GRACE_PERIOD:
+      if (!gracePeriodEndsAt) return "EXPIRED";
+      return gracePeriodEndsAt.getTime() > now.getTime() ? "GRACE_PERIOD" : "EXPIRED";
+
+    case SubscriptionStatus.CANCELED:
+      return "CANCELED";
+
+    case SubscriptionStatus.EXPIRED:
+    default:
+      return "EXPIRED";
   }
-  if (storedStatus === SubscriptionStatus.ACTIVE) {
-    if (!currentPeriodEndsAt) return "EXPIRED";
-    return currentPeriodEndsAt.getTime() > now.getTime() ? "ACTIVE" : "EXPIRED";
-  }
-  if (storedStatus === SubscriptionStatus.GRACE_PERIOD) {
-    if (!gracePeriodEndsAt) return "EXPIRED";
-    return gracePeriodEndsAt.getTime() > now.getTime() ? "GRACE_PERIOD" : "EXPIRED";
-  }
-  if (storedStatus === SubscriptionStatus.CANCELED) return "CANCELED";
-  return "EXPIRED";
 }
 
-function computeEffectivePlan(
+/**
+ * Maps effective status + stored plan to the plan that governs limits now.
+ * TRIAL always grants PROFESSIONAL entitlements regardless of storedPlan.
+ * EXPIRED/CANCELED returns the stored plan for display; isOperationallyActive
+ * will be false so the limits are never enforced against new operations.
+ */
+export function computeEffectivePlan(
   effectiveStatus: EffectiveStatus,
   storedPlan: SubscriptionPlan
 ): EffectivePlan {
@@ -154,25 +239,25 @@ function computeEffectivePlan(
   if (effectiveStatus === "ACTIVE" || effectiveStatus === "GRACE_PERIOD") {
     return storedPlan === SubscriptionPlan.BASIC ? "BASIC" : "PROFESSIONAL";
   }
+  // EXPIRED / CANCELED — return stored plan for display; operations blocked by
+  // isOperationallyActive = false, not by limit comparisons.
   return storedPlan === SubscriptionPlan.BASIC ? "BASIC" : "PROFESSIONAL";
-}
-
-/** Returns ISO UTC date string "YYYY-MM-DD" for a given Date. */
-export function toUtcDateString(date: Date): string {
-  return date.toISOString().slice(0, 10);
-}
-
-function utcStartOfMonth(date: Date): Date {
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
 }
 
 // ---------------------------------------------------------------------------
 // SNAPSHOT BUILDER
 // ---------------------------------------------------------------------------
 
+/**
+ * Loads and computes the subscription snapshot for a shop.
+ * Fails closed (EXPIRED) rather than throwing when subscription is missing.
+ *
+ * @param shopId - MUST come from verified Auth Context.
+ * @param now    - Injected for testability.
+ */
 async function getSubscriptionSnapshot(
   shopId: string,
-  now: Date = new Date()
+  now: Date
 ): Promise<SubscriptionSnapshot> {
   const sub = await prisma.subscription.findUnique({
     where: { shopId },
@@ -181,13 +266,16 @@ async function getSubscriptionSnapshot(
       status: true,
       trialStartedAt: true,
       trialEndsAt: true,
+      currentPeriodStartedAt: true,
       currentPeriodEndsAt: true,
       gracePeriodEndsAt: true,
     },
   });
 
   if (!sub) {
-    // Fail-closed: no subscription record = EXPIRED
+    // MISSING SUBSCRIPTION: fail-closed. New operations denied; reads unaffected.
+    // Log for operational awareness (not an exception — avoids breaking read paths).
+    console.warn(`[EntitlementService] No Subscription record found for shopId=${shopId}. Failing closed.`);
     return {
       shopId,
       storedPlan: SubscriptionPlan.PROFESSIONAL,
@@ -196,6 +284,7 @@ async function getSubscriptionSnapshot(
       computedAt: now,
       trialStartedAt: now,
       trialEndsAt: now,
+      currentPeriodStartedAt: null,
       currentPeriodEndsAt: null,
       gracePeriodEndsAt: null,
     };
@@ -204,7 +293,8 @@ async function getSubscriptionSnapshot(
   const effectiveStatus = computeEffectiveStatus(
     sub.status,
     sub.trialEndsAt,
-    sub.currentPeriodEndsAt,
+    sub.currentPeriodStartedAt ?? null,
+    sub.currentPeriodEndsAt ?? null,
     sub.gracePeriodEndsAt ?? null,
     now
   );
@@ -218,21 +308,21 @@ async function getSubscriptionSnapshot(
     computedAt: now,
     trialStartedAt: sub.trialStartedAt,
     trialEndsAt: sub.trialEndsAt,
+    currentPeriodStartedAt: sub.currentPeriodStartedAt ?? null,
     currentPeriodEndsAt: sub.currentPeriodEndsAt ?? null,
     gracePeriodEndsAt: sub.gracePeriodEndsAt ?? null,
   };
 }
 
 // ---------------------------------------------------------------------------
-// USAGE COUNTER READERS
+// USAGE COUNTER READERS (read-only, for context/UI)
 // ---------------------------------------------------------------------------
 
 async function countMonthlyRepairOrders(shopId: string, now: Date): Promise<number> {
-  const monthStart = utcStartOfMonth(now);
   return prisma.repairOrder.count({
     where: {
       shopId,
-      createdAt: { gte: monthStart },
+      createdAt: { gte: utcStartOfMonth(now) },
       deletedAt: null,
     },
   });
@@ -240,16 +330,12 @@ async function countMonthlyRepairOrders(shopId: string, now: Date): Promise<numb
 
 async function countActiveSeats(shopId: string): Promise<number> {
   return prisma.membership.count({
-    where: {
-      shopId,
-      status: "ACTIVE",
-      deletedAt: null,
-    },
+    where: { shopId, status: "ACTIVE", deletedAt: null },
   });
 }
 
 async function readCompatibilitySearchesToday(shopId: string, now: Date): Promise<number> {
-  const today = toUtcDateString(now);
+  const today = toUtcDateOnly(now);
   const row = await prisma.compatibilitySearchUsage.findUnique({
     where: { shopId_usageDate: { shopId, usageDate: today } },
     select: { searchCount: true },
@@ -258,128 +344,253 @@ async function readCompatibilitySearchesToday(shopId: string, now: Date): Promis
 }
 
 // ---------------------------------------------------------------------------
-// ATOMIC COMPATIBILITY SEARCH INCREMENT
+// ATOMIC COMPATIBILITY SEARCH INCREMENT — UNLIMITED PLANS
 // ---------------------------------------------------------------------------
 
 /**
- * Atomically increments the daily compatibility search counter.
+ * Atomically records a compatibility search for TRIAL/PROFESSIONAL plans.
+ * Does NOT enforce any limit.
  *
- * CONCURRENCY STRATEGY:
- *   PostgreSQL INSERT ... ON CONFLICT DO UPDATE atomically upserts and
- *   increments in a single round-trip using the unique index on
- *   (shopId, usageDate). Two concurrent requests will each serialize their
- *   increment - no phantom reads, no lost updates.
+ * ATOMICITY: PostgreSQL INSERT ... ON CONFLICT DO UPDATE is a single
+ * server-side statement. Two concurrent requests produce two serialized
+ * increments — no lost updates, no phantom rows.
  *
- * NOTE: This variant does NOT enforce a limit. Use for TRIAL/PROFESSIONAL.
- * For BASIC limit enforcement, use incrementCompatibilitySearchEnforced().
+ * @param shopId - MUST come from Auth Context.
+ * @param now    - Injected for testability.
  */
 export async function incrementCompatibilitySearch(
   shopId: string,
   now: Date = new Date()
 ): Promise<number> {
-  const today = toUtcDateString(now);
-
+  const today = toUtcDateOnly(now);
   const result = await prisma.$queryRaw<Array<{ searchCount: number }>>`
-    INSERT INTO "CompatibilitySearchUsage" ("id", "shopId", "usageDate", "searchCount", "createdAt", "updatedAt")
-    VALUES (gen_random_uuid(), ${shopId}::uuid, ${today}, 1, NOW(), NOW())
+    INSERT INTO "CompatibilitySearchUsage"
+      ("id", "shopId", "usageDate", "searchCount", "createdAt", "updatedAt")
+    VALUES
+      (gen_random_uuid(), ${shopId}::uuid, ${today}::date, 1, NOW(), NOW())
     ON CONFLICT ("shopId", "usageDate")
     DO UPDATE SET
       "searchCount" = "CompatibilitySearchUsage"."searchCount" + 1,
       "updatedAt"   = NOW()
     RETURNING "searchCount"
   `;
-
   return result[0]?.searchCount ?? 1;
 }
 
+// ---------------------------------------------------------------------------
+// ATOMIC COMPATIBILITY SEARCH INCREMENT — BASIC PLAN (ENFORCED)
+// ---------------------------------------------------------------------------
+
 /**
- * Enforced atomic increment for BASIC plan limit.
+ * Atomically increments the daily compatibility search counter for BASIC plan,
+ * enforcing the per-day limit in a SINGLE PostgreSQL statement.
  *
- * Returns new count on success, null if limit was already reached.
+ * ── CONCURRENCY STRATEGY ──────────────────────────────────────────────────
+ * A single INSERT ... ON CONFLICT DO UPDATE ... WHERE count < limit statement
+ * is used. This is fully atomic at the PostgreSQL row level:
  *
- * CONCURRENCY SAFETY:
- *   The WHERE searchCount < limit condition in the UPDATE ensures that even
- *   if two requests concurrently read searchCount = 9 (limit = 10), only one
- *   will successfully increment to 10. The other will get 0 rows returned
- *   (null result) and must be denied. The two-step approach (INSERT to ensure
- *   row exists, then conditional UPDATE) avoids a race on row creation.
+ *   INSERT INTO "CompatibilitySearchUsage" ... searchCount = 1
+ *   ON CONFLICT ("shopId", "usageDate")
+ *   DO UPDATE SET
+ *     searchCount = searchCount + 1
+ *   WHERE "CompatibilitySearchUsage".searchCount < $limit
+ *   RETURNING searchCount
+ *
+ * Behaviour:
+ *   - Row does not exist → INSERT with count=1 (always succeeds if count=1 <= limit).
+ *   - Row exists, count < limit  → UPDATE increments, RETURNING returns new count.
+ *   - Row exists, count >= limit → WHERE rejects the update, RETURNING returns nothing.
+ *
+ * Two concurrent requests at count=9 (limit=10):
+ *   PostgreSQL serializes the two row-level updates. One gets count=10 (success),
+ *   the other also gets count= but wait — they both target the same row.
+ *   PostgreSQL's row-level locking ensures only one UPDATE fires at a time.
+ *   Result: one succeeds (count → 10), other fails the WHERE (count is already 10).
+ *
+ * Why NOT two-step (INSERT to ensure row, then conditional UPDATE)?
+ *   The two-step approach from the previous version had a window between the
+ *   INSERT-DO-NOTHING and the UPDATE where a second concurrent request could
+ *   also pass the INSERT-DO-NOTHING and then both attempt the UPDATE. While
+ *   PostgreSQL row locking still prevents double-counting, the single-statement
+ *   approach eliminates that window entirely and is cleaner.
+ *
+ * NOTE: The INSERT path (first search of the day) always starts at 1.
+ *   If limit=1, a first-time INSERT would set count=1 which satisfies
+ *   count < limit only if limit > 1. The RETURNING check handles this.
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * @param shopId - MUST come from Auth Context.
+ * @param limit  - Daily limit (from PLAN_LIMITS.dailyCompatibilitySearches).
+ * @param now    - Injected for testability.
+ * @returns      - New count on success, null if limit already reached.
  */
 export async function incrementCompatibilitySearchEnforced(
   shopId: string,
   limit: number,
   now: Date = new Date()
 ): Promise<number | null> {
-  const today = toUtcDateString(now);
+  const today = toUtcDateOnly(now);
 
-  // Ensure row exists without changing searchCount
-  await prisma.$executeRaw`
-    INSERT INTO "CompatibilitySearchUsage" ("id", "shopId", "usageDate", "searchCount", "createdAt", "updatedAt")
-    VALUES (gen_random_uuid(), ${shopId}::uuid, ${today}, 0, NOW(), NOW())
-    ON CONFLICT ("shopId", "usageDate") DO NOTHING
-  `;
-
-  // Conditional atomic increment
   const result = await prisma.$queryRaw<Array<{ searchCount: number }>>`
-    UPDATE "CompatibilitySearchUsage"
-    SET
-      "searchCount" = "searchCount" + 1,
+    INSERT INTO "CompatibilitySearchUsage"
+      ("id", "shopId", "usageDate", "searchCount", "createdAt", "updatedAt")
+    VALUES
+      (gen_random_uuid(), ${shopId}::uuid, ${today}::date, 1, NOW(), NOW())
+    ON CONFLICT ("shopId", "usageDate")
+    DO UPDATE SET
+      "searchCount" = "CompatibilitySearchUsage"."searchCount" + 1,
       "updatedAt"   = NOW()
-    WHERE "shopId"    = ${shopId}::uuid
-      AND "usageDate" = ${today}
-      AND "searchCount" < ${limit}
+    WHERE "CompatibilitySearchUsage"."searchCount" < ${limit}
     RETURNING "searchCount"
   `;
 
+  // No rows returned → either limit reached (existing row not updated)
+  // or INSERT count=1 > limit (limit < 1, which should never happen in practice).
   if (result.length === 0) return null;
   return result[0].searchCount;
 }
 
 // ---------------------------------------------------------------------------
-// REPAIR ORDER CONCURRENT LIMIT CHECK
+// REPAIR ORDER CONCURRENT LIMIT — ATOMIC WRAPPER
 // ---------------------------------------------------------------------------
 
 /**
- * Checks whether a new RepairOrder can be created under the BASIC monthly limit.
+ * withRepairOrderLimitGuard
  *
- * CONCURRENCY STRATEGY - SERIALIZABLE transaction with retry:
- *   A naive COUNT then INSERT allows two concurrent requests both reading
- *   count=99, both deciding OK, and both inserting -> 101 rows.
+ * Executes a RepairOrder creation callback inside a SERIALIZABLE transaction
+ * that first verifies the monthly BASIC plan limit is not exceeded.
  *
- *   SERIALIZABLE isolation makes PostgreSQL treat the COUNT read and
- *   subsequent insert as a single atomic unit. If two transactions conflict,
- *   one is aborted with error code 40001 (serialization failure) and retried.
+ * ── CONCURRENCY STRATEGY ──────────────────────────────────────────────────
+ * The CHECK (COUNT) and the INSERT (callback) happen inside THE SAME
+ * SERIALIZABLE transaction. This is the critical difference from a naive
+ * check-then-insert pattern:
  *
- *   Alternative (advisory lock per shopId+month) was rejected because it
- *   serializes all inserts even when far under the limit. SERIALIZABLE only
- *   aborts on actual conflicts, preserving concurrency in the common case.
+ *   Naive (UNSAFE):
+ *     tx1: COUNT = 99 → allowed
+ *     tx2: COUNT = 99 → allowed
+ *     tx1: INSERT → count = 100  ✓
+ *     tx2: INSERT → count = 101  ✗ OVERFLOW
  *
- * NOTE: Not yet connected to the production RepairOrder path.
- *       This will be wired in the next enforcement phase.
+ *   This function (SAFE):
+ *     tx1: [SERIALIZABLE] COUNT = 99 → INSERT → COMMIT → count = 100  ✓
+ *     tx2: [SERIALIZABLE] COUNT = 100 → ABORT (serialization failure) → retry
+ *          on retry: COUNT = 100 → DENIED ✓
+ *
+ * SERIALIZABLE isolation in PostgreSQL prevents tx2 from seeing count=99 once
+ * tx1 has committed its INSERT, because the COUNT predicate on (shopId, month)
+ * overlaps with the INSERT. PostgreSQL detects this as a write-write conflict
+ * and aborts one transaction with error code 40001.
+ *
+ * The caller's CREATE callback must use the `tx` TransactionClient, not the
+ * global `prisma` client, to stay inside the atomic boundary.
+ *
+ * Retry policy: up to `maxRetries` attempts with exponential backoff (10ms base).
+ * If all attempts fail with serialization errors, the last error is re-thrown.
+ *
+ * NOTE: This function is NOT yet wired to the production RepairOrder creation
+ * path. It is provided as a correct primitive for the next enforcement phase.
+ * Concurrency enforcement at exactly count=99+2 simultaneous creates cannot be
+ * fully integration-tested without connecting to the production create path —
+ * that test is explicitly deferred to the Enforcement phase.
+ *
+ * @param shopId     - MUST come from Auth Context.
+ * @param now        - Injected for testability.
+ * @param callback   - Receives TransactionClient; MUST use it for the INSERT.
+ * @param maxRetries - Max serialization failure retries (default 3).
  */
-export async function checkRepairOrderLimitForBasic(
+export async function withRepairOrderLimitGuard<T>(
   shopId: string,
+  callback: RepairOrderCreateCallback<T>,
   now: Date = new Date(),
   maxRetries = 3
-): Promise<boolean> {
+): Promise<{ result: T } | { denied: true; code: EntitlementDenyCode; message: string; upgradeUrl: string }> {
   const monthStart = utcStartOfMonth(now);
-  const LIMIT = 100;
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      const allowed = await prisma.$transaction(
+      const outcome = await prisma.$transaction(
         async (tx) => {
-          const count = await tx.repairOrder.count({
-            where: {
-              shopId,
-              createdAt: { gte: monthStart },
-              deletedAt: null,
+          // ── STEP 1: Check entitlement subscription snapshot ──────────────
+          // Re-read subscription inside the transaction for consistency.
+          const sub = await tx.subscription.findUnique({
+            where: { shopId },
+            select: {
+              plan: true,
+              status: true,
+              trialStartedAt: true,
+              trialEndsAt: true,
+              currentPeriodStartedAt: true,
+              currentPeriodEndsAt: true,
+              gracePeriodEndsAt: true,
             },
           });
-          return count < LIMIT;
+
+          if (!sub) {
+            return {
+              denied: true,
+              code: "SUBSCRIPTION_EXPIRED" as EntitlementDenyCode,
+              message: "لم يتم العثور على اشتراك لهذا المتجر.",
+              upgradeUrl: UPGRADE_URL,
+            } as const;
+          }
+
+          const effectiveStatus = computeEffectiveStatus(
+            sub.status,
+            sub.trialEndsAt,
+            sub.currentPeriodStartedAt ?? null,
+            sub.currentPeriodEndsAt ?? null,
+            sub.gracePeriodEndsAt ?? null,
+            now
+          );
+          const isOperationallyActive =
+            effectiveStatus === "TRIALING" ||
+            effectiveStatus === "ACTIVE" ||
+            effectiveStatus === "GRACE_PERIOD";
+
+          if (!isOperationallyActive) {
+            return {
+              denied: true,
+              code: "SUBSCRIPTION_EXPIRED" as EntitlementDenyCode,
+              message: "اشتراك متجرك منتهٍ. جدد اشتراكك للاستمرار في إنشاء تذاكر الصيانة.",
+              upgradeUrl: UPGRADE_URL,
+            } as const;
+          }
+
+          const effectivePlan = computeEffectivePlan(effectiveStatus, sub.plan);
+          const limits = PLAN_LIMITS[effectivePlan];
+
+          // ── STEP 2: COUNT check — only for BASIC (unlimited plans skip) ──
+          if (limits.monthlyRepairOrders !== null) {
+            const count = await tx.repairOrder.count({
+              where: {
+                shopId,
+                createdAt: { gte: monthStart },
+                deletedAt: null,
+              },
+            });
+
+            if (count >= limits.monthlyRepairOrders) {
+              return {
+                denied: true,
+                code: "REPAIR_LIMIT_REACHED" as EntitlementDenyCode,
+                message: `وصلت إلى الحد الأقصى من تذاكر الصيانة هذا الشهر (${limits.monthlyRepairOrders} تذكرة). جدد اشتراكك أو انتظر بداية الشهر القادم.`,
+                upgradeUrl: UPGRADE_URL,
+              } as const;
+            }
+          }
+
+          // ── STEP 3: Execute CREATE inside the SAME transaction ───────────
+          const created = await callback(tx);
+          return { created } as const;
         },
-        { isolationLevel: "Serializable", timeout: 5000 }
+        { isolationLevel: "Serializable", timeout: 10000 }
       );
-      return allowed;
+
+      if ("denied" in outcome && outcome.denied) {
+        return { denied: true, code: outcome.code, message: outcome.message, upgradeUrl: outcome.upgradeUrl };
+      }
+
+      return { result: (outcome as { created: T }).created };
     } catch (err: unknown) {
       const isSerializationError =
         err instanceof Error &&
@@ -387,24 +598,37 @@ export async function checkRepairOrderLimitForBasic(
         (err as { code: string }).code === "40001";
 
       if (isSerializationError && attempt < maxRetries - 1) {
+        // Exponential backoff: 10ms, 20ms, 40ms
         await new Promise((resolve) => setTimeout(resolve, 10 * Math.pow(2, attempt)));
         continue;
       }
-      throw err;
+      throw err; // non-serialization error or exhausted retries
     }
   }
-  return false;
+
+  // Should never reach here given the loop structure
+  return {
+    denied: true,
+    code: "REPAIR_LIMIT_REACHED",
+    message: "تعذر التحقق من الحد الشهري بعد عدة محاولات. يرجى المحاولة مرة أخرى.",
+    upgradeUrl: UPGRADE_URL,
+  };
 }
 
 // ---------------------------------------------------------------------------
-// MAIN CONTEXT BUILDER
+// MAIN ENTITLEMENT CONTEXT BUILDER
 // ---------------------------------------------------------------------------
 
 /**
- * Builds the full entitlement context for a shop.
+ * Builds the full entitlement picture for a shop.
+ * Safe to call from any Server Action or API Route after extracting shopId
+ * from Auth Context.
  *
- * SECURITY: shopId MUST be sourced from getAuthContext().shop.id.
- * Never pass shopId from request body or query params.
+ * SECURITY: shopId MUST come from getAuthContext().shop.id — never from
+ * request body or URL params.
+ *
+ * @param shopId - Verified shop identifier from Auth Context.
+ * @param now    - Injected for testability; defaults to current UTC time.
  */
 export async function getEntitlementContext(
   shopId: string,
@@ -450,15 +674,21 @@ export async function getEntitlementContext(
 }
 
 // ---------------------------------------------------------------------------
-// TYPED CHECK HELPERS
+// TYPED CHECK HELPERS (read-only, no side effects)
 // ---------------------------------------------------------------------------
 
+/**
+ * Returns a typed EntitlementResult for RepairOrder creation.
+ * Does NOT create anything. For the atomic guarded create, use
+ * withRepairOrderLimitGuard() instead.
+ *
+ * SECURITY: shopId MUST come from Auth Context.
+ */
 export async function checkCanCreateRepairOrder(
   shopId: string,
   now: Date = new Date()
 ): Promise<EntitlementResult> {
   const ctx = await getEntitlementContext(shopId, now);
-
   if (!ctx.isOperationallyActive) {
     return {
       allowed: false,
@@ -467,26 +697,28 @@ export async function checkCanCreateRepairOrder(
       upgradeUrl: UPGRADE_URL,
     };
   }
-
   if (!ctx.canCreateRepairOrder) {
-    const limit = ctx.limits.monthlyRepairOrders!;
     return {
       allowed: false,
       code: "REPAIR_LIMIT_REACHED",
-      message: `وصلت إلى الحد الأقصى من تذاكر الصيانة هذا الشهر (${limit} تذكرة). جدد اشتراكك أو انتظر بداية الشهر القادم.`,
+      message: `وصلت إلى الحد الأقصى من تذاكر الصيانة هذا الشهر (${ctx.limits.monthlyRepairOrders!} تذكرة). جدد اشتراكك أو انتظر بداية الشهر القادم.`,
       upgradeUrl: UPGRADE_URL,
     };
   }
-
   return { allowed: true };
 }
 
+/**
+ * Returns a typed EntitlementResult for adding an employee.
+ * Does NOT add the employee.
+ *
+ * SECURITY: shopId MUST come from Auth Context.
+ */
 export async function checkCanAddEmployee(
   shopId: string,
   now: Date = new Date()
 ): Promise<EntitlementResult> {
   const ctx = await getEntitlementContext(shopId, now);
-
   if (!ctx.isOperationallyActive) {
     return {
       allowed: false,
@@ -495,26 +727,29 @@ export async function checkCanAddEmployee(
       upgradeUrl: UPGRADE_URL,
     };
   }
-
   if (!ctx.canAddEmployee) {
-    const limit = ctx.limits.totalSeats!;
     return {
       allowed: false,
       code: "EMPLOYEE_LIMIT_REACHED",
-      message: `الخطة الأساسية تسمح بـ ${limit} مستخدم فقط. ترقَّ إلى الخطة الاحترافية لإضافة موظفين بلا حدود.`,
+      message: `الخطة الأساسية تسمح بـ ${ctx.limits.totalSeats!} مستخدم فقط. ترقَّ إلى الخطة الاحترافية لإضافة موظفين بلا حدود.`,
       upgradeUrl: UPGRADE_URL,
     };
   }
-
   return { allowed: true };
 }
 
+/**
+ * Returns a typed EntitlementResult for a Compatibility Search.
+ * Does NOT increment the counter. Call incrementCompatibilitySearchEnforced()
+ * after confirming allowed.
+ *
+ * SECURITY: shopId MUST come from Auth Context.
+ */
 export async function checkCanPerformCompatibilitySearch(
   shopId: string,
   now: Date = new Date()
 ): Promise<EntitlementResult> {
   const ctx = await getEntitlementContext(shopId, now);
-
   if (!ctx.isOperationallyActive) {
     return {
       allowed: false,
@@ -523,17 +758,14 @@ export async function checkCanPerformCompatibilitySearch(
       upgradeUrl: UPGRADE_URL,
     };
   }
-
   if (!ctx.canPerformCompatibilitySearch) {
-    const limit = ctx.limits.dailyCompatibilitySearches!;
     return {
       allowed: false,
       code: "COMPATIBILITY_SEARCH_LIMIT_REACHED",
-      message: `وصلت إلى حد عمليات البحث اليومية (${limit} بحث). تجدد الحصة يومياً عند منتصف الليل بتوقيت UTC. ترقَّ إلى الخطة الاحترافية للبحث بلا حدود.`,
+      message: `وصلت إلى حد عمليات البحث اليومية (${ctx.limits.dailyCompatibilitySearches!} بحث). تجدد الحصة يومياً عند منتصف الليل بتوقيت UTC. ترقَّ إلى الخطة الاحترافية للبحث بلا حدود.`,
       upgradeUrl: UPGRADE_URL,
     };
   }
-
   return { allowed: true };
 }
 
@@ -542,12 +774,16 @@ export async function checkCanPerformCompatibilitySearch(
 // ---------------------------------------------------------------------------
 
 export const entitlementService = {
+  // Context builder
   getEntitlementContext,
+  // Read-only check helpers
   checkCanCreateRepairOrder,
   checkCanAddEmployee,
   checkCanPerformCompatibilitySearch,
+  // Atomic write primitives
+  withRepairOrderLimitGuard,
   incrementCompatibilitySearch,
   incrementCompatibilitySearchEnforced,
-  checkRepairOrderLimitForBasic,
-  toUtcDateString,
+  // UTC date utility
+  toUtcDateOnly,
 };
