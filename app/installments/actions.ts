@@ -7,6 +7,7 @@ import { z } from "zod";
 
 import { requirePermission } from "@/lib/auth/context";
 import { installmentService } from "@/lib/services/installmentService";
+import { entitlementService } from "@/lib/services/subscriptionEntitlementService";
 
 function read(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -77,6 +78,12 @@ export async function createInstallmentPlanAction(formData: FormData) {
       firstDueAt: read(formData, "firstDueAt"),
     });
     const auth = await requirePermission("invoices:pay");
+    const entitlement = await entitlementService.getEntitlementContext(auth.shop.id);
+    if (!entitlement.isOperationallyActive) {
+      throw new Error(
+        "انتهت فترة استخدامك. بياناتك محفوظة بالكامل، اختر خطة لمتابعة إنشاء عمليات جديدة.",
+      );
+    }
     const plan = await installmentService.createPlan(auth.shop.id, auth.user.id, input);
     revalidatePath("/installments");
     revalidatePath("/invoices");

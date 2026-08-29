@@ -7,6 +7,7 @@ import { z } from "zod";
 import { requirePermission } from "@/lib/auth/context";
 import { invoiceService } from "@/lib/services/invoiceService";
 import { paymentService } from "@/lib/services/paymentService";
+import { entitlementService } from "@/lib/services/subscriptionEntitlementService";
 
 const createFromRepairSchema = z.object({
   repairOrderId: z.string().uuid(),
@@ -55,6 +56,15 @@ function getErrorMessage(error: unknown) {
   return "حدث خطأ غير متوقع.";
 }
 
+async function assertCanCreateNewInvoice(shopId: string) {
+  const entitlement = await entitlementService.getEntitlementContext(shopId);
+  if (!entitlement.isOperationallyActive) {
+    throw new Error(
+      "انتهت فترة استخدامك. بياناتك محفوظة بالكامل، اختر خطة لمتابعة إنشاء عمليات جديدة.",
+    );
+  }
+}
+
 export async function createInvoiceFromRepairOrderAction(formData: FormData) {
   const input = createFromRepairSchema.parse({
     repairOrderId: readString(formData, "repairOrderId"),
@@ -63,6 +73,7 @@ export async function createInvoiceFromRepairOrderAction(formData: FormData) {
 
   try {
     const auth = await requirePermission("repairs:update");
+    await assertCanCreateNewInvoice(auth.shop.id);
     const invoice = await invoiceService.createInvoiceFromRepairOrder(
       auth.shop.id,
       input.repairOrderId,
@@ -88,6 +99,7 @@ export async function createInvoiceFromSaleAction(formData: FormData) {
 
   try {
     const auth = await requirePermission("sales:create");
+    await assertCanCreateNewInvoice(auth.shop.id);
     const invoice = await invoiceService.createInvoiceFromSale(
       auth.shop.id,
       input.saleId,

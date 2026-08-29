@@ -34,7 +34,7 @@ enum MembershipStatus {
 
 // Invitation Lifecycle
 enum InvitationStatus {
-  PENDING // دعوة قيد الانتظار لم تُقبل بعد
+  PENDING // دعوة لم تُقبل بعد
   ACCEPTED // دعوة تم قبولها وانضم الموظف
   REVOKED // دعوة تم إلغاؤها من قبل الإدارة
   EXPIRED // دعوة انتهت صلاحيتها الزمنية
@@ -120,6 +120,8 @@ enum ExpenseCategory {
   OTHER
 }
 
+// BASIC retained only for historical PostgreSQL enum compatibility.
+// All new/trial/paid subscriptions use PROFESSIONAL.
 enum SubscriptionPlan {
   BASIC
   PROFESSIONAL
@@ -152,7 +154,7 @@ model Shop {
   taxNumber   String?
   taxRate     Decimal   @default(15) @db.Decimal(5, 2)
   terms       String?
-  maxSeats    Int       @default(5) // حد المقاعد المسموح بها وفق خطة الاشتراك
+  maxSeats    Int       @default(5) // Legacy only; subscription Entitlement Service is authoritative
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
@@ -198,6 +200,11 @@ model Subscription {
   currentPeriodEndsAt    DateTime?
   activatedAt            DateTime?
   canceledAt             DateTime?
+  gracePeriodEndsAt      DateTime?
+  adminNotes             String?                      @db.Text
+  paymentReference       String?
+  paymentMethod          String?                      @db.VarChar(50)
+  activatedById          String?                      @db.Uuid
   createdAt              DateTime                     @default(now())
   updatedAt              DateTime                     @updatedAt
 
@@ -206,7 +213,10 @@ model Subscription {
   @@index([status, trialEndsAt])
   @@index([plan, status])
   @@index([currentPeriodEndsAt])
+  @@index([gracePeriodEndsAt])
+  @@index([activatedById])
 }
+
 
 model SubscriptionPrice {
   id              String                      @id @default(uuid()) @db.Uuid
@@ -238,7 +248,6 @@ model User {
   lastActiveAt DateTime?
   version      Int       @default(1)
 
-  // Modern Multi-Tenancy Relations
   memberships                Membership[]
   sentInvitations            ShopInvitation[]     @relation("InvitedByUser")
   createdInstallmentPlans    InstallmentPlan[]    @relation("InstallmentPlanCreator")
@@ -246,8 +255,6 @@ model User {
   createdExpenses            Expense[]            @relation("ExpenseCreator")
   passwordResetTokens        PasswordResetToken[]
 
-  // Legacy Fields (Retained for Phase 1 backward compatibility / safe migration)
-  // [DEPRECATED]: These will be removed in a future migration after complete transition to Membership
   shopId String   @db.Uuid
   role   UserRole @default(OWNER)
   shop   Shop     @relation(fields: [shopId], references: [id])
@@ -298,10 +305,10 @@ model Membership {
 model ShopInvitation {
   id              String           @id @default(uuid()) @db.Uuid
   shopId          String           @db.Uuid
-  name            String? // اسم الموظف المحدد عند إنشاء الدعوة
+  name            String?
   email           String
   role            MembershipRole   @default(TECHNICIAN)
-  tokenHash       String           @unique // SHA-256 hash of the 32-byte cryptographically secure token
+  tokenHash       String           @unique
   status          InvitationStatus @default(PENDING)
   invitedByUserId String?          @db.Uuid
   expiresAt       DateTime
@@ -381,11 +388,11 @@ model RepairOrder {
   customerId        String?      @db.Uuid
   supplierId        String?      @db.Uuid
   createdByUserId   String?      @db.Uuid
-  assignedToUserId  String?      @db.Uuid // الفني المسؤول عن تنفيذ طلب الصيانة
-  assignedByUserId  String?      @db.Uuid // المالك أو المدير الذي أجرى آخر إسناد
+  assignedToUserId  String?      @db.Uuid
+  assignedByUserId  String?      @db.Uuid
   assignedAt        DateTime?
-  assignmentSeenAt  DateTime? // وقت فتح الفني للتذكرة بعد آخر إسناد
-  updatedByUserId   String?      @db.Uuid // آخر مستخدم أجرى تعديلاً على الطلب
+  assignmentSeenAt  DateTime?
+  updatedByUserId   String?      @db.Uuid
   clientGeneratedId String?
   ticketNumber      String
   status            RepairStatus @default(PENDING)
@@ -459,7 +466,7 @@ model RepairOrderItem {
   partName          String
   quantity          Int       @default(1)
   unitCost          Decimal?  @db.Decimal(12, 2)
-  unitPrice         Decimal?  @db.Decimal(12, 2)
+  unitPrice          Decimal?  @db.Decimal(12, 2)
   supplierName      String?
   notes             String?
   createdAt         DateTime  @default(now())
@@ -515,7 +522,7 @@ model InventoryItem {
   name              String
   description       String?
   unitCost          Decimal?  @db.Decimal(12, 2)
-  unitPrice         Decimal   @db.Decimal(12, 2)
+  unitPrice          Decimal   @db.Decimal(12, 2)
   quantity          Int       @default(0)
   reorderLevel      Int       @default(0)
   createdAt         DateTime  @default(now())
@@ -880,38 +887,38 @@ model WhatsAppTemplate {
 // ---------------------------------------------------------
 
 enum PartCategory {
-  SCREEN // الشاشات واللمس
-  BATTERY // البطاريات والـ BMS
-  CHARGING_PORT // منافذ وقواعد وفلاتات الشحن
-  IC_CHIP // الآيسيات ودوائر الطاقة وإدارة الإشارة
-  CONNECTOR // كونكترات وفلاتات الربط (FPC)
-  CAMERA // الكاميرات والمستشعرات
-  HOUSING_FRAME // الأطر ولواصق التثبيت
+  SCREEN
+  BATTERY
+  CHARGING_PORT
+  IC_CHIP
+  CONNECTOR
+  CAMERA
+  HOUSING_FRAME
   OTHER
 }
 
 enum CompatibilityStatus {
-  VERIFIED // توافق موثق وفق معيار التحقق المعتمد في النظام
-  PROVISIONALLY_VERIFIED // موثق مبدئياً بأدلة أولية (يظهر مع تحذير تدقيق ولا يعامل كبديل نهائي)
-  UNVERIFIED // غير موثق (مسودة / اقتراح جديد قيد المراجعة)
-  INCOMPATIBLE // غير متوافق نهائياً (تحذير صريح لمنع حدوث تلف في الأجهزة)
+  VERIFIED
+  PROVISIONALLY_VERIFIED
+  UNVERIFIED
+  INCOMPATIBLE
 }
 
 enum CompatibilityType {
-  DIRECT_REPLACEMENT // بديل مباشر (Drop-in): يركب ويعمل بدون أي تعديل
-  FUNCTIONAL_EQUIVALENT // متطابق وظيفياً (قد يختلف المظهر الخارجي أو الشركة المصنعة)
-  PHYSICAL_COMPATIBLE // متطابق فيزيائياً ولكن قد يتطلب تعديلاً بسيطاً (مثل نقل الفلكس)
-  REQUIRES_MODIFICATION // يتطلب تعديلاً فلكس/لحام/إعادة برمجة (موضح في الملاحظات)
-  PARTIAL_COMPATIBILITY // توافق جزئي (مثلاً: تعمل الشاشة لكن لا يعمل التردد العالي)
-  INCOMPATIBLE // غير متوافق
+  DIRECT_REPLACEMENT
+  FUNCTIONAL_EQUIVALENT
+  PHYSICAL_COMPATIBLE
+  REQUIRES_MODIFICATION
+  PARTIAL_COMPATIBILITY
+  INCOMPATIBLE
 }
 
 enum VerificationLevel {
-  OEM_OFFICIAL // صادر ومؤكد من الشركة المصنعة (Service Manual / OEM Bulletin)
-  ENGINEERING_VERIFIED // موثق بمخطط هندسي معتمد (Schematic / Boardview / Pinout Matrix)
-  PHYSICAL_TEST_VERIFIED // تم اختباره والتأكد منه فيزيائياً وميدانياً في ورشة معتمدة
-  TECHNICIAN_REPORTED // تجربة/تقرير فني خبير (يحتاج مراجعة مهندس معتمد)
-  SUPPLIER_CATALOG // كتالوج مورد قطع غيار معتمد
+  OEM_OFFICIAL
+  ENGINEERING_VERIFIED
+  PHYSICAL_TEST_VERIFIED
+  TECHNICIAN_REPORTED
+  SUPPLIER_CATALOG
 }
 
 enum VerificationSourceType {
@@ -940,11 +947,11 @@ enum CompatibilityImportStatus {
 }
 
 enum CompatibilityCandidateStatus {
-  READY_FOR_CORROBORATION // اسم نظيف مبدئياً، لكنه لا يزال بحاجة إلى مصدر مستقل
-  NEEDS_REVIEW // توجد ملاحظة تستلزم مراجعة قبل البحث عن مصادر إضافية
-  QUARANTINED // بيانات مشوهة أو مجموعة كبيرة/مشبوهة، ولا يجوز نشرها
-  APPROVED // تم اعتماد المرشح لاحقاً عبر مسار التحقق
-  REJECTED // ثبت أن المرشح غير صحيح
+  READY_FOR_CORROBORATION
+  NEEDS_REVIEW
+  QUARANTINED
+  APPROVED
+  REJECTED
 }
 
 enum CompatibilityTestResult {
@@ -968,24 +975,19 @@ enum CompatibilityConflictStatus {
 
 model Device {
   id              String  @id @default(uuid()) @db.Uuid
-  brand           String // Samsung, Xiaomi, Apple, Infinix...
-  commercialName  String // Galaxy A12, Redmi Note 10 Pro...
-  modelNumber     String // SM-A125F, M2101K6G...
-  normalizedModel String // sma125f, m2101k6g
-  networkVariant  String? // 4G, 5G, LTE
-  region          String? // Global, EU, China, India, USA
-  boardRevision   String? // Rev 0.3, PCB v2.0
+  brand           String
+  commercialName  String
+  modelNumber     String
+  normalizedModel String
+  networkVariant  String?
+  region          String?
+  boardRevision   String?
   releaseYear     Int?
   notes           String?
-
-  // Archiving (Soft Delete)
-  isArchived Boolean   @default(false)
-  archivedAt DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // العلاقات (RESTRICT لحماية البيانات التاريخية من الحذف العرضي)
+  isArchived      Boolean   @default(false)
+  archivedAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
   compatibilities  DeviceCompatibility[]
   candidateMembers CompatibilityCandidateMember[]
 
@@ -997,20 +999,15 @@ model Device {
 model Part {
   id                 String       @id @default(uuid()) @db.Uuid
   category           PartCategory
-  name               String // شاشة كاملة مع الفريم، بطارية 5000mAh...
-  manufacturerCode   String? // الكود المصنعي الصريح (مثل BN5A, EB-BA125ABY, PM6150)
-  normalizedPartCode String? // bn5a, ebba125aby, pm6150
-  partAliases        String[] // أسماء بديلة وأكواد شائعة للقطعة
-  specifications     Json? // أبعاد، سعة، فولتية، Pinout، تردد...
-
-  // Archiving (Soft Delete)
-  isArchived Boolean   @default(false)
-  archivedAt DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // العلاقات
+  name               String
+  manufacturerCode   String?
+  normalizedPartCode String?
+  partAliases        String[]
+  specifications     Json?
+  isArchived         Boolean   @default(false)
+  archivedAt         DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
   compatibilities DeviceCompatibility[]
   inventoryItems  InventoryItem[]
 
@@ -1023,18 +1020,12 @@ model DeviceCompatibility {
   id       String @id @default(uuid()) @db.Uuid
   deviceId String @db.Uuid
   partId   String @db.Uuid
-
-  // تصنيف التوافق (بدون default)
   compatibilityStatus CompatibilityStatus @default(UNVERIFIED)
   compatibilityType   CompatibilityType
-
-  // ملخص التوثيق الفني
   verificationLevel VerificationLevel @default(TECHNICIAN_REPORTED)
-  technicalNotes    String? // ملاحظات فنية للتركيب
-
-  // تدقيق وصلاحيات النشر وإثبات من اعتمد السجل
-  createdById             String? // معرف من قام بإدخال السجل
-  verifiedById            String? // معرف المهندس/المدقق المعتمد الذي راجع واعتمد
+  technicalNotes    String?
+  createdById             String?
+  verifiedById            String?
   verifiedAt              DateTime?
   publishedAt             DateTime?
   publishedById           String?
@@ -1043,19 +1034,12 @@ model DeviceCompatibility {
   reviewVersion           Int       @default(1)
   corroboratedSourceCount Int       @default(0)
   verificationMethod      String?
-
-  // Archiving (Soft Delete - الحذف الفعلي محظور برمجياً)
   isArchived Boolean   @default(false)
   archivedAt DateTime?
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  // العلاقات (RESTRICT: يمنع حذف الجهاز أو القطعة إذا كانت مرتبطة بسجل توافق)
   device Device @relation(fields: [deviceId], references: [id], onDelete: Restrict)
   part   Part   @relation(fields: [partId], references: [id], onDelete: Restrict)
-
-  // أدلة التحقق المتعددة (Decoupled Evidence Model)
   evidences       CompatibilityEvidence[]
   reviews         CompatibilityReview[]
   auditEvents     CompatibilityAuditEvent[]
@@ -1076,14 +1060,11 @@ model CompatibilityEvidence {
   compatibilityId String                 @db.Uuid
   sourceId        String?                @db.Uuid
   sourceType      VerificationSourceType
-  sourceReference String // رقم المخطط، اسم الدليل، رقم الصفحة، رابط المرجع
-  evidenceDetails String // تفاصيل الدليل الفني والشرح الهندسي
-  verifiedBy      String // اسم أو معرف المدقق الفني
+  sourceReference String
+  evidenceDetails String
+  verifiedBy      String
   verifiedAt      DateTime               @default(now())
-
   createdAt DateTime @default(now())
-
-  // العلاقات
   compatibility DeviceCompatibility  @relation(fields: [compatibilityId], references: [id], onDelete: Cascade)
   source        CompatibilitySource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
 
@@ -1103,7 +1084,6 @@ model CompatibilitySource {
   isActive     Boolean                @default(true)
   createdAt    DateTime               @default(now())
   updatedAt    DateTime               @updatedAt
-
   evidences     CompatibilityEvidence[]
   importBatches CompatibilityImportBatch[]
 
@@ -1119,7 +1099,6 @@ model CompatibilityReview {
   notes           String?
   reviewVersion   Int                         @default(1)
   createdAt       DateTime                    @default(now())
-
   compatibility DeviceCompatibility @relation(fields: [compatibilityId], references: [id], onDelete: Cascade)
 
   @@unique([compatibilityId, reviewerId, reviewVersion])
@@ -1137,7 +1116,6 @@ model CompatibilityAuditEvent {
   reason          String?
   metadata        Json?
   createdAt       DateTime             @default(now())
-
   compatibility DeviceCompatibility @relation(fields: [compatibilityId], references: [id], onDelete: Cascade)
 
   @@index([compatibilityId, createdAt])
@@ -1160,7 +1138,6 @@ model CompatibilityImportBatch {
   completedAt      DateTime?
   sourceFileHash   String?                   @unique
   categoryName     String?
-
   source CompatibilitySource?          @relation(fields: [sourceId], references: [id], onDelete: SetNull)
   groups CompatibilityCandidateGroup[]
 
@@ -1169,7 +1146,6 @@ model CompatibilityImportBatch {
   @@index([categoryName])
 }
 
-/// مجموعة توافق مرشحة كما وردت من المصدر. وجودها هنا لا يعني صحة التوافق.
 model CompatibilityCandidateGroup {
   id              String                         @id @default(uuid()) @db.Uuid
   batchId         String                         @db.Uuid
@@ -1193,13 +1169,11 @@ model CompatibilityCandidateGroup {
   @@index([brandSection])
 }
 
-/// ربط صريح بين صنف المخزون ومجموعة توافق؛ لا يعتمد على تشابه الأسماء.
 model InventoryCompatibilityGroup {
   id               String   @id @default(uuid()) @db.Uuid
   inventoryItemId  String   @db.Uuid
   candidateGroupId String   @db.Uuid
   createdAt        DateTime @default(now())
-
   inventoryItem  InventoryItem               @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
   candidateGroup CompatibilityCandidateGroup @relation(fields: [candidateGroupId], references: [id], onDelete: Cascade)
 
@@ -1208,7 +1182,6 @@ model InventoryCompatibilityGroup {
   @@index([candidateGroupId])
 }
 
-/// اسم جهاز خام داخل مجموعة مرشحة، مع إمكانية ربطه بجهاز دقيق بعد المراجعة.
 model CompatibilityCandidateMember {
   id                  String                      @id @default(uuid()) @db.Uuid
   candidateGroupId    String                      @db.Uuid
@@ -1238,7 +1211,6 @@ model CompatibilityPhysicalTest {
   testedAt        DateTime                @default(now())
   approvedById    String?
   approvedAt      DateTime?
-
   compatibility DeviceCompatibility @relation(fields: [compatibilityId], references: [id], onDelete: Cascade)
 
   @@index([compatibilityId, result, testedAt])
@@ -1256,7 +1228,6 @@ model CompatibilityConflictReport {
   resolvedById    String?
   resolvedAt      DateTime?
   resolutionNotes String?
-
   compatibility DeviceCompatibility @relation(fields: [compatibilityId], references: [id], onDelete: Cascade)
 
   @@index([compatibilityId, status, severity])

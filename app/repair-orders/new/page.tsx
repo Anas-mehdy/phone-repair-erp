@@ -6,9 +6,16 @@ import { getCurrentShopContext } from "@/lib/current-shop";
 import { supplierService } from "@/lib/services/supplierService";
 import { inventoryService } from "@/lib/services/inventoryService";
 import { repairOrderService } from "@/lib/services/repairOrderService";
+import { EntitlementAlert } from "@/components/subscription/entitlement-alert";
+import type { EntitlementDenyCode } from "@/lib/services/subscriptionEntitlementService";
 import { CreateRepairOrderForm } from "./_create-form";
 
-export default async function NewRepairOrderPage() {
+export default async function NewRepairOrderPage(props: {
+  searchParams?: Promise<{ entitlement?: string }>;
+}) {
+  const searchParams = await props.searchParams;
+  const entitlementCode = searchParams?.entitlement as EntitlementDenyCode | undefined;
+
   const context = await getCurrentShopContext();
   const canAssign = context.permissions.includes("repairs:assign");
   const [suppliers, inventoryItems, technicians] = await Promise.all([
@@ -42,6 +49,15 @@ export default async function NewRepairOrderPage() {
           </Button>
         }
       />
+
+      {entitlementCode === "SUBSCRIPTION_EXPIRED" && (
+        <EntitlementAlert
+          code="SUBSCRIPTION_EXPIRED"
+          customMessage="انتهت فترة استخدامك. بياناتك محفوظة بالكامل، تواصل مع الدعم لتجديد الاشتراك."
+          actionHref="/support"
+          actionLabel="تواصل مع الدعم"
+        />
+      )}
 
       <CreateRepairOrderForm
         suppliers={suppliers}

@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requirePermission } from "@/lib/auth/context";
 import { repairOrderService } from "@/lib/services/repairOrderService";
+import { entitlementService } from "@/lib/services/subscriptionEntitlementService";
 
 const repairOrderItemSchema = z.object({
   id: z.string().optional(),
@@ -142,12 +143,20 @@ export async function createRepairOrderAction(formData: FormData) {
     await requirePermission("inventory:use_parts");
   }
 
-  const repairOrder = await repairOrderService.createRepairOrder(
+  const guarded = await entitlementService.withRepairOrderLimitGuard(
     auth.shop.id,
-    auth.user.id,
-    input,
+    async () => repairOrderService.createRepairOrder(
+      auth.shop.id,
+      auth.user.id,
+      input,
+    ),
   );
 
+  if (!("result" in guarded)) {
+    redirect(`/repair-orders/new?entitlement=${encodeURIComponent(guarded.code)}`);
+  }
+
+  const repairOrder = guarded.result;
   revalidatePath("/repair-orders");
   redirect(`/repair-orders/${repairOrder.id}`);
 }

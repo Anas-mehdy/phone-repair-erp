@@ -157,7 +157,7 @@ export default async function DashboardPage() {
             </div>
           </div>
           <Button asChild variant="outline" className="h-10 rounded-xl border-teal-200 bg-white text-xs font-black text-teal-700 hover:bg-teal-50">
-            <Link href="/subscription">عرض الاشتراك والأسعار <ChevronLeft className="mr-1.5 h-4 w-4" /></Link>
+            <Link href="/support">التواصل مع الدعم <ChevronLeft className="mr-1.5 h-4 w-4" /></Link>
           </Button>
         </section>
       )}
