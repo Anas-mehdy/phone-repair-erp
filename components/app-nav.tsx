@@ -15,7 +15,6 @@ import {
   WalletCards,
   ChartNoAxesCombined,
   ShieldCheck,
-  Crown,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -104,15 +103,8 @@ export const navGroups: NavGroup[] = [
     title: "المساعدة والتهيئة",
     items: [
       { href: "/account/security", label: "أمان الحساب", icon: ShieldCheck },
-      {
-        href: "/subscription",
-        label: "اشتراكي",
-        icon: Crown,
-        badge: {
-          text: "جديد",
-          className: "border-amber-500/30 bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-sm shadow-amber-500/20",
-        },
-      },
+      // /subscription is intentionally hidden while subscription pricing is being revised.
+      // The route itself also redirects to /dashboard, so direct URL access is blocked.
       { href: "/settings", label: "إعدادات المتجر", icon: Settings },
       { href: "/support", label: "الدعم الفني والواتساب", icon: Headphones },
     ],
