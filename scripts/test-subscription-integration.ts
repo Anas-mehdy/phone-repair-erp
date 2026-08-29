@@ -1,13 +1,14 @@
 import { randomUUID } from "node:crypto";
 import {
+  MembershipRole,
+  MembershipStatus,
   PrismaClient,
   SubscriptionBillingInterval,
   SubscriptionPlan,
   SubscriptionStatus,
 } from "@prisma/client";
 import {
-  incrementCompatibilitySearchEnforced,
-  toUtcDateOnly,
+  entitlementService,
   withRepairOrderLimitGuard,
 } from "@/lib/services/subscriptionEntitlementService";
 
@@ -58,22 +59,20 @@ function assertLocalDatabaseSafety(): URL {
 }
 
 async function assertRequiredSchema() {
-  const rows = await prisma.$queryRaw<Array<{ compatibility_table: string | null; grace_column: string | null }>>`
-    SELECT
-      to_regclass('public."CompatibilitySearchUsage"')::text AS compatibility_table,
-      (
-        SELECT column_name
-        FROM information_schema.columns
-        WHERE table_schema = 'public'
-          AND table_name = 'Subscription'
-          AND column_name = 'gracePeriodEndsAt'
-        LIMIT 1
-      ) AS grace_column
+  const rows = await prisma.$queryRaw<Array<{ grace_column: string | null }>>`
+    SELECT (
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'Subscription'
+        AND column_name = 'gracePeriodEndsAt'
+      LIMIT 1
+    ) AS grace_column
   `;
 
-  if (!rows[0]?.compatibility_table || !rows[0]?.grace_column) {
+  if (!rows[0]?.grace_column) {
     throw new Error(
-      "Local test database is missing entitlement migrations. Apply migrations to the LOCAL disposable database only, then retry.",
+      "Local test database is missing the entitlement grace-period migration. Apply migrations to the LOCAL disposable database only, then retry.",
     );
   }
 }
@@ -82,9 +81,13 @@ function addUtcDays(date: Date, days: number) {
   return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
 }
 
-async function createBasicShopFixture(prefix: string) {
+async function createShopFixture(
+  prefix: string,
+  status: SubscriptionStatus = SubscriptionStatus.ACTIVE,
+) {
   const shopId = randomUUID();
   const now = new Date();
+  const isActive = status === SubscriptionStatus.ACTIVE;
 
   await prisma.shop.create({
     data: {
@@ -94,14 +97,14 @@ async function createBasicShopFixture(prefix: string) {
       currency: "TRY",
       subscription: {
         create: {
-          plan: SubscriptionPlan.BASIC,
-          status: SubscriptionStatus.ACTIVE,
-          billingInterval: SubscriptionBillingInterval.SIX_MONTHS,
+          plan: SubscriptionPlan.PROFESSIONAL,
+          status,
+          billingInterval: isActive ? SubscriptionBillingInterval.SIX_MONTHS : null,
           trialStartedAt: addUtcDays(now, -30),
-          trialEndsAt: addUtcDays(now, -16),
-          currentPeriodStartedAt: addUtcDays(now, -1),
-          currentPeriodEndsAt: addUtcDays(now, 30),
-          activatedAt: addUtcDays(now, -1),
+          trialEndsAt: addUtcDays(now, -20),
+          currentPeriodStartedAt: isActive ? addUtcDays(now, -1) : null,
+          currentPeriodEndsAt: isActive ? addUtcDays(now, 30) : null,
+          activatedAt: isActive ? addUtcDays(now, -1) : null,
         },
       },
     },
@@ -114,139 +117,128 @@ async function cleanupShop(shopId: string) {
   await prisma.shop.delete({ where: { id: shopId } }).catch(() => undefined);
 }
 
-async function testCompatibilityConcurrency() {
-  const { shopId, now } = await createBasicShopFixture("integration-compat");
-
-  try {
-    const attempts = await Promise.all(
-      Array.from({ length: 20 }, () =>
-        incrementCompatibilitySearchEnforced(shopId, 10, now),
-      ),
-    );
-
-    const successes = attempts.filter((value) => value !== null);
-    const denials = attempts.filter((value) => value === null);
-    const row = await prisma.compatibilitySearchUsage.findUnique({
-      where: {
-        shopId_usageDate: {
-          shopId,
-          usageDate: toUtcDateOnly(now),
-        },
-      },
-      select: { searchCount: true },
-    });
-
-    if (successes.length !== 10) {
-      throw new Error(`Compatibility race failed: expected 10 successes, got ${successes.length}.`);
-    }
-    if (denials.length !== 10) {
-      throw new Error(`Compatibility race failed: expected 10 denials, got ${denials.length}.`);
-    }
-    if (row?.searchCount !== 10) {
-      throw new Error(`Compatibility race failed: persisted count is ${row?.searchCount ?? "missing"}, expected 10.`);
-    }
-
-    console.log("✅ Compatibility concurrency: 20 simultaneous attempts => exactly 10 accepted, persisted count=10");
-  } finally {
-    await cleanupShop(shopId);
-  }
-}
-
-async function testRepairOrderConcurrency() {
-  const { shopId, now } = await createBasicShopFixture("integration-repair");
+async function testUnlimitedRepairCreation() {
+  const { shopId, now } = await createShopFixture("integration-unlimited-repair");
 
   try {
     await prisma.repairOrder.createMany({
-      data: Array.from({ length: 99 }, (_, index) => ({
+      data: Array.from({ length: 101 }, (_, index) => ({
         shopId,
         ticketNumber: `IT-${String(index + 1).padStart(3, "0")}`,
-        reportedIssue: "integration concurrency fixture",
+        reportedIssue: "single-plan unlimited fixture",
         createdAt: now,
       })),
     });
 
-    let ticketSequence = 100;
+    let ticketSequence = 102;
     const createAttempt = () =>
-      withRepairOrderLimitGuard(
-        shopId,
-        async () => {
-          // Intentionally use the global Prisma client rather than the transaction
-          // client. This mirrors the production repair-order action, where the
-          // advisory lock must remain effective while the existing service performs
-          // its own database workflow/transaction.
-          const ticketNumber = `IT-${ticketSequence++}`;
-          return prisma.repairOrder.create({
-            data: {
-              shopId,
-              ticketNumber,
-              reportedIssue: "integration concurrent create",
-              createdAt: now,
-            },
-            select: { id: true, ticketNumber: true },
-          });
-        },
-        now,
-      );
+      withRepairOrderLimitGuard(shopId, async () => {
+        const ticketNumber = `IT-${ticketSequence++}`;
+        return prisma.repairOrder.create({
+          data: {
+            shopId,
+            ticketNumber,
+            reportedIssue: "single-plan unlimited concurrent create",
+            createdAt: now,
+          },
+          select: { id: true, ticketNumber: true },
+        });
+      }, now);
 
     const outcomes = await Promise.all([createAttempt(), createAttempt()]);
     const accepted = outcomes.filter((result) => "result" in result);
-    const denied = outcomes.filter(
-      (result) => "denied" in result && result.denied && result.code === "REPAIR_LIMIT_REACHED",
-    );
-
     const finalCount = await prisma.repairOrder.count({
       where: { shopId, deletedAt: null },
     });
 
-    if (accepted.length !== 1) {
-      throw new Error(`Repair race failed: expected exactly 1 accepted create, got ${accepted.length}.`);
+    if (accepted.length !== 2) {
+      throw new Error(`Unlimited repair test failed: expected 2 accepted creates, got ${accepted.length}.`);
     }
-    if (denied.length !== 1) {
-      throw new Error(`Repair race failed: expected exactly 1 limit denial, got ${denied.length}.`);
-    }
-    if (finalCount !== 100) {
-      throw new Error(`Repair race failed: final count is ${finalCount}, expected exactly 100.`);
+    if (finalCount !== 103) {
+      throw new Error(`Unlimited repair test failed: final count is ${finalCount}, expected 103.`);
     }
 
-    console.log("✅ Repair concurrency: 99 existing + 2 simultaneous creates => exactly 1 accepted, final count=100");
+    console.log("✅ Unlimited repair creation: 101 existing + 2 simultaneous creates => both accepted, final count=103");
   } finally {
     await cleanupShop(shopId);
   }
 }
 
-async function testTenantIsolation() {
-  const a = await createBasicShopFixture("integration-tenant-a");
-  const b = await createBasicShopFixture("integration-tenant-b");
+async function testFiveSeatLimit() {
+  const { shopId } = await createShopFixture("integration-seat-limit");
 
   try {
-    await Promise.all(
-      Array.from({ length: 10 }, () =>
-        incrementCompatibilitySearchEnforced(a.shopId, 10, a.now),
-      ),
-    );
+    const ownerId = randomUUID();
+    await prisma.user.create({
+      data: {
+        id: ownerId,
+        shopId,
+        email: `owner-${shopId}@integration.local`,
+        name: "Integration Owner",
+        role: "OWNER",
+      },
+    });
 
-    const bFirstSearch = await incrementCompatibilitySearchEnforced(b.shopId, 10, b.now);
-    const [aRow, bRow] = await Promise.all([
-      prisma.compatibilitySearchUsage.findUnique({
-        where: { shopId_usageDate: { shopId: a.shopId, usageDate: toUtcDateOnly(a.now) } },
-        select: { searchCount: true },
-      }),
-      prisma.compatibilitySearchUsage.findUnique({
-        where: { shopId_usageDate: { shopId: b.shopId, usageDate: toUtcDateOnly(b.now) } },
-        select: { searchCount: true },
-      }),
-    ]);
-
-    if (aRow?.searchCount !== 10 || bRow?.searchCount !== 1 || bFirstSearch !== 1) {
-      throw new Error(
-        `Tenant isolation failed: shopA=${aRow?.searchCount ?? "missing"}, shopB=${bRow?.searchCount ?? "missing"}.`,
-      );
+    for (let index = 0; index < 4; index++) {
+      const userId = randomUUID();
+      await prisma.user.create({
+        data: {
+          id: userId,
+          shopId,
+          email: `staff-${index}-${shopId}@integration.local`,
+          name: `Integration Staff ${index + 1}`,
+          role: "STAFF",
+          memberships: {
+            create: {
+              shopId,
+              role: MembershipRole.TECHNICIAN,
+              status: MembershipStatus.ACTIVE,
+            },
+          },
+        },
+      });
     }
 
-    console.log("✅ Tenant isolation: shop A at 10 does not affect shop B; shop B starts at 1");
+    const context = await entitlementService.getEntitlementContext(shopId);
+    const addEmployee = await entitlementService.checkCanAddEmployee(shopId);
+
+    if (context.usage.activeSeats !== 5) {
+      throw new Error(`Seat limit test failed: activeSeats=${context.usage.activeSeats}, expected 5.`);
+    }
+    if (context.limits.totalSeats !== 5) {
+      throw new Error(`Seat limit test failed: totalSeats=${context.limits.totalSeats}, expected 5.`);
+    }
+    if (addEmployee.allowed || addEmployee.code !== "EMPLOYEE_LIMIT_REACHED") {
+      throw new Error("Seat limit test failed: sixth seat was not denied with EMPLOYEE_LIMIT_REACHED.");
+    }
+
+    console.log("✅ Seat limit: owner + 4 active staff = 5 total seats; sixth seat denied");
   } finally {
-    await cleanupShop(a.shopId);
-    await cleanupShop(b.shopId);
+    await cleanupShop(shopId);
+  }
+}
+
+async function testTenantSubscriptionIsolation() {
+  const active = await createShopFixture("integration-active-shop", SubscriptionStatus.ACTIVE);
+  const expired = await createShopFixture("integration-expired-shop", SubscriptionStatus.EXPIRED);
+
+  try {
+    const [activeResult, expiredResult] = await Promise.all([
+      entitlementService.checkCanCreateNewOperation(active.shopId, active.now),
+      entitlementService.checkCanCreateNewOperation(expired.shopId, expired.now),
+    ]);
+
+    if (!activeResult.allowed) {
+      throw new Error("Tenant isolation failed: active shop was denied.");
+    }
+    if (expiredResult.allowed || expiredResult.code !== "SUBSCRIPTION_EXPIRED") {
+      throw new Error("Tenant isolation failed: expired shop was not independently denied.");
+    }
+
+    console.log("✅ Tenant isolation: active shop remains allowed while expired shop is independently denied");
+  } finally {
+    await cleanupShop(active.shopId);
+    await cleanupShop(expired.shopId);
   }
 }
 
@@ -258,11 +250,11 @@ async function main() {
   console.log("   No production/remote database is permitted by this harness.\n");
 
   await assertRequiredSchema();
-  await testCompatibilityConcurrency();
-  await testRepairOrderConcurrency();
-  await testTenantIsolation();
+  await testUnlimitedRepairCreation();
+  await testFiveSeatLimit();
+  await testTenantSubscriptionIsolation();
 
-  console.log("\n✅ All local PostgreSQL subscription integration tests passed.");
+  console.log("\n✅ All local PostgreSQL single-plan subscription integration tests passed.");
 }
 
 main()
