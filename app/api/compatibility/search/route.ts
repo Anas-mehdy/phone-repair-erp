@@ -10,29 +10,21 @@ import { entitlementService } from "@/lib/services/subscriptionEntitlementServic
 
 export const dynamic = "force-dynamic";
 
-const UPGRADE_URL = "/subscription";
-
-function entitlementDeniedResponse(
-  code: "SUBSCRIPTION_EXPIRED" | "COMPATIBILITY_SEARCH_LIMIT_REACHED",
-  message: string,
-  status: number,
-) {
+function subscriptionExpiredResponse(message: string) {
   return NextResponse.json(
     {
       success: false,
       allowed: false,
-      code,
+      code: "SUBSCRIPTION_EXPIRED",
       message,
-      upgradeUrl: UPGRADE_URL,
+      upgradeUrl: "/support",
     },
-    { status },
+    { status: 403 },
   );
 }
 
 export async function GET(request: NextRequest) {
   try {
-    // Authentication and tenant resolution happen server-side. The browser never
-    // supplies the shopId used for entitlement or usage decisions.
     const auth = await getAuthContext({ allowRedirect: false });
 
     const { searchParams } = new URL(request.url);
@@ -56,38 +48,15 @@ export async function GET(request: NextRequest) {
       status = statusParam as CompatibilityStatus;
     }
 
-    // Opening the page or issuing an empty query must never consume daily usage.
-    // Only a real search request that executes the search service is counted.
+    // The comprehensive plan has unlimited compatibility searches. A real search
+    // is still blocked when the subscription is no longer operationally active.
     if (query) {
-      const entitlement = await entitlementService.getEntitlementContext(auth.shop.id);
+      const entitlement = await entitlementService.checkCanPerformCompatibilitySearch(
+        auth.shop.id,
+      );
 
-      if (!entitlement.isOperationallyActive) {
-        return entitlementDeniedResponse(
-          "SUBSCRIPTION_EXPIRED",
-          "انتهت فترة استخدامك. بياناتك محفوظة بالكامل، اختر خطة لمتابعة إنشاء عمليات جديدة.",
-          403,
-        );
-      }
-
-      if (entitlement.subscription.effectivePlan === "BASIC") {
-        // This single atomic database statement is the authoritative limit check.
-        // A separate read-then-increment would allow concurrent requests to exceed 10.
-        const newCount = await entitlementService.incrementCompatibilitySearchEnforced(
-          auth.shop.id,
-          10,
-        );
-
-        if (newCount === null) {
-          return entitlementDeniedResponse(
-            "COMPATIBILITY_SEARCH_LIMIT_REACHED",
-            "استخدمت عمليات البحث العشر المتاحة اليوم. يمكنك المحاولة غداً أو الترقية للخطة الاحترافية.",
-            429,
-          );
-        }
-      } else {
-        // Trial/Professional are unlimited, but recording real searches keeps the
-        // read-only usage snapshot truthful without imposing a limit.
-        await entitlementService.incrementCompatibilitySearch(auth.shop.id);
+      if (!entitlement.allowed) {
+        return subscriptionExpiredResponse(entitlement.message);
       }
     }
 
