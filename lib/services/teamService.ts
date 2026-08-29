@@ -496,6 +496,7 @@ export async function acceptInvitation(
         data: {
           name,
           passwordHash,
+          version: { increment: 1 },
           deletedAt: null,
         },
       });
@@ -547,6 +548,7 @@ export async function acceptInvitation(
         id: user.id,
         email: user.email,
         name: user.name,
+        version: user.version,
       },
       shop: invitation.shop,
       membership,

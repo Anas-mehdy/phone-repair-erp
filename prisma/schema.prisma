@@ -187,6 +187,7 @@ model User {
   createdInstallmentPlans    InstallmentPlan[]    @relation("InstallmentPlanCreator")
   createdInstallmentPayments InstallmentPayment[] @relation("InstallmentPaymentCreator")
   createdExpenses            Expense[]            @relation("ExpenseCreator")
+  passwordResetTokens        PasswordResetToken[]
 
   // Legacy Fields (Retained for Phase 1 backward compatibility / safe migration)
   // [DEPRECATED]: These will be removed in a future migration after complete transition to Membership
@@ -198,6 +199,22 @@ model User {
   @@index([lastActiveAt])
   @@index([shopId, updatedAt])
   @@index([shopId, deletedAt])
+}
+
+model PasswordResetToken {
+  id                 String    @id @default(uuid()) @db.Uuid
+  userId             String    @db.Uuid
+  tokenHash          String    @unique
+  requestFingerprint String?
+  expiresAt          DateTime
+  usedAt             DateTime?
+  createdAt          DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([expiresAt])
+  @@index([requestFingerprint, createdAt])
 }
 
 model Membership {

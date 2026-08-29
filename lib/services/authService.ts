@@ -70,6 +70,7 @@ export const authService = {
       role: result.user.role,
       shopName: result.shop.name,
       currency: result.shop.currency,
+      sessionVersion: result.user.version,
     });
 
     return result;
@@ -110,6 +111,7 @@ export const authService = {
       role: user.role,
       shopName: user.shop.name,
       currency: user.shop.currency,
+      sessionVersion: user.version,
     });
 
     return { user, shop: user.shop };

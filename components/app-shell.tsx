@@ -69,6 +69,8 @@ export function AppShell({
     pathname === "/" ||
     pathname === "/login" ||
     pathname === "/register" ||
+    pathname === "/forgot-password" ||
+    pathname === "/reset-password" ||
     pathname.includes("/print") ||
     pathname.includes("/sticker") ||
     pathname.startsWith("/track") ||
