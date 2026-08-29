@@ -180,6 +180,7 @@ model Shop {
   paymentSourceOptions      PaymentSourceOption[]
   expenses                  Expense[]
   subscription              Subscription?
+  compatibilitySearchUsages CompatibilitySearchUsage[]
 
   @@index([updatedAt])
   @@index([deletedAt])
@@ -198,6 +199,10 @@ model Subscription {
   currentPeriodEndsAt    DateTime?
   activatedAt            DateTime?
   canceledAt             DateTime?
+  // gracePeriodEndsAt: explicit end timestamp of the grace window.
+  // Status GRACE_PERIOD is only effective while now < gracePeriodEndsAt.
+  // NULL means no grace period is active.
+  gracePeriodEndsAt      DateTime?
   createdAt              DateTime                     @default(now())
   updatedAt              DateTime                     @updatedAt
 
@@ -206,6 +211,33 @@ model Subscription {
   @@index([status, trialEndsAt])
   @@index([plan, status])
   @@index([currentPeriodEndsAt])
+  @@index([gracePeriodEndsAt])
+}
+
+// ---------------------------------------------------------------------------
+// COMPATIBILITY SEARCH USAGE COUNTER
+// ---------------------------------------------------------------------------
+// One row per (shopId, usageDate). usageDate is always a UTC calendar day
+// (YYYY-MM-DD) so the daily bucket is stable across Vercel edge regions.
+// Increments are atomic via PostgreSQL UPDATE ... RETURNING to prevent
+// concurrent requests from racing past the limit.
+//
+// TRIAL and PROFESSIONAL shops do not enforce the limit but usage is still
+// recorded so entitlement checks can return current usage figures.
+// ---------------------------------------------------------------------------
+model CompatibilitySearchUsage {
+  id          String   @id @default(uuid()) @db.Uuid
+  shopId      String   @db.Uuid
+  // ISO date string "YYYY-MM-DD" in UTC – never a timestamp to avoid TZ drift.
+  usageDate   String   @db.VarChar(10)
+  searchCount Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, usageDate])
+  @@index([shopId, usageDate])
 }
 
 model SubscriptionPrice {
