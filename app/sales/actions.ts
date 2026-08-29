@@ -65,11 +65,9 @@ export async function createSaleAction(
     });
 
     const auth = await requirePermission("sales:create");
-    const entitlement = await entitlementService.getEntitlementContext(auth.shop.id);
-    if (!entitlement.isOperationallyActive) {
-      return {
-        error: "انتهت فترة استخدامك. بياناتك محفوظة بالكامل، اختر خطة لمتابعة إنشاء عمليات جديدة.",
-      };
+    const entitlement = await entitlementService.checkCanCreateNewOperation(auth.shop.id);
+    if (!entitlement.allowed) {
+      return { error: entitlement.message };
     }
 
     const sale = await salesService.createSale(auth.shop.id, auth.user.id, {
