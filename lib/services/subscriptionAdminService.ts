@@ -11,7 +11,6 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 export type ActivateSubscriptionInput = {
   shopId: string;
-  plan: SubscriptionPlan;
   billingInterval: SubscriptionBillingInterval;
   extraDays?: number;
   adminNotes?: string | null;
@@ -118,7 +117,7 @@ export async function listSubscriptionsForAdmin(now = new Date()) {
   }));
 }
 
-/** Activates a paid subscription without modifying historical trial dates. */
+/** Activates the single comprehensive paid plan without modifying trial history. */
 export async function activateSubscription(
   input: ActivateSubscriptionInput,
   now = new Date(),
@@ -136,7 +135,9 @@ export async function activateSubscription(
   return prisma.subscription.update({
     where: { shopId: input.shopId },
     data: {
-      plan: input.plan,
+      // PROFESSIONAL is retained as the internal enum value for the one
+      // commercial comprehensive plan. BASIC is deprecated and never activated.
+      plan: SubscriptionPlan.PROFESSIONAL,
       status: SubscriptionStatus.ACTIVE,
       billingInterval: input.billingInterval,
       currentPeriodStartedAt,
@@ -152,17 +153,28 @@ export async function activateSubscription(
   });
 }
 
-/** Explicitly starts a grace period. It is never automatic. */
+/** Explicit renewal grace period; never starts automatically and never applies to trials. */
 export async function startGracePeriod(
   shopId: string,
   days = 3,
   now = new Date(),
 ) {
   await requireSuperAdmin();
-  await requireExistingSubscription(shopId);
+  const subscription = await requireExistingSubscription(shopId);
 
   if (!Number.isInteger(days) || days < 1 || days > 90) {
     throw new Error("مدة مهلة التجديد يجب أن تكون بين يوم واحد و90 يوماً.");
+  }
+
+  if (
+    !subscription.activatedAt ||
+    !subscription.billingInterval ||
+    !subscription.currentPeriodStartedAt ||
+    !subscription.currentPeriodEndsAt ||
+    subscription.status === SubscriptionStatus.TRIALING ||
+    subscription.status === SubscriptionStatus.CANCELED
+  ) {
+    throw new Error("مهلة التجديد متاحة فقط لاشتراك مدفوع سبق تفعيله.");
   }
 
   return prisma.subscription.update({
@@ -201,14 +213,10 @@ export async function cancelSubscription(shopId: string, now = new Date()) {
   });
 }
 
-/**
- * Adds days to a paid period without changing trial history. If the paid period
- * has already ended, extension starts from now rather than from the stale end.
- */
+/** Adds days only to an already-active paid subscription. */
 export async function grantExtraDays(
   shopId: string,
   extraDays: number,
-  now = new Date(),
 ) {
   await requireSuperAdmin();
   const subscription = await requireExistingSubscription(shopId);
@@ -217,15 +225,24 @@ export async function grantExtraDays(
     throw new Error("عدد الأيام الإضافية يجب أن يكون بين 1 و3660 يوماً.");
   }
 
-  const base =
-    subscription.currentPeriodEndsAt && subscription.currentPeriodEndsAt > now
-      ? subscription.currentPeriodEndsAt
-      : now;
+  if (
+    subscription.status !== SubscriptionStatus.ACTIVE ||
+    !subscription.activatedAt ||
+    !subscription.billingInterval ||
+    !subscription.currentPeriodStartedAt ||
+    !subscription.currentPeriodEndsAt
+  ) {
+    throw new Error(
+      "يمكن إضافة أيام فقط إلى اشتراك مدفوع نشط. استخدم التفعيل أو التجديد للحالات الأخرى.",
+    );
+  }
 
   return prisma.subscription.update({
     where: { shopId },
     data: {
-      currentPeriodEndsAt: new Date(base.getTime() + extraDays * DAY_MS),
+      currentPeriodEndsAt: new Date(
+        subscription.currentPeriodEndsAt.getTime() + extraDays * DAY_MS,
+      ),
     },
   });
 }
