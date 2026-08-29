@@ -72,7 +72,7 @@ export default function TechnicianCompatibilityPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [entitlementError, setEntitlementError] = useState<
-    "COMPATIBILITY_SEARCH_LIMIT_REACHED" | "SUBSCRIPTION_EXPIRED" | null
+    "SUBSCRIPTION_EXPIRED" | null
   >(null);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -98,12 +98,6 @@ export default function TechnicianCompatibilityPage() {
         { signal: abortRef.current.signal }
       );
       const payload = await response.json();
-
-      if (response.status === 429 || payload.code === "COMPATIBILITY_SEARCH_LIMIT_REACHED") {
-        setEntitlementError("COMPATIBILITY_SEARCH_LIMIT_REACHED");
-        setResults([]);
-        return;
-      }
 
       if (response.status === 403 || payload.code === "SUBSCRIPTION_EXPIRED") {
         setEntitlementError("SUBSCRIPTION_EXPIRED");
@@ -243,17 +237,6 @@ export default function TechnicianCompatibilityPage() {
             ) : null}
           </div>
         </div>
-
-        {entitlementError === "COMPATIBILITY_SEARCH_LIMIT_REACHED" && (
-          <div className="m-4">
-            <EntitlementAlert
-              code="COMPATIBILITY_SEARCH_LIMIT_REACHED"
-              customMessage="استخدمت عمليات البحث العشر المتاحة اليوم. يمكنك المحاولة غداً أو التواصل مع الدعم للترقية."
-              actionHref="/support"
-              actionLabel="تواصل مع الدعم للترقية"
-            />
-          </div>
-        )}
 
         {entitlementError === "SUBSCRIPTION_EXPIRED" && (
           <div className="m-4">

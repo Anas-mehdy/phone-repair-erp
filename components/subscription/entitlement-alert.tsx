@@ -21,23 +21,10 @@ const ENTITLEMENT_MESSAGES: Record<
     tone: "rose" | "amber";
   }
 > = {
-  REPAIR_LIMIT_REACHED: {
-    title: "تم بلوغ الحد الأقصى لتذاكر الصيانة",
-    message: "استخدمت 100 من أصل 100 تذكرة لهذا الشهر.",
-    icon: AlertCircle,
-    tone: "rose",
-  },
-  COMPATIBILITY_SEARCH_LIMIT_REACHED: {
-    title: "تم بلوغ حد البحث اليومي",
-    message:
-      "استخدمت عمليات البحث العشر المتاحة اليوم. يمكنك المحاولة غداً أو التواصل مع الدعم للترقية.",
-    icon: AlertCircle,
-    tone: "amber",
-  },
   EMPLOYEE_LIMIT_REACHED: {
-    title: "حد المستخدمين في الخطة الحالية",
+    title: "تم بلوغ الحد الأقصى للمستخدمين",
     message:
-      "الخطة الأساسية مخصصة لمستخدم واحد. تواصل مع الدعم للترقية وإضافة الموظفين.",
+      "وصلت إلى الحد الأقصى المسموح به وهو 5 مستخدمين للمتجر، شامل مالك المتجر.",
     icon: AlertTriangle,
     tone: "amber",
   },
@@ -49,6 +36,7 @@ const ENTITLEMENT_MESSAGES: Record<
     tone: "rose",
   },
 };
+
 
 /**
  * Reusable UI Banner for structured Entitlement Limits & Expirations.

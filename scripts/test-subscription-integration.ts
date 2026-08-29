@@ -1,11 +1,12 @@
 import { randomUUID } from "node:crypto";
 import {
-  MembershipRole,
-  MembershipStatus,
   PrismaClient,
   SubscriptionBillingInterval,
   SubscriptionPlan,
   SubscriptionStatus,
+  MembershipRole,
+  MembershipStatus,
+  UserRole,
 } from "@prisma/client";
 import {
   entitlementService,
@@ -60,14 +61,15 @@ function assertLocalDatabaseSafety(): URL {
 
 async function assertRequiredSchema() {
   const rows = await prisma.$queryRaw<Array<{ grace_column: string | null }>>`
-    SELECT (
-      SELECT column_name
-      FROM information_schema.columns
-      WHERE table_schema = 'public'
-        AND table_name = 'Subscription'
-        AND column_name = 'gracePeriodEndsAt'
-      LIMIT 1
-    ) AS grace_column
+    SELECT
+      (
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'Subscription'
+          AND column_name = 'gracePeriodEndsAt'
+        LIMIT 1
+      ) AS grace_column
   `;
 
   if (!rows[0]?.grace_column) {
@@ -93,8 +95,8 @@ async function createShopFixture(
     data: {
       id: shopId,
       name: `${prefix}-${shopId.slice(0, 8)}`,
-      countryCode: "TR",
-      currency: "TRY",
+      countryCode: "SA",
+      currency: "SAR",
       subscription: {
         create: {
           plan: SubscriptionPlan.PROFESSIONAL,
@@ -117,128 +119,144 @@ async function cleanupShop(shopId: string) {
   await prisma.shop.delete({ where: { id: shopId } }).catch(() => undefined);
 }
 
-async function testUnlimitedRepairCreation() {
-  const { shopId, now } = await createShopFixture("integration-unlimited-repair");
+async function testUnlimitedRepairsConcurrency() {
+  const { shopId, now } = await createShopFixture("integration-unlimited-repairs");
 
   try {
     await prisma.repairOrder.createMany({
       data: Array.from({ length: 101 }, (_, index) => ({
         shopId,
-        ticketNumber: `IT-${String(index + 1).padStart(3, "0")}`,
-        reportedIssue: "single-plan unlimited fixture",
+        ticketNumber: `RO-INIT-${String(index + 1).padStart(3, "0")}`,
+        reportedIssue: "unlimited repairs fixture",
         createdAt: now,
       })),
     });
 
     let ticketSequence = 102;
     const createAttempt = () =>
-      withRepairOrderLimitGuard(shopId, async () => {
-        const ticketNumber = `IT-${ticketSequence++}`;
-        return prisma.repairOrder.create({
-          data: {
-            shopId,
-            ticketNumber,
-            reportedIssue: "single-plan unlimited concurrent create",
-            createdAt: now,
-          },
-          select: { id: true, ticketNumber: true },
-        });
-      }, now);
+      withRepairOrderLimitGuard(
+        shopId,
+        async () => {
+          const ticketNumber = `RO-CONC-${ticketSequence++}`;
+          return prisma.repairOrder.create({
+            data: {
+              shopId,
+              ticketNumber,
+              reportedIssue: "concurrent create",
+              createdAt: now,
+            },
+            select: { id: true, ticketNumber: true },
+          });
+        },
+        now,
+      );
 
     const outcomes = await Promise.all([createAttempt(), createAttempt()]);
     const accepted = outcomes.filter((result) => "result" in result);
+
     const finalCount = await prisma.repairOrder.count({
       where: { shopId, deletedAt: null },
     });
 
     if (accepted.length !== 2) {
-      throw new Error(`Unlimited repair test failed: expected 2 accepted creates, got ${accepted.length}.`);
+      throw new Error(
+        `Unlimited repair concurrency failed: expected 2 accepted creates, got ${accepted.length}.`,
+      );
     }
     if (finalCount !== 103) {
-      throw new Error(`Unlimited repair test failed: final count is ${finalCount}, expected 103.`);
+      throw new Error(
+        `Unlimited repair concurrency failed: final count is ${finalCount}, expected 103.`,
+      );
     }
 
-    console.log("✅ Unlimited repair creation: 101 existing + 2 simultaneous creates => both accepted, final count=103");
+    console.log("✅ Unlimited repairs concurrency: 101 existing + 2 simultaneous creates => both accepted, final count=103");
   } finally {
     await cleanupShop(shopId);
   }
 }
 
-async function testFiveSeatLimit() {
-  const { shopId } = await createShopFixture("integration-seat-limit");
+async function testSeatCap() {
+  const { shopId } = await createShopFixture("integration-seat-cap");
 
   try {
-    const ownerId = randomUUID();
-    await prisma.user.create({
+    const owner = await prisma.user.create({
       data: {
-        id: ownerId,
+        email: `owner-${shopId.slice(0, 8)}@test.local`,
+        name: "Shop Owner",
+        passwordHash: "fake-hash",
         shopId,
-        email: `owner-${shopId}@integration.local`,
-        name: "Integration Owner",
-        role: "OWNER",
+        role: UserRole.OWNER,
+      },
+    });
+    await prisma.membership.create({
+      data: {
+        shopId,
+        userId: owner.id,
+        role: MembershipRole.OWNER,
+        status: MembershipStatus.ACTIVE,
       },
     });
 
-    for (let index = 0; index < 4; index++) {
-      const userId = randomUUID();
-      await prisma.user.create({
+    for (let index = 1; index <= 4; index++) {
+      const staff = await prisma.user.create({
         data: {
-          id: userId,
+          email: `staff-${index}-${shopId.slice(0, 8)}@test.local`,
+          name: `Staff Member ${index}`,
+          passwordHash: "fake-hash",
           shopId,
-          email: `staff-${index}-${shopId}@integration.local`,
-          name: `Integration Staff ${index + 1}`,
-          role: "STAFF",
-          memberships: {
-            create: {
-              shopId,
-              role: MembershipRole.TECHNICIAN,
-              status: MembershipStatus.ACTIVE,
-            },
-          },
+          role: UserRole.STAFF,
+        },
+      });
+      await prisma.membership.create({
+        data: {
+          shopId,
+          userId: staff.id,
+          role: MembershipRole.TECHNICIAN,
+          status: MembershipStatus.ACTIVE,
         },
       });
     }
 
-    const context = await entitlementService.getEntitlementContext(shopId);
-    const addEmployee = await entitlementService.checkCanAddEmployee(shopId);
-
-    if (context.usage.activeSeats !== 5) {
-      throw new Error(`Seat limit test failed: activeSeats=${context.usage.activeSeats}, expected 5.`);
-    }
-    if (context.limits.totalSeats !== 5) {
-      throw new Error(`Seat limit test failed: totalSeats=${context.limits.totalSeats}, expected 5.`);
-    }
-    if (addEmployee.allowed || addEmployee.code !== "EMPLOYEE_LIMIT_REACHED") {
-      throw new Error("Seat limit test failed: sixth seat was not denied with EMPLOYEE_LIMIT_REACHED.");
+    const ctx = await entitlementService.getEntitlementContext(shopId);
+    if (ctx.usage.activeSeats !== 5) {
+      throw new Error(`Seat cap failed: activeSeats is ${ctx.usage.activeSeats}, expected 5.`);
     }
 
-    console.log("✅ Seat limit: owner + 4 active staff = 5 total seats; sixth seat denied");
+    const seatCheck = await entitlementService.checkCanAddEmployee(shopId);
+    if (seatCheck.allowed) {
+      throw new Error("Seat cap failed: checkCanAddEmployee should be denied at 5 seats.");
+    }
+    if (seatCheck.code !== "EMPLOYEE_LIMIT_REACHED") {
+      throw new Error(`Seat cap failed: expected code EMPLOYEE_LIMIT_REACHED, got ${seatCheck.code}.`);
+    }
+
+    console.log("✅ 5-Seat Cap: 1 Owner + 4 Staff (5 total) => activeSeats=5, checkCanAddEmployee correctly blocked with EMPLOYEE_LIMIT_REACHED");
   } finally {
     await cleanupShop(shopId);
   }
 }
 
-async function testTenantSubscriptionIsolation() {
-  const active = await createShopFixture("integration-active-shop", SubscriptionStatus.ACTIVE);
-  const expired = await createShopFixture("integration-expired-shop", SubscriptionStatus.EXPIRED);
+async function testTenantIsolation() {
+  const activeShop = await createShopFixture("integration-tenant-active", SubscriptionStatus.ACTIVE);
+  const expiredShop = await createShopFixture("integration-tenant-expired", SubscriptionStatus.EXPIRED);
 
   try {
     const [activeResult, expiredResult] = await Promise.all([
-      entitlementService.checkCanCreateNewOperation(active.shopId, active.now),
-      entitlementService.checkCanCreateNewOperation(expired.shopId, expired.now),
+      entitlementService.checkCanCreateRepairOrder(activeShop.shopId, activeShop.now),
+      entitlementService.checkCanCreateRepairOrder(expiredShop.shopId, expiredShop.now),
     ]);
 
     if (!activeResult.allowed) {
-      throw new Error("Tenant isolation failed: active shop was denied.");
+      throw new Error("Tenant isolation failed: active shop should be allowed.");
     }
     if (expiredResult.allowed || expiredResult.code !== "SUBSCRIPTION_EXPIRED") {
-      throw new Error("Tenant isolation failed: expired shop was not independently denied.");
+      throw new Error("Tenant isolation failed: expired shop should be denied with SUBSCRIPTION_EXPIRED.");
     }
 
-    console.log("✅ Tenant isolation: active shop remains allowed while expired shop is independently denied");
+    console.log("✅ Tenant isolation: ACTIVE shop allowed, EXPIRED shop denied; zero cross-tenant contamination");
   } finally {
-    await cleanupShop(active.shopId);
-    await cleanupShop(expired.shopId);
+    await cleanupShop(activeShop.shopId);
+    await cleanupShop(expiredShop.shopId);
   }
 }
 
@@ -250,11 +268,11 @@ async function main() {
   console.log("   No production/remote database is permitted by this harness.\n");
 
   await assertRequiredSchema();
-  await testUnlimitedRepairCreation();
-  await testFiveSeatLimit();
-  await testTenantSubscriptionIsolation();
+  await testUnlimitedRepairsConcurrency();
+  await testSeatCap();
+  await testTenantIsolation();
 
-  console.log("\n✅ All local PostgreSQL single-plan subscription integration tests passed.");
+  console.log("\n✅ All local PostgreSQL subscription integration tests passed.");
 }
 
 main()

@@ -120,6 +120,8 @@ enum ExpenseCategory {
   OTHER
 }
 
+// BASIC retained only for historical PostgreSQL enum compatibility.
+// All new/trial/paid subscriptions use PROFESSIONAL.
 enum SubscriptionPlan {
   BASIC
   PROFESSIONAL
@@ -180,7 +182,6 @@ model Shop {
   paymentSourceOptions      PaymentSourceOption[]
   expenses                  Expense[]
   subscription              Subscription?
-  compatibilitySearchUsages CompatibilitySearchUsage[]
 
   @@index([updatedAt])
   @@index([deletedAt])
@@ -216,21 +217,6 @@ model Subscription {
   @@index([activatedById])
 }
 
-// ---------------------------------------------------------------------------
-// COMPATIBILITY SEARCH USAGE COUNTER
-// ---------------------------------------------------------------------------
-model CompatibilitySearchUsage {
-  id          String   @id @default(uuid()) @db.Uuid
-  shopId      String   @db.Uuid
-  usageDate   DateTime @db.Date
-  searchCount Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
-
-  @@unique([shopId, usageDate])
-}
 
 model SubscriptionPrice {
   id              String                      @id @default(uuid()) @db.Uuid

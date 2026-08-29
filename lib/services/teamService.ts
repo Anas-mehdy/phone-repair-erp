@@ -48,21 +48,18 @@ export async function getShopSeatUsage(shopId: string): Promise<SeatUsageInfo> {
     }),
   ]);
 
-  const activeMembersCount = entitlement.usage.activeSeats;
-  const usedSeats = activeMembersCount + pendingInvitesCount;
-  const limit = entitlement.limits.totalSeats;
-  const isUnlimited = limit === null;
+  const usedSeats = entitlement.usage.activeSeats;
+  const activeMembersCount = Math.max(0, usedSeats - pendingInvitesCount);
+  const limit = entitlement.limits.totalSeats ?? 5;
 
   return {
     usedSeats,
     activeMembersCount,
     pendingInvitesCount,
-    // Keep numeric fields for the existing UI contract. UI can use isUnlimited
-    // to render "غير محدود" instead of this display fallback.
-    maxSeats: limit ?? Math.max(usedSeats, 1),
-    remainingSeats: limit === null ? 0 : Math.max(0, limit - usedSeats),
+    maxSeats: limit,
+    remainingSeats: Math.max(0, limit - usedSeats),
     canInvite: entitlement.canAddEmployee,
-    isUnlimited,
+    isUnlimited: false,
   };
 }
 
@@ -107,19 +104,19 @@ export async function listTeamMembers(shopId: string) {
     entitlementService.getEntitlementContext(shopId),
   ]);
 
-  const activeMembersCount = entitlement.usage.activeSeats;
   const pendingInvitesCount = pendingInvitations.length;
-  const usedSeats = activeMembersCount + pendingInvitesCount;
-  const limit = entitlement.limits.totalSeats;
+  const usedSeats = entitlement.usage.activeSeats;
+  const activeMembersCount = Math.max(0, usedSeats - pendingInvitesCount);
+  const limit = entitlement.limits.totalSeats ?? 5;
 
   const seatUsage: SeatUsageInfo = {
     usedSeats,
     activeMembersCount,
     pendingInvitesCount,
-    maxSeats: limit ?? Math.max(usedSeats, 1),
-    remainingSeats: limit === null ? 0 : Math.max(0, limit - usedSeats),
+    maxSeats: limit,
+    remainingSeats: Math.max(0, limit - usedSeats),
     canInvite: entitlement.canAddEmployee,
-    isUnlimited: limit === null,
+    isUnlimited: false,
   };
 
   return {
@@ -155,12 +152,12 @@ export async function createInvitation(
     throw new Error("الدور المحدد غير صالح.");
   }
 
-  // Entitlement Service is the authoritative seat/subscription gate.
-  // BASIC is owner-only, regardless of legacy Shop.maxSeats.
+  // Entitlement Service is the authoritative seat/subscription gate (5 seats maximum).
   const employeeEntitlement = await entitlementService.checkCanAddEmployee(shopId);
   if (!employeeEntitlement.allowed) {
     throw new Error(entitlementErrorMessage(employeeEntitlement));
   }
+
 
   const existingMember = await prisma.membership.findFirst({
     where: {
@@ -447,6 +444,11 @@ export async function acceptInvitation(rawToken: string, input: AcceptInvitation
 
     if (!liveInvitation) {
       throw new Error("رابط الدعوة لم يعد صالحاً أو تم استخدامه بالفعل.");
+    }
+
+    const employeeEntitlement = await entitlementService.checkCanAddEmployee(invitation.shopId);
+    if (!employeeEntitlement.allowed) {
+      throw new Error(entitlementErrorMessage(employeeEntitlement));
     }
 
     let user = await tx.user.findUnique({

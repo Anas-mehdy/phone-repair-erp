@@ -1,12 +1,18 @@
 /**
  * Central Subscription Entitlement Service for Massar ERP.
  *
- * Single-plan contract:
- * - Trial and paid subscriptions include all core product features.
- * - Repair orders and compatibility searches are unlimited.
- * - The only product-usage limit is 5 total active seats, including the owner.
- * - EXPIRED/CANCELED subscriptions remain readable but cannot create new operations.
+ * Single Comprehensive Plan Architecture:
+ * - All active subscriptions (Trial, Paid, Grace Period) operate with full access.
+ * - Repair Orders: Unlimited.
+ * - Compatibility Searches: Unlimited.
+ * - Sales / Invoices / Installments: Unlimited.
+ * - Total Seats Limit: 5 users total (including shop OWNER).
+ *
+ * Security contract:
  * - shopId comes from verified server-side context, never browser authorization input.
+ * - plan/status/timestamps are database-authoritative.
+ * - tenant queries are scoped by shopId.
+ * - Subscription mutations are Super Admin operations protected by requireSuperAdmin().
  */
 
 import {
@@ -19,9 +25,7 @@ import { prisma } from "@/lib/prisma";
 
 export type EntitlementDenyCode =
   | "SUBSCRIPTION_EXPIRED"
-  | "REPAIR_LIMIT_REACHED"
-  | "EMPLOYEE_LIMIT_REACHED"
-  | "COMPATIBILITY_SEARCH_LIMIT_REACHED";
+  | "EMPLOYEE_LIMIT_REACHED";
 
 export type EffectiveStatus =
   | "TRIALING"
@@ -30,10 +34,6 @@ export type EffectiveStatus =
   | "EXPIRED"
   | "CANCELED";
 
-/**
- * Kept for backward-compatible typing while BASIC remains in the PostgreSQL enum.
- * Operationally, all active subscriptions now use the same comprehensive plan.
- */
 export type EffectivePlan = "TRIAL_AS_PROFESSIONAL" | "BASIC" | "PROFESSIONAL";
 
 export type SubscriptionSnapshot = {
@@ -80,15 +80,13 @@ export type EntitlementResult =
       upgradeUrl: string;
     };
 
-export type RepairOrderCreateCallback<T> = () => Promise<T>;
+export type RepairOrderCreateCallback<T> = (
+  tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]
+) => Promise<T>;
 
-const SUPPORT_URL = "/support";
+const UPGRADE_URL = "/subscription";
 export const TOTAL_SEAT_LIMIT = 5;
 
-/**
- * BASIC is retained only as legacy enum compatibility. It no longer represents
- * a different commercial entitlement. All operational plans have the same limits.
- */
 export const PLAN_LIMITS: Record<EffectivePlan, PlanLimits> = {
   TRIAL_AS_PROFESSIONAL: {
     monthlyRepairOrders: null,
@@ -107,9 +105,12 @@ export const PLAN_LIMITS: Record<EffectivePlan, PlanLimits> = {
   },
 };
 
-/** Retained for compatibility with existing callers/tests; usage counters are retired. */
-export function toUtcDateOnly(date: Date): Date {
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+function utcStartOfMonth(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+}
+
+function utcStartOfNextMonth(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 1));
 }
 
 export function computeEffectiveStatus(
@@ -118,7 +119,7 @@ export function computeEffectiveStatus(
   currentPeriodStartedAt: Date | null,
   currentPeriodEndsAt: Date | null,
   gracePeriodEndsAt: Date | null,
-  now: Date,
+  now: Date
 ): EffectiveStatus {
   switch (storedStatus) {
     case SubscriptionStatus.TRIALING:
@@ -146,18 +147,16 @@ export function computeEffectiveStatus(
 
 export function computeEffectivePlan(
   effectiveStatus: EffectiveStatus,
-  storedPlan: SubscriptionPlan,
+  storedPlan?: SubscriptionPlan,
 ): EffectivePlan {
   // BASIC remains in the persisted enum for backward compatibility only.
-  // Reading the parameter makes that compatibility contract explicit while
-  // mapping every non-trial subscription to the single comprehensive plan.
   void storedPlan;
   return effectiveStatus === "TRIALING" ? "TRIAL_AS_PROFESSIONAL" : "PROFESSIONAL";
 }
 
 async function getSubscriptionSnapshot(
   shopId: string,
-  now: Date,
+  now: Date
 ): Promise<SubscriptionSnapshot> {
   const sub = await prisma.subscription.findUnique({
     where: { shopId },
@@ -213,12 +212,25 @@ async function getSubscriptionSnapshot(
   };
 }
 
+async function countMonthlyRepairOrders(shopId: string, now: Date): Promise<number> {
+  return prisma.repairOrder.count({
+    where: {
+      shopId,
+      createdAt: {
+        gte: utcStartOfMonth(now),
+        lt: utcStartOfNextMonth(now),
+      },
+      deletedAt: null,
+    },
+  });
+}
+
 /**
- * Legacy shops can authenticate without an OWNER Membership row. Their legacy
- * owner still occupies one of the five seats and must not be reported as zero.
+ * Counts total active seats including active memberships, pending unexpired invitations,
+ * and legacy OWNER users if no active OWNER membership exists.
  */
 async function countActiveSeats(shopId: string): Promise<number> {
-  const [activeMemberships, activeOwnerMembership] = await Promise.all([
+  const [activeMemberships, activeOwnerMembership, pendingInvitesCount] = await Promise.all([
     prisma.membership.count({
       where: { shopId, status: "ACTIVE", deletedAt: null },
     }),
@@ -231,29 +243,38 @@ async function countActiveSeats(shopId: string): Promise<number> {
       },
       select: { id: true },
     }),
+    prisma.shopInvitation.count({
+      where: {
+        shopId,
+        status: "PENDING",
+        deletedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+    }),
   ]);
 
-  if (activeOwnerMembership) return activeMemberships;
+  let baseActiveSeats = activeMemberships;
+  if (!activeOwnerMembership) {
+    const legacyOwner = await prisma.user.findFirst({
+      where: {
+        shopId,
+        role: UserRole.OWNER,
+        deletedAt: null,
+      },
+      select: { id: true },
+    });
+    if (legacyOwner) {
+      baseActiveSeats += 1;
+    }
+  }
 
-  const legacyOwner = await prisma.user.findFirst({
-    where: {
-      shopId,
-      role: UserRole.OWNER,
-      deletedAt: null,
-    },
-    select: { id: true },
-  });
-
-  return activeMemberships + (legacyOwner ? 1 : 0);
-}
-
-function isOperationallyActive(status: EffectiveStatus): boolean {
-  return status === "TRIALING" || status === "ACTIVE" || status === "GRACE_PERIOD";
+  return baseActiveSeats + pendingInvitesCount;
 }
 
 /**
- * Repair creation no longer has a monthly quota. The wrapper remains so current
- * call sites keep one central subscription-state gate without concurrency locks.
+ * Concurrency-safe RepairOrder creation guard.
+ * Verifies subscription operational status before delegating to creation callback.
+ * Repair orders are unlimited for all operationally active subscriptions.
  */
 export async function withRepairOrderLimitGuard<T>(
   shopId: string,
@@ -268,47 +289,84 @@ export async function withRepairOrderLimitGuard<T>(
       upgradeUrl: string;
     }
 > {
-  const snapshot = await getSubscriptionSnapshot(shopId, now);
+  const sub = await prisma.subscription.findUnique({
+    where: { shopId },
+    select: {
+      plan: true,
+      status: true,
+      trialEndsAt: true,
+      currentPeriodStartedAt: true,
+      currentPeriodEndsAt: true,
+      gracePeriodEndsAt: true,
+    },
+  });
 
-  if (!isOperationallyActive(snapshot.effectiveStatus)) {
+  if (!sub) {
     return {
       denied: true,
       code: "SUBSCRIPTION_EXPIRED",
       message:
-        "انتهت فترة استخدامك. بياناتك محفوظة بالكامل، تواصل مع الدعم لتجديد الاشتراك.",
-      upgradeUrl: SUPPORT_URL,
+        "انتهت فترة استخدامك. بياناتك محفوظة بالكامل، اختر خطة لمتابعة إنشاء عمليات جديدة.",
+      upgradeUrl: UPGRADE_URL,
     };
   }
 
-  return { result: await callback() };
+  const effectiveStatus = computeEffectiveStatus(
+    sub.status,
+    sub.trialEndsAt,
+    sub.currentPeriodStartedAt ?? null,
+    sub.currentPeriodEndsAt ?? null,
+    sub.gracePeriodEndsAt ?? null,
+    now,
+  );
+
+  const isOperationallyActive =
+    effectiveStatus === "TRIALING" ||
+    effectiveStatus === "ACTIVE" ||
+    effectiveStatus === "GRACE_PERIOD";
+
+  if (!isOperationallyActive) {
+    return {
+      denied: true,
+      code: "SUBSCRIPTION_EXPIRED",
+      message:
+        "انتهت فترة استخدامك. بياناتك محفوظة بالكامل، اختر خطة لمتابعة إنشاء عمليات جديدة.",
+      upgradeUrl: UPGRADE_URL,
+    };
+  }
+
+  const created = await callback(prisma);
+  return { result: created };
 }
 
 export async function getEntitlementContext(
   shopId: string,
-  now: Date = new Date(),
+  now: Date = new Date()
 ): Promise<EntitlementContext> {
-  const [snapshot, activeSeats] = await Promise.all([
+  const [snapshot, repairOrdersThisMonth, activeSeats] = await Promise.all([
     getSubscriptionSnapshot(shopId, now),
+    countMonthlyRepairOrders(shopId, now),
     countActiveSeats(shopId),
   ]);
 
   const limits = PLAN_LIMITS[snapshot.effectivePlan];
-  const operational = isOperationallyActive(snapshot.effectiveStatus);
+  const isOperationallyActive =
+    snapshot.effectiveStatus === "TRIALING" ||
+    snapshot.effectiveStatus === "ACTIVE" ||
+    snapshot.effectiveStatus === "GRACE_PERIOD";
+
+  const canCreateRepairOrder = isOperationallyActive;
+  const canAddEmployee = isOperationallyActive && activeSeats < TOTAL_SEAT_LIMIT;
+  const canPerformCompatibilitySearch = isOperationallyActive;
 
   return {
     subscription: snapshot,
     limits,
-    usage: {
-      repairOrdersThisMonth: 0,
-      activeSeats,
-      compatibilitySearchesToday: 0,
-    },
-    isOperationallyActive: operational,
-    canCreateRepairOrder: operational,
-    canAddEmployee:
-      operational &&
-      (limits.totalSeats === null || activeSeats < limits.totalSeats),
-    canPerformCompatibilitySearch: operational,
+    usage: { repairOrdersThisMonth, activeSeats, compatibilitySearchesToday: 0 },
+    isOperationallyActive,
+    canCreateRepairOrder,
+    canAddEmployee,
+    canPerformCompatibilitySearch,
   };
 }
 
@@ -322,8 +380,8 @@ export async function checkCanCreateNewOperation(
       allowed: false,
       code: "SUBSCRIPTION_EXPIRED",
       message:
-        "انتهت فترة استخدامك. بياناتك محفوظة بالكامل، تواصل مع الدعم لتجديد الاشتراك.",
-      upgradeUrl: SUPPORT_URL,
+        "انتهت فترة استخدامك. بياناتك محفوظة بالكامل، اختر خطة لمتابعة إنشاء عمليات جديدة.",
+      upgradeUrl: UPGRADE_URL,
     };
   }
   return { allowed: true };
@@ -331,57 +389,62 @@ export async function checkCanCreateNewOperation(
 
 export async function checkCanCreateRepairOrder(
   shopId: string,
-  now: Date = new Date(),
-): Promise<EntitlementResult> {
-  return checkCanCreateNewOperation(shopId, now);
-}
-
-export async function checkCanAddEmployee(
-  shopId: string,
-  now: Date = new Date(),
+  now: Date = new Date()
 ): Promise<EntitlementResult> {
   const ctx = await getEntitlementContext(shopId, now);
-
   if (!ctx.isOperationallyActive) {
     return {
       allowed: false,
       code: "SUBSCRIPTION_EXPIRED",
       message:
-        "انتهت فترة استخدامك. بياناتك محفوظة بالكامل، تواصل مع الدعم لتجديد الاشتراك.",
-      upgradeUrl: SUPPORT_URL,
+        "انتهت فترة استخدامك. بياناتك محفوظة بالكامل، اختر خطة لمتابعة إنشاء عمليات جديدة.",
+      upgradeUrl: UPGRADE_URL,
     };
   }
+  return { allowed: true };
+}
 
+export async function checkCanAddEmployee(
+  shopId: string,
+  now: Date = new Date()
+): Promise<EntitlementResult> {
+  const ctx = await getEntitlementContext(shopId, now);
+  if (!ctx.isOperationallyActive) {
+    return {
+      allowed: false,
+      code: "SUBSCRIPTION_EXPIRED",
+      message:
+        "انتهت فترة استخدامك. بياناتك محفوظة بالكامل، اختر خطة لمتابعة إنشاء عمليات جديدة.",
+      upgradeUrl: UPGRADE_URL,
+    };
+  }
   if (!ctx.canAddEmployee) {
     return {
       allowed: false,
       code: "EMPLOYEE_LIMIT_REACHED",
       message:
         "وصلت إلى الحد الأقصى المسموح به وهو 5 مستخدمين للمتجر، شامل مالك المتجر.",
-      upgradeUrl: SUPPORT_URL,
+      upgradeUrl: UPGRADE_URL,
     };
   }
-
   return { allowed: true };
 }
 
 export async function checkCanPerformCompatibilitySearch(
   shopId: string,
-  now: Date = new Date(),
+  now: Date = new Date()
 ): Promise<EntitlementResult> {
-  return checkCanCreateNewOperation(shopId, now);
-}
-
-/**
- * Retired compatibility usage APIs kept temporarily as no-op compatibility
- * shims for scripts outside production request paths. They perform no DB writes.
- */
-export async function incrementCompatibilitySearch(): Promise<number> {
-  return 0;
-}
-
-export async function incrementCompatibilitySearchEnforced(): Promise<number> {
-  return 0;
+  const ctx = await getEntitlementContext(shopId, now);
+  if (!ctx.isOperationallyActive) {
+    return {
+      allowed: false,
+      code: "SUBSCRIPTION_EXPIRED",
+      message:
+        "انتهت فترة استخدامك. بياناتك محفوظة بالكامل، اختر خطة لمتابعة إنشاء عمليات جديدة.",
+      upgradeUrl: UPGRADE_URL,
+    };
+  }
+  return { allowed: true };
 }
 
 export const entitlementService = {
@@ -391,7 +454,4 @@ export const entitlementService = {
   checkCanAddEmployee,
   checkCanPerformCompatibilitySearch,
   withRepairOrderLimitGuard,
-  incrementCompatibilitySearch,
-  incrementCompatibilitySearchEnforced,
-  toUtcDateOnly,
 };

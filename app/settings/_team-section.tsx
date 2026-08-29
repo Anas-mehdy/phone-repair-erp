@@ -281,9 +281,7 @@ export function TeamManagementSection({
           <div className="flex items-center gap-2">
             <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
             <span>
-              {seatUsage.maxSeats === 1
-                ? "الخطة الأساسية مخصصة لمستخدم واحد. تواصل مع الدعم للترقية وإضافة الموظفين."
-                : `لقد تم استخدام كافة المقاعد المتاحة في هذا المتجر (${seatUsage.usedSeats} من أصل ${seatUsage.maxSeats}). تواصل مع الدعم للترقية.`}
+              تم استخدام جميع المقاعد المتاحة ({seatUsage.usedSeats} من {seatUsage.maxSeats}).
             </span>
           </div>
           <Button

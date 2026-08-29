@@ -91,22 +91,6 @@ const STATUS_BADGES: Record<
   },
 };
 
-const PLAN_BADGES: Record<
-  SubscriptionPlan,
-  { label: string; bg: string; text: string }
-> = {
-  PROFESSIONAL: {
-    label: "احترافية",
-    bg: "bg-teal-500/20",
-    text: "text-teal-300",
-  },
-  BASIC: {
-    label: "أساسية",
-    bg: "bg-blue-500/20",
-    text: "text-blue-300",
-  },
-};
-
 const INTERVAL_LABELS: Record<SubscriptionBillingInterval, string> = {
   SIX_MONTHS: "6 أشهر",
   ANNUAL: "سنة واحدة",
@@ -119,7 +103,6 @@ export function AdminSubscriptionManagement({
 }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [planFilter, setPlanFilter] = useState<string>("all");
 
   // Modal States
   const [activeModal, setActiveModal] = useState<
@@ -128,9 +111,6 @@ export function AdminSubscriptionManagement({
   const [selectedSub, setSelectedSub] = useState<SubscriptionItemData | null>(null);
 
   // Form States
-  const [activatePlan, setActivatePlan] = useState<SubscriptionPlan>(
-    SubscriptionPlan.PROFESSIONAL
-  );
   const [activateInterval, setActivateInterval] =
     useState<SubscriptionBillingInterval>(SubscriptionBillingInterval.ANNUAL);
   const [activateExtraDays, setActivateExtraDays] = useState(0);
@@ -160,9 +140,8 @@ export function AdminSubscriptionManagement({
 
     const matchesStatus =
       statusFilter === "all" || sub.effectiveStatus === statusFilter;
-    const matchesPlan = planFilter === "all" || sub.plan === planFilter;
 
-    return matchesSearch && matchesStatus && matchesPlan;
+    return matchesSearch && matchesStatus;
   });
 
   function openModal(
@@ -174,7 +153,6 @@ export function AdminSubscriptionManagement({
     setFeedback(null);
 
     if (modal === "activate") {
-      setActivatePlan(sub.plan || SubscriptionPlan.PROFESSIONAL);
       setActivateInterval(
         sub.billingInterval || SubscriptionBillingInterval.ANNUAL
       );
@@ -200,7 +178,7 @@ export function AdminSubscriptionManagement({
 
     const formData = new FormData();
     formData.append("shopId", selectedSub.shopId);
-    formData.append("plan", activatePlan);
+    formData.append("plan", "PROFESSIONAL");
     formData.append("billingInterval", activateInterval);
     formData.append("extraDays", String(activateExtraDays));
     formData.append("paymentMethod", activatePaymentMethod);
@@ -350,16 +328,6 @@ export function AdminSubscriptionManagement({
             <option value="EXPIRED">منتهي (EXPIRED)</option>
             <option value="CANCELED">ملغي (CANCELED)</option>
           </select>
-
-          <select
-            value={planFilter}
-            onChange={(e) => setPlanFilter(e.target.value)}
-            className="rounded-xl bg-slate-950/80 border border-slate-800 px-3 py-2.5 text-xs text-slate-300 focus:border-teal-500 focus:outline-none"
-          >
-            <option value="all">جميع الباقات</option>
-            <option value="PROFESSIONAL">الاحترافية (PROFESSIONAL)</option>
-            <option value="BASIC">الأساسية (BASIC)</option>
-          </select>
         </div>
       </div>
 
@@ -387,7 +355,6 @@ export function AdminSubscriptionManagement({
                 const country = countryMap.get(sub.shop.countryCode);
                 const statusMeta =
                   STATUS_BADGES[sub.effectiveStatus] || STATUS_BADGES.EXPIRED;
-                const planMeta = PLAN_BADGES[sub.plan] || PLAN_BADGES.PROFESSIONAL;
 
                 return (
                   <tr
@@ -420,11 +387,14 @@ export function AdminSubscriptionManagement({
                           >
                             {statusMeta.label}
                           </span>
-                          <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-black ${planMeta.bg} ${planMeta.text}`}
-                          >
-                            {planMeta.label}
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-black bg-teal-500/20 text-teal-300">
+                            الخطة الشاملة
                           </span>
+                          {sub.plan === "BASIC" && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-800 text-slate-400 border border-slate-700">
+                              Legacy record
+                            </span>
+                          )}
                         </div>
                         {sub.billingInterval && (
                           <p className="text-[10px] text-slate-400 font-numeric">
@@ -609,18 +579,12 @@ export function AdminSubscriptionManagement({
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-bold text-slate-300 mb-1.5">
-                      الخطة المطلوبة
+                      الخطة
                     </label>
-                    <select
-                      value={activatePlan}
-                      onChange={(e) =>
-                        setActivatePlan(e.target.value as SubscriptionPlan)
-                      }
-                      className="w-full rounded-xl bg-slate-950 border border-slate-800 p-2.5 text-xs text-white"
-                    >
-                      <option value="PROFESSIONAL">الاحترافية (PROFESSIONAL)</option>
-                      <option value="BASIC">الأساسية (BASIC)</option>
-                    </select>
+                    <div className="w-full rounded-xl bg-slate-950 border border-slate-800 p-2.5 text-xs text-teal-400 font-black flex items-center justify-between">
+                      <span>الخطة الشاملة</span>
+                      <span className="text-[10px] text-teal-500/80 font-mono font-normal">PROFESSIONAL</span>
+                    </div>
                   </div>
 
                   <div>

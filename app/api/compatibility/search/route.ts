@@ -17,7 +17,7 @@ function subscriptionExpiredResponse(message: string) {
       allowed: false,
       code: "SUBSCRIPTION_EXPIRED",
       message,
-      upgradeUrl: "/support",
+      upgradeUrl: "/subscription",
     },
     { status: 403 },
   );
@@ -48,8 +48,6 @@ export async function GET(request: NextRequest) {
       status = statusParam as CompatibilityStatus;
     }
 
-    // The comprehensive plan has unlimited compatibility searches. A real search
-    // is still blocked when the subscription is no longer operationally active.
     if (query) {
       const entitlement = await entitlementService.checkCanPerformCompatibilitySearch(
         auth.shop.id,
@@ -98,7 +96,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: "تعذر تنفيذ بحث التوافقات حالياً. حاول مرة أخرى.",
+        error: "حدث خطأ غير متوقع أثناء البحث في دليل التوافقات.",
       },
       { status: 500 },
     );

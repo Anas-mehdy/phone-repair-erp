@@ -14,9 +14,9 @@ import {
   SubscriptionBillingInterval,
   SubscriptionPlan,
 } from "@prisma/client";
-import { Button } from "@/components/ui/button";
 import { COUNTRY_DIAL_CODES } from "@/lib/countries";
 import { adminUpdateSubscriptionPriceAction } from "./actions";
+import { Button } from "@/components/ui/button";
 
 export interface SubscriptionPriceRecord {
   id: string;
@@ -32,10 +32,8 @@ interface CountryPricingGroup {
   countryName: string;
   flag: string;
   currencyCode: string;
-  basicSixMonths?: SubscriptionPriceRecord;
-  basicAnnual?: SubscriptionPriceRecord;
-  proSixMonths?: SubscriptionPriceRecord;
-  proAnnual?: SubscriptionPriceRecord;
+  sixMonths?: SubscriptionPriceRecord;
+  annual?: SubscriptionPriceRecord;
 }
 
 export function AdminPricingManagement({
@@ -58,10 +56,12 @@ export function AdminPricingManagement({
     COUNTRY_DIAL_CODES.map((c) => [c.code, { name: c.name, flag: c.flag, currency: c.currency }])
   );
 
-  // Group prices by countryCode
+  // Group prices by countryCode (PROFESSIONAL plan only)
   const countryGroupsMap = new Map<string, CountryPricingGroup>();
 
   for (const price of prices) {
+    if (price.plan !== "PROFESSIONAL") continue;
+
     const meta = countryMetaMap.get(price.countryCode) || {
       name: price.countryCode === "US" ? "الولايات المتحدة / دولي" : price.countryCode,
       flag: price.countryCode === "US" ? "🇺🇸" : "🌐",
@@ -78,14 +78,10 @@ export function AdminPricingManagement({
     }
 
     const group = countryGroupsMap.get(price.countryCode)!;
-    if (price.plan === "BASIC" && price.billingInterval === "SIX_MONTHS") {
-      group.basicSixMonths = price;
-    } else if (price.plan === "BASIC" && price.billingInterval === "ANNUAL") {
-      group.basicAnnual = price;
-    } else if (price.plan === "PROFESSIONAL" && price.billingInterval === "SIX_MONTHS") {
-      group.proSixMonths = price;
-    } else if (price.plan === "PROFESSIONAL" && price.billingInterval === "ANNUAL") {
-      group.proAnnual = price;
+    if (price.billingInterval === "SIX_MONTHS") {
+      group.sixMonths = price;
+    } else if (price.billingInterval === "ANNUAL") {
+      group.annual = price;
     }
   }
 
@@ -119,15 +115,15 @@ export function AdminPricingManagement({
     e.preventDefault();
     if (!editingPrice) return;
 
-    const numAmount = parseFloat(editAmount);
-    if (isNaN(numAmount) || numAmount <= 0) {
-      setFeedback({ type: "error", message: "المبلغ يجب أن يكون رقماً موجباً أكبر من صفر." });
+    const amountNum = parseFloat(editAmount);
+    if (isNaN(amountNum) || amountNum <= 0) {
+      setFeedback({ type: "error", message: "المبلغ يجب أن يكون رقماً موجباً." });
       return;
     }
 
-    const trimmedCurrency = editCurrency.trim().toUpperCase();
-    if (trimmedCurrency.length !== 3) {
-      setFeedback({ type: "error", message: "رمز العملة يجب أن يتكون من 3 أحرف (مثل SAR, TRY, EGP)." });
+    const curr = editCurrency.trim().toUpperCase();
+    if (curr.length !== 3) {
+      setFeedback({ type: "error", message: "رمز العملة يجب أن يتكون من 3 أحرف (مثل SAR)." });
       return;
     }
 
@@ -135,34 +131,24 @@ export function AdminPricingManagement({
     formData.append("countryCode", editingPrice.countryCode);
     formData.append("plan", editingPrice.plan);
     formData.append("billingInterval", editingPrice.billingInterval);
-    formData.append("amount", String(numAmount));
-    formData.append("currencyCode", trimmedCurrency);
+    formData.append("amount", String(amountNum));
+    formData.append("currencyCode", curr);
 
     startTransition(async () => {
       const res = await adminUpdateSubscriptionPriceAction(formData);
       if (res.success && res.price) {
         setPrices((prev) =>
-          prev.map((p) =>
-            p.countryCode === editingPrice.countryCode &&
-            p.plan === editingPrice.plan &&
-            p.billingInterval === editingPrice.billingInterval
-              ? {
-                  ...p,
-                  amount: res.price!.amount,
-                  currencyCode: res.price!.currencyCode,
-                }
-              : p
-          )
+          prev.map((p) => (p.id === editingPrice.id ? (res.price as SubscriptionPriceRecord) : p))
         );
         setFeedback({
           type: "success",
-          message: `تم تحديث السعر بنجاح إلى ${numAmount.toLocaleString()} ${trimmedCurrency}`,
+          message: `تم تحديث سعر (${editingPrice.countryCode} - ${editingPrice.billingInterval === "ANNUAL" ? "سنة" : "6 أشهر"}) بنجاح.`,
         });
         setTimeout(() => handleCloseEdit(), 1200);
       } else {
         setFeedback({
           type: "error",
-          message: res.error || "فشل تحديث السعر.",
+          message: res.error || "فشل تعديل السعر.",
         });
       }
     });
@@ -170,28 +156,27 @@ export function AdminPricingManagement({
 
   return (
     <div className="space-y-6">
-      {/* Header and Search Bar */}
-      <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-slate-900/80 p-4 rounded-2xl border border-slate-800">
+      {/* Top Header & Search */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <Globe2 className="h-4 w-4 text-violet-400" />
-            <h3 className="text-sm font-black text-white">
-              كتالوج أسعار الاشتراكات حسب الدولة ({countryGroups.length} دولة)
-            </h3>
+            <Globe2 className="h-5 w-5 text-violet-400" />
+            <h3 className="text-lg font-black text-white">أسعار الاشتراك حسب الدولة</h3>
           </div>
-          <p className="text-xs text-slate-400 mt-0.5 font-bold">
-            تعديل وتخصيص أسعار الخطط (6 أشهر / سنة) لكل دولة والعملة الخاصة بها
+          <p className="text-xs text-slate-400 mt-1">
+            الأسعار المعتمدة للخطة الشاملة لكل دولة (6 أشهر وسنة واحدة). التعديل محمي بصلاحية Super Admin.
           </p>
         </div>
 
+        {/* Search */}
         <div className="relative w-full sm:w-72">
-          <Search className="absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="بحث بالدولة أو رمز العملة..."
-            className="w-full rounded-xl bg-slate-950/80 border border-slate-800 pr-10 pl-4 py-2.5 text-xs text-white placeholder-slate-500 focus:border-violet-500 focus:outline-none"
+            placeholder="ابحث بالدولة أو كود العملة..."
+            className="w-full rounded-xl bg-slate-950/80 border border-slate-800 pr-9 pl-4 py-2 text-xs text-white placeholder:text-slate-500 focus:border-violet-500 focus:outline-none"
           />
         </div>
       </div>
@@ -221,116 +206,58 @@ export function AdminPricingManagement({
               </span>
             </div>
 
-            {/* BASIC Plan Section */}
-            <div className="rounded-xl bg-slate-950/60 p-3.5 border border-slate-800/80 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-black text-blue-300">
-                  الخطة الأساسية (BASIC)
-                </span>
-                <span className="text-[9px] text-slate-400">مستخدم 1 • 100 تذكرة/شهر</span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 text-xs font-numeric">
-                {/* 6 Months */}
-                <div className="p-2 rounded-lg bg-slate-900 border border-slate-800/80 flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] text-slate-400 block">6 أشهر</span>
-                    <span className="font-bold text-white">
-                      {group.basicSixMonths
-                        ? `${group.basicSixMonths.amount.toLocaleString()} ${group.basicSixMonths.currencyCode}`
-                        : "غير محدد"}
-                    </span>
-                  </div>
-                  {group.basicSixMonths && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleOpenEdit(group.basicSixMonths!)}
-                      className="h-6 w-6 p-0 text-slate-400 hover:text-white hover:bg-slate-800 rounded-md"
-                      title="تعديل السعر"
-                    >
-                      <Edit2 className="h-3 w-3" />
-                    </Button>
-                  )}
-                </div>
-
-                {/* Annual */}
-                <div className="p-2 rounded-lg bg-slate-900 border border-slate-800/80 flex items-center justify-between">
-                  <div>
-                    <span className="text-[10px] text-slate-400 block">سنة واحدة</span>
-                    <span className="font-bold text-white">
-                      {group.basicAnnual
-                        ? `${group.basicAnnual.amount.toLocaleString()} ${group.basicAnnual.currencyCode}`
-                        : "غير محدد"}
-                    </span>
-                  </div>
-                  {group.basicAnnual && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleOpenEdit(group.basicAnnual!)}
-                      className="h-6 w-6 p-0 text-slate-400 hover:text-white hover:bg-slate-800 rounded-md"
-                      title="تعديل السعر"
-                    >
-                      <Edit2 className="h-3 w-3" />
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* PROFESSIONAL Plan Section */}
+            {/* Pricing Section (6 Months and Annual) */}
             <div className="rounded-xl bg-slate-950/60 p-3.5 border border-slate-800/80 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-black text-teal-300">
-                  الخطة الاحترافية (PROFESSIONAL)
+                  الخطة الشاملة
                 </span>
-                <span className="text-[9px] text-slate-400">غير محدود • كل المزايا</span>
+                <span className="text-[9px] text-slate-400">شاملة كافة الميزات • 5 مقاعد</span>
               </div>
 
               <div className="grid grid-cols-2 gap-2 text-xs font-numeric">
                 {/* 6 Months */}
-                <div className="p-2 rounded-lg bg-slate-900 border border-slate-800/80 flex items-center justify-between">
+                <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800/80 flex items-center justify-between">
                   <div>
                     <span className="text-[10px] text-slate-400 block">6 أشهر</span>
-                    <span className="font-bold text-white">
-                      {group.proSixMonths
-                        ? `${group.proSixMonths.amount.toLocaleString()} ${group.proSixMonths.currencyCode}`
+                    <span className="font-bold text-white text-sm">
+                      {group.sixMonths
+                        ? `${group.sixMonths.amount.toLocaleString()} ${group.sixMonths.currencyCode}`
                         : "غير محدد"}
                     </span>
                   </div>
-                  {group.proSixMonths && (
+                  {group.sixMonths && (
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => handleOpenEdit(group.proSixMonths!)}
-                      className="h-6 w-6 p-0 text-slate-400 hover:text-white hover:bg-slate-800 rounded-md"
+                      onClick={() => handleOpenEdit(group.sixMonths!)}
+                      className="h-7 w-7 p-0 text-slate-400 hover:text-white hover:bg-slate-800 rounded-md"
                       title="تعديل السعر"
                     >
-                      <Edit2 className="h-3 w-3" />
+                      <Edit2 className="h-3.5 w-3.5" />
                     </Button>
                   )}
                 </div>
 
                 {/* Annual */}
-                <div className="p-2 rounded-lg bg-slate-900 border border-slate-800/80 flex items-center justify-between">
+                <div className="p-2.5 rounded-lg bg-slate-900 border border-slate-800/80 flex items-center justify-between">
                   <div>
                     <span className="text-[10px] text-slate-400 block">سنة واحدة</span>
-                    <span className="font-bold text-white">
-                      {group.proAnnual
-                        ? `${group.proAnnual.amount.toLocaleString()} ${group.proAnnual.currencyCode}`
+                    <span className="font-bold text-white text-sm">
+                      {group.annual
+                        ? `${group.annual.amount.toLocaleString()} ${group.annual.currencyCode}`
                         : "غير محدد"}
                     </span>
                   </div>
-                  {group.proAnnual && (
+                  {group.annual && (
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => handleOpenEdit(group.proAnnual!)}
-                      className="h-6 w-6 p-0 text-slate-400 hover:text-white hover:bg-slate-800 rounded-md"
+                      onClick={() => handleOpenEdit(group.annual!)}
+                      className="h-7 w-7 p-0 text-slate-400 hover:text-white hover:bg-slate-800 rounded-md"
                       title="تعديل السعر"
                     >
-                      <Edit2 className="h-3 w-3" />
+                      <Edit2 className="h-3.5 w-3.5" />
                     </Button>
                   )}
                 </div>
@@ -350,10 +277,8 @@ export function AdminPricingManagement({
                   تعديل سعر الاشتراك
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5 font-bold">
-                  {countryMetaMap.get(editingPrice.countryCode)?.name || editingPrice.countryCode} (
-                  {editingPrice.countryCode}) •{" "}
-                  {editingPrice.plan === "BASIC" ? "الأساسية" : "الاحترافية"} •{" "}
-                  {editingPrice.billingInterval === "SIX_MONTHS" ? "6 أشهر" : "سنة"}
+                  دولة: {editingPrice.countryCode} —{" "}
+                  {editingPrice.billingInterval === "ANNUAL" ? "سنة واحدة" : "6 أشهر"}
                 </p>
               </div>
               <button
@@ -364,6 +289,7 @@ export function AdminPricingManagement({
               </button>
             </div>
 
+            {/* Feedback alert */}
             {feedback && (
               <div
                 className={`p-3 rounded-xl text-xs font-bold flex items-center gap-2 ${
@@ -384,7 +310,7 @@ export function AdminPricingManagement({
             <form onSubmit={handleSavePrice} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-300 mb-1.5">
-                  السعر الجديد
+                  المبلغ الجديد
                 </label>
                 <input
                   type="number"
@@ -393,14 +319,14 @@ export function AdminPricingManagement({
                   required
                   value={editAmount}
                   onChange={(e) => setEditAmount(e.target.value)}
-                  className="w-full rounded-xl bg-slate-950 border border-slate-800 p-2.5 text-sm font-numeric text-white focus:border-violet-500 focus:outline-none"
-                  placeholder="0.00"
+                  className="w-full rounded-xl bg-slate-950 border border-slate-800 p-2.5 text-xs text-white font-numeric"
+                  placeholder="مثال: 599.00"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-300 mb-1.5">
-                  رمز العملة (3 أحرف)
+                  رمز العملة (ISO 3)
                 </label>
                 <input
                   type="text"
@@ -408,31 +334,34 @@ export function AdminPricingManagement({
                   required
                   value={editCurrency}
                   onChange={(e) => setEditCurrency(e.target.value.toUpperCase())}
-                  className="w-full rounded-xl bg-slate-950 border border-slate-800 p-2.5 text-sm font-numeric text-white uppercase focus:border-violet-500 focus:outline-none"
+                  className="w-full rounded-xl bg-slate-950 border border-slate-800 p-2.5 text-xs text-white font-mono uppercase"
                   placeholder="SAR"
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="outline"
                   onClick={handleCloseEdit}
-                  className="text-xs text-slate-400 hover:text-white"
+                  disabled={isPending}
+                  className="rounded-xl border-slate-700 text-slate-300 hover:bg-slate-800 text-xs"
                 >
                   إلغاء
                 </Button>
                 <Button
                   type="submit"
                   disabled={isPending}
-                  className="bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs"
+                  className="rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs"
                 >
                   {isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin ml-1" />
+                    <span className="flex items-center gap-1.5">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      جاري الحفظ...
+                    </span>
                   ) : (
-                    <CheckCircle2 className="h-4 w-4 ml-1" />
+                    "حفظ السعر"
                   )}
-                  حفظ السعر
                 </Button>
               </div>
             </form>

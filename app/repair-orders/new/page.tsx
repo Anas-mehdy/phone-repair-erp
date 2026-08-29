@@ -50,15 +50,6 @@ export default async function NewRepairOrderPage(props: {
         }
       />
 
-      {entitlementCode === "REPAIR_LIMIT_REACHED" && (
-        <EntitlementAlert
-          code="REPAIR_LIMIT_REACHED"
-          customMessage="استخدمت 100 من أصل 100 تذكرة لهذا الشهر."
-          actionHref="/support"
-          actionLabel="تواصل مع الدعم للترقية"
-        />
-      )}
-
       {entitlementCode === "SUBSCRIPTION_EXPIRED" && (
         <EntitlementAlert
           code="SUBSCRIPTION_EXPIRED"
@@ -67,16 +58,6 @@ export default async function NewRepairOrderPage(props: {
           actionLabel="تواصل مع الدعم"
         />
       )}
-
-      {entitlementCode &&
-        entitlementCode !== "REPAIR_LIMIT_REACHED" &&
-        entitlementCode !== "SUBSCRIPTION_EXPIRED" && (
-          <EntitlementAlert
-            code={entitlementCode}
-            actionHref="/support"
-            actionLabel="تواصل مع الدعم"
-          />
-        )}
 
       <CreateRepairOrderForm
         suppliers={suppliers}

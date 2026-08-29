@@ -42,7 +42,7 @@ export default async function SuperAdminDashboardPage() {
             <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            مراقبة حية لأداء المنصة، إدارة اشتراكات المتاجر، وتعديل سعر الخطة الشاملة حسب الدولة
+            مراقبة حية لأداء المنصة، إدارة اشتراكات المتاجر، وتعديل أسعار الاشتراكات حسب الدولة
           </p>
         </div>
 
