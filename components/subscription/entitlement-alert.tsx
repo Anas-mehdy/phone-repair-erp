@@ -1,6 +1,5 @@
-import React from "react";
 import Link from "next/link";
-import { AlertCircle, AlertTriangle, ArrowLeft, Clock, ShieldAlert, Sparkles } from "lucide-react";
+import { AlertCircle, AlertTriangle, ArrowLeft, Clock, Headphones, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { EntitlementDenyCode } from "@/lib/services/subscriptionEntitlementService";
 
@@ -9,6 +8,8 @@ export type EntitlementAlertProps = {
   customMessage?: string;
   className?: string;
   showButton?: boolean;
+  actionHref?: string;
+  actionLabel?: string;
 };
 
 const ENTITLEMENT_MESSAGES: Record<
@@ -29,20 +30,21 @@ const ENTITLEMENT_MESSAGES: Record<
   COMPATIBILITY_SEARCH_LIMIT_REACHED: {
     title: "تم بلوغ حد البحث اليومي",
     message:
-      "استخدمت عمليات البحث العشر المتاحة اليوم. يمكنك المحاولة غداً أو الترقية للخطة الاحترافية.",
+      "استخدمت عمليات البحث العشر المتاحة اليوم. يمكنك المحاولة غداً أو التواصل مع الدعم للترقية.",
     icon: AlertCircle,
     tone: "amber",
   },
   EMPLOYEE_LIMIT_REACHED: {
     title: "حد المستخدمين في الخطة الحالية",
     message:
-      "الخطة الأساسية مخصصة لمستخدم واحد. الترقية للاحترافية تتيح إضافة الموظفين.",
+      "الخطة الأساسية مخصصة لمستخدم واحد. تواصل مع الدعم للترقية وإضافة الموظفين.",
     icon: AlertTriangle,
     tone: "amber",
   },
   SUBSCRIPTION_EXPIRED: {
     title: "انتهت فترة الاشتراك",
-    message: "انتهت الفترة التجريبية. اختر الخطة المناسبة لمتابعة إنشاء عمليات جديدة.",
+    message:
+      "انتهت فترة استخدامك. بياناتك محفوظة بالكامل، تواصل مع الدعم لتجديد الاشتراك.",
     icon: ShieldAlert,
     tone: "rose",
   },
@@ -50,13 +52,15 @@ const ENTITLEMENT_MESSAGES: Record<
 
 /**
  * Reusable UI Banner for structured Entitlement Limits & Expirations.
- * Renders user-friendly messages and direct action buttons to upgrade.
+ * Renders user-friendly messages and direct action buttons to upgrade or contact support.
  */
 export function EntitlementAlert({
   code,
   customMessage,
   className = "",
   showButton = true,
+  actionHref = "/support",
+  actionLabel = "تواصل مع الدعم",
 }: EntitlementAlertProps) {
   const meta = ENTITLEMENT_MESSAGES[code] || ENTITLEMENT_MESSAGES.SUBSCRIPTION_EXPIRED;
   const Icon = meta.icon;
@@ -99,9 +103,9 @@ export function EntitlementAlert({
                   : "bg-teal-700 hover:bg-teal-800 text-white"
               }`}
             >
-              <Link href="/subscription">
-                <Sparkles className="ml-1.5 h-3.5 w-3.5" />
-                عرض الخطة الاحترافية
+              <Link href={actionHref}>
+                <Headphones className="ml-1.5 h-3.5 w-3.5" />
+                {actionLabel}
                 <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
               </Link>
             </Button>
@@ -117,14 +121,18 @@ export function EntitlementAlert({
  */
 export function SubscriptionExpiredBanner({
   message,
+  actionHref = "/support",
+  actionLabel = "تواصل مع الدعم لتجديد الاشتراك",
   className = "",
 }: {
   message?: string;
+  actionHref?: string;
+  actionLabel?: string;
   className?: string;
 }) {
   const displayMessage =
     message ||
-    "انتهت فترة استخدامك. بياناتك محفوظة بالكامل، اختر خطة لمتابعة إنشاء عمليات جديدة.";
+    "انتهت فترة استخدامك. بياناتك محفوظة بالكامل، ويمكنك الاطلاع على بياناتك الحالية. تواصل مع الدعم لتجديد الاشتراك.";
 
   return (
     <div
@@ -149,10 +157,10 @@ export function SubscriptionExpiredBanner({
           asChild
           className="shrink-0 rounded-xl bg-rose-600 text-xs font-black text-white hover:bg-rose-700 shadow-sm sm:self-center"
         >
-          <a href="#plans-section">
-            <Sparkles className="ml-1.5 h-4 w-4" />
-            اختر خطتك الآن
-          </a>
+          <Link href={actionHref}>
+            <Headphones className="ml-1.5 h-4 w-4" />
+            {actionLabel}
+          </Link>
         </Button>
       </div>
     </div>
@@ -165,10 +173,14 @@ export function SubscriptionExpiredBanner({
 export function SubscriptionGracePeriodBanner({
   remainingText,
   remainingDays,
+  actionHref = "/support",
+  actionLabel = "تواصل مع الدعم للتجديد",
   className = "",
 }: {
   remainingText?: string;
   remainingDays?: number;
+  actionHref?: string;
+  actionLabel?: string;
   className?: string;
 }) {
   const timeText =
@@ -188,9 +200,9 @@ export function SubscriptionGracePeriodBanner({
               مهلة تجديد الاشتراك نشطة
             </h4>
             <p className="text-xs font-semibold text-slate-700 leading-relaxed">
-              اشتراك متجرك في مهلة التجديد
+              اشتراكك ضمن مهلة التجديد
               {timeText ? ` (متبقي ${timeText})` : ""}
-              . يرجى اختيار خطة وتجديد الاشتراك للاستمرار في استخدام جميع مزايا النظام دون انقطاع.
+              . يرجى التواصل مع الدعم لتجنب توقف إنشاء العمليات الجديدة.
             </p>
           </div>
         </div>
@@ -200,10 +212,11 @@ export function SubscriptionGracePeriodBanner({
           size="sm"
           className="shrink-0 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-black shadow-xs sm:self-center"
         >
-          <a href="#plans-section">
-            تجديد الاشتراك
+          <Link href={actionHref}>
+            <Headphones className="ml-1.5 h-3.5 w-3.5" />
+            {actionLabel}
             <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
-          </a>
+          </Link>
         </Button>
       </div>
     </div>

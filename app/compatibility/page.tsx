@@ -10,6 +10,7 @@ import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 
 import { PageHeader } from "@/components/page-header";
+import { EntitlementAlert } from "@/components/subscription/entitlement-alert";
 
 interface DirectoryDevice {
   id: string;
@@ -70,6 +71,9 @@ export default function TechnicianCompatibilityPage() {
   const [selected, setSelected] = useState<DirectoryResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [entitlementError, setEntitlementError] = useState<
+    "COMPATIBILITY_SEARCH_LIMIT_REACHED" | "SUBSCRIPTION_EXPIRED" | null
+  >(null);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -78,6 +82,7 @@ export default function TechnicianCompatibilityPage() {
     if (trimmed.length < 2) {
       setResults([]);
       setLoading(false);
+      setEntitlementError(null);
       return;
     }
 
@@ -85,6 +90,7 @@ export default function TechnicianCompatibilityPage() {
     abortRef.current = new AbortController();
     setLoading(true);
     setError(null);
+    setEntitlementError(null);
 
     try {
       const response = await fetch(
@@ -92,6 +98,19 @@ export default function TechnicianCompatibilityPage() {
         { signal: abortRef.current.signal }
       );
       const payload = await response.json();
+
+      if (response.status === 429 || payload.code === "COMPATIBILITY_SEARCH_LIMIT_REACHED") {
+        setEntitlementError("COMPATIBILITY_SEARCH_LIMIT_REACHED");
+        setResults([]);
+        return;
+      }
+
+      if (response.status === 403 || payload.code === "SUBSCRIPTION_EXPIRED") {
+        setEntitlementError("SUBSCRIPTION_EXPIRED");
+        setResults([]);
+        return;
+      }
+
       if (!response.ok) throw new Error(payload.error || "تعذر إتمام البحث.");
       setResults(Array.isArray(payload.results) ? payload.results : []);
     } catch (searchError) {
@@ -117,6 +136,7 @@ export default function TechnicianCompatibilityPage() {
     setResults([]);
     setSelected(null);
     setError(null);
+    setEntitlementError(null);
   }
 
   function selectCategory(category: ActiveCategory) {
@@ -125,6 +145,7 @@ export default function TechnicianCompatibilityPage() {
     setResults([]);
     setSelected(null);
     setError(null);
+    setEntitlementError(null);
   }
 
   const isBattery = selectedCategory === "BATTERY";
@@ -222,6 +243,28 @@ export default function TechnicianCompatibilityPage() {
             ) : null}
           </div>
         </div>
+
+        {entitlementError === "COMPATIBILITY_SEARCH_LIMIT_REACHED" && (
+          <div className="m-4">
+            <EntitlementAlert
+              code="COMPATIBILITY_SEARCH_LIMIT_REACHED"
+              customMessage="استخدمت عمليات البحث العشر المتاحة اليوم. يمكنك المحاولة غداً أو التواصل مع الدعم للترقية."
+              actionHref="/support"
+              actionLabel="تواصل مع الدعم للترقية"
+            />
+          </div>
+        )}
+
+        {entitlementError === "SUBSCRIPTION_EXPIRED" && (
+          <div className="m-4">
+            <EntitlementAlert
+              code="SUBSCRIPTION_EXPIRED"
+              customMessage="انتهت فترة استخدامك. بياناتك محفوظة بالكامل، تواصل مع الدعم لتجديد الاشتراك."
+              actionHref="/support"
+              actionLabel="تواصل مع الدعم"
+            />
+          </div>
+        )}
 
         {error && (
           <div className="m-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-bold text-rose-700">

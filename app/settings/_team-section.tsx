@@ -26,6 +26,7 @@ import {
   removeMemberAction,
   revokeInvitationAction,
 } from "@/app/actions/teamActions";
+import Link from "next/link";
 import { formatDate } from "@/lib/format";
 import { buildAppUrl } from "@/lib/app-url";
 
@@ -276,11 +277,23 @@ export function TeamManagementSection({
 
       {/* Seat limit warning alert */}
       {!seatUsage.canInvite && canInviteTeam ? (
-        <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3.5 text-xs text-amber-800 font-bold flex items-center gap-2">
-          <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
-          <span>
-            لقد تم استخدام كافة المقاعد المتاحة في هذا المتجر ({seatUsage.maxSeats} من أصل {seatUsage.maxSeats}). لإضافة المزيد من الموظفين، يرجى ترقية باقة المتجر.
-          </span>
+        <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3.5 text-xs text-amber-800 font-bold flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
+            <span>
+              {seatUsage.maxSeats === 1
+                ? "الخطة الأساسية مخصصة لمستخدم واحد. تواصل مع الدعم للترقية وإضافة الموظفين."
+                : `لقد تم استخدام كافة المقاعد المتاحة في هذا المتجر (${seatUsage.usedSeats} من أصل ${seatUsage.maxSeats}). تواصل مع الدعم للترقية.`}
+            </span>
+          </div>
+          <Button
+            asChild
+            size="sm"
+            variant="outline"
+            className="h-8 rounded-lg border-amber-300 bg-white text-[11px] font-black text-amber-900 hover:bg-amber-100/50 shrink-0 self-start sm:self-center"
+          >
+            <Link href="/support">التواصل مع الدعم</Link>
+          </Button>
         </div>
       ) : null}
 

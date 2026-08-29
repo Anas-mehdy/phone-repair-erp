@@ -1,6 +1,7 @@
 "use server";
 
 import {
+  Prisma,
   SubscriptionBillingInterval,
   SubscriptionPlan,
 } from "@prisma/client";
@@ -8,6 +9,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireSuperAdmin } from "@/lib/adminAuth";
+import { prisma } from "@/lib/prisma";
 import { adminService } from "@/lib/services/adminService";
 import { subscriptionAdminService } from "@/lib/services/subscriptionAdminService";
 import { setSessionCookie } from "@/lib/auth";
@@ -209,6 +211,74 @@ export async function adminGrantExtraDaysAction(formData: FormData) {
     return {
       success: false,
       error: actionError(error, "تعذر إضافة الأيام."),
+    };
+  }
+}
+
+const updatePriceSchema = z.object({
+  countryCode: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z]{2}$/, "رمز الدولة يجب أن يتكون من حرفين كبيرين"),
+  plan: z.nativeEnum(SubscriptionPlan),
+  billingInterval: z.nativeEnum(SubscriptionBillingInterval),
+  amount: z.coerce.number().positive("المبلغ يجب أن يكون رقماً موجباً أكبر من صفر"),
+  currencyCode: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z]{3}$/, "رمز العملة يجب أن يتكون من 3 أحرف"),
+});
+
+export async function adminUpdateSubscriptionPriceAction(formData: FormData) {
+  // Defense in depth: Super Admin only
+  await requireSuperAdmin();
+
+  try {
+    const parsed = updatePriceSchema.parse({
+      countryCode: formData.get("countryCode"),
+      plan: formData.get("plan"),
+      billingInterval: formData.get("billingInterval"),
+      amount: formData.get("amount"),
+      currencyCode: formData.get("currencyCode"),
+    });
+
+    const updatedPrice = await prisma.subscriptionPrice.update({
+      where: {
+        countryCode_plan_billingInterval: {
+          countryCode: parsed.countryCode,
+          plan: parsed.plan,
+          billingInterval: parsed.billingInterval,
+        },
+      },
+      data: {
+        amount: parsed.amount,
+        currencyCode: parsed.currencyCode,
+      },
+    });
+
+    revalidateSubscriptionAdmin();
+    return {
+      success: true,
+      price: {
+        ...updatedPrice,
+        amount: Number(updatedPrice.amount),
+      },
+    };
+  } catch (error: unknown) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2025"
+    ) {
+      return {
+        success: false,
+        error: "السعر المطلوب غير موجود في النظام ولا يمكن تعديله.",
+      };
+    }
+    return {
+      success: false,
+      error: actionError(error, "تعذر تعديل السعر."),
     };
   }
 }
