@@ -218,6 +218,7 @@ export const adminService = {
       where: { id: userId },
       data: {
         passwordHash,
+        version: { increment: 1 },
         updatedAt: new Date(),
       },
       include: {
@@ -268,6 +269,7 @@ export const adminService = {
       role: owner.role,
       shopName: shop.name,
       currency: shop.currency,
+      sessionVersion: owner.version,
     };
   },
 };

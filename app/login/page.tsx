@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Smartphone, Lock, Mail, ArrowLeft, Loader2, Sparkles } from "lucide-react";
 import { loginAction } from "@/app/actions/authActions";
@@ -9,6 +9,13 @@ import { Button } from "@/components/ui/button";
 export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("passwordChanged") === "1") {
+      setNotice("تم تغيير كلمة المرور بنجاح. سجّل الدخول بكلمة المرور الجديدة.");
+    }
+  }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -63,6 +70,11 @@ export default function LoginPage() {
               {error}
             </div>
           )}
+          {notice && (
+            <div className="mb-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-xs font-bold text-emerald-300">
+              {notice}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
@@ -89,6 +101,9 @@ export default function LoginPage() {
                 <label className="block text-xs font-extrabold text-slate-300 uppercase tracking-wider">
                   كلمة المرور
                 </label>
+                <Link href="/forgot-password" className="text-[11px] font-bold text-teal-400 hover:text-teal-300">
+                  نسيت كلمة المرور؟
+                </Link>
               </div>
               <div className="relative">
                 <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-500">

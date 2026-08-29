@@ -14,6 +14,7 @@ import {
   Wrench,
   WalletCards,
   ChartNoAxesCombined,
+  ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -101,6 +102,7 @@ export const navGroups: NavGroup[] = [
   {
     title: "المساعدة والتهيئة",
     items: [
+      { href: "/account/security", label: "أمان الحساب", icon: ShieldCheck },
       { href: "/settings", label: "إعدادات المتجر", icon: Settings },
       { href: "/support", label: "الدعم الفني والواتساب", icon: Headphones },
     ],

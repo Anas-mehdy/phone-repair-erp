@@ -301,6 +301,7 @@ export async function acceptInvitationAction(rawToken: string, formData: FormDat
       role: result.membership.role,
       shopName: result.shop.name,
       currency: result.shop.currency || "SAR",
+      sessionVersion: result.user.version,
     });
   } catch (error) {
     console.error("[TeamAction Error: acceptInvitationAction]", error);

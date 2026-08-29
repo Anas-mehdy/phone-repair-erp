@@ -21,6 +21,18 @@ export const CHANGELOG_STORAGE_KEYS = {
 
 export const CHANGELOG_ENTRIES: ChangelogEntry[] = [
   {
+    id: "feat-password-recovery-v1-8",
+    version: "v1.8.0",
+    date: "2026-08-29",
+    type: "FEATURE",
+    priority: "HIGH",
+    title: "استعادة وتغيير كلمة المرور بأمان",
+    description: "يمكن استعادة كلمة المرور عبر رسالة بريد آمنة أو تغييرها من صفحة أمان الحساب، مع إلغاء الجلسات القديمة تلقائياً بعد التغيير.",
+    iconName: "ShieldCheck",
+    actionLabel: "فتح أمان الحساب",
+    actionHref: "/account/security",
+  },
+  {
     id: "imp-official-massar-domain-v1-7",
     version: "v1.7.0",
     date: "2026-08-29",

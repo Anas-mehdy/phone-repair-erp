@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
+import { prisma } from "@/lib/prisma";
 
 const JWT_SECRET = new TextEncoder().encode(
   process.env.AUTH_SECRET || "phone-repair-erp-secure-jwt-secret-key-2026-xyz"
@@ -16,6 +17,7 @@ export interface SessionPayload {
   role: string;
   shopName: string;
   currency: string;
+  sessionVersion: number;
 }
 
 export async function hashPassword(password: string): Promise<string> {
@@ -71,5 +73,20 @@ export async function getSession(): Promise<SessionPayload | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(COOKIE_NAME)?.value;
   if (!token) return null;
-  return verifySessionToken(token);
+
+  const session = await verifySessionToken(token);
+  if (!session?.userId) return null;
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.userId },
+    select: { version: true, deletedAt: true },
+  });
+
+  // Existing sessions created before sessionVersion was introduced are version 1.
+  const tokenVersion = session.sessionVersion ?? 1;
+  if (!user || user.deletedAt !== null || user.version !== tokenVersion) {
+    return null;
+  }
+
+  return { ...session, sessionVersion: tokenVersion };
 }
