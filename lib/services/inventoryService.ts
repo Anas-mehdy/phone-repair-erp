@@ -5,15 +5,19 @@ import {
   Prisma,
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { inventoryCategoryService } from "./inventoryCategoryService";
 
 export type InventoryItemFilters = {
   search?: string;
   lowStockOnly?: boolean;
+  categoryId?: string;
+  uncategorizedOnly?: boolean;
 };
 
 export type CreateInventoryItemInput = {
   name: string;
-  category?: string;
+  categoryId?: string;
+  newCategoryName?: string;
   sku?: string;
   description?: string;
   unitCost?: string;
@@ -25,7 +29,8 @@ export type CreateInventoryItemInput = {
 
 export type UpdateInventoryItemDetailsInput = {
   name: string;
-  category?: string;
+  categoryId?: string;
+  newCategoryName?: string;
   sku?: string;
   description?: string;
   unitCost?: string;
@@ -51,19 +56,13 @@ function emptyToNull(value?: string) {
 
 function decimalOrZero(value?: string) {
   const trimmed = value?.trim();
-  if (!trimmed) {
-    return new Prisma.Decimal(0);
-  }
-
+  if (!trimmed) return new Prisma.Decimal(0);
   return new Prisma.Decimal(trimmed.replace(",", "."));
 }
 
 function decimalOrNull(value?: string) {
   const trimmed = value?.trim();
-  if (!trimmed) {
-    return null;
-  }
-
+  if (!trimmed) return null;
   return new Prisma.Decimal(trimmed.replace(",", "."));
 }
 
@@ -77,11 +76,17 @@ export async function listInventoryItems(
   filters: InventoryItemFilters = {},
 ) {
   const search = filters.search?.trim();
+  const scopedIds = await inventoryCategoryService.listInventoryItemIdsForCategory(
+    shopId,
+    filters.categoryId,
+    filters.uncategorizedOnly,
+  );
 
   const items = await prisma.inventoryItem.findMany({
     where: {
       shopId,
       deletedAt: null,
+      ...(scopedIds ? { id: { in: scopedIds } } : {}),
       ...(search
         ? {
             OR: [
@@ -92,9 +97,7 @@ export async function listInventoryItems(
           }
         : {}),
     },
-    orderBy: {
-      updatedAt: "desc",
-    },
+    orderBy: { updatedAt: "desc" },
     include: {
       _count: { select: { compatibilityGroupLinks: true } },
     },
@@ -110,12 +113,8 @@ export async function getInventoryItemById(
   shopId: string,
   inventoryItemId: string,
 ) {
-  return prisma.inventoryItem.findFirst({
-    where: {
-      id: inventoryItemId,
-      shopId,
-      deletedAt: null,
-    },
+  const item = await prisma.inventoryItem.findFirst({
+    where: { id: inventoryItemId, shopId, deletedAt: null },
     include: {
       compatibilityGroupLinks: {
         include: {
@@ -132,6 +131,17 @@ export async function getInventoryItemById(
       },
     },
   });
+
+  if (!item) return null;
+  const categoryLink = await prisma.$queryRaw<Array<{ categoryId: string | null }>>`
+    SELECT "categoryId"
+    FROM "InventoryItem"
+    WHERE "id" = ${inventoryItemId}::uuid
+      AND "shopId" = ${shopId}::uuid
+    LIMIT 1
+  `;
+
+  return { ...item, categoryId: categoryLink[0]?.categoryId ?? null };
 }
 
 function uniqueGroupIds(ids?: string[]) {
@@ -169,27 +179,13 @@ async function validateCompatibilityGroups(
   return groupIds;
 }
 
-export async function getInventoryMovements(
-  shopId: string,
-  inventoryItemId: string,
-) {
+export async function getInventoryMovements(shopId: string, inventoryItemId: string) {
   return prisma.inventoryMovement.findMany({
-    where: {
-      shopId,
-      inventoryItemId,
-      deletedAt: null,
-    },
+    where: { shopId, inventoryItemId, deletedAt: null },
     include: {
-      repairOrder: {
-        select: {
-          id: true,
-          ticketNumber: true,
-        },
-      },
+      repairOrder: { select: { id: true, ticketNumber: true } },
     },
-    orderBy: {
-      createdAt: "desc",
-    },
+    orderBy: { createdAt: "desc" },
     take: 25,
   });
 }
@@ -200,17 +196,15 @@ export async function createInventoryItem(
   input: CreateInventoryItemInput,
 ) {
   const initialQuantity = integerOrZero(input.quantity);
+  const category = await inventoryCategoryService.resolveInventoryCategory(shopId, input);
 
   return prisma.$transaction(async (tx) => {
-    const compatibilityGroupIds = await validateCompatibilityGroups(
-      tx,
-      input.compatibilityGroupIds,
-    );
+    const compatibilityGroupIds = await validateCompatibilityGroups(tx, input.compatibilityGroupIds);
     const item = await tx.inventoryItem.create({
       data: {
         shopId,
         name: input.name.trim(),
-        category: emptyToNull(input.category),
+        category: category?.name ?? null,
         sku: emptyToNull(input.sku),
         description: emptyToNull(input.description),
         unitCost: decimalOrNull(input.unitCost),
@@ -220,12 +214,17 @@ export async function createInventoryItem(
       },
     });
 
+    if (category) {
+      await tx.$executeRaw`
+        UPDATE "InventoryItem"
+        SET "categoryId" = ${category.id}::uuid
+        WHERE "id" = ${item.id}::uuid AND "shopId" = ${shopId}::uuid
+      `;
+    }
+
     if (compatibilityGroupIds.length > 0) {
       await tx.inventoryCompatibilityGroup.createMany({
-        data: compatibilityGroupIds.map((candidateGroupId) => ({
-          inventoryItemId: item.id,
-          candidateGroupId,
-        })),
+        data: compatibilityGroupIds.map((candidateGroupId) => ({ inventoryItemId: item.id, candidateGroupId })),
       });
     }
 
@@ -254,22 +253,16 @@ export async function updateInventoryItemDetails(
   input: UpdateInventoryItemDetailsInput,
 ) {
   const existing = await getInventoryItemById(shopId, inventoryItemId);
-
-  if (!existing) {
-    throw new Error("قطعة المخزون غير موجودة.");
-  }
+  if (!existing) throw new Error("قطعة المخزون غير موجودة.");
+  const category = await inventoryCategoryService.resolveInventoryCategory(shopId, input);
 
   return prisma.$transaction(async (tx) => {
-    const compatibilityGroupIds = await validateCompatibilityGroups(
-      tx,
-      input.compatibilityGroupIds,
-    );
-
+    const compatibilityGroupIds = await validateCompatibilityGroups(tx, input.compatibilityGroupIds);
     const item = await tx.inventoryItem.update({
       where: { id: inventoryItemId },
       data: {
         name: input.name.trim(),
-        category: emptyToNull(input.category),
+        category: category?.name ?? null,
         sku: emptyToNull(input.sku),
         description: emptyToNull(input.description),
         unitCost: decimalOrNull(input.unitCost),
@@ -279,15 +272,16 @@ export async function updateInventoryItemDetails(
       },
     });
 
-    await tx.inventoryCompatibilityGroup.deleteMany({
-      where: { inventoryItemId },
-    });
+    await tx.$executeRaw`
+      UPDATE "InventoryItem"
+      SET "categoryId" = ${category?.id ?? null}::uuid
+      WHERE "id" = ${inventoryItemId}::uuid AND "shopId" = ${shopId}::uuid
+    `;
+
+    await tx.inventoryCompatibilityGroup.deleteMany({ where: { inventoryItemId } });
     if (compatibilityGroupIds.length > 0) {
       await tx.inventoryCompatibilityGroup.createMany({
-        data: compatibilityGroupIds.map((candidateGroupId) => ({
-          inventoryItemId,
-          candidateGroupId,
-        })),
+        data: compatibilityGroupIds.map((candidateGroupId) => ({ inventoryItemId, candidateGroupId })),
       });
     }
 
@@ -302,32 +296,14 @@ export async function addStock(
   input: AddStockInput,
 ) {
   const quantityToAdd = integerOrZero(input.quantity);
-
-  const item = await prisma.inventoryItem.findFirst({
-    where: {
-      id: inventoryItemId,
-      shopId,
-      deletedAt: null,
-    },
-  });
-
-  if (!item) {
-    throw new Error("قطعة المخزون غير موجودة.");
-  }
-
+  const item = await prisma.inventoryItem.findFirst({ where: { id: inventoryItemId, shopId, deletedAt: null } });
+  if (!item) throw new Error("قطعة المخزون غير موجودة.");
   const quantityAfter = item.quantity + quantityToAdd;
 
   const [updatedItem] = await prisma.$transaction([
     prisma.inventoryItem.update({
-      where: {
-        id: inventoryItemId,
-      },
-      data: {
-        quantity: quantityAfter,
-        version: {
-          increment: 1,
-        },
-      },
+      where: { id: inventoryItemId },
+      data: { quantity: quantityAfter, version: { increment: 1 } },
     }),
     prisma.inventoryMovement.create({
       data: {
@@ -342,7 +318,6 @@ export async function addStock(
       },
     }),
   ]);
-
   return updatedItem;
 }
 
@@ -353,36 +328,15 @@ export async function adjustStock(
   input: AdjustStockInput,
 ) {
   const newQuantity = integerOrZero(input.newQuantity);
-
-  const item = await prisma.inventoryItem.findFirst({
-    where: {
-      id: inventoryItemId,
-      shopId,
-      deletedAt: null,
-    },
-  });
-
-  if (!item) {
-    throw new Error("قطعة المخزون غير موجودة.");
-  }
-
+  const item = await prisma.inventoryItem.findFirst({ where: { id: inventoryItemId, shopId, deletedAt: null } });
+  if (!item) throw new Error("قطعة المخزون غير موجودة.");
   const quantityChange = newQuantity - item.quantity;
-
-  if (quantityChange === 0) {
-    return item;
-  }
+  if (quantityChange === 0) return item;
 
   const [updatedItem] = await prisma.$transaction([
     prisma.inventoryItem.update({
-      where: {
-        id: inventoryItemId,
-      },
-      data: {
-        quantity: newQuantity,
-        version: {
-          increment: 1,
-        },
-      },
+      where: { id: inventoryItemId },
+      data: { quantity: newQuantity, version: { increment: 1 } },
     }),
     prisma.inventoryMovement.create({
       data: {
@@ -397,7 +351,6 @@ export async function adjustStock(
       },
     }),
   ]);
-
   return updatedItem;
 }
 
