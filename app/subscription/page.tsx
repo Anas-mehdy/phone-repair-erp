@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 interface ManagedPartnerRow {
   partnerId: string;
-  partnerName: string;
+  partnerName: string | null;
   contactName: string | null;
   phone: string | null;
   email: string | null;
@@ -20,16 +20,16 @@ export default async function SubscriptionPage() {
 
   const partnerRows = await prisma.$queryRaw<ManagedPartnerRow[]>`
     SELECT
-      p."id" AS "partnerId",
+      s."partnerId" AS "partnerId",
       p."name" AS "partnerName",
       p."contactName" AS "contactName",
       p."phone" AS "phone",
       p."email" AS "email"
     FROM "Shop" s
-    INNER JOIN "Partner" p ON p."id" = s."partnerId"
+    LEFT JOIN "Partner" p ON p."id" = s."partnerId"
     WHERE s."id" = ${auth.shop.id}::uuid
       AND s."deletedAt" IS NULL
-      AND p."deletedAt" IS NULL
+      AND s."partnerId" IS NOT NULL
     LIMIT 1
   `;
 
@@ -52,7 +52,9 @@ export default async function SubscriptionPage() {
           </div>
 
           <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm">
-            <div className="font-black text-slate-900">{managedPartner.partnerName}</div>
+            <div className="font-black text-slate-900">
+              {managedPartner.partnerName ?? "الوكيل المسؤول عن المتجر"}
+            </div>
             {managedPartner.contactName ? (
               <div className="mt-1 font-semibold text-slate-600">
                 المسؤول: {managedPartner.contactName}
