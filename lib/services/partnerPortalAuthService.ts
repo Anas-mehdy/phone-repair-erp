@@ -46,6 +46,14 @@ function validatePassword(password: string): string {
   return password;
 }
 
+function assertUuid(value: string, label: string): string {
+  const normalized = value.trim();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(normalized)) {
+    throw new Error(`${label} غير صالح.`);
+  }
+  return normalized;
+}
+
 export async function loginPartnerPortal(input: { email: string; password: string }) {
   const email = normalizeEmail(input.email);
   const rows = await prisma.$queryRaw<PortalLoginRow[]>`
@@ -130,23 +138,35 @@ export async function upsertPartnerPortalCredentials(input: {
   password: string;
 }): Promise<void> {
   await requireSuperAdmin();
+  const partnerId = assertUuid(input.partnerId, "معرف الوكيل");
   const email = normalizeEmail(input.email);
   const password = validatePassword(input.password);
   const passwordHash = await hashPassword(password);
 
-  const partnerRows = await prisma.$queryRaw<Array<{ id: string; status: string }>>`
-    SELECT "id", "status"::text AS "status"
+  const partnerRows = await prisma.$queryRaw<Array<{ id: string }>>`
+    SELECT "id"
     FROM "Partner"
-    WHERE "id" = ${input.partnerId}::uuid
+    WHERE "id" = ${partnerId}::uuid
       AND "deletedAt" IS NULL
     LIMIT 1
   `;
   if (!partnerRows[0]) throw new Error("الوكيل غير موجود.");
 
+  const emailOwnerRows = await prisma.$queryRaw<Array<{ partnerId: string }>>`
+    SELECT "partnerId"
+    FROM "PartnerPortalAccount"
+    WHERE lower("email") = ${email}
+      AND "deletedAt" IS NULL
+    LIMIT 1
+  `;
+  if (emailOwnerRows[0] && emailOwnerRows[0].partnerId !== partnerId) {
+    throw new Error("هذا البريد مستخدم بالفعل لحساب وكيل آخر.");
+  }
+
   const existingRows = await prisma.$queryRaw<Array<{ id: string }>>`
     SELECT "id"
     FROM "PartnerPortalAccount"
-    WHERE "partnerId" = ${input.partnerId}::uuid
+    WHERE "partnerId" = ${partnerId}::uuid
       AND "deletedAt" IS NULL
     LIMIT 1
   `;
@@ -170,7 +190,7 @@ export async function upsertPartnerPortalCredentials(input: {
       "id", "partnerId", "email", "passwordHash", "version", "createdAt", "updatedAt"
     ) VALUES (
       ${id}::uuid,
-      ${input.partnerId}::uuid,
+      ${partnerId}::uuid,
       ${email},
       ${passwordHash},
       1,
