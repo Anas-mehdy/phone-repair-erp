@@ -1,6 +1,6 @@
 import { requirePermission } from "@/lib/auth/context";
 import { prisma } from "@/lib/prisma";
-import { getDebtDashboard } from "@/lib/services/debtLedgerService";
+import { getDebtDashboardWithHistory } from "@/lib/services/debtDashboardHistoryService";
 import { getDebtAgingSummary } from "@/lib/services/debtAgingService";
 import { DebtDashboard } from "./_debt-dashboard";
 
@@ -10,7 +10,7 @@ export default async function DebtsPage() {
   const auth = await requirePermission("debts:manage");
 
   const [dashboard, aging, customers] = await Promise.all([
-    getDebtDashboard(),
+    getDebtDashboardWithHistory(),
     getDebtAgingSummary(),
     prisma.customer.findMany({
       where: { shopId: auth.shop.id, deletedAt: null },
