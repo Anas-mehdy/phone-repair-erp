@@ -3,6 +3,7 @@ import { Cairo, Outfit } from "next/font/google";
 import { AppShell } from "@/components/app-shell";
 import { getAuthContext, can } from "@/lib/auth/context";
 import { APP_URL } from "@/lib/app-url";
+import { prisma } from "@/lib/prisma";
 import "./globals.css";
 
 const cairo = Cairo({
@@ -44,7 +45,18 @@ export default async function RootLayout({
     const auth = await getAuthContext({ allowRedirect: false });
     canSettings = can(auth, "shop:settings");
     canReports = can(auth, "reports:read");
-    canManageSubscription = can(auth, "subscription:manage");
+
+    const hasSubscriptionPermission = can(auth, "subscription:manage");
+    if (hasSubscriptionPermission) {
+      const rows = await prisma.$queryRaw<Array<{ partnerId: string | null }>>`
+        SELECT "partnerId"
+        FROM "Shop"
+        WHERE "id" = ${auth.shop.id}::uuid
+          AND "deletedAt" IS NULL
+        LIMIT 1
+      `;
+      canManageSubscription = !rows[0]?.partnerId;
+    }
   } catch {
     canSettings = false;
     canReports = false;
