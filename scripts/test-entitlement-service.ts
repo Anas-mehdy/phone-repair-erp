@@ -16,6 +16,7 @@ import {
   type EffectivePlan,
 } from "@/lib/services/subscriptionEntitlementService";
 import {
+  calculatePaidActivationEnd,
   calculateSubscriptionEnd,
   addCalendarMonthsUtc,
 } from "@/lib/services/subscriptionAdminService";
@@ -246,6 +247,66 @@ function runPureUnitTests() {
 
   const endWithExtra = calculateSubscriptionEnd(start, SubscriptionBillingInterval.SIX_MONTHS, 10);
   assertEqual(endWithExtra.getTime() - end6.getTime(), 10 * DAY_MS, "Extra 10 days added precisely");
+
+  const activationNow = new Date("2026-08-30T12:00:00.000Z");
+  const trialEndsWithFiveDaysLeft = new Date("2026-09-04T12:00:00.000Z");
+  const annualWithoutTrialCredit = calculateSubscriptionEnd(
+    activationNow,
+    SubscriptionBillingInterval.ANNUAL,
+    0,
+  );
+  const annualWithTrialCredit = calculatePaidActivationEnd(
+    activationNow,
+    SubscriptionBillingInterval.ANNUAL,
+    0,
+    SubscriptionStatus.TRIALING,
+    trialEndsWithFiveDaysLeft,
+  );
+  assertEqual(
+    annualWithTrialCredit.getTime() - annualWithoutTrialCredit.getTime(),
+    5 * DAY_MS,
+    "Active trial: all 5 remaining trial days are added to the paid annual period",
+  );
+
+  const trialEndsWithPartialDayLeft = new Date("2026-08-31T00:00:00.000Z");
+  const annualWithPartialTrialCredit = calculatePaidActivationEnd(
+    activationNow,
+    SubscriptionBillingInterval.ANNUAL,
+    0,
+    SubscriptionStatus.TRIALING,
+    trialEndsWithPartialDayLeft,
+  );
+  assertEqual(
+    annualWithPartialTrialCredit.getTime() - annualWithoutTrialCredit.getTime(),
+    12 * 60 * 60 * 1000,
+    "Active trial: remaining hours are preserved without rounding",
+  );
+
+  const expiredTrialEnd = calculatePaidActivationEnd(
+    activationNow,
+    SubscriptionBillingInterval.ANNUAL,
+    0,
+    SubscriptionStatus.TRIALING,
+    new Date("2026-08-29T12:00:00.000Z"),
+  );
+  assertEqual(
+    expiredTrialEnd.getTime(),
+    annualWithoutTrialCredit.getTime(),
+    "Expired trial: no trial credit is added",
+  );
+
+  const renewalWithHistoricTrialEnd = calculatePaidActivationEnd(
+    activationNow,
+    SubscriptionBillingInterval.ANNUAL,
+    0,
+    SubscriptionStatus.ACTIVE,
+    trialEndsWithFiveDaysLeft,
+  );
+  assertEqual(
+    renewalWithHistoricTrialEnd.getTime(),
+    annualWithoutTrialCredit.getTime(),
+    "Paid renewal: historic trial time is not credited a second time",
+  );
 
   // ── 6. Founders Offer Pricing & Validation Unit Tests ─────────────────────
   console.log("\n[PURE 6] Founders Offer Pricing & Validation Unit Tests");

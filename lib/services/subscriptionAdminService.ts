@@ -61,6 +61,27 @@ export function calculateSubscriptionEnd(
   return new Date(baseEnd.getTime() + extraDays * DAY_MS);
 }
 
+/**
+ * Calculates the paid period end while preserving any unused trial time.
+ * Trial credit is granted only on the first transition from TRIALING to ACTIVE,
+ * which prevents the original trial from being credited again on renewals.
+ */
+export function calculatePaidActivationEnd(
+  start: Date,
+  billingInterval: SubscriptionBillingInterval,
+  extraDays: number,
+  currentStatus: SubscriptionStatus,
+  trialEndsAt: Date,
+): Date {
+  const paidPeriodEnd = calculateSubscriptionEnd(start, billingInterval, extraDays);
+  const remainingTrialMs =
+    currentStatus === SubscriptionStatus.TRIALING
+      ? Math.max(0, trialEndsAt.getTime() - start.getTime())
+      : 0;
+
+  return new Date(paidPeriodEnd.getTime() + remainingTrialMs);
+}
+
 function nullableTrimmed(value?: string | null): string | null | undefined {
   if (value === undefined) return undefined;
   const trimmed = value?.trim() ?? "";
@@ -119,7 +140,7 @@ export async function listSubscriptionsForAdmin(now = new Date()) {
   }));
 }
 
-/** Activates the single comprehensive paid plan without modifying trial history. */
+/** Activates the paid plan and credits any trial time still remaining. */
 export async function activateSubscription(
   input: ActivateSubscriptionInput,
   now = new Date(),
@@ -128,10 +149,12 @@ export async function activateSubscription(
   const existingSub = await requireExistingSubscription(input.shopId);
 
   const currentPeriodStartedAt = new Date(now);
-  const currentPeriodEndsAt = calculateSubscriptionEnd(
+  const currentPeriodEndsAt = calculatePaidActivationEnd(
     currentPeriodStartedAt,
     input.billingInterval,
     input.extraDays ?? 0,
+    existingSub.status,
+    existingSub.trialEndsAt,
   );
 
   let foundersOfferEligible = existingSub.foundersOfferEligible;
@@ -300,5 +323,6 @@ export const subscriptionAdminService = {
   cancelSubscription,
   grantExtraDays,
   calculateSubscriptionEnd,
+  calculatePaidActivationEnd,
   addCalendarMonthsUtc,
 };
