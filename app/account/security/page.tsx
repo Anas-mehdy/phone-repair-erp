@@ -1,4 +1,6 @@
+import { MembershipRole } from "@prisma/client";
 import { KeyRound, ShieldCheck } from "lucide-react";
+import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
 import { getAuthContext } from "@/lib/auth/context";
 import { ChangePasswordForm } from "./_form";
@@ -7,6 +9,10 @@ export const dynamic = "force-dynamic";
 
 export default async function AccountSecurityPage() {
   const auth = await getAuthContext();
+
+  if (auth.membership.role !== MembershipRole.OWNER) {
+    redirect("/dashboard");
+  }
 
   return (
     <div className="space-y-6">
