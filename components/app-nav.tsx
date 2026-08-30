@@ -138,8 +138,8 @@ export function AppNav({
   return (
     <nav className={cn("mt-2", compact ? "space-y-3" : "space-y-5")}>
       {navGroups.map((group, groupIdx) => {
-        // Filter out Settings navigation item if user lacks shop:settings permission (non-OWNER)
         const visibleItems = group.items.filter((item) => {
+          if (item.href === "/account/security") return canSettings;
           if (item.href === "/settings") return canSettings;
           if (item.href === "/reports") return canReports;
           if (item.href === "/subscription") return canManageSubscription;
