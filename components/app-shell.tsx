@@ -67,13 +67,14 @@ export function AppShell({
     };
   }, [mobileMenuOpen]);
 
-  // For marketing landing page, auth pages, tracking page, and printable receipts, render clean layout without dashboard sidebar
+  // For marketing landing page, auth pages, partner portal, tracking page, and printable receipts, render clean layout without dashboard sidebar
   const isPublicPage =
     pathname === "/" ||
     pathname === "/login" ||
     pathname === "/register" ||
     pathname === "/forgot-password" ||
     pathname === "/reset-password" ||
+    pathname.startsWith("/partners") ||
     pathname.includes("/print") ||
     pathname.includes("/sticker") ||
     pathname.startsWith("/track") ||

@@ -5,8 +5,9 @@ import {
   SubscriptionStatus,
 } from "@prisma/client";
 import { requireSuperAdmin } from "@/lib/adminAuth";
+import { requirePartnerSession } from "@/lib/partner-auth";
 import { prisma } from "@/lib/prisma";
-import { getPartnerWholesaleQuote } from "@/lib/services/partnerPricingService";
+import { buildPartnerWholesaleQuote } from "@/lib/services/partnerPricingService";
 import { calculateSubscriptionEnd } from "@/lib/services/subscriptionAdminService";
 
 export type PartnerActivationRequestStatus =
@@ -68,16 +69,13 @@ function mapRequest(row: PartnerActivationRequestRecord): PartnerActivationReque
   };
 }
 
-export async function createPartnerActivationRequest(input: {
+async function insertRequestFromTrustedIdentity(input: {
   partnerId: string;
   shopId: string;
   billingInterval: SubscriptionBillingInterval;
   adminNotes?: string | null;
 }): Promise<PartnerActivationRequestView> {
-  await requireSuperAdmin();
-
-  // Quote is authoritative and validates partner/shop attribution + partner status.
-  const quote = await getPartnerWholesaleQuote({
+  const quote = await buildPartnerWholesaleQuote({
     partnerId: input.partnerId,
     shopId: input.shopId,
     billingInterval: input.billingInterval,
@@ -111,6 +109,28 @@ export async function createPartnerActivationRequest(input: {
   `;
 
   return mapRequest(rows[0]);
+}
+
+export async function createPartnerActivationRequest(input: {
+  partnerId: string;
+  shopId: string;
+  billingInterval: SubscriptionBillingInterval;
+  adminNotes?: string | null;
+}): Promise<PartnerActivationRequestView> {
+  await requireSuperAdmin();
+  return insertRequestFromTrustedIdentity(input);
+}
+
+export async function createPartnerActivationRequestForPartner(input: {
+  shopId: string;
+  billingInterval: SubscriptionBillingInterval;
+}): Promise<PartnerActivationRequestView> {
+  const session = await requirePartnerSession();
+  return insertRequestFromTrustedIdentity({
+    partnerId: session.partnerId,
+    shopId: input.shopId,
+    billingInterval: input.billingInterval,
+  });
 }
 
 export async function listPartnerActivationRequests(): Promise<PartnerActivationRequestView[]> {
@@ -194,12 +214,8 @@ export async function approvePartnerActivationRequest(input: {
       throw new Error("لا يمكن اعتماد طلب لوكيل موقوف.");
     }
 
-    const subscription = await tx.subscription.findUnique({
-      where: { shopId: request.shopId },
-    });
-    if (!subscription) {
-      throw new Error("لم يتم العثور على اشتراك لهذا المتجر.");
-    }
+    const subscription = await tx.subscription.findUnique({ where: { shopId: request.shopId } });
+    if (!subscription) throw new Error("لم يتم العثور على اشتراك لهذا المتجر.");
 
     const currentPeriodStartedAt = new Date(now);
     const currentPeriodEndsAt = calculateSubscriptionEnd(
@@ -208,8 +224,6 @@ export async function approvePartnerActivationRequest(input: {
       extraDays,
     );
 
-    // Partner-managed subscriptions never receive the direct Founders Offer here.
-    // Existing founders snapshot, if any historical data exists, is left untouched.
     await tx.subscription.update({
       where: { shopId: request.shopId },
       data: {
@@ -252,20 +266,14 @@ export async function rejectPartnerActivationRequest(
   now = new Date(),
 ): Promise<PartnerActivationRequestView> {
   const adminSession = await requireSuperAdmin();
-
   const rows = await prisma.$queryRaw<PartnerActivationRequestRecord[]>`
     UPDATE "PartnerActivationRequest"
-    SET
-      "status" = 'REJECTED'::"PartnerActivationRequestStatus",
-      "rejectedAt" = ${now},
-      "decidedById" = ${adminSession.userId}::uuid,
-      "adminNotes" = ${trimNullable(adminNotes)},
-      "updatedAt" = ${now}
-    WHERE "id" = ${requestId}::uuid
-      AND "status" = 'PENDING'::"PartnerActivationRequestStatus"
+    SET "status" = 'REJECTED'::"PartnerActivationRequestStatus",
+        "rejectedAt" = ${now}, "decidedById" = ${adminSession.userId}::uuid,
+        "adminNotes" = ${trimNullable(adminNotes)}, "updatedAt" = ${now}
+    WHERE "id" = ${requestId}::uuid AND "status" = 'PENDING'::"PartnerActivationRequestStatus"
     RETURNING *
   `;
-
   if (!rows[0]) throw new Error("الطلب غير موجود أو تمت معالجته مسبقاً.");
   return mapRequest(rows[0]);
 }
@@ -276,25 +284,20 @@ export async function cancelPartnerActivationRequest(
   now = new Date(),
 ): Promise<PartnerActivationRequestView> {
   await requireSuperAdmin();
-
   const rows = await prisma.$queryRaw<PartnerActivationRequestRecord[]>`
     UPDATE "PartnerActivationRequest"
-    SET
-      "status" = 'CANCELED'::"PartnerActivationRequestStatus",
-      "canceledAt" = ${now},
-      "adminNotes" = ${trimNullable(adminNotes)},
-      "updatedAt" = ${now}
-    WHERE "id" = ${requestId}::uuid
-      AND "status" = 'PENDING'::"PartnerActivationRequestStatus"
+    SET "status" = 'CANCELED'::"PartnerActivationRequestStatus",
+        "canceledAt" = ${now}, "adminNotes" = ${trimNullable(adminNotes)}, "updatedAt" = ${now}
+    WHERE "id" = ${requestId}::uuid AND "status" = 'PENDING'::"PartnerActivationRequestStatus"
     RETURNING *
   `;
-
   if (!rows[0]) throw new Error("الطلب غير موجود أو تمت معالجته مسبقاً.");
   return mapRequest(rows[0]);
 }
 
 export const partnerActivationRequestService = {
   createPartnerActivationRequest,
+  createPartnerActivationRequestForPartner,
   listPartnerActivationRequests,
   approvePartnerActivationRequest,
   rejectPartnerActivationRequest,

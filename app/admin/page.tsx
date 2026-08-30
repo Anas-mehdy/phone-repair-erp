@@ -5,10 +5,12 @@ import { subscriptionAdminService } from "@/lib/services/subscriptionAdminServic
 import { subscriptionOfferService } from "@/lib/services/subscriptionOfferService";
 import { partnerActivationRequestService } from "@/lib/services/partnerActivationRequestService";
 import { partnerActivationAdminDataService } from "@/lib/services/partnerActivationAdminDataService";
+import { partnerPortalAdminDataService } from "@/lib/services/partnerPortalAdminDataService";
 import { prisma } from "@/lib/prisma";
 import { AdminOnlineUsers } from "./_admin-online-users";
 import { AdminTabsView } from "./_admin-tabs-view";
 import { AdminPartnerActivationRequests } from "./_admin-partner-activation-requests";
+import { AdminPartnerPortalManagement } from "./_admin-partner-portal-management";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +23,7 @@ export default async function SuperAdminDashboardPage() {
     offer,
     activationRequests,
     activationCandidates,
+    partnerPortalAdminData,
   ] = await Promise.all([
     adminService.getPlatformStats(),
     adminService.listAllShops(),
@@ -32,6 +35,7 @@ export default async function SuperAdminDashboardPage() {
     subscriptionOfferService.getOfferSettings(),
     partnerActivationRequestService.listPartnerActivationRequests(),
     partnerActivationAdminDataService.listPartnerActivationCandidates(),
+    partnerPortalAdminDataService.getPartnerPortalAdminData(),
   ]);
 
   const serializedPrices = rawPrices.map((p) => ({
@@ -49,6 +53,11 @@ export default async function SuperAdminDashboardPage() {
     approvedAt: request.approvedAt?.toISOString() ?? null,
     rejectedAt: request.rejectedAt?.toISOString() ?? null,
     canceledAt: request.canceledAt?.toISOString() ?? null,
+  }));
+
+  const serializedPartners = partnerPortalAdminData.partners.map((partner) => ({
+    ...partner,
+    portalLastLoginAt: partner.portalLastLoginAt?.toISOString() ?? null,
   }));
 
   return (
@@ -73,6 +82,11 @@ export default async function SuperAdminDashboardPage() {
       <AdminOnlineUsers
         initialOnlineCount={stats.onlineUsersCount}
         initialActiveShopsCount={stats.activeOnlineShopsCount}
+      />
+
+      <AdminPartnerPortalManagement
+        partners={serializedPartners}
+        shops={partnerPortalAdminData.shops}
       />
 
       <AdminPartnerActivationRequests
