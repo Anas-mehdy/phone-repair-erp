@@ -75,6 +75,8 @@ export function AppShell({
     pathname === "/forgot-password" ||
     pathname === "/reset-password" ||
     pathname.startsWith("/partners") ||
+    pathname.startsWith("/partner-invite/") ||
+    pathname.startsWith("/register/partner/") ||
     pathname.includes("/print") ||
     pathname.includes("/sticker") ||
     pathname.startsWith("/track") ||
