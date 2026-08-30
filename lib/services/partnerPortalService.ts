@@ -1,4 +1,4 @@
-import { SubscriptionBillingInterval } from "@prisma/client";
+import { SubscriptionBillingInterval, SubscriptionStatus } from "@prisma/client";
 import { requirePartnerSession } from "@/lib/partner-auth";
 import { prisma } from "@/lib/prisma";
 import { computeEffectiveStatus } from "@/lib/services/subscriptionEntitlementService";
@@ -9,7 +9,7 @@ interface PartnerShopRow {
   shopName: string;
   countryCode: string;
   partnerAssignedAt: Date | null;
-  subscriptionStatus: "TRIALING" | "ACTIVE" | "GRACE_PERIOD" | "EXPIRED" | "CANCELED";
+  subscriptionStatus: SubscriptionStatus;
   billingInterval: SubscriptionBillingInterval | null;
   trialEndsAt: Date;
   currentPeriodStartedAt: Date | null;
@@ -54,7 +54,7 @@ export async function getPartnerPortalDashboard(now = new Date()) {
         s."name" AS "shopName",
         s."countryCode" AS "countryCode",
         s."partnerAssignedAt" AS "partnerAssignedAt",
-        sub."status"::text AS "subscriptionStatus",
+        sub."status" AS "subscriptionStatus",
         sub."billingInterval" AS "billingInterval",
         sub."trialEndsAt" AS "trialEndsAt",
         sub."currentPeriodStartedAt" AS "currentPeriodStartedAt",
