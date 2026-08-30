@@ -126,9 +126,8 @@ export async function requestActivationFromPartnerPortal(input: {
   shopId: string;
   billingInterval: SubscriptionBillingInterval;
 }) {
-  const session = await requirePartnerSession();
+  await requirePartnerSession();
   return createPartnerActivationRequestForPartner({
-    partnerId: session.partnerId,
     shopId: input.shopId,
     billingInterval: input.billingInterval,
   });
