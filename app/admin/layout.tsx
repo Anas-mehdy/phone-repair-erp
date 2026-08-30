@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ShieldAlert, ArrowRight, LayoutDashboard } from "lucide-react";
+import { ShieldAlert, ArrowRight, LayoutDashboard, Handshake } from "lucide-react";
 import { requireSuperAdmin } from "@/lib/adminAuth";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +16,7 @@ export default async function AdminLayout({
       {/* Super Admin Top Navigation */}
       <header className="sticky top-0 z-40 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-xl">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 items-center justify-between">
+          <div className="flex min-h-16 items-center justify-between gap-3 py-2">
             {/* Logo and Badge */}
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 text-white shadow-lg shadow-violet-500/25">
@@ -36,13 +36,20 @@ export default async function AdminLayout({
             </div>
 
             {/* Quick Links */}
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center justify-end gap-2">
               <Link
                 href="/admin"
                 className="flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-2 text-xs font-bold text-slate-300 hover:bg-slate-800 hover:text-white transition"
               >
                 <LayoutDashboard className="h-4 w-4 text-violet-400" />
                 <span>إحصائيات المنصة</span>
+              </Link>
+              <Link
+                href="/admin/partners"
+                className="flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-2 text-xs font-bold text-slate-300 hover:bg-slate-800 hover:text-white transition"
+              >
+                <Handshake className="h-4 w-4 text-teal-400" />
+                <span>الوكلاء</span>
               </Link>
               <Link
                 href="/admin/compatibility"
@@ -60,7 +67,6 @@ export default async function AdminLayout({
                 <ArrowRight className="h-3.5 w-3.5 rotate-180" />
               </Link>
             </div>
-
           </div>
         </div>
       </header>
