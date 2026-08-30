@@ -61,7 +61,7 @@ CREATE INDEX "PartnerActivationRequest_shopId_status_idx"
 CREATE INDEX "PartnerActivationRequest_status_requestedAt_idx"
   ON "PartnerActivationRequest" ("status", "requestedAt" DESC);
 
--- Prevent duplicate simultaneous pending requests for the same shop and interval.
-CREATE UNIQUE INDEX "PartnerActivationRequest_pending_unique"
-  ON "PartnerActivationRequest" ("shopId", "billingInterval")
+-- A shop may have only one unresolved commercial activation request at a time.
+CREATE UNIQUE INDEX "PartnerActivationRequest_pending_shop_unique"
+  ON "PartnerActivationRequest" ("shopId")
   WHERE "status" = 'PENDING';
