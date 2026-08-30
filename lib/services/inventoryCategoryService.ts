@@ -37,6 +37,26 @@ export async function listInventoryCategories(shopId: string) {
   }));
 }
 
+export async function getInventoryCategoryOverview(shopId: string) {
+  const [categories, counts] = await Promise.all([
+    listInventoryCategories(shopId),
+    prisma.$queryRaw<Array<{ totalCount: bigint | number; uncategorizedCount: bigint | number }>>`
+      SELECT
+        COUNT(*)::bigint AS "totalCount",
+        COUNT(*) FILTER (WHERE "categoryId" IS NULL)::bigint AS "uncategorizedCount"
+      FROM "InventoryItem"
+      WHERE "shopId" = ${shopId}::uuid
+        AND "deletedAt" IS NULL
+    `,
+  ]);
+
+  return {
+    categories,
+    totalCount: Number(counts[0]?.totalCount ?? 0),
+    uncategorizedCount: Number(counts[0]?.uncategorizedCount ?? 0),
+  };
+}
+
 export async function createInventoryCategory(shopId: string, name: string) {
   const trimmedName = name.trim();
   if (!trimmedName) throw new Error("اسم التصنيف مطلوب.");
@@ -63,7 +83,64 @@ export async function createInventoryCategory(shopId: string, name: string) {
   return created[0];
 }
 
+export async function resolveInventoryCategory(
+  shopId: string,
+  input: { categoryId?: string; newCategoryName?: string },
+) {
+  const newName = input.newCategoryName?.trim();
+  if (newName) return createInventoryCategory(shopId, newName);
+
+  const categoryId = input.categoryId?.trim();
+  if (!categoryId) return null;
+
+  const rows = await prisma.$queryRaw<Array<{ id: string; name: string }>>`
+    SELECT "id", "name"
+    FROM "InventoryCategory"
+    WHERE "id" = ${categoryId}::uuid
+      AND "shopId" = ${shopId}::uuid
+      AND "deletedAt" IS NULL
+    LIMIT 1
+  `;
+
+  if (!rows[0]) throw new Error("التصنيف المحدد غير موجود.");
+  return rows[0];
+}
+
+export async function listInventoryItemIdsForCategory(
+  shopId: string,
+  categoryId?: string,
+  uncategorizedOnly = false,
+) {
+  if (uncategorizedOnly) {
+    const rows = await prisma.$queryRaw<Array<{ id: string }>>`
+      SELECT "id"
+      FROM "InventoryItem"
+      WHERE "shopId" = ${shopId}::uuid
+        AND "deletedAt" IS NULL
+        AND "categoryId" IS NULL
+    `;
+    return rows.map((row) => row.id);
+  }
+
+  if (!categoryId) return null;
+
+  const rows = await prisma.$queryRaw<Array<{ id: string }>>`
+    SELECT i."id"
+    FROM "InventoryItem" i
+    INNER JOIN "InventoryCategory" c ON c."id" = i."categoryId"
+    WHERE i."shopId" = ${shopId}::uuid
+      AND i."deletedAt" IS NULL
+      AND c."shopId" = ${shopId}::uuid
+      AND c."deletedAt" IS NULL
+      AND c."id" = ${categoryId}::uuid
+  `;
+  return rows.map((row) => row.id);
+}
+
 export const inventoryCategoryService = {
   listInventoryCategories,
+  getInventoryCategoryOverview,
   createInventoryCategory,
+  resolveInventoryCategory,
+  listInventoryItemIdsForCategory,
 };
