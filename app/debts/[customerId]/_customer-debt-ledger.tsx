@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Banknote, CalendarDays, CreditCard, Printer, ReceiptText } from "lucide-react";
-import { recordDebtPaymentAction } from "../actions";
+import { ArrowRight, Banknote, CalendarDays, CreditCard, Printer, ReceiptText, Trash2 } from "lucide-react";
+import { deleteDebtLedgerAction, recordDebtPaymentAction } from "../actions";
 
 interface Entry {
   id: string;
@@ -44,6 +44,7 @@ export function CustomerDebtLedger({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [deleting, startDeleteTransition] = useTransition();
   const [amount, setAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("نقدي");
   const [reference, setReference] = useState("");
@@ -80,6 +81,24 @@ export function CustomerDebtLedger({
     });
   }
 
+  function deleteLedger() {
+    setMessage(null);
+    const confirmed = window.confirm(
+      `هل أنت متأكد من حذف دفتر دين العميل «${customer.name}»؟\n\nسيتم حذف جميع حركات الدين والتحصيل المرتبطة بهذا الدفتر نهائياً، ولا يمكن التراجع عن هذه العملية.`,
+    );
+    if (!confirmed) return;
+
+    startDeleteTransition(async () => {
+      const result = await deleteDebtLedgerAction(customer.id);
+      if (!result.success) {
+        setMessage(result.error);
+        return;
+      }
+      router.push("/debts");
+      router.refresh();
+    });
+  }
+
   return (
     <div className="space-y-6" dir="rtl">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -87,9 +106,19 @@ export function CustomerDebtLedger({
           <Link href="/debts" className="inline-flex items-center gap-1 text-xs font-black text-sky-700 hover:underline"><ArrowRight className="h-3.5 w-3.5" /> العودة إلى دفتر الديون</Link>
           <h1 className="mt-2 text-2xl font-black text-slate-900">كشف حساب: {customer.name}</h1>
           <p className="mt-1 text-xs font-semibold text-slate-500">{customer.phone || "بدون رقم هاتف"}{customer.email ? ` · ${customer.email}` : ""}</p>
-          <Link href={`/debts/${customer.id}/print`} className="mt-3 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 shadow-sm hover:bg-slate-50">
-            <Printer className="h-4 w-4" /> طباعة كشف الحساب / PDF
-          </Link>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Link href={`/debts/${customer.id}/print`} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 shadow-sm hover:bg-slate-50">
+              <Printer className="h-4 w-4" /> طباعة كشف الحساب / PDF
+            </Link>
+            <button
+              type="button"
+              disabled={deleting}
+              onClick={deleteLedger}
+              className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-black text-rose-700 shadow-sm hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Trash2 className="h-4 w-4" /> {deleting ? "جارٍ الحذف..." : "حذف دفتر الدين"}
+            </button>
+          </div>
         </div>
         <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4">
           <div className="text-[11px] font-black text-rose-600">الرصيد المستحق حالياً</div>
@@ -108,7 +137,7 @@ export function CustomerDebtLedger({
           <label className="space-y-1.5 text-xs font-bold text-slate-700"><span>مرجع (اختياري)</span><input value={reference} onChange={(e) => setReference(e.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-emerald-400" placeholder="رقم حوالة أو إيصال" /></label>
           <label className="space-y-1.5 text-xs font-bold text-slate-700"><span>ملاحظة</span><input value={description} onChange={(e) => setDescription(e.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-emerald-400" placeholder="دفعة على الحساب" /></label>
         </div>
-        <button type="button" disabled={pending || balance <= 0} onClick={submitPayment} className="mt-4 rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-black text-white disabled:opacity-50">{pending ? "جارٍ التسجيل..." : "تسجيل التحصيل"}</button>
+        <button type="button" disabled={pending || balance <= 0 || deleting} onClick={submitPayment} className="mt-4 rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-black text-white disabled:opacity-50">{pending ? "جارٍ التسجيل..." : "تسجيل التحصيل"}</button>
       </section>
 
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
