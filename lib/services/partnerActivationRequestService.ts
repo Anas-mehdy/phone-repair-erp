@@ -5,11 +5,9 @@ import {
   SubscriptionStatus,
 } from "@prisma/client";
 import { requireSuperAdmin } from "@/lib/adminAuth";
+import { requirePartnerSession } from "@/lib/partner-auth";
 import { prisma } from "@/lib/prisma";
-import {
-  buildPartnerWholesaleQuote,
-  getPartnerWholesaleQuote,
-} from "@/lib/services/partnerPricingService";
+import { buildPartnerWholesaleQuote } from "@/lib/services/partnerPricingService";
 import { calculateSubscriptionEnd } from "@/lib/services/subscriptionAdminService";
 
 export type PartnerActivationRequestStatus =
@@ -120,18 +118,19 @@ export async function createPartnerActivationRequest(input: {
   adminNotes?: string | null;
 }): Promise<PartnerActivationRequestView> {
   await requireSuperAdmin();
-  // Preserve the explicit Super Admin quote authorization path.
-  await getPartnerWholesaleQuote(input);
   return insertRequestFromTrustedIdentity(input);
 }
 
-/** Partner caller MUST pass partnerId from requirePartnerSession(), never from form input. */
 export async function createPartnerActivationRequestForPartner(input: {
-  partnerId: string;
   shopId: string;
   billingInterval: SubscriptionBillingInterval;
 }): Promise<PartnerActivationRequestView> {
-  return insertRequestFromTrustedIdentity(input);
+  const session = await requirePartnerSession();
+  return insertRequestFromTrustedIdentity({
+    partnerId: session.partnerId,
+    shopId: input.shopId,
+    billingInterval: input.billingInterval,
+  });
 }
 
 export async function listPartnerActivationRequests(): Promise<PartnerActivationRequestView[]> {
