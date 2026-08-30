@@ -45,13 +45,15 @@ function assertUuid(value: string, label: string): string {
   return normalized;
 }
 
-export async function getPartnerWholesaleQuote(input: {
+/**
+ * Trusted internal quote builder. Callers MUST derive partnerId from an
+ * authenticated server-side identity (Super Admin or Partner session).
+ */
+export async function buildPartnerWholesaleQuote(input: {
   partnerId: string;
   shopId: string;
   billingInterval: SubscriptionBillingInterval;
 }): Promise<PartnerWholesaleQuote> {
-  await requireSuperAdmin();
-
   const partnerId = assertUuid(input.partnerId, "معرف الوكيل");
   const shopId = assertUuid(input.shopId, "معرف المتجر");
 
@@ -126,6 +128,16 @@ export async function getPartnerWholesaleQuote(input: {
   };
 }
 
+export async function getPartnerWholesaleQuote(input: {
+  partnerId: string;
+  shopId: string;
+  billingInterval: SubscriptionBillingInterval;
+}): Promise<PartnerWholesaleQuote> {
+  await requireSuperAdmin();
+  return buildPartnerWholesaleQuote(input);
+}
+
 export const partnerPricingService = {
   getPartnerWholesaleQuote,
+  buildPartnerWholesaleQuote,
 };
