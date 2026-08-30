@@ -1,29 +1,37 @@
-import {
-  ShieldCheck,
-} from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { SubscriptionPlan } from "@prisma/client";
 import { adminService } from "@/lib/services/adminService";
 import { subscriptionAdminService } from "@/lib/services/subscriptionAdminService";
 import { subscriptionOfferService } from "@/lib/services/subscriptionOfferService";
+import { partnerActivationRequestService } from "@/lib/services/partnerActivationRequestService";
+import { partnerActivationAdminDataService } from "@/lib/services/partnerActivationAdminDataService";
 import { prisma } from "@/lib/prisma";
 import { AdminOnlineUsers } from "./_admin-online-users";
 import { AdminTabsView } from "./_admin-tabs-view";
+import { AdminPartnerActivationRequests } from "./_admin-partner-activation-requests";
 
 export const dynamic = "force-dynamic";
 
 export default async function SuperAdminDashboardPage() {
-  const [stats, shops, subscriptions, rawPrices, offer] = await Promise.all([
+  const [
+    stats,
+    shops,
+    subscriptions,
+    rawPrices,
+    offer,
+    activationRequests,
+    activationCandidates,
+  ] = await Promise.all([
     adminService.getPlatformStats(),
     adminService.listAllShops(),
     subscriptionAdminService.listSubscriptionsForAdmin(),
     prisma.subscriptionPrice.findMany({
       where: { plan: SubscriptionPlan.PROFESSIONAL },
-      orderBy: [
-        { countryCode: "asc" },
-        { billingInterval: "asc" },
-      ],
+      orderBy: [{ countryCode: "asc" }, { billingInterval: "asc" }],
     }),
     subscriptionOfferService.getOfferSettings(),
+    partnerActivationRequestService.listPartnerActivationRequests(),
+    partnerActivationAdminDataService.listPartnerActivationCandidates(),
   ]);
 
   const serializedPrices = rawPrices.map((p) => ({
@@ -35,6 +43,14 @@ export default async function SuperAdminDashboardPage() {
     amount: Number(p.amount),
   }));
 
+  const serializedActivationRequests = activationRequests.map((request) => ({
+    ...request,
+    requestedAt: request.requestedAt.toISOString(),
+    approvedAt: request.approvedAt?.toISOString() ?? null,
+    rejectedAt: request.rejectedAt?.toISOString() ?? null,
+    canceledAt: request.canceledAt?.toISOString() ?? null,
+  }));
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -44,7 +60,7 @@ export default async function SuperAdminDashboardPage() {
             <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            مراقبة حية لأداء المنصة، إدارة اشتراكات المتاجر، وتعديل أسعار الاشتراكات وعرض المشتركين الأوائل
+            مراقبة المنصة، إدارة الاشتراكات المباشرة، وتسويات تفعيل العملاء عبر الوكلاء
           </p>
         </div>
 
@@ -57,6 +73,11 @@ export default async function SuperAdminDashboardPage() {
       <AdminOnlineUsers
         initialOnlineCount={stats.onlineUsersCount}
         initialActiveShopsCount={stats.activeOnlineShopsCount}
+      />
+
+      <AdminPartnerActivationRequests
+        initialCandidates={activationCandidates}
+        initialRequests={serializedActivationRequests}
       />
 
       <AdminTabsView
