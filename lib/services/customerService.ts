@@ -20,27 +20,17 @@ function emptyToNull(value?: string | null) {
 
 export function normalizePhone(phone?: string | null) {
   const trimmed = phone?.trim();
-
-  if (!trimmed) {
-    return null;
-  }
-
+  if (!trimmed) return null;
   const hasPlus = trimmed.startsWith("+");
   const digits = trimmed.replace(/\D/g, "");
-
-  if (!digits) {
-    return null;
-  }
-
+  if (!digits) return null;
   return hasPlus ? `+${digits}` : digits;
 }
 
 export async function createCustomer(shopId: string, input: CreateCustomerInput) {
   const name = input.name.trim();
   if (!name) throw new Error("اسم العميل مطلوب.");
-
   const phone = emptyToNull(input.phone);
-
   return prisma.customer.create({
     data: {
       shopId,
@@ -50,156 +40,82 @@ export async function createCustomer(shopId: string, input: CreateCustomerInput)
       email: emptyToNull(input.email),
       notes: emptyToNull(input.notes),
     },
-    select: {
-      id: true,
-      name: true,
-      phone: true,
-      email: true,
-    },
+    select: { id: true, name: true, phone: true, email: true },
   });
 }
 
-export async function listCustomers(
-  shopId: string,
-  filters: CustomerFilters = {},
-) {
+export async function listCustomers(shopId: string, filters: CustomerFilters = {}) {
   const search = filters.search?.trim();
-
   return prisma.customer.findMany({
     where: {
       shopId,
       deletedAt: null,
-      ...(search
-        ? {
-            OR: [
-              { name: { contains: search, mode: "insensitive" } },
-              { phone: { contains: search, mode: "insensitive" } },
-              { phoneNormalized: { contains: search, mode: "insensitive" } },
-            ],
-          }
-        : {}),
+      ...(search ? { OR: [
+        { name: { contains: search, mode: "insensitive" } },
+        { phone: { contains: search, mode: "insensitive" } },
+        { phoneNormalized: { contains: search, mode: "insensitive" } },
+      ] } : {}),
     },
     include: {
       _count: {
         select: {
-          repairOrders: {
-            where: {
-              deletedAt: null,
-            },
-          },
-          sales: {
-            where: {
-              deletedAt: null,
-            },
-          },
-          invoices: {
-            where: {
-              deletedAt: null,
-            },
-          },
+          repairOrders: { where: { deletedAt: null } },
+          sales: { where: { deletedAt: null } },
+          invoices: { where: { deletedAt: null } },
         },
       },
     },
-    orderBy: {
-      updatedAt: "desc",
-    },
+    orderBy: { updatedAt: "desc" },
     take: 100,
   });
 }
 
 export async function getCustomerById(shopId: string, customerId: string) {
   return prisma.customer.findFirst({
-    where: {
-      id: customerId,
-      shopId,
-      deletedAt: null,
-    },
+    where: { id: customerId, shopId, deletedAt: null },
     include: {
       repairOrders: {
-        where: {
-          deletedAt: null,
-        },
-        orderBy: {
-          createdAt: "desc",
-        },
+        where: { deletedAt: null },
+        orderBy: { createdAt: "desc" },
         take: 20,
       },
       sales: {
-        where: {
-          deletedAt: null,
-        },
-        orderBy: {
-          soldAt: "desc",
-        },
+        where: { deletedAt: null },
+        orderBy: { soldAt: "desc" },
         take: 20,
       },
       invoices: {
-        where: {
-          deletedAt: null,
-        },
-        orderBy: {
-          issuedAt: "desc",
-        },
+        where: { deletedAt: null },
+        orderBy: { issuedAt: "desc" },
         take: 20,
       },
       _count: {
         select: {
-          repairOrders: {
-            where: {
-              deletedAt: null,
-            },
-          },
-          sales: {
-            where: {
-              deletedAt: null,
-            },
-          },
-          invoices: {
-            where: {
-              deletedAt: null,
-            },
-          },
+          repairOrders: { where: { deletedAt: null } },
+          sales: { where: { deletedAt: null } },
+          invoices: { where: { deletedAt: null } },
         },
       },
     },
   });
 }
 
-export async function updateCustomer(
-  shopId: string,
-  customerId: string,
-  input: UpdateCustomerInput,
-) {
+export async function updateCustomer(shopId: string, customerId: string, input: UpdateCustomerInput) {
   const customer = await prisma.customer.findFirst({
-    where: {
-      id: customerId,
-      shopId,
-      deletedAt: null,
-    },
-    select: {
-      id: true,
-    },
+    where: { id: customerId, shopId, deletedAt: null },
+    select: { id: true },
   });
-
-  if (!customer) {
-    throw new Error("العميل غير موجود.");
-  }
-
+  if (!customer) throw new Error("العميل غير موجود.");
   const phone = emptyToNull(input.phone);
-
   return prisma.customer.update({
-    where: {
-      id: customer.id,
-    },
+    where: { id: customer.id },
     data: {
       name: input.name.trim(),
       phone,
       phoneNormalized: normalizePhone(phone),
       email: emptyToNull(input.email),
       notes: emptyToNull(input.notes),
-      version: {
-        increment: 1,
-      },
+      version: { increment: 1 },
     },
   });
 }
@@ -207,57 +123,44 @@ export async function updateCustomer(
 export async function softDeleteCustomer(shopId: string, customerId: string) {
   return prisma.$transaction(async (tx) => {
     const customer = await tx.customer.findFirst({
-      where: {
-        id: customerId,
-        shopId,
-        deletedAt: null,
-      },
+      where: { id: customerId, shopId, deletedAt: null },
       include: {
         _count: {
           select: {
-            repairOrders: {
-              where: {
-                deletedAt: null,
-              },
-            },
-            sales: {
-              where: {
-                deletedAt: null,
-              },
-            },
-            invoices: {
-              where: {
-                deletedAt: null,
-              },
-            },
+            repairOrders: { where: { deletedAt: null } },
+            sales: { where: { deletedAt: null } },
+            invoices: { where: { deletedAt: null } },
           },
         },
       },
     });
+    if (!customer) throw new Error("العميل غير موجود.");
 
-    if (!customer) {
-      throw new Error("العميل غير موجود.");
-    }
+    const [installmentCount, debtRows] = await Promise.all([
+      tx.installmentPlan.count({ where: { shopId, customerId, deletedAt: null } }),
+      tx.$queryRaw<Array<{ count: bigint | number | string }>>`
+        SELECT COUNT(*) AS count
+        FROM "DebtLedgerAccount"
+        WHERE "shopId" = ${shopId}::uuid
+          AND "customerId" = ${customerId}::uuid
+      `,
+    ]);
 
+    const debtAccountCount = Number(debtRows[0]?.count ?? 0);
     const linkedRecords =
       customer._count.repairOrders +
       customer._count.sales +
-      customer._count.invoices;
+      customer._count.invoices +
+      installmentCount +
+      debtAccountCount;
 
     if (linkedRecords > 0) {
-      throw new Error("لا يمكن حذف عميل لديه طلبات أو مبيعات أو فواتير مرتبطة.");
+      throw new Error("لا يمكن حذف عميل لديه صيانة أو مبيعات أو فواتير أو أقساط أو دفتر ديون مرتبط.");
     }
 
     return tx.customer.update({
-      where: {
-        id: customer.id,
-      },
-      data: {
-        deletedAt: new Date(),
-        version: {
-          increment: 1,
-        },
-      },
+      where: { id: customer.id },
+      data: { deletedAt: new Date(), version: { increment: 1 } },
     });
   });
 }
