@@ -25,6 +25,7 @@ export type AppPermission =
   | "suppliers:manage"
   | "reports:read"
   | "expenses:manage"
+  | "debts:manage"
   | "shop:settings"
   | "team:read"
   | "team:invite"
@@ -53,6 +54,7 @@ export const ALL_APP_PERMISSIONS: readonly AppPermission[] = [
   "suppliers:manage",
   "reports:read",
   "expenses:manage",
+  "debts:manage",
   "shop:settings",
   "team:read",
   "team:invite",
@@ -89,10 +91,11 @@ export const ROLE_PERMISSIONS_MATRIX: Record<MembershipRole, readonly AppPermiss
     "suppliers:manage",
     "reports:read",
     "expenses:manage",
+    "debts:manage",
     "team:read",
     "team:invite",
     "team:manage",
-    // Note: shop:settings is excluded (OWNER only)
+    // Note: shop:settings and subscription:manage are excluded (OWNER only)
   ],
 
   TECHNICIAN: [
