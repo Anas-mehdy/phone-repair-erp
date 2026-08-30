@@ -78,10 +78,16 @@ export default async function RepairOrdersPage({
         description="تابع الأجهزة من لحظة الاستلام حتى التسليم"
         actions={
           <div className="flex flex-wrap gap-2">
+            <Button asChild variant={assignment === "ALL" ? "default" : "outline"} className="font-bold shadow-sm">
+              <Link href="/repair-orders">
+                <Wrench className="h-4 w-4 ml-1.5" aria-hidden="true" />
+                جميع تذاكر المتجر
+              </Link>
+            </Button>
             <Button asChild variant={assignment === "MINE" ? "default" : "outline"} className="font-bold shadow-sm">
               <Link href="/repair-orders?assignment=MINE">
                 <UserRoundCheck className="h-4 w-4 ml-1.5" aria-hidden="true" />
-                تذاكري
+                المسندة إليّ
               </Link>
             </Button>
             <Button asChild className="font-semibold shadow-sm">
@@ -93,6 +99,26 @@ export default async function RepairOrdersPage({
           </div>
         }
       />
+
+      {assignment !== "ALL" ? (
+        <div className="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-950 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-2">
+            <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
+            <span>
+              {assignment === "MINE"
+                ? "أنت تعرض الآن التذاكر المسندة إليك فقط؛ تذاكر باقي أعضاء الفريق لا تظهر ضمن هذا الفلتر."
+                : "أنت تعرض الآن التذاكر غير المسندة فقط؛ التذاكر المسندة لأعضاء الفريق مخفية ضمن هذا الفلتر."}
+            </span>
+          </div>
+          <Button asChild variant="outline" className="h-9 shrink-0 rounded-xl border-amber-300 bg-white text-xs font-black text-amber-900 hover:bg-amber-100">
+            <Link href="/repair-orders">عرض جميع تذاكر المتجر</Link>
+          </Button>
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-cyan-100 bg-cyan-50/70 px-4 py-3 text-[11px] font-bold leading-6 text-cyan-950">
+          جميع التذاكر مشتركة بين أعضاء المتجر بحسب صلاحياتهم. اسم منشئ التذكرة لا يغيّر إمكانية ظهورها للمالك أو الفريق.
+        </div>
+      )}
 
       {/* Summary Info Strip */}
       <div className="rounded-2xl border border-teal-200/50 bg-teal-50/15 p-4 text-xs font-semibold text-teal-900/90 flex items-center justify-between gap-4">
@@ -124,8 +150,8 @@ export default async function RepairOrdersPage({
         <div className="grid gap-2 text-xs font-extrabold text-slate-700">
           <span>الفني المسؤول</span>
           <select className={selectClassName} name="assignment" defaultValue={assignment}>
-            <option value="ALL">جميع التذاكر</option>
-            <option value="MINE">تذاكري فقط</option>
+            <option value="ALL">جميع تذاكر المتجر</option>
+            <option value="MINE">المسندة إليّ فقط</option>
             <option value="UNASSIGNED">غير مسندة</option>
           </select>
         </div>
@@ -153,11 +179,13 @@ export default async function RepairOrdersPage({
         {repairOrders.length === 0 ? (
           <EmptyState
             icon={Wrench}
-            title={assignment === "MINE" ? "لا توجد تذاكر مسندة إليك" : "لا توجد طلبات صيانة بعد"}
+            title={assignment === "MINE" ? "لا توجد تذاكر مسندة إليك" : assignment === "UNASSIGNED" ? "لا توجد تذاكر غير مسندة" : "لا توجد طلبات صيانة بعد"}
             description={
               assignment === "MINE"
-                ? "عندما يسند المالك أو المدير تذكرة إليك ستظهر هنا مباشرة."
-                : "ابدأ بإنشاء طلب صيانة جديد للعميل وسيظهر هنا مع حالته وتاريخه."
+                ? "هذا الفلتر يعرض التذاكر المسندة إليك كمسؤول فقط. استخدم «جميع تذاكر المتجر» لمشاهدة عمل الفريق كاملاً."
+                : assignment === "UNASSIGNED"
+                  ? "كل التذاكر الحالية مسندة لأعضاء الفريق. استخدم «جميع تذاكر المتجر» لمشاهدتها."
+                  : "ابدأ بإنشاء طلب صيانة جديد للعميل وسيظهر هنا لجميع أعضاء المتجر المصرح لهم."
             }
             actionHref="/repair-orders/new"
             actionLabel="طلب صيانة جديد"
