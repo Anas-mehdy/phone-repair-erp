@@ -38,6 +38,8 @@ interface AgingSummary {
   total: number;
 }
 
+type LedgerStatusFilter = "ALL" | "SETTLED" | "OUTSTANDING";
+
 export function DebtDashboard({
   customers,
   rows,
@@ -59,6 +61,9 @@ export function DebtDashboard({
   const [isPending, startTransition] = useTransition();
   const [customerPending, startCustomerTransition] = useTransition();
   const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<LedgerStatusFilter>("ALL");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [customerOptions, setCustomerOptions] = useState<CustomerOption[]>(customers);
@@ -75,13 +80,35 @@ export function DebtDashboard({
 
   const filteredRows = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    if (!normalized) return rows;
-    return rows.filter((row) =>
-      `${row.customerName} ${row.phone ?? ""}`.toLowerCase().includes(normalized),
-    );
-  }, [query, rows]);
+
+    return rows.filter((row) => {
+      if (normalized && !`${row.customerName} ${row.phone ?? ""}`.toLowerCase().includes(normalized)) {
+        return false;
+      }
+
+      const isSettled = row.balance <= 0.005;
+      if (statusFilter === "SETTLED" && !isSettled) return false;
+      if (statusFilter === "OUTSTANDING" && isSettled) return false;
+
+      if (dateFrom || dateTo) {
+        if (!row.lastActivityAt) return false;
+        const activityDate = row.lastActivityAt.slice(0, 10);
+        if (dateFrom && activityDate < dateFrom) return false;
+        if (dateTo && activityDate > dateTo) return false;
+      }
+
+      return true;
+    });
+  }, [query, statusFilter, dateFrom, dateTo, rows]);
 
   const money = (value: number) => `${value.toFixed(2)} ${currency}`;
+
+  function clearFilters() {
+    setQuery("");
+    setStatusFilter("ALL");
+    setDateFrom("");
+    setDateTo("");
+  }
 
   function submitNewCustomer() {
     setMessage(null);
@@ -232,9 +259,43 @@ export function DebtDashboard({
       </section>
 
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="text-sm font-black text-slate-900">العملاء المديونون</h2><p className="mt-1 text-[11px] font-semibold text-slate-500">اضغط على العميل لفتح كشف حسابه وتسجيل دفعة.</p></div><div className="relative w-full sm:w-72"><Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="بحث بالاسم أو الهاتف" className="w-full rounded-xl border border-slate-200 py-2.5 pr-9 pl-3 text-xs font-semibold outline-none focus:border-sky-400" /></div></div>
+        <div className="border-b border-slate-100 p-4">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+            <div><h2 className="text-sm font-black text-slate-900">دفاتر ديون العملاء</h2><p className="mt-1 text-[11px] font-semibold text-slate-500">المسدد بالكامل يبقى محفوظاً في السجل، ويمكن فلترة الدفاتر بالحالة وتاريخ آخر حركة.</p></div>
+            <div className="grid w-full gap-2 sm:grid-cols-2 lg:grid-cols-5 xl:w-auto">
+              <div className="relative sm:col-span-2 lg:col-span-1 lg:w-64"><Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="بحث بالاسم أو الهاتف" className="w-full rounded-xl border border-slate-200 py-2.5 pr-9 pl-3 text-xs font-semibold outline-none focus:border-sky-400" /></div>
+              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as LedgerStatusFilter)} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-sky-400">
+                <option value="ALL">كل الحالات</option>
+                <option value="OUTSTANDING">باقي عليه</option>
+                <option value="SETTLED">مسدد بالكامل</option>
+              </select>
+              <label className="grid gap-1 text-[10px] font-bold text-slate-500"><span>آخر حركة من</span><input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 outline-none focus:border-sky-400" /></label>
+              <label className="grid gap-1 text-[10px] font-bold text-slate-500"><span>آخر حركة إلى</span><input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 outline-none focus:border-sky-400" /></label>
+              <button type="button" onClick={clearFilters} className="self-end rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-black text-slate-600 hover:bg-slate-50">مسح الفلاتر</button>
+            </div>
+          </div>
+        </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-right text-xs"><thead className="bg-slate-50 text-slate-500"><tr><th className="p-3">العميل</th><th className="p-3">الهاتف</th><th className="p-3">الرصيد المستحق</th><th className="p-3">أقدم دين</th><th className="p-3">آخر حركة</th><th className="p-3"></th></tr></thead><tbody className="divide-y divide-slate-100">{filteredRows.map((row) => <tr key={row.customerId} className="hover:bg-slate-50/70"><td className="p-3 font-black text-slate-900">{row.customerName}</td><td className="p-3 text-slate-500">{row.phone || "—"}</td><td className="p-3 font-black text-rose-600">{money(row.balance)}</td><td className="p-3 text-slate-500">{row.oldestDebtAt ? new Date(row.oldestDebtAt).toLocaleDateString("ar") : "—"}</td><td className="p-3 text-slate-500">{row.lastActivityAt ? new Date(row.lastActivityAt).toLocaleDateString("ar") : "—"}</td><td className="p-3"><Link href={`/debts/${row.customerId}`} className="font-black text-sky-700 hover:underline">فتح الدفتر</Link></td></tr>)}{filteredRows.length === 0 ? <tr><td colSpan={6} className="p-8 text-center font-bold text-slate-400">لا توجد ديون مسجلة حالياً.</td></tr> : null}</tbody></table>
+          <table className="w-full min-w-[900px] text-right text-xs">
+            <thead className="bg-slate-50 text-slate-500"><tr><th className="p-3">العميل</th><th className="p-3">الهاتف</th><th className="p-3">الحالة</th><th className="p-3">الرصيد المستحق</th><th className="p-3">أقدم دين</th><th className="p-3">آخر حركة</th><th className="p-3"></th></tr></thead>
+            <tbody className="divide-y divide-slate-100">
+              {filteredRows.map((row) => {
+                const isSettled = row.balance <= 0.005;
+                return (
+                  <tr key={row.customerId} className="hover:bg-slate-50/70">
+                    <td className="p-3 font-black text-slate-900">{row.customerName}</td>
+                    <td className="p-3 text-slate-500">{row.phone || "—"}</td>
+                    <td className="p-3"><span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-black ${isSettled ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{isSettled ? "مسدد بالكامل" : "باقي عليه"}</span></td>
+                    <td className={`p-3 font-black ${isSettled ? "text-emerald-700" : "text-rose-600"}`}>{money(row.balance)}</td>
+                    <td className="p-3 text-slate-500">{row.oldestDebtAt ? new Date(row.oldestDebtAt).toLocaleDateString("ar") : "—"}</td>
+                    <td className="p-3 text-slate-500">{row.lastActivityAt ? new Date(row.lastActivityAt).toLocaleDateString("ar") : "—"}</td>
+                    <td className="p-3"><Link href={`/debts/${row.customerId}`} className="font-black text-sky-700 hover:underline">فتح الدفتر</Link></td>
+                  </tr>
+                );
+              })}
+              {filteredRows.length === 0 ? <tr><td colSpan={7} className="p-8 text-center font-bold text-slate-400">لا توجد دفاتر مطابقة للفلاتر الحالية.</td></tr> : null}
+            </tbody>
+          </table>
         </div>
       </section>
     </div>
