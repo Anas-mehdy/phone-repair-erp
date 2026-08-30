@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { requirePermission } from "@/lib/auth/context";
 import { prisma } from "@/lib/prisma";
+import { resolvePaymentSource } from "@/lib/services/paymentSourceService";
 
 export type DebtEntryType =
   | "DEBT"
@@ -27,6 +28,7 @@ export interface DebtLedgerEntryRow {
   description: string | null;
   reference: string | null;
   paymentMethod: string | null;
+  sourceName: string | null;
   createdByName: string | null;
   isReversed: boolean;
 }
@@ -41,6 +43,13 @@ function parsePositiveAmount(value: number) {
     throw new Error("يجب أن يكون المبلغ أكبر من صفر.");
   }
   return Math.round(value * 100) / 100;
+}
+
+function parseOptionalDate(value?: string | null) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) throw new Error("التاريخ غير صالح.");
+  return date;
 }
 
 async function ensureCustomerBelongsToShop(
@@ -78,6 +87,7 @@ async function getBalanceInTransaction(
   tx: Prisma.TransactionClient,
   shopId: string,
   customerId: string,
+  excludingEntryId?: string,
 ) {
   const rows = await tx.$queryRaw<Array<{ balance: Prisma.Decimal | number | string }>>`
     SELECT COALESCE(SUM(
@@ -91,6 +101,7 @@ async function getBalanceInTransaction(
     FROM "DebtLedgerEntry"
     WHERE "shopId" = ${shopId}::uuid
       AND "customerId" = ${customerId}::uuid
+      AND (${excludingEntryId ?? null}::uuid IS NULL OR "id" <> ${excludingEntryId ?? null}::uuid)
   `;
   return Number(rows[0]?.balance ?? 0);
 }
@@ -107,12 +118,8 @@ export async function createDebtEntry(input: {
   const auth = await requirePermission("debts:manage");
   const amount = parsePositiveAmount(input.amount);
   const type = input.type === "OPENING_BALANCE" ? "OPENING_BALANCE" : "DEBT";
-  const occurredAt = input.occurredAt ? new Date(input.occurredAt) : new Date();
-  const dueAt = input.dueAt ? new Date(input.dueAt) : null;
-
-  if (Number.isNaN(occurredAt.getTime()) || (dueAt && Number.isNaN(dueAt.getTime()))) {
-    throw new Error("تاريخ الحركة غير صالح.");
-  }
+  const occurredAt = parseOptionalDate(input.occurredAt) ?? new Date();
+  const dueAt = parseOptionalDate(input.dueAt);
 
   await prisma.$transaction(async (tx) => {
     await ensureCustomerBelongsToShop(tx, auth.shop.id, input.customerId);
@@ -142,14 +149,15 @@ export async function recordDebtPayment(input: {
   customerId: string;
   amount: number;
   occurredAt?: string | null;
-  paymentMethod?: string | null;
+  sourceOptionId?: string;
+  customSourceName?: string | null;
+  saveCustomSource?: boolean;
   description?: string | null;
   reference?: string | null;
 }) {
   const auth = await requirePermission("debts:manage");
   const amount = parsePositiveAmount(input.amount);
-  const occurredAt = input.occurredAt ? new Date(input.occurredAt) : new Date();
-  if (Number.isNaN(occurredAt.getTime())) throw new Error("تاريخ التحصيل غير صالح.");
+  const occurredAt = parseOptionalDate(input.occurredAt) ?? new Date();
 
   await prisma.$transaction(async (tx) => {
     await ensureCustomerBelongsToShop(tx, auth.shop.id, input.customerId);
@@ -161,10 +169,16 @@ export async function recordDebtPayment(input: {
       throw new Error(`المبلغ المدفوع أكبر من الرصيد المستحق (${currentBalance.toFixed(2)}).`);
     }
 
+    const sourceName = await resolvePaymentSource(tx, auth.shop.id, {
+      sourceOptionId: input.sourceOptionId,
+      customSourceName: input.customSourceName ?? undefined,
+      saveCustomSource: input.saveCustomSource,
+    });
+
     await tx.$executeRaw`
       INSERT INTO "DebtLedgerEntry" (
         "shopId", "accountId", "customerId", "type", "amount",
-        "occurredAt", "description", "reference", "paymentMethod", "createdByUserId"
+        "occurredAt", "description", "reference", "sourceName", "createdByUserId"
       ) VALUES (
         ${auth.shop.id}::uuid,
         ${accountId}::uuid,
@@ -174,9 +188,82 @@ export async function recordDebtPayment(input: {
         ${occurredAt},
         ${normalizeOptional(input.description)},
         ${normalizeOptional(input.reference)},
-        ${normalizeOptional(input.paymentMethod)},
+        ${sourceName},
         ${auth.user.id}::uuid
       )
+    `;
+  });
+}
+
+export async function updateDebtLedgerEntry(input: {
+  customerId: string;
+  entryId: string;
+  amount: number;
+  occurredAt?: string | null;
+  dueAt?: string | null;
+  sourceOptionId?: string;
+  customSourceName?: string | null;
+  saveCustomSource?: boolean;
+  description?: string | null;
+  reference?: string | null;
+}) {
+  const auth = await requirePermission("debts:manage");
+  const amount = parsePositiveAmount(input.amount);
+  const occurredAt = parseOptionalDate(input.occurredAt) ?? new Date();
+  const dueAt = parseOptionalDate(input.dueAt);
+
+  await prisma.$transaction(async (tx) => {
+    await ensureCustomerBelongsToShop(tx, auth.shop.id, input.customerId);
+
+    const rows = await tx.$queryRaw<Array<{ id: string; type: DebtEntryType; isReversed: boolean; sourceName: string | null; paymentMethod: string | null }>>`
+      SELECT "id", "type", "isReversed", "sourceName", "paymentMethod"
+      FROM "DebtLedgerEntry"
+      WHERE "id" = ${input.entryId}::uuid
+        AND "shopId" = ${auth.shop.id}::uuid
+        AND "customerId" = ${input.customerId}::uuid
+      FOR UPDATE
+    `;
+
+    const entry = rows[0];
+    if (!entry) throw new Error("حركة الدين غير موجودة.");
+    if (entry.isReversed) throw new Error("لا يمكن تعديل حركة ملغاة.");
+
+    const isCredit = entry.type === "PAYMENT" || entry.type === "ADJUSTMENT_CREDIT";
+    if (isCredit) {
+      const balanceWithoutThisEntry = await getBalanceInTransaction(tx, auth.shop.id, input.customerId, input.entryId);
+      if (amount - balanceWithoutThisEntry > 0.005) {
+        throw new Error(`قيمة التحصيل الجديدة أكبر من الرصيد المتاح (${balanceWithoutThisEntry.toFixed(2)}).`);
+      }
+    }
+
+    let sourceName = entry.sourceName ?? entry.paymentMethod;
+    if (entry.type === "PAYMENT") {
+      const hasSourceUpdate = Boolean(input.sourceOptionId || normalizeOptional(input.customSourceName));
+      if (hasSourceUpdate) {
+        sourceName = await resolvePaymentSource(tx, auth.shop.id, {
+          sourceOptionId: input.sourceOptionId,
+          customSourceName: input.customSourceName ?? undefined,
+          saveCustomSource: input.saveCustomSource,
+        });
+      } else if (input.customSourceName === "") {
+        sourceName = null;
+      }
+    }
+
+    const debitType = entry.type === "DEBT" || entry.type === "OPENING_BALANCE" || entry.type === "ADJUSTMENT_DEBIT";
+
+    await tx.$executeRaw`
+      UPDATE "DebtLedgerEntry"
+      SET "amount" = ${amount},
+          "occurredAt" = ${occurredAt},
+          "dueAt" = ${debitType ? dueAt : null},
+          "description" = ${normalizeOptional(input.description)},
+          "reference" = ${normalizeOptional(input.reference)},
+          "sourceName" = ${entry.type === "PAYMENT" ? sourceName : null},
+          "updatedAt" = NOW()
+      WHERE "id" = ${input.entryId}::uuid
+        AND "shopId" = ${auth.shop.id}::uuid
+        AND "customerId" = ${input.customerId}::uuid
     `;
   });
 }
@@ -267,6 +354,7 @@ export async function getCustomerDebtLedger(customerId: string) {
     description: string | null;
     reference: string | null;
     paymentMethod: string | null;
+    sourceName: string | null;
     createdByName: string | null;
     isReversed: boolean;
   }>>`
@@ -279,6 +367,7 @@ export async function getCustomerDebtLedger(customerId: string) {
       e."description",
       e."reference",
       e."paymentMethod",
+      e."sourceName",
       u."name" AS "createdByName",
       e."isReversed"
     FROM "DebtLedgerEntry" e
@@ -305,6 +394,7 @@ export async function getCustomerDebtLedger(customerId: string) {
 export const debtLedgerService = {
   createDebtEntry,
   recordDebtPayment,
+  updateDebtLedgerEntry,
   getDebtDashboard,
   getCustomerDebtLedger,
 };
