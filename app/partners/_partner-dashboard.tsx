@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { CalendarDays, CheckCircle2, Clock3, LogOut, Store, WalletCards } from "lucide-react";
 import { partnerLogoutAction, partnerRequestActivationAction } from "./actions";
 
@@ -58,6 +58,7 @@ export function PartnerDashboard({
   const [submittingShop, setSubmittingShop] = useState<string | null>(null);
 
   const pendingShopIds = new Set(requests.filter((r) => r.status === "PENDING").map((r) => r.shopId));
+  const shopById = useMemo(() => new Map(shops.map((shop) => [shop.shopId, shop])), [shops]);
 
   async function requestActivation(shopId: string, billingInterval: "SIX_MONTHS" | "ANNUAL") {
     setMessage(null);
@@ -144,20 +145,25 @@ export function PartnerDashboard({
           <h2 className="mb-4 flex items-center gap-2 text-lg font-black"><WalletCards className="h-5 w-5 text-teal-400" /> طلبات التفعيل</h2>
           <div className="overflow-hidden rounded-2xl border border-slate-800">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-right text-xs">
-                <thead className="bg-slate-900 text-slate-400"><tr><th className="p-3">العميل</th><th className="p-3">المدة</th><th className="p-3">المطلوب لمسار</th><th className="p-3">خصمك</th><th className="p-3">الحالة</th><th className="p-3">التاريخ</th></tr></thead>
+              <table className="w-full min-w-[880px] text-right text-xs">
+                <thead className="bg-slate-900 text-slate-400"><tr><th className="p-3">العميل</th><th className="p-3">المدة</th><th className="p-3">المطلوب لمسار</th><th className="p-3">خصمك</th><th className="p-3">الحالة</th><th className="p-3">ينتهي الاشتراك</th><th className="p-3">التاريخ</th></tr></thead>
                 <tbody className="divide-y divide-slate-800 bg-slate-950">
-                  {requests.map((request) => (
-                    <tr key={request.id}>
-                      <td className="p-3 font-black">{request.shopName}</td>
-                      <td className="p-3">{request.billingInterval === "ANNUAL" ? "سنة" : "6 أشهر"}</td>
-                      <td className="p-3 font-black text-teal-300">{request.payableAmount.toFixed(2)} {request.currencyCode}</td>
-                      <td className="p-3">{request.discountPercent}%</td>
-                      <td className="p-3">{requestStatusLabel(request.status)}</td>
-                      <td className="p-3 text-slate-500">{new Date(request.requestedAt).toLocaleDateString("ar")}</td>
-                    </tr>
-                  ))}
-                  {requests.length === 0 ? <tr><td colSpan={6} className="p-6 text-center font-bold text-slate-600">لا توجد طلبات تفعيل حتى الآن.</td></tr> : null}
+                  {requests.map((request) => {
+                    const shop = shopById.get(request.shopId);
+                    const subscriptionEndsAt = request.status === "APPROVED" ? shop?.currentPeriodEndsAt ?? null : null;
+                    return (
+                      <tr key={request.id}>
+                        <td className="p-3 font-black">{request.shopName}</td>
+                        <td className="p-3">{request.billingInterval === "ANNUAL" ? "سنة" : "6 أشهر"}</td>
+                        <td className="p-3 font-black text-teal-300">{request.payableAmount.toFixed(2)} {request.currencyCode}</td>
+                        <td className="p-3">{request.discountPercent}%</td>
+                        <td className="p-3">{requestStatusLabel(request.status)}</td>
+                        <td className="p-3 font-bold text-slate-300">{subscriptionEndsAt ? new Date(subscriptionEndsAt).toLocaleDateString("ar") : "—"}</td>
+                        <td className="p-3 text-slate-500">{new Date(request.requestedAt).toLocaleDateString("ar")}</td>
+                      </tr>
+                    );
+                  })}
+                  {requests.length === 0 ? <tr><td colSpan={7} className="p-6 text-center font-bold text-slate-600">لا توجد طلبات تفعيل حتى الآن.</td></tr> : null}
                 </tbody>
               </table>
             </div>
