@@ -169,7 +169,8 @@ export async function approvePartnerActivationRequest(input: {
           currentPartnerId: string | null;
           partnerStatus: "ACTIVE" | "SUSPENDED";
         }
-      >`
+      >
+    >`
       SELECT
         r.*,
         s."partnerId" AS "currentPartnerId",
