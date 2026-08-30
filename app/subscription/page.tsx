@@ -4,6 +4,7 @@ import { entitlementService } from "@/lib/services/subscriptionEntitlementServic
 import { subscriptionOfferService } from "@/lib/services/subscriptionOfferService";
 import { prisma } from "@/lib/prisma";
 import { SubscriptionView } from "./_subscription-view";
+import { TrialCreditNote } from "./_trial-credit-note";
 
 export const dynamic = "force-dynamic";
 
@@ -136,6 +137,11 @@ export default async function SubscriptionPage() {
 
   return (
     <div className="py-6 px-4 sm:px-6 lg:px-8">
+      {entitlement.subscription.effectiveStatus === "TRIALING" ? (
+        <div className="mx-auto max-w-6xl">
+          <TrialCreditNote />
+        </div>
+      ) : null}
       <SubscriptionView
         shop={{
           name: auth.shop.name,
