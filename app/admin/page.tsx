@@ -3,28 +3,14 @@ import { SubscriptionPlan } from "@prisma/client";
 import { adminService } from "@/lib/services/adminService";
 import { subscriptionAdminService } from "@/lib/services/subscriptionAdminService";
 import { subscriptionOfferService } from "@/lib/services/subscriptionOfferService";
-import { partnerActivationRequestService } from "@/lib/services/partnerActivationRequestService";
-import { partnerActivationAdminDataService } from "@/lib/services/partnerActivationAdminDataService";
-import { partnerPortalAdminDataService } from "@/lib/services/partnerPortalAdminDataService";
 import { prisma } from "@/lib/prisma";
 import { AdminOnlineUsers } from "./_admin-online-users";
 import { AdminTabsView } from "./_admin-tabs-view";
-import { AdminPartnerActivationRequests } from "./_admin-partner-activation-requests";
-import { AdminPartnerPortalManagement } from "./_admin-partner-portal-management";
 
 export const dynamic = "force-dynamic";
 
 export default async function SuperAdminDashboardPage() {
-  const [
-    stats,
-    shops,
-    subscriptions,
-    rawPrices,
-    offer,
-    activationRequests,
-    activationCandidates,
-    partnerPortalAdminData,
-  ] = await Promise.all([
+  const [stats, shops, subscriptions, rawPrices, offer] = await Promise.all([
     adminService.getPlatformStats(),
     adminService.listAllShops(),
     subscriptionAdminService.listSubscriptionsForAdmin(),
@@ -33,9 +19,6 @@ export default async function SuperAdminDashboardPage() {
       orderBy: [{ countryCode: "asc" }, { billingInterval: "asc" }],
     }),
     subscriptionOfferService.getOfferSettings(),
-    partnerActivationRequestService.listPartnerActivationRequests(),
-    partnerActivationAdminDataService.listPartnerActivationCandidates(),
-    partnerPortalAdminDataService.getPartnerPortalAdminData(),
   ]);
 
   const serializedPrices = rawPrices.map((p) => ({
@@ -47,19 +30,6 @@ export default async function SuperAdminDashboardPage() {
     amount: Number(p.amount),
   }));
 
-  const serializedActivationRequests = activationRequests.map((request) => ({
-    ...request,
-    requestedAt: request.requestedAt.toISOString(),
-    approvedAt: request.approvedAt?.toISOString() ?? null,
-    rejectedAt: request.rejectedAt?.toISOString() ?? null,
-    canceledAt: request.canceledAt?.toISOString() ?? null,
-  }));
-
-  const serializedPartners = partnerPortalAdminData.partners.map((partner) => ({
-    ...partner,
-    portalLastLoginAt: partner.portalLastLoginAt?.toISOString() ?? null,
-  }));
-
   return (
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -69,7 +39,7 @@ export default async function SuperAdminDashboardPage() {
             <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            مراقبة المنصة، إدارة الاشتراكات المباشرة، وتسويات تفعيل العملاء عبر الوكلاء
+            مراقبة المنصة، المتاجر، المستخدمين، الاشتراكات المباشرة، وإعدادات النظام.
           </p>
         </div>
 
@@ -82,16 +52,6 @@ export default async function SuperAdminDashboardPage() {
       <AdminOnlineUsers
         initialOnlineCount={stats.onlineUsersCount}
         initialActiveShopsCount={stats.activeOnlineShopsCount}
-      />
-
-      <AdminPartnerPortalManagement
-        partners={serializedPartners}
-        shops={partnerPortalAdminData.shops}
-      />
-
-      <AdminPartnerActivationRequests
-        initialCandidates={activationCandidates}
-        initialRequests={serializedActivationRequests}
       />
 
       <AdminTabsView
