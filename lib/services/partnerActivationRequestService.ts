@@ -8,7 +8,7 @@ import { requireSuperAdmin } from "@/lib/adminAuth";
 import { requirePartnerSession } from "@/lib/partner-auth";
 import { prisma } from "@/lib/prisma";
 import { buildPartnerWholesaleQuote } from "@/lib/services/partnerPricingService";
-import { calculateSubscriptionEnd } from "@/lib/services/subscriptionAdminService";
+import { calculatePaidActivationEnd } from "@/lib/services/subscriptionAdminService";
 
 export type PartnerActivationRequestStatus =
   | "PENDING"
@@ -218,10 +218,12 @@ export async function approvePartnerActivationRequest(input: {
     if (!subscription) throw new Error("لم يتم العثور على اشتراك لهذا المتجر.");
 
     const currentPeriodStartedAt = new Date(now);
-    const currentPeriodEndsAt = calculateSubscriptionEnd(
+    const currentPeriodEndsAt = calculatePaidActivationEnd(
       currentPeriodStartedAt,
       request.billingInterval,
       extraDays,
+      subscription.status,
+      subscription.trialEndsAt,
     );
 
     await tx.subscription.update({
