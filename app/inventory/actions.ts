@@ -38,17 +38,22 @@ const positiveIntegerSchema = z
     message: "الكمية يجب أن تكون أكبر من صفر",
   });
 
-// PostgreSQL accepts UUID-shaped identifiers regardless of the RFC version/variant
-// bits. Some imported compatibility groups use that valid PostgreSQL form, so
-// z.string().uuid() is intentionally too strict for these external identifiers.
 const postgresUuidSchema = z.string().regex(
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
-  "معرّف التوافق غير صالح",
+  "معرّف غير صالح",
 );
+
+const optionalPostgresUuidSchema = z.string().trim().optional().refine(
+  (value) => !value || postgresUuidSchema.safeParse(value).success,
+  "التصنيف المحدد غير صالح",
+);
+
+const categoryNameSchema = z.string().trim().max(120, "اسم التصنيف طويل جداً").optional();
 
 const createInventoryItemSchema = z.object({
   name: z.string().trim().min(1, "اسم القطعة مطلوب"),
-  category: z.string().optional(),
+  categoryId: optionalPostgresUuidSchema,
+  newCategoryName: categoryNameSchema,
   sku: z.string().optional(),
   description: z.string().optional(),
   unitCost: optionalMoneySchema,
@@ -61,7 +66,8 @@ const createInventoryItemSchema = z.object({
 const updateInventoryItemDetailsSchema = z.object({
   inventoryItemId: z.string().uuid(),
   name: z.string().trim().min(1, "اسم القطعة مطلوب"),
-  category: z.string().optional(),
+  categoryId: optionalPostgresUuidSchema,
+  newCategoryName: categoryNameSchema,
   sku: z.string().optional(),
   description: z.string().optional(),
   unitCost: optionalMoneySchema,
@@ -78,13 +84,10 @@ const addStockSchema = z.object({
 
 const adjustStockSchema = z.object({
   inventoryItemId: z.string().uuid(),
-  newQuantity: z
-    .string()
-    .trim()
-    .min(1, "الكمية الجديدة مطلوبة")
-    .refine((value) => Number.parseInt(value, 10) >= 0, {
-      message: "الكمية الجديدة يجب أن تكون صفراً أو أكثر",
-    }),
+  newQuantity: z.string().trim().min(1, "الكمية الجديدة مطلوبة").refine(
+    (value) => Number.parseInt(value, 10) >= 0,
+    { message: "الكمية الجديدة يجب أن تكون صفراً أو أكثر" },
+  ),
   note: z.string().optional(),
 });
 
@@ -103,14 +106,14 @@ function errorMessage(error: unknown) {
   if (error instanceof z.ZodError) {
     return error.issues[0]?.message || "تحقق من بيانات القطعة وحاول مجدداً.";
   }
-
   return error instanceof Error ? error.message : "تعذر حفظ القطعة. حاول مجدداً.";
 }
 
 export async function createInventoryItemAction(formData: FormData) {
   const parsed = createInventoryItemSchema.safeParse({
     name: readString(formData, "name"),
-    category: readString(formData, "category"),
+    categoryId: readString(formData, "categoryId"),
+    newCategoryName: readString(formData, "newCategoryName"),
     sku: readString(formData, "sku"),
     description: readString(formData, "description"),
     unitCost: readString(formData, "unitCost"),
@@ -120,9 +123,7 @@ export async function createInventoryItemAction(formData: FormData) {
     compatibilityGroupIds: readStrings(formData, "compatibilityGroupIds"),
   });
 
-  if (!parsed.success) {
-    redirect(`/inventory/new?error=${encodeURIComponent(errorMessage(parsed.error))}`);
-  }
+  if (!parsed.success) redirect(`/inventory/new?error=${encodeURIComponent(errorMessage(parsed.error))}`);
 
   const auth = await requirePermission("inventory:manage");
   let item: Awaited<ReturnType<typeof inventoryService.createInventoryItem>>;
@@ -140,7 +141,8 @@ export async function updateInventoryItemDetailsAction(formData: FormData) {
   const parsed = updateInventoryItemDetailsSchema.safeParse({
     inventoryItemId: readString(formData, "inventoryItemId"),
     name: readString(formData, "name"),
-    category: readString(formData, "category"),
+    categoryId: readString(formData, "categoryId"),
+    newCategoryName: readString(formData, "newCategoryName"),
     sku: readString(formData, "sku"),
     description: readString(formData, "description"),
     unitCost: readString(formData, "unitCost"),
@@ -151,19 +153,13 @@ export async function updateInventoryItemDetailsAction(formData: FormData) {
 
   if (!parsed.success) {
     const itemId = readString(formData, "inventoryItemId");
-    const destination = z.string().uuid().safeParse(itemId).success
-      ? `/inventory/${itemId}`
-      : "/inventory";
+    const destination = z.string().uuid().safeParse(itemId).success ? `/inventory/${itemId}` : "/inventory";
     redirect(`${destination}?error=${encodeURIComponent(errorMessage(parsed.error))}`);
   }
 
   const auth = await requirePermission("inventory:manage");
   try {
-    await inventoryService.updateInventoryItemDetails(
-      auth.shop.id,
-      parsed.data.inventoryItemId,
-      parsed.data,
-    );
+    await inventoryService.updateInventoryItemDetails(auth.shop.id, parsed.data.inventoryItemId, parsed.data);
   } catch (error) {
     redirect(`/inventory/${parsed.data.inventoryItemId}?error=${encodeURIComponent(errorMessage(error))}`);
   }
@@ -179,10 +175,8 @@ export async function addStockAction(formData: FormData) {
     quantity: readString(formData, "quantity"),
     note: readString(formData, "note"),
   });
-
   const auth = await requirePermission("inventory:manage");
   await inventoryService.addStock(auth.shop.id, input.inventoryItemId, auth.user.id, input);
-
   revalidatePath("/inventory");
   revalidatePath(`/inventory/${input.inventoryItemId}`);
   redirect(`/inventory/${input.inventoryItemId}`);
@@ -194,10 +188,8 @@ export async function adjustStockAction(formData: FormData) {
     newQuantity: readString(formData, "newQuantity"),
     note: readString(formData, "note"),
   });
-
   const auth = await requirePermission("inventory:adjust");
   await inventoryService.adjustStock(auth.shop.id, input.inventoryItemId, auth.user.id, input);
-
   revalidatePath("/inventory");
   revalidatePath(`/inventory/${input.inventoryItemId}`);
   redirect(`/inventory/${input.inventoryItemId}`);
@@ -205,9 +197,7 @@ export async function adjustStockAction(formData: FormData) {
 
 export async function deleteInventoryItemAction(formData: FormData) {
   try {
-    const input = inventoryItemIdSchema.parse({
-      inventoryItemId: readString(formData, "inventoryItemId"),
-    });
+    const input = inventoryItemIdSchema.parse({ inventoryItemId: readString(formData, "inventoryItemId") });
     const auth = await requirePermission("inventory:manage");
     await inventoryService.softDeleteInventoryItem(auth.shop.id, input.inventoryItemId);
     revalidatePath("/inventory");
