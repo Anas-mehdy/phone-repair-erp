@@ -1,0 +1,205 @@
+"use client";
+
+import Link from "next/link";
+import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { Banknote, BookOpenText, CalendarClock, Plus, Search, UsersRound } from "lucide-react";
+import { createDebtAction } from "./actions";
+
+interface CustomerOption {
+  id: string;
+  name: string;
+  phone: string | null;
+}
+
+interface DebtRow {
+  customerId: string;
+  customerName: string;
+  phone: string | null;
+  balance: number;
+  lastActivityAt: string | null;
+  oldestDebtAt: string | null;
+}
+
+export function DebtDashboard({
+  customers,
+  rows,
+  totalOutstanding,
+  debtorCount,
+  collectedThisMonth,
+  currency,
+}: {
+  customers: CustomerOption[];
+  rows: DebtRow[];
+  totalOutstanding: number;
+  debtorCount: number;
+  collectedThisMonth: number;
+  currency: string;
+}) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [query, setQuery] = useState("");
+  const [message, setMessage] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [customerId, setCustomerId] = useState(customers[0]?.id ?? "");
+  const [amount, setAmount] = useState("");
+  const [type, setType] = useState<"DEBT" | "OPENING_BALANCE">("DEBT");
+  const [description, setDescription] = useState("");
+  const [reference, setReference] = useState("");
+  const [dueAt, setDueAt] = useState("");
+
+  const filteredRows = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) return rows;
+    return rows.filter((row) =>
+      `${row.customerName} ${row.phone ?? ""}`.toLowerCase().includes(normalized),
+    );
+  }, [query, rows]);
+
+  const money = (value: number) => `${value.toFixed(2)} ${currency}`;
+
+  function submitDebt() {
+    setMessage(null);
+    const numericAmount = Number(amount);
+    if (!customerId || !Number.isFinite(numericAmount) || numericAmount <= 0) {
+      setMessage("اختر العميل وأدخل مبلغاً صحيحاً أكبر من صفر.");
+      return;
+    }
+
+    startTransition(async () => {
+      const result = await createDebtAction({
+        customerId,
+        amount: numericAmount,
+        type,
+        dueAt: dueAt || null,
+        description: description || null,
+        reference: reference || null,
+      });
+      if (!result.success) {
+        setMessage(result.error);
+        return;
+      }
+      setAmount("");
+      setDescription("");
+      setReference("");
+      setDueAt("");
+      setType("DEBT");
+      setShowForm(false);
+      setMessage("تم تسجيل الدين في دفتر العميل بنجاح.");
+      router.refresh();
+    });
+  }
+
+  return (
+    <div className="space-y-6" dir="rtl">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-black text-sky-700">
+            <BookOpenText className="h-5 w-5" /> دفتر الديون
+          </div>
+          <h1 className="mt-1 text-2xl font-black text-slate-900">ذمم العملاء والتحصيلات</h1>
+          <p className="mt-1 text-xs font-semibold text-slate-500">قسم محاسبي مستقل عن الأقساط لمتابعة ما على العملاء من مبالغ.</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowForm((value) => !value)}
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-xs font-black text-white shadow-sm hover:bg-slate-800"
+        >
+          <Plus className="h-4 w-4" /> إضافة دين
+        </button>
+      </div>
+
+      {message ? <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-xs font-bold text-sky-800">{message}</div> : null}
+
+      {showForm ? (
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-4">
+            <h2 className="text-sm font-black text-slate-900">تسجيل حركة مدينة جديدة</h2>
+            <p className="mt-1 text-[11px] font-semibold text-slate-500">يمكن تسجيل دين جديد أو رصيد افتتاحي لعميل لديه ديون سابقة قبل استخدام مسار.</p>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <label className="space-y-1.5 text-xs font-bold text-slate-700">
+              <span>العميل</span>
+              <select value={customerId} onChange={(e) => setCustomerId(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 outline-none focus:border-sky-400">
+                {customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}{customer.phone ? ` — ${customer.phone}` : ""}</option>)}
+              </select>
+            </label>
+            <label className="space-y-1.5 text-xs font-bold text-slate-700">
+              <span>نوع الحركة</span>
+              <select value={type} onChange={(e) => setType(e.target.value as "DEBT" | "OPENING_BALANCE")} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 outline-none focus:border-sky-400">
+                <option value="DEBT">دين جديد</option>
+                <option value="OPENING_BALANCE">رصيد افتتاحي</option>
+              </select>
+            </label>
+            <label className="space-y-1.5 text-xs font-bold text-slate-700">
+              <span>المبلغ</span>
+              <input type="number" min="0.01" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-sky-400" placeholder={`0.00 ${currency}`} />
+            </label>
+            <label className="space-y-1.5 text-xs font-bold text-slate-700">
+              <span>تاريخ الاستحقاق (اختياري)</span>
+              <input type="date" value={dueAt} onChange={(e) => setDueAt(e.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-sky-400" />
+            </label>
+            <label className="space-y-1.5 text-xs font-bold text-slate-700">
+              <span>مرجع (اختياري)</span>
+              <input value={reference} onChange={(e) => setReference(e.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-sky-400" placeholder="رقم فاتورة أو تذكرة..." />
+            </label>
+            <label className="space-y-1.5 text-xs font-bold text-slate-700 md:col-span-2 xl:col-span-1">
+              <span>البيان / السبب</span>
+              <input value={description} onChange={(e) => setDescription(e.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-sky-400" placeholder="مثال: باقي قيمة صيانة الجهاز" />
+            </label>
+          </div>
+          <div className="mt-4 flex gap-2">
+            <button type="button" disabled={isPending || customers.length === 0} onClick={submitDebt} className="rounded-xl bg-sky-600 px-5 py-2.5 text-xs font-black text-white disabled:opacity-50">{isPending ? "جارٍ الحفظ..." : "حفظ الحركة"}</button>
+            <button type="button" onClick={() => setShowForm(false)} className="rounded-xl border border-slate-200 px-5 py-2.5 text-xs font-black text-slate-600">إلغاء</button>
+          </div>
+        </section>
+      ) : null}
+
+      <section className="grid gap-4 md:grid-cols-3">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <Banknote className="h-5 w-5 text-rose-500" />
+          <div className="mt-3 text-2xl font-black text-slate-900">{money(totalOutstanding)}</div>
+          <div className="mt-1 text-xs font-bold text-slate-500">إجمالي المستحق على العملاء</div>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <UsersRound className="h-5 w-5 text-sky-500" />
+          <div className="mt-3 text-2xl font-black text-slate-900">{debtorCount}</div>
+          <div className="mt-1 text-xs font-bold text-slate-500">عملاء لديهم رصيد مستحق</div>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <CalendarClock className="h-5 w-5 text-emerald-500" />
+          <div className="mt-3 text-2xl font-black text-slate-900">{money(collectedThisMonth)}</div>
+          <div className="mt-1 text-xs font-bold text-slate-500">المحصل خلال هذا الشهر</div>
+        </div>
+      </section>
+
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div><h2 className="text-sm font-black text-slate-900">العملاء المديونون</h2><p className="mt-1 text-[11px] font-semibold text-slate-500">اضغط على العميل لفتح كشف حسابه وتسجيل دفعة.</p></div>
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="بحث بالاسم أو الهاتف" className="w-full rounded-xl border border-slate-200 py-2.5 pr-9 pl-3 text-xs font-semibold outline-none focus:border-sky-400" />
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[760px] text-right text-xs">
+            <thead className="bg-slate-50 text-slate-500"><tr><th className="p-3">العميل</th><th className="p-3">الهاتف</th><th className="p-3">الرصيد المستحق</th><th className="p-3">أقدم دين</th><th className="p-3">آخر حركة</th><th className="p-3"></th></tr></thead>
+            <tbody className="divide-y divide-slate-100">
+              {filteredRows.map((row) => (
+                <tr key={row.customerId} className="hover:bg-slate-50/70">
+                  <td className="p-3 font-black text-slate-900">{row.customerName}</td>
+                  <td className="p-3 text-slate-500">{row.phone || "—"}</td>
+                  <td className="p-3 font-black text-rose-600">{money(row.balance)}</td>
+                  <td className="p-3 text-slate-500">{row.oldestDebtAt ? new Date(row.oldestDebtAt).toLocaleDateString("ar") : "—"}</td>
+                  <td className="p-3 text-slate-500">{row.lastActivityAt ? new Date(row.lastActivityAt).toLocaleDateString("ar") : "—"}</td>
+                  <td className="p-3"><Link href={`/debts/${row.customerId}`} className="font-black text-sky-700 hover:underline">فتح الدفتر</Link></td>
+                </tr>
+              ))}
+              {filteredRows.length === 0 ? <tr><td colSpan={6} className="p-8 text-center font-bold text-slate-400">لا توجد ديون مسجلة حالياً.</td></tr> : null}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  );
+}

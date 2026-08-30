@@ -16,6 +16,7 @@ import {
   ChartNoAxesCombined,
   ShieldCheck,
   Crown,
+  BookOpenText,
   type LucideIcon,
 } from "lucide-react";
 
@@ -79,7 +80,6 @@ export const navGroups: NavGroup[] = [
           className: "border-fuchsia-500/30 bg-gradient-to-r from-fuchsia-500 to-violet-600 text-white shadow-sm shadow-fuchsia-500/20",
         },
       },
-
       { href: "/invoices", label: "الفواتير والمالية", icon: Receipt },
       {
         href: "/installments",
@@ -88,6 +88,15 @@ export const navGroups: NavGroup[] = [
         badge: {
           text: "جديد",
           className: "border-fuchsia-500/30 bg-gradient-to-r from-fuchsia-500 to-violet-600 text-white shadow-sm shadow-fuchsia-500/20",
+        },
+      },
+      {
+        href: "/debts",
+        label: "دفتر الديون",
+        icon: BookOpenText,
+        badge: {
+          text: "جديد",
+          className: "border-sky-500/30 bg-gradient-to-r from-sky-500 to-cyan-600 text-white shadow-sm shadow-sky-500/20",
         },
       },
       {
@@ -110,13 +119,10 @@ export const navGroups: NavGroup[] = [
       { href: "/support", label: "الدعم الفني والواتساب", icon: Headphones },
     ],
   },
-
 ];
 
 function isActivePath(pathname: string, href: string) {
-  if (href === "/dashboard") {
-    return pathname === "/dashboard";
-  }
+  if (href === "/dashboard") return pathname === "/dashboard";
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
@@ -125,6 +131,7 @@ export function AppNav({
   canSettings = false,
   canReports = false,
   canManageSubscription = false,
+  canManageDebts = false,
   compact = false,
 }: {
   onNavigate?: () => void;
@@ -132,6 +139,7 @@ export function AppNav({
   canSettings?: boolean;
   canReports?: boolean;
   canManageSubscription?: boolean;
+  canManageDebts?: boolean;
 }) {
   const pathname = usePathname();
 
@@ -143,6 +151,7 @@ export function AppNav({
           if (item.href === "/settings") return canSettings;
           if (item.href === "/reports") return canReports;
           if (item.href === "/subscription") return canManageSubscription;
+          if (item.href === "/debts") return canManageDebts;
           return true;
         });
 
@@ -151,13 +160,9 @@ export function AppNav({
         return (
           <div key={group.title} className="space-y-1">
             {compact ? (
-              groupIdx > 0 ? (
-                <div className="my-2 border-t border-slate-200/60 mx-1" />
-              ) : null
+              groupIdx > 0 ? <div className="my-2 border-t border-slate-200/60 mx-1" /> : null
             ) : (
-              <h3 className="px-3 text-[10px] font-black tracking-wider text-slate-400 uppercase">
-                {group.title}
-              </h3>
+              <h3 className="px-3 text-[10px] font-black tracking-wider text-slate-400 uppercase">{group.title}</h3>
             )}
             <div className="space-y-1">
               {visibleItems.map((item) => {
@@ -171,23 +176,12 @@ export function AppNav({
                     aria-current={active ? "page" : undefined}
                     className={cn(
                       "group relative flex items-center rounded-xl text-xs font-bold transition-all duration-200",
-                      compact
-                        ? "justify-center p-2.5 hover:bg-slate-100/80"
-                        : "gap-3 px-3.5 py-2.5 hover:bg-slate-100/80 hover:text-slate-900",
-                      active
-                        ? "bg-primary/10 text-primary font-black shadow-xs"
-                        : "text-slate-600"
+                      compact ? "justify-center p-2.5 hover:bg-slate-100/80" : "gap-3 px-3.5 py-2.5 hover:bg-slate-100/80 hover:text-slate-900",
+                      active ? "bg-primary/10 text-primary font-black shadow-xs" : "text-slate-600"
                     )}
                   >
                     {active ? (
-                      <span
-                        className={cn(
-                          "absolute bg-primary",
-                          compact
-                            ? "inset-y-1.5 right-0.5 w-1 rounded-full"
-                            : "inset-y-2 right-0 w-1.5 rounded-l-md"
-                        )}
-                      />
+                      <span className={cn("absolute bg-primary", compact ? "inset-y-1.5 right-0.5 w-1 rounded-full" : "inset-y-2 right-0 w-1.5 rounded-l-md")} />
                     ) : null}
                     <div className="relative shrink-0">
                       <item.icon
@@ -209,12 +203,7 @@ export function AppNav({
                       <div className="flex flex-1 items-center justify-between gap-1.5 overflow-hidden">
                         <span className="truncate">{item.label}</span>
                         {item.badge && (
-                          <span
-                            className={cn(
-                              "inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-black leading-tight tracking-tight",
-                              item.badge.className || "bg-orange-500/10 text-orange-600 border-orange-500/20"
-                            )}
-                          >
+                          <span className={cn("inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-black leading-tight tracking-tight", item.badge.className || "bg-orange-500/10 text-orange-600 border-orange-500/20")}>
                             {item.badge.text}
                           </span>
                         )}

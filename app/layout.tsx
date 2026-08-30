@@ -40,11 +40,13 @@ export default async function RootLayout({
   let canSettings = false;
   let canReports = false;
   let canManageSubscription = false;
+  let canManageDebts = false;
 
   try {
     const auth = await getAuthContext({ allowRedirect: false });
     canSettings = can(auth, "shop:settings");
     canReports = can(auth, "reports:read");
+    canManageDebts = can(auth, "debts:manage");
 
     const hasSubscriptionPermission = can(auth, "subscription:manage");
     if (hasSubscriptionPermission) {
@@ -61,6 +63,7 @@ export default async function RootLayout({
     canSettings = false;
     canReports = false;
     canManageSubscription = false;
+    canManageDebts = false;
   }
 
   return (
@@ -70,7 +73,14 @@ export default async function RootLayout({
       className={`${cairo.variable} ${outfit.variable} overflow-x-hidden w-full max-w-full`}
     >
       <body className="font-sans antialiased overflow-x-hidden min-h-screen w-full max-w-full">
-        <AppShell canSettings={canSettings} canReports={canReports} canManageSubscription={canManageSubscription}>{children}</AppShell>
+        <AppShell
+          canSettings={canSettings}
+          canReports={canReports}
+          canManageSubscription={canManageSubscription}
+          canManageDebts={canManageDebts}
+        >
+          {children}
+        </AppShell>
       </body>
     </html>
   );
