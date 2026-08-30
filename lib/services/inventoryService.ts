@@ -98,7 +98,6 @@ export async function listInventoryItems(
     include: {
       _count: { select: { compatibilityGroupLinks: true } },
     },
-    take: 100,
   });
 
   return filters.lowStockOnly
