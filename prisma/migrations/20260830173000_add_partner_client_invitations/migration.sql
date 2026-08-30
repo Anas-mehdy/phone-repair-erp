@@ -28,3 +28,6 @@ CREATE INDEX "PartnerClientInvitation_partner_status_idx"
   ON "PartnerClientInvitation" ("partnerId", "status", "createdAt" DESC);
 CREATE INDEX "PartnerClientInvitation_expiresAt_idx"
   ON "PartnerClientInvitation" ("expiresAt");
+
+ALTER TABLE "PartnerClientInvitation" ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE "PartnerClientInvitation" FROM anon, authenticated;
