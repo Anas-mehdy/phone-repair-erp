@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Banknote, BookOpenText, CalendarClock, Plus, Search, UsersRound } from "lucide-react";
+import { Banknote, BookOpenText, CalendarClock, Clock3, Plus, Search, UsersRound } from "lucide-react";
 import { createDebtAction } from "./actions";
 
 interface CustomerOption {
@@ -21,12 +21,21 @@ interface DebtRow {
   oldestDebtAt: string | null;
 }
 
+interface AgingSummary {
+  current0To30: number;
+  days31To60: number;
+  days61To90: number;
+  over90Days: number;
+  total: number;
+}
+
 export function DebtDashboard({
   customers,
   rows,
   totalOutstanding,
   debtorCount,
   collectedThisMonth,
+  aging,
   currency,
 }: {
   customers: CustomerOption[];
@@ -34,6 +43,7 @@ export function DebtDashboard({
   totalOutstanding: number;
   debtorCount: number;
   collectedThisMonth: number;
+  aging: AgingSummary;
   currency: string;
 }) {
   const router = useRouter();
@@ -89,6 +99,13 @@ export function DebtDashboard({
       router.refresh();
     });
   }
+
+  const agingBuckets = [
+    { label: "0–30 يوم", value: aging.current0To30, hint: "ديون حديثة" },
+    { label: "31–60 يوم", value: aging.days31To60, hint: "تحتاج متابعة" },
+    { label: "61–90 يوم", value: aging.days61To90, hint: "متأخرة" },
+    { label: "أكثر من 90 يوم", value: aging.over90Days, hint: "أولوية تحصيل" },
+  ];
 
   return (
     <div className="space-y-6" dir="rtl">
@@ -170,6 +187,25 @@ export function DebtDashboard({
           <CalendarClock className="h-5 w-5 text-emerald-500" />
           <div className="mt-3 text-2xl font-black text-slate-900">{money(collectedThisMonth)}</div>
           <div className="mt-1 text-xs font-bold text-slate-500">المحصل خلال هذا الشهر</div>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-700"><Clock3 className="h-5 w-5" /></div>
+          <div>
+            <h2 className="text-sm font-black text-slate-900">أعمار الديون (Aging)</h2>
+            <p className="mt-1 text-[11px] font-semibold text-slate-500">التحصيلات تُحتسب محاسبياً على أقدم الديون أولاً، ثم يظهر المتبقي حسب عمره الحقيقي.</p>
+          </div>
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {agingBuckets.map((bucket) => (
+            <div key={bucket.label} className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+              <div className="text-[11px] font-black text-slate-500">{bucket.label}</div>
+              <div className="mt-2 text-lg font-black text-slate-900">{money(bucket.value)}</div>
+              <div className="mt-1 text-[10px] font-bold text-slate-400">{bucket.hint}</div>
+            </div>
+          ))}
         </div>
       </section>
 
