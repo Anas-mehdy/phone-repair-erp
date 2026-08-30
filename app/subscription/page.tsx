@@ -7,8 +7,74 @@ import { SubscriptionView } from "./_subscription-view";
 
 export const dynamic = "force-dynamic";
 
+interface ManagedPartnerRow {
+  partnerId: string;
+  partnerName: string | null;
+  contactName: string | null;
+  phone: string | null;
+  email: string | null;
+}
+
 export default async function SubscriptionPage() {
   const auth = await requirePermission("subscription:manage");
+
+  const partnerRows = await prisma.$queryRaw<ManagedPartnerRow[]>`
+    SELECT
+      s."partnerId" AS "partnerId",
+      p."name" AS "partnerName",
+      p."contactName" AS "contactName",
+      p."phone" AS "phone",
+      p."email" AS "email"
+    FROM "Shop" s
+    LEFT JOIN "Partner" p ON p."id" = s."partnerId"
+    WHERE s."id" = ${auth.shop.id}::uuid
+      AND s."deletedAt" IS NULL
+      AND s."partnerId" IS NOT NULL
+    LIMIT 1
+  `;
+
+  const managedPartner = partnerRows[0];
+  if (managedPartner) {
+    return (
+      <div className="mx-auto max-w-3xl py-10 px-4 sm:px-6 lg:px-8">
+        <div className="rounded-3xl border border-teal-200 bg-white p-6 shadow-sm sm:p-8">
+          <div className="space-y-3 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-50 text-xl">
+              🤝
+            </div>
+            <h1 className="text-xl font-black text-slate-900">
+              اشتراك متجرك مُدار عن طريق الوكيل
+            </h1>
+            <p className="text-sm font-semibold leading-7 text-slate-600">
+              الأسعار وعروض الاشتراك المباشرة من مسار لا تظهر للمتاجر التابعة للوكلاء.
+              للتجديد أو إدارة الاشتراك تواصل مع الوكيل المسؤول عن متجرك.
+            </p>
+          </div>
+
+          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm">
+            <div className="font-black text-slate-900">
+              {managedPartner.partnerName ?? "الوكيل المسؤول عن المتجر"}
+            </div>
+            {managedPartner.contactName ? (
+              <div className="mt-1 font-semibold text-slate-600">
+                المسؤول: {managedPartner.contactName}
+              </div>
+            ) : null}
+            {managedPartner.phone ? (
+              <div className="mt-1 font-semibold text-slate-600" dir="ltr">
+                {managedPartner.phone}
+              </div>
+            ) : null}
+            {managedPartner.email ? (
+              <div className="mt-1 font-semibold text-slate-600" dir="ltr">
+                {managedPartner.email}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const [entitlement, offer, shopDetails, subscriptionRow] = await Promise.all([
     entitlementService.getEntitlementContext(auth.shop.id),
@@ -39,7 +105,6 @@ export default async function SubscriptionPage() {
     },
   });
 
-  // Match country-specific prices or fallback to ZZ
   const countryPrices = rawPrices.filter(
     (p) => p.countryCode === countryCode,
   );
