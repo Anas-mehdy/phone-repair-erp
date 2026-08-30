@@ -44,7 +44,7 @@ export default async function DebtStatementPrintPage({ params }: { params: Promi
   });
 
   return (
-    <div className="mx-auto min-h-screen max-w-5xl bg-white p-5 text-slate-900 sm:p-8 print:max-w-none print:p-0" dir="rtl">
+    <div className="mx-auto min-h-screen max-w-6xl bg-white p-5 text-slate-900 sm:p-8 print:max-w-none print:p-0" dir="rtl">
       <div className="mb-6 flex items-center justify-between gap-3 print:hidden">
         <Link href={`/debts/${customerId}`} className="inline-flex items-center gap-1 text-xs font-black text-sky-700 hover:underline">
           <ArrowRight className="h-4 w-4" /> العودة لكشف الحساب
@@ -70,28 +70,20 @@ export default async function DebtStatementPrintPage({ params }: { params: Promi
       </header>
 
       <section className="my-6 grid gap-3 sm:grid-cols-3">
-        <div className="rounded-xl border border-slate-300 p-4">
-          <div className="text-[11px] font-black text-slate-500">الرصيد المستحق</div>
-          <div className="mt-1 text-xl font-black">{money(ledger.balance)}</div>
-        </div>
-        <div className="rounded-xl border border-slate-300 p-4">
-          <div className="text-[11px] font-black text-slate-500">إجمالي الحركات</div>
-          <div className="mt-1 text-xl font-black">{entries.filter((entry) => !entry.isReversed).length}</div>
-        </div>
-        <div className="rounded-xl border border-slate-300 p-4">
-          <div className="text-[11px] font-black text-slate-500">حالة الحساب</div>
-          <div className="mt-1 text-xl font-black">{ledger.balance > 0.005 ? "عليه رصيد" : "مسدد"}</div>
-        </div>
+        <div className="rounded-xl border border-slate-300 p-4"><div className="text-[11px] font-black text-slate-500">الرصيد المستحق</div><div className="mt-1 text-xl font-black">{money(ledger.balance)}</div></div>
+        <div className="rounded-xl border border-slate-300 p-4"><div className="text-[11px] font-black text-slate-500">إجمالي الحركات</div><div className="mt-1 text-xl font-black">{entries.filter((entry) => !entry.isReversed).length}</div></div>
+        <div className="rounded-xl border border-slate-300 p-4"><div className="text-[11px] font-black text-slate-500">حالة الحساب</div><div className="mt-1 text-xl font-black">{ledger.balance > 0.005 ? "عليه رصيد" : "مسدد"}</div></div>
       </section>
 
       <section className="overflow-hidden border border-slate-300">
-        <table className="w-full border-collapse text-right text-[11px] sm:text-xs">
+        <table className="w-full border-collapse text-right text-[10px] sm:text-[11px]">
           <thead className="bg-slate-100">
             <tr>
               <th className="border-b border-slate-300 p-2">التاريخ</th>
               <th className="border-b border-slate-300 p-2">الحركة</th>
               <th className="border-b border-slate-300 p-2">مدين</th>
               <th className="border-b border-slate-300 p-2">دائن / تحصيل</th>
+              <th className="border-b border-slate-300 p-2">مصدر الدفع</th>
               <th className="border-b border-slate-300 p-2">الرصيد</th>
               <th className="border-b border-slate-300 p-2">البيان / المرجع</th>
             </tr>
@@ -103,13 +95,12 @@ export default async function DebtStatementPrintPage({ params }: { params: Promi
                 <td className="border-b border-slate-200 p-2 font-bold">{typeLabel(entry.type)}</td>
                 <td className="border-b border-slate-200 p-2">{isDebit(entry.type) ? money(entry.amount) : "—"}</td>
                 <td className="border-b border-slate-200 p-2">{!isDebit(entry.type) ? money(entry.amount) : "—"}</td>
+                <td className="border-b border-slate-200 p-2">{entry.type === "PAYMENT" ? (entry.sourceName || entry.paymentMethod || "—") : "—"}</td>
                 <td className="border-b border-slate-200 p-2 font-black">{money(entry.runningBalance)}</td>
-                <td className="border-b border-slate-200 p-2 text-slate-600">{entry.description || entry.paymentMethod || "—"}{entry.reference ? ` · ${entry.reference}` : ""}</td>
+                <td className="border-b border-slate-200 p-2 text-slate-600">{entry.description || "—"}{entry.reference ? ` · ${entry.reference}` : ""}</td>
               </tr>
             ))}
-            {statementRows.length === 0 ? (
-              <tr><td colSpan={6} className="p-8 text-center font-bold text-slate-400">لا توجد حركات في كشف الحساب.</td></tr>
-            ) : null}
+            {statementRows.length === 0 ? <tr><td colSpan={7} className="p-8 text-center font-bold text-slate-400">لا توجد حركات في كشف الحساب.</td></tr> : null}
           </tbody>
         </table>
       </section>

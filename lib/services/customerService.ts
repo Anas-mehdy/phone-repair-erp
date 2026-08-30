@@ -4,12 +4,14 @@ export type CustomerFilters = {
   search?: string;
 };
 
-export type UpdateCustomerInput = {
+export type CreateCustomerInput = {
   name: string;
   phone?: string | null;
   email?: string | null;
   notes?: string | null;
 };
+
+export type UpdateCustomerInput = CreateCustomerInput;
 
 function emptyToNull(value?: string | null) {
   const trimmed = value?.trim();
@@ -31,6 +33,30 @@ export function normalizePhone(phone?: string | null) {
   }
 
   return hasPlus ? `+${digits}` : digits;
+}
+
+export async function createCustomer(shopId: string, input: CreateCustomerInput) {
+  const name = input.name.trim();
+  if (!name) throw new Error("اسم العميل مطلوب.");
+
+  const phone = emptyToNull(input.phone);
+
+  return prisma.customer.create({
+    data: {
+      shopId,
+      name,
+      phone,
+      phoneNormalized: normalizePhone(phone),
+      email: emptyToNull(input.email),
+      notes: emptyToNull(input.notes),
+    },
+    select: {
+      id: true,
+      name: true,
+      phone: true,
+      email: true,
+    },
+  });
 }
 
 export async function listCustomers(
@@ -237,6 +263,7 @@ export async function softDeleteCustomer(shopId: string, customerId: string) {
 }
 
 export const customerService = {
+  createCustomer,
   listCustomers,
   getCustomerById,
   updateCustomer,
