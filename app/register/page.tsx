@@ -26,31 +26,28 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedCountryCode, setSelectedCountryCode] = useState("SA");
+  const [selectedPhoneCountryCode, setSelectedPhoneCountryCode] = useState("SA");
   const [selectedCurrency, setSelectedCurrency] = useState("SAR");
   const [phoneValue, setPhoneValue] = useState("");
 
   function handleCountryChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const country = findCountryByDialCode(e.target.value);
-    setSelectedCountryCode(country.code);
-    setSelectedCurrency(country.currency);
-    setPhoneValue("");
+    setSelectedCountryCode(e.target.value);
   }
 
-  const currentCountry = findCountryByDialCode(selectedCountryCode);
-  const phoneValidation = validatePhoneForCountry(selectedCountryCode, phoneValue);
+  const phoneCountry = findCountryByDialCode(selectedPhoneCountryCode);
+  const phoneValidation = validatePhoneForCountry(selectedPhoneCountryCode, phoneValue);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
 
-    // Client-side strict validation for phone number
     if (!phoneValue.trim()) {
-      setError(`يرجى إدخال رقم هاتف المتجر لدولة ${currentCountry.name} (${currentCountry.description})`);
+      setError(`يرجى إدخال رقم هاتف المتجر لدولة ${phoneCountry.name} (${phoneCountry.description})`);
       return;
     }
 
     if (!phoneValidation.isValid) {
-      setError(phoneValidation.error || "رقم الهاتف غير صحيح للدولة المحددة");
+      setError(phoneValidation.error || "رقم الهاتف غير صحيح لكود الدولة المحدد");
       return;
     }
 
@@ -69,7 +66,6 @@ export default function RegisterPage() {
 
   return (
     <div className="relative min-h-screen w-full max-w-full bg-slate-950 text-slate-100 py-12 px-4 sm:px-6 lg:px-8 overflow-x-hidden selection:bg-teal-500 selection:text-white">
-      {/* Ambient background glow */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
         <div className="absolute top-10 -right-20 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl" />
         <div className="absolute bottom-10 -left-20 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl" />
@@ -104,7 +100,6 @@ export default function RegisterPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Owner Section */}
             <div className="space-y-4">
               <div className="flex items-center gap-2 pb-2 border-b border-slate-800">
                 <User className="h-4 w-4 text-teal-400" />
@@ -171,7 +166,6 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {/* Shop Section */}
             <div className="space-y-4 pt-2">
               <div className="flex items-center gap-2 pb-2 border-b border-slate-800">
                 <Store className="h-4 w-4 text-teal-400" />
@@ -201,7 +195,7 @@ export default function RegisterPage() {
                   </select>
                 </div>
                 <p className="mt-1.5 text-[10px] font-medium text-slate-500">
-                  سيُستخدم البلد لعرض خطط الاشتراك بالسعر والعملة المخصصين له.
+                  بلد المتجر مستقل عن العملة وكود هاتف الواتساب.
                 </p>
               </div>
 
@@ -257,16 +251,28 @@ export default function RegisterPage() {
                       رقم هاتف المتجر / الواتساب <span className="text-rose-400">*</span>
                     </label>
                     <span className="text-[10px] text-teal-400 font-bold">
-                      ({currentCountry.description})
+                      ({phoneCountry.description})
                     </span>
                   </div>
                   <div className="flex items-center gap-2" dir="ltr">
-                    {/* Country calling code follows the selected shop country. */}
-                    <div className="flex h-[42px] w-[105px] shrink-0 items-center justify-center rounded-xl border border-slate-800 bg-slate-950/80 px-2 text-xs font-bold text-teal-400">
-                      {currentCountry.flag} {currentCountry.dialCode}
-                    </div>
+                    <select
+                      name="phoneCountryCode"
+                      required
+                      value={selectedPhoneCountryCode}
+                      onChange={(event) => {
+                        setSelectedPhoneCountryCode(event.target.value);
+                        setPhoneValue("");
+                      }}
+                      aria-label="كود دولة الهاتف"
+                      className="h-[42px] w-[125px] shrink-0 rounded-xl border border-slate-800 bg-slate-950/80 px-2 text-xs font-bold text-teal-400 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                    >
+                      {COUNTRY_DIAL_CODES.map((country) => (
+                        <option key={country.code} value={country.code} className="bg-slate-900 text-white">
+                          {country.flag} {country.dialCode}
+                        </option>
+                      ))}
+                    </select>
 
-                    {/* Local Phone Input */}
                     <div className="relative flex-1">
                       <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-slate-500">
                         <Phone className="h-4 w-4" />
@@ -277,7 +283,7 @@ export default function RegisterPage() {
                         required
                         value={phoneValue}
                         onChange={(e) => setPhoneValue(e.target.value)}
-                        placeholder={`مثال: ${currentCountry.placeholder}`}
+                        placeholder={`مثال: ${phoneCountry.placeholder}`}
                         className={`w-full rounded-xl border bg-slate-950/60 py-2.5 pr-9 pl-3 text-sm font-numeric text-white placeholder-slate-600 focus:outline-none focus:ring-1 transition ${
                           phoneValue.trim() && !phoneValidation.isValid
                             ? "border-rose-500/80 focus:border-rose-500 focus:ring-rose-500/20"
@@ -289,7 +295,6 @@ export default function RegisterPage() {
                     </div>
                   </div>
 
-                  {/* Live Dynamic Phone Validation Feedback */}
                   {phoneValue.trim() ? (
                     <div className="mt-1.5">
                       {phoneValidation.isValid ? (
@@ -312,7 +317,7 @@ export default function RegisterPage() {
                     </div>
                   ) : (
                     <p className="mt-1 text-[10px] text-slate-500 font-medium">
-                      أدخل الرقم بدون الصفر المبدئي أو كود الدولة ({currentCountry.description})
+                      اختر كود دولة الهاتف ثم أدخل الرقم بدون الصفر المبدئي ({phoneCountry.description})
                     </p>
                   )}
                 </div>
@@ -336,7 +341,6 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {/* Terms and Features highlights */}
             <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-4 space-y-2">
               <div className="flex items-center gap-2 text-xs font-bold text-slate-300">
                 <CheckCircle2 className="h-4 w-4 text-teal-400" />
