@@ -6,6 +6,7 @@ import { z } from "zod";
 import { requirePermission } from "@/lib/auth/context";
 import { salesService } from "@/lib/services/salesService";
 import { salesInventorySearchService } from "@/lib/services/salesInventorySearchService";
+import { salesCustomerSearchService } from "@/lib/services/salesCustomerSearchService";
 import { entitlementService } from "@/lib/services/subscriptionEntitlementService";
 
 export type SaleActionState = {
@@ -24,11 +25,22 @@ const rawLineItemSchema = z
     message: "اختر قطعة مخزون أو أدخل وصف بند يدوي",
   });
 
-const createSaleSchema = z.object({
-  customerName: z.string().optional(),
-  customerPhone: z.string().optional(),
-  items: z.array(rawLineItemSchema).min(1, "يجب إضافة بند واحد على الأقل"),
-});
+const createSaleSchema = z
+  .object({
+    customerMode: z.enum(["EXISTING", "NEW", "CASH"]),
+    customerId: z.string().uuid().optional().or(z.literal("")),
+    customerName: z.string().optional(),
+    customerPhone: z.string().optional(),
+    items: z.array(rawLineItemSchema).min(1, "يجب إضافة بند واحد على الأقل"),
+  })
+  .superRefine((data, ctx) => {
+    if (data.customerMode === "EXISTING" && !data.customerId) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "اختر عميلاً موجوداً من القائمة." });
+    }
+    if (data.customerMode === "NEW" && !data.customerName?.trim()) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "اسم العميل الجديد مطلوب." });
+    }
+  });
 
 const cancelSaleSchema = z.object({
   saleId: z.string().uuid(),
@@ -59,6 +71,14 @@ export async function searchInventoryForSaleAction(query: string) {
   return salesInventorySearchService.searchInventoryForSale(auth.shop.id, safeQuery, 20);
 }
 
+export async function searchCustomersForSaleAction(query: string) {
+  const safeQuery = z.string().max(120).parse(query).trim();
+  if (!safeQuery) return [];
+
+  const auth = await requirePermission("sales:create");
+  return salesCustomerSearchService.searchCustomersForSale(auth.shop.id, safeQuery, 20);
+}
+
 export async function createSaleAction(
   _state: SaleActionState,
   formData: FormData,
@@ -68,6 +88,8 @@ export async function createSaleAction(
   try {
     const rawItems = JSON.parse(readString(formData, "items"));
     const parsed = createSaleSchema.parse({
+      customerMode: readString(formData, "customerMode") || "CASH",
+      customerId: readString(formData, "customerId"),
       customerName: readString(formData, "customerName"),
       customerPhone: readString(formData, "customerPhone"),
       items: rawItems,
@@ -80,8 +102,9 @@ export async function createSaleAction(
     }
 
     const sale = await salesService.createSale(auth.shop.id, auth.user.id, {
-      customerName: parsed.customerName,
-      customerPhone: parsed.customerPhone,
+      customerId: parsed.customerMode === "EXISTING" ? parsed.customerId || undefined : undefined,
+      customerName: parsed.customerMode === "NEW" ? parsed.customerName : undefined,
+      customerPhone: parsed.customerMode === "NEW" ? parsed.customerPhone : undefined,
       items: parsed.items.map((item) => ({
         inventoryItemId: item.inventoryItemId,
         description: item.description ?? "",
@@ -98,6 +121,7 @@ export async function createSaleAction(
   }
 
   revalidatePath("/sales");
+  revalidatePath("/customers");
   revalidatePath("/inventory");
   redirect(`/sales/${saleId}`);
 }
