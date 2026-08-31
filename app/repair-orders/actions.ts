@@ -270,20 +270,34 @@ const deleteRepairOrderSchema = z.object({
   repairOrderId: z.string().uuid("معرف طلب الصيانة غير صحيح"),
 });
 
-export async function deleteRepairOrderAction(formData: FormData) {
-  const parsed = deleteRepairOrderSchema.parse({
+export async function deleteRepairOrderAction(formData: FormData): Promise<
+  | { success: true }
+  | { success: false; error: string }
+> {
+  const parsed = deleteRepairOrderSchema.safeParse({
     repairOrderId: readString(formData, "repairOrderId"),
   });
 
-  const auth = await requirePermission("repairs:delete");
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message || "معرف طلب الصيانة غير صحيح" };
+  }
 
-  await repairOrderService.deleteRepairOrder(
-    auth.shop.id,
-    parsed.repairOrderId,
-    auth.user.id
-  );
+  try {
+    const auth = await requirePermission("repairs:delete");
 
-  revalidatePath("/repair-orders");
-  revalidatePath("/dashboard");
-  redirect("/repair-orders");
+    await repairOrderService.deleteRepairOrder(
+      auth.shop.id,
+      parsed.data.repairOrderId,
+      auth.user.id,
+    );
+
+    revalidatePath("/repair-orders");
+    revalidatePath("/dashboard");
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "فشل حذف طلب الصيانة. حاول مجدداً.",
+    };
+  }
 }
