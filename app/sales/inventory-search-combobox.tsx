@@ -43,6 +43,7 @@ export function InventorySearchCombobox({
   useEffect(() => {
     const trimmed = query.trim();
     if (!trimmed) {
+      requestId.current += 1;
       setResults(initialOptions.slice(0, 20));
       return;
     }
