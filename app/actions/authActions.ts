@@ -2,6 +2,7 @@
 
 import { authService, type RegisterInput, type LoginInput } from "@/lib/services/authService";
 import { COUNTRY_DIAL_CODES, validatePhoneForCountry } from "@/lib/countries";
+import { CURRENCY_OPTIONS } from "@/lib/format";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
@@ -12,7 +13,7 @@ export async function registerAction(formData: FormData) {
   const shopName = (formData.get("shopName") as string)?.trim() || "";
   const rawPhone = (formData.get("phone") as string)?.trim() || "";
   const countryCode = ((formData.get("countryCode") as string) || "").trim().toUpperCase();
-  const currency = (formData.get("currency") as string) || "SAR";
+  const currency = ((formData.get("currency") as string) || "SAR").trim().toUpperCase();
   const address = (formData.get("address") as string)?.trim() || "";
 
   if (!name || name.length < 2) {
@@ -38,6 +39,11 @@ export async function registerAction(formData: FormData) {
   const selectedCountry = COUNTRY_DIAL_CODES.find((country) => country.code === countryCode);
   if (!selectedCountry) {
     return { success: false, error: "يرجى اختيار الدولة التي يقع فيها المتجر" };
+  }
+
+  const supportedCurrency = CURRENCY_OPTIONS.some((option) => option.code === currency);
+  if (!supportedCurrency) {
+    return { success: false, error: "يرجى اختيار عملة مدعومة من القائمة" };
   }
 
   const phoneValidation = validatePhoneForCountry(selectedCountry.code, rawPhone);
