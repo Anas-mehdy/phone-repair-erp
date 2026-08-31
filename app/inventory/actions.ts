@@ -6,6 +6,7 @@ import { z } from "zod";
 import { requirePermission } from "@/lib/auth/context";
 import { inventoryService } from "@/lib/services/inventoryService";
 import { inventoryCategoryService } from "@/lib/services/inventoryCategoryService";
+import { inventoryDamageService } from "@/lib/services/inventoryDamageService";
 
 const optionalMoneySchema = z
   .string()
@@ -90,6 +91,13 @@ const adjustStockSchema = z.object({
     { message: "الكمية الجديدة يجب أن تكون صفراً أو أكثر" },
   ),
   note: z.string().optional(),
+});
+
+const damageStockSchema = z.object({
+  inventoryItemId: z.string().uuid(),
+  quantity: positiveIntegerSchema,
+  reason: z.string().trim().min(1, "سبب التلف مطلوب").max(200, "سبب التلف طويل جداً"),
+  note: z.string().trim().max(1000, "ملاحظة التلف طويلة جداً").optional(),
 });
 
 const inventoryItemIdSchema = z.object({ inventoryItemId: z.string().uuid() });
@@ -199,6 +207,39 @@ export async function adjustStockAction(formData: FormData) {
   revalidatePath("/inventory");
   revalidatePath(`/inventory/${input.inventoryItemId}`);
   redirect(`/inventory/${input.inventoryItemId}`);
+}
+
+export async function recordDamagedStockAction(formData: FormData) {
+  const parsed = damageStockSchema.safeParse({
+    inventoryItemId: readString(formData, "inventoryItemId"),
+    quantity: readString(formData, "quantity"),
+    reason: readString(formData, "reason"),
+    note: readString(formData, "note"),
+  });
+
+  const itemId = readString(formData, "inventoryItemId");
+  const destination = z.string().uuid().safeParse(itemId).success ? `/inventory/${itemId}` : "/inventory";
+  if (!parsed.success) redirect(`${destination}?error=${encodeURIComponent(errorMessage(parsed.error))}`);
+
+  const auth = await requirePermission("inventory:adjust");
+  try {
+    await inventoryDamageService.recordInventoryDamage(
+      auth.shop.id,
+      parsed.data.inventoryItemId,
+      auth.user.id,
+      {
+        quantity: Number.parseInt(parsed.data.quantity, 10),
+        reason: parsed.data.reason,
+        note: parsed.data.note,
+      },
+    );
+  } catch (error) {
+    redirect(`${destination}?error=${encodeURIComponent(errorMessage(error))}`);
+  }
+
+  revalidatePath("/inventory");
+  revalidatePath(`/inventory/${parsed.data.inventoryItemId}`);
+  redirect(`/inventory/${parsed.data.inventoryItemId}?damaged=1`);
 }
 
 export async function deleteInventoryItemAction(formData: FormData) {
