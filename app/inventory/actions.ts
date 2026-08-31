@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requirePermission } from "@/lib/auth/context";
 import { inventoryService } from "@/lib/services/inventoryService";
+import { inventoryCategoryService } from "@/lib/services/inventoryCategoryService";
 
 const optionalMoneySchema = z
   .string()
@@ -92,6 +93,11 @@ const adjustStockSchema = z.object({
 });
 
 const inventoryItemIdSchema = z.object({ inventoryItemId: z.string().uuid() });
+const inventoryCategoryIdSchema = z.object({ categoryId: z.string().uuid() });
+const renameInventoryCategorySchema = z.object({
+  categoryId: z.string().uuid(),
+  name: z.string().trim().min(1, "اسم التصنيف مطلوب").max(120, "اسم التصنيف طويل جداً"),
+});
 
 function readString(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -104,9 +110,9 @@ function readStrings(formData: FormData, key: string) {
 
 function errorMessage(error: unknown) {
   if (error instanceof z.ZodError) {
-    return error.issues[0]?.message || "تحقق من بيانات القطعة وحاول مجدداً.";
+    return error.issues[0]?.message || "تحقق من البيانات وحاول مجدداً.";
   }
-  return error instanceof Error ? error.message : "تعذر حفظ القطعة. حاول مجدداً.";
+  return error instanceof Error ? error.message : "تعذر تنفيذ العملية. حاول مجدداً.";
 }
 
 export async function createInventoryItemAction(formData: FormData) {
@@ -203,6 +209,35 @@ export async function deleteInventoryItemAction(formData: FormData) {
     revalidatePath("/inventory");
     revalidatePath("/compatibility");
     redirect("/inventory?deleted=1");
+  } catch (error) {
+    if (error && typeof error === "object" && "digest" in error) throw error;
+    redirect(`/inventory?error=${encodeURIComponent(errorMessage(error))}`);
+  }
+}
+
+export async function renameInventoryCategoryAction(formData: FormData) {
+  try {
+    const input = renameInventoryCategorySchema.parse({
+      categoryId: readString(formData, "categoryId"),
+      name: readString(formData, "name"),
+    });
+    const auth = await requirePermission("inventory:manage");
+    await inventoryCategoryService.renameInventoryCategory(auth.shop.id, input.categoryId, input.name);
+    revalidatePath("/inventory");
+    redirect(`/inventory?categoryId=${input.categoryId}&categoryUpdated=1`);
+  } catch (error) {
+    if (error && typeof error === "object" && "digest" in error) throw error;
+    redirect(`/inventory?error=${encodeURIComponent(errorMessage(error))}`);
+  }
+}
+
+export async function deleteInventoryCategoryAction(formData: FormData) {
+  try {
+    const input = inventoryCategoryIdSchema.parse({ categoryId: readString(formData, "categoryId") });
+    const auth = await requirePermission("inventory:manage");
+    await inventoryCategoryService.deleteInventoryCategory(auth.shop.id, input.categoryId);
+    revalidatePath("/inventory");
+    redirect("/inventory?categoryDeleted=1");
   } catch (error) {
     if (error && typeof error === "object" && "digest" in error) throw error;
     redirect(`/inventory?error=${encodeURIComponent(errorMessage(error))}`);
