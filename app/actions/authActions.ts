@@ -13,6 +13,7 @@ export async function registerAction(formData: FormData) {
   const shopName = (formData.get("shopName") as string)?.trim() || "";
   const rawPhone = (formData.get("phone") as string)?.trim() || "";
   const countryCode = ((formData.get("countryCode") as string) || "").trim().toUpperCase();
+  const phoneCountryCode = ((formData.get("phoneCountryCode") as string) || "").trim().toUpperCase();
   const currency = ((formData.get("currency") as string) || "SAR").trim().toUpperCase();
   const address = (formData.get("address") as string)?.trim() || "";
 
@@ -41,16 +42,21 @@ export async function registerAction(formData: FormData) {
     return { success: false, error: "يرجى اختيار الدولة التي يقع فيها المتجر" };
   }
 
+  const selectedPhoneCountry = COUNTRY_DIAL_CODES.find((country) => country.code === phoneCountryCode);
+  if (!selectedPhoneCountry) {
+    return { success: false, error: "يرجى اختيار كود دولة صحيح لرقم الهاتف" };
+  }
+
   const supportedCurrency = CURRENCY_OPTIONS.some((option) => option.code === currency);
   if (!supportedCurrency) {
     return { success: false, error: "يرجى اختيار عملة مدعومة من القائمة" };
   }
 
-  const phoneValidation = validatePhoneForCountry(selectedCountry.code, rawPhone);
+  const phoneValidation = validatePhoneForCountry(selectedPhoneCountry.code, rawPhone);
   if (!phoneValidation.isValid) {
     return {
       success: false,
-      error: phoneValidation.error || "رقم الهاتف غير صحيح للدولة المحددة",
+      error: phoneValidation.error || "رقم الهاتف غير صحيح لكود الدولة المحدد",
     };
   }
 
