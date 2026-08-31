@@ -47,7 +47,6 @@ export const authService = {
     const trialStartedAt = new Date();
     const trialEndsAt = new Date(trialStartedAt.getTime() + TRIAL_DURATION_MS);
 
-    // Create shop and owner in a transaction
     const result = await prisma.$transaction(async (tx) => {
       const shop = await tx.shop.create({
         data: {
@@ -78,10 +77,15 @@ export const authService = {
         },
       });
 
+      await tx.$executeRaw`
+        UPDATE "User"
+        SET "lastLoginAt" = ${trialStartedAt}
+        WHERE "id" = ${user.id}::uuid
+      `;
+
       return { shop, user };
     });
 
-    // Set session cookie
     await setSessionCookie({
       userId: result.user.id,
       shopId: result.shop.id,
@@ -122,7 +126,12 @@ export const authService = {
       throw new Error("البريد الإلكتروني أو كلمة المرور غير صحيحة");
     }
 
-    // Set session cookie
+    await prisma.$executeRaw`
+      UPDATE "User"
+      SET "lastLoginAt" = NOW()
+      WHERE "id" = ${user.id}::uuid
+    `;
+
     await setSessionCookie({
       userId: user.id,
       shopId: user.shop.id,
