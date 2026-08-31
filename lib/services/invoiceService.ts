@@ -242,47 +242,80 @@ export async function voidInvoice(
 ) {
   void createdByUserId;
 
-  const invoice = await prisma.invoice.findFirst({
-    where: {
-      id: invoiceId,
-      shopId,
-      deletedAt: null,
-    },
-    include: {
-      payments: {
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`
+      SELECT id
+      FROM "Invoice"
+      WHERE id = ${invoiceId}::uuid
+        AND "shopId" = ${shopId}::uuid
+      FOR UPDATE
+    `;
+
+    const invoice = await tx.invoice.findFirst({
+      where: {
+        id: invoiceId,
+        shopId,
+        deletedAt: null,
+      },
+      include: {
+        payments: {
+          where: {
+            deletedAt: null,
+          },
+          select: {
+            id: true,
+          },
+        },
+        installmentPlan: {
+          select: { id: true },
+        },
+      },
+    });
+
+    if (!invoice) {
+      throw new Error("الفاتورة غير موجودة.");
+    }
+
+    if (invoice.status === InvoiceStatus.VOID) {
+      return invoice;
+    }
+
+    if (invoice.installmentPlan) {
+      throw new Error(
+        "لا يمكن إلغاء هذه الفاتورة من هنا لأنها مرتبطة بخطة أقساط. قم بإلغاء أو معالجة خطة الأقساط أولاً.",
+      );
+    }
+
+    const now = new Date();
+
+    if (invoice.payments.length > 0) {
+      await tx.payment.updateMany({
         where: {
+          shopId,
+          invoiceId,
           deletedAt: null,
         },
-        select: {
-          id: true,
+        data: {
+          deletedAt: now,
+        },
+      });
+    }
+
+    return tx.invoice.update({
+      where: {
+        id: invoiceId,
+      },
+      data: {
+        status: InvoiceStatus.VOID,
+        amountPaid: new Prisma.Decimal(0),
+        balanceDue: invoice.total,
+        paidAt: null,
+        version: {
+          increment: 1,
         },
       },
-    },
-  });
-
-  if (!invoice) {
-    throw new Error("الفاتورة غير موجودة.");
-  }
-
-  if (invoice.status === InvoiceStatus.VOID) {
-    return invoice;
-  }
-
-  if (invoice.payments.length > 0) {
-    throw new Error("لا يمكن إلغاء فاتورة تحتوي على دفعات.");
-  }
-
-  return prisma.invoice.update({
-    where: {
-      id: invoiceId,
-    },
-    data: {
-      status: InvoiceStatus.VOID,
-      version: {
-        increment: 1,
-      },
-    },
-  });
+    });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 10_000 });
 }
 
 export const invoiceService = {
