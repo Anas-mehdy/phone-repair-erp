@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requirePermission } from "@/lib/auth/context";
 import { salesService } from "@/lib/services/salesService";
+import { salesInventorySearchService } from "@/lib/services/salesInventorySearchService";
 import { entitlementService } from "@/lib/services/subscriptionEntitlementService";
 
 export type SaleActionState = {
@@ -48,6 +49,14 @@ function getErrorMessage(error: unknown) {
   }
 
   return "حدث خطأ غير متوقع.";
+}
+
+export async function searchInventoryForSaleAction(query: string) {
+  const safeQuery = z.string().max(120).parse(query).trim();
+  if (!safeQuery) return [];
+
+  const auth = await requirePermission("sales:create");
+  return salesInventorySearchService.searchInventoryForSale(auth.shop.id, safeQuery, 20);
 }
 
 export async function createSaleAction(
