@@ -31,12 +31,29 @@ export async function createCustomer(shopId: string, input: CreateCustomerInput)
   const name = input.name.trim();
   if (!name) throw new Error("اسم العميل مطلوب.");
   const phone = emptyToNull(input.phone);
+  const phoneNormalized = normalizePhone(phone);
+
+  if (phoneNormalized) {
+    const existing = await prisma.customer.findFirst({
+      where: {
+        shopId,
+        deletedAt: null,
+        phoneNormalized,
+      },
+      select: { id: true, name: true },
+    });
+
+    if (existing) {
+      throw new Error(`يوجد عميل مسجل بهذا الرقم بالفعل: ${existing.name}. استخدم العميل الموجود بدلاً من إنشاء سجل مكرر.`);
+    }
+  }
+
   return prisma.customer.create({
     data: {
       shopId,
       name,
       phone,
-      phoneNormalized: normalizePhone(phone),
+      phoneNormalized,
       email: emptyToNull(input.email),
       notes: emptyToNull(input.notes),
     },
