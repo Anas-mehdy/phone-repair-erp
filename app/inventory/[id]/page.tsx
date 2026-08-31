@@ -13,13 +13,13 @@ import { datasetKeyForSourceCategory } from "@/lib/services/compatibility/compat
 import { Field, formatDate, formatMoney, inputClassName, isLowStock, textareaClassName } from "../_components";
 import { CompatibilityGroupPicker } from "../_compatibility-group-picker";
 import { InventoryCategoryField } from "../_category-field";
-import { addStockAction, adjustStockAction, updateInventoryItemDetailsAction } from "../actions";
+import { addStockAction, adjustStockAction, recordDamagedStockAction, updateInventoryItemDetailsAction } from "../actions";
 
 export const dynamic = "force-dynamic";
 
 type InventoryItemDetailsPageProps = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; damaged?: string }>;
 };
 
 export default async function InventoryItemDetailsPage({ params, searchParams }: InventoryItemDetailsPageProps) {
@@ -57,6 +57,7 @@ export default async function InventoryItemDetailsPage({ params, searchParams }:
   return (
     <div className="space-y-6">
       {query.error ? <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-700">{query.error}</div> : null}
+      {query.damaged ? <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-700">تم تسجيل التالف وخصم الكمية من المخزون بنجاح.</div> : null}
 
       <div className="rounded-3xl border border-slate-200/50 bg-white/95 p-6 shadow-sm shadow-slate-100/40">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
@@ -130,16 +131,19 @@ export default async function InventoryItemDetailsPage({ params, searchParams }:
                 <div className="overflow-x-auto">
                   <table className="erp-table min-w-[720px]">
                     <thead><tr><th>النوع</th><th className="text-center">التغير</th><th className="text-center">الكمية بعد الحركة</th><th>التكلفة الفعلية</th><th>الملاحظة</th><th>التاريخ</th></tr></thead>
-                    <tbody>{movements.map((movement) => (
-                      <tr key={movement.id} className="align-middle">
-                        <td><InventoryMovementTypeBadge type={movement.type} /></td>
-                        <td className="text-center font-numeric font-bold text-slate-700">{movement.quantityChange > 0 ? `+${movement.quantityChange}` : movement.quantityChange}</td>
-                        <td className="text-center font-numeric font-medium text-slate-500">{movement.quantityAfter ?? "-"}</td>
-                        <td className="font-numeric font-medium text-slate-700">{formatMoney(movement.unitCostSnapshot, currency)}</td>
-                        <td className="text-xs font-medium text-slate-500">{movement.note ?? "-"}</td>
-                        <td className="font-numeric font-medium text-slate-500">{formatDate(movement.createdAt)}</td>
-                      </tr>
-                    ))}</tbody>
+                    <tbody>{movements.map((movement) => {
+                      const isDamage = movement.note?.startsWith("تالف:") ?? false;
+                      return (
+                        <tr key={movement.id} className={cn("align-middle", isDamage && "bg-rose-50/30")}>
+                          <td>{isDamage ? <PlainBadge tone="red" label="تالف" /> : <InventoryMovementTypeBadge type={movement.type} />}</td>
+                          <td className="text-center font-numeric font-bold text-slate-700">{movement.quantityChange > 0 ? `+${movement.quantityChange}` : movement.quantityChange}</td>
+                          <td className="text-center font-numeric font-medium text-slate-500">{movement.quantityAfter ?? "-"}</td>
+                          <td className="font-numeric font-medium text-slate-700">{formatMoney(movement.unitCostSnapshot, currency)}</td>
+                          <td className="text-xs font-medium text-slate-500">{movement.note ?? "-"}</td>
+                          <td className="font-numeric font-medium text-slate-500">{formatDate(movement.createdAt)}</td>
+                        </tr>
+                      );
+                    })}</tbody>
                   </table>
                 </div>
               </div>
@@ -166,12 +170,30 @@ export default async function InventoryItemDetailsPage({ params, searchParams }:
             </div>
           </form>
 
+          <form action={recordDamagedStockAction} className="rounded-3xl border border-rose-200/70 bg-white p-5 shadow-sm shadow-rose-100/30">
+            <input type="hidden" name="inventoryItemId" value={item.id} />
+            <div className="mb-4 border-b border-rose-100 pb-3">
+              <div className="flex items-center gap-2">
+                <span aria-hidden="true">⚠️</span>
+                <h3 className="text-sm font-bold text-rose-800">تسجيل قطعة تالفة / هالكة</h3>
+              </div>
+              <p className="mt-1 text-[10px] font-medium leading-relaxed text-rose-500">سيتم خصم الكمية التالفة من المخزون وتسجيلها بشكل مستقل لاحتساب خسائر التوالف لاحقاً.</p>
+            </div>
+            <div className="grid gap-4">
+              <Field label="الكمية التالفة"><input className={`${inputClassName} font-numeric`} name="quantity" min="1" max={item.quantity} required step="1" type="number" placeholder="عدد القطع التالفة..." disabled={item.quantity <= 0} /></Field>
+              <Field label="سبب التلف"><input className={inputClassName} name="reason" required maxLength={200} placeholder="مثال: كسر أثناء التركيب، عيب مصنعي، ماء..." disabled={item.quantity <= 0} /></Field>
+              <Field label="ملاحظة إضافية (اختياري)"><textarea className={textareaClassName} name="note" maxLength={1000} placeholder="أي تفاصيل تساعدك عند مراجعة التوالف لاحقاً..." disabled={item.quantity <= 0} /></Field>
+              <Button type="submit" variant="outline" disabled={item.quantity <= 0} className="h-11 w-full rounded-xl border-rose-300 font-bold text-rose-700 shadow-sm hover:bg-rose-50 hover:text-rose-800">تأكيد تسجيل التالف وخصم الكمية</Button>
+              {item.quantity <= 0 ? <p className="text-center text-[10px] font-bold text-slate-400">لا توجد كمية متاحة يمكن تسجيلها كتالف.</p> : null}
+            </div>
+          </form>
+
           <form action={adjustStockAction} className="erp-section">
             <input type="hidden" name="inventoryItemId" value={item.id} />
             <div className="mb-4 border-b border-slate-100/60 pb-3"><h3 className="text-sm font-bold text-slate-800">تسوية كميات المخزون (فردي)</h3></div>
             <div className="grid gap-4">
               <Field label="الكمية الفعلية الجديدة بالرف"><input className={`${inputClassName} font-numeric`} name="newQuantity" min="0" required step="1" type="number" placeholder="أدخل الجرد الفعلي..." /></Field>
-              <Field label="سبب التسوية والجرد"><textarea className={textareaClassName} name="note" placeholder="مثال: جرد دوري، معالجة تالف..." /></Field>
+              <Field label="سبب التسوية والجرد"><textarea className={textareaClassName} name="note" placeholder="مثال: جرد دوري، تصحيح فرق في الكمية..." /></Field>
               <Button type="submit" variant="secondary" className="h-11 w-full rounded-xl border-slate-200 font-bold shadow-sm"><Save className="ml-1.5 h-4 w-4" />تأكيد وحفظ الجرد</Button>
             </div>
           </form>
