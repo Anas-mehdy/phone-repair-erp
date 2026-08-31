@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   Crown,
   BookOpenText,
+  CirclePlay,
   type LucideIcon,
 } from "lucide-react";
 
@@ -113,6 +114,7 @@ export const navGroups: NavGroup[] = [
   {
     title: "المساعدة والتهيئة",
     items: [
+      { href: "/tutorial", label: "فيديو شرح مسار", icon: CirclePlay },
       { href: "/account/security", label: "أمان الحساب", icon: ShieldCheck },
       { href: "/subscription", label: "اشتراكي", icon: Crown },
       { href: "/settings", label: "إعدادات المتجر", icon: Settings },
