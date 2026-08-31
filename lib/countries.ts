@@ -126,7 +126,7 @@ export const COUNTRY_DIAL_CODES: CountryDialInfo[] = [
     name: "فلسطين",
     dialCode: "+970",
     flag: "🇵🇸",
-    currency: "JOD",
+    currency: "ILS",
     placeholder: "599123456",
     expectedDigits: [9],
     startDigits: ["59", "56", "5"],
