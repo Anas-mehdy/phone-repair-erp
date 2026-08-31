@@ -1,19 +1,17 @@
 "use client";
 
 import { Plus, Save, Trash2 } from "lucide-react";
-import { useMemo, useState, useActionState } from "react";
+import { useActionState, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/format";
 import { createSaleAction, type SaleActionState } from "./actions";
-import { Field, inputClassName, selectClassName } from "./_components";
+import { Field, inputClassName } from "./_components";
+import {
+  InventorySearchCombobox,
+  type SaleInventoryOption,
+} from "./inventory-search-combobox";
 
-type InventoryOption = {
-  id: string;
-  name: string;
-  sku: string | null;
-  quantity: number;
-  unitPrice: string;
-};
+type InventoryOption = SaleInventoryOption;
 
 type SaleLineDraft = {
   id: string;
@@ -78,13 +76,11 @@ export function SaleForm({
     );
   }
 
-  function handleInventoryChange(line: SaleLineDraft, inventoryItemId: string) {
-    const item = inventoryItems.find((option) => option.id === inventoryItemId);
-
+  function handleInventorySelect(line: SaleLineDraft, item: InventoryOption | null) {
     updateLine(line.id, {
-      inventoryItemId,
-      description: item ? item.name : "",
-      unitPrice: item ? item.unitPrice : "0",
+      inventoryItemId: item?.id ?? "",
+      description: item?.name ?? "",
+      unitPrice: item?.unitPrice ?? "0",
     });
   }
 
@@ -107,7 +103,6 @@ export function SaleForm({
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px] items-start">
-        {/* Right side: Cart and sales line items */}
         <div className="space-y-6">
           <section className="erp-section">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100/60 pb-3.5 mb-5">
@@ -155,20 +150,12 @@ export function SaleForm({
                     </div>
                     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1.4fr_1fr_100px_120px_120px]">
                       <Field label="قطعة من المخزون">
-                        <select
-                          className={selectClassName}
+                        <InventorySearchCombobox
                           value={line.inventoryItemId}
-                          onChange={(event) =>
-                            handleInventoryChange(line, event.target.value)
-                          }
-                        >
-                          <option value="">بند يدوي / خدمة خارجية</option>
-                          {inventoryItems.map((item) => (
-                            <option key={item.id} value={item.id}>
-                              {item.name} {item.sku ? `(${item.sku})` : ""} - المتاح: {item.quantity}
-                            </option>
-                          ))}
-                        </select>
+                          selectedLabel={line.description}
+                          initialOptions={inventoryItems}
+                          onSelect={(item) => handleInventorySelect(line, item)}
+                        />
                       </Field>
                       <Field label="الوصف / التفاصيل">
                         <input
@@ -228,7 +215,6 @@ export function SaleForm({
           </section>
         </div>
 
-        {/* Left side: Customer billing summaries and actions */}
         <div className="space-y-6">
           <section className="erp-section">
             <div className="border-b border-slate-100/60 pb-3 mb-4">
@@ -276,5 +262,3 @@ export function SaleForm({
     </form>
   );
 }
-
-
