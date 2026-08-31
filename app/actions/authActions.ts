@@ -1,7 +1,7 @@
 "use server";
 
 import { authService, type RegisterInput, type LoginInput } from "@/lib/services/authService";
-import { COUNTRY_DIAL_CODES, validatePhoneForCountry } from "@/lib/countries";
+import { COUNTRY_DIAL_CODES, PHONE_DIAL_CODES, validatePhoneForCountry } from "@/lib/countries";
 import { CURRENCY_OPTIONS } from "@/lib/format";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -42,7 +42,7 @@ export async function registerAction(formData: FormData) {
     return { success: false, error: "يرجى اختيار الدولة التي يقع فيها المتجر" };
   }
 
-  const selectedPhoneCountry = COUNTRY_DIAL_CODES.find((country) => country.code === phoneCountryCode);
+  const selectedPhoneCountry = PHONE_DIAL_CODES.find((country) => country.code === phoneCountryCode);
   if (!selectedPhoneCountry) {
     return { success: false, error: "يرجى اختيار كود دولة صحيح لرقم الهاتف" };
   }

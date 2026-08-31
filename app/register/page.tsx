@@ -20,7 +20,7 @@ import {
 import { registerAction } from "@/app/actions/authActions";
 import { Button } from "@/components/ui/button";
 import { CURRENCY_OPTIONS } from "@/lib/format";
-import { COUNTRY_DIAL_CODES, validatePhoneForCountry, findCountryByDialCode } from "@/lib/countries";
+import { COUNTRY_DIAL_CODES, PHONE_DIAL_CODES, validatePhoneForCountry, findCountryByDialCode } from "@/lib/countries";
 
 export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
@@ -266,8 +266,8 @@ export default function RegisterPage() {
                       aria-label="كود دولة الهاتف"
                       className="h-[42px] w-[125px] shrink-0 rounded-xl border border-slate-800 bg-slate-950/80 px-2 text-xs font-bold text-teal-400 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
                     >
-                      {COUNTRY_DIAL_CODES.map((country) => (
-                        <option key={country.code} value={country.code} className="bg-slate-900 text-white">
+                      {PHONE_DIAL_CODES.map((country) => (
+                        <option key={`${country.code}-${country.dialCode}`} value={country.code} className="bg-slate-900 text-white">
                           {country.flag} {country.dialCode}
                         </option>
                       ))}
