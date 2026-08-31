@@ -1,4 +1,4 @@
-import { Eye, Pencil, Search, UserPlus } from "lucide-react";
+import { Eye, Pencil, Plus, Search, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { DatabaseUnavailable } from "@/components/database-unavailable";
 import { Button } from "@/components/ui/button";
@@ -19,9 +19,7 @@ type CustomersPageProps = {
   }>;
 };
 
-export default async function CustomersPage({
-  searchParams,
-}: CustomersPageProps) {
+export default async function CustomersPage({ searchParams }: CustomersPageProps) {
   const params = await searchParams;
   const search = params.search ?? "";
   let customers: Awaited<ReturnType<typeof customerService.listCustomers>>;
@@ -32,10 +30,7 @@ export default async function CustomersPage({
     canManage = auth.permissions.includes("customers:manage");
     customers = await customerService.listCustomers(auth.shop.id, { search });
   } catch (error) {
-    if (isDatabaseConnectionError(error)) {
-      return <DatabaseUnavailable />;
-    }
-
+    if (isDatabaseConnectionError(error)) return <DatabaseUnavailable />;
     throw error;
   }
 
@@ -44,9 +39,16 @@ export default async function CustomersPage({
       <PageHeader
         title="العملاء"
         description="ملف سريع لكل عميل مع طلبات الصيانة والمبيعات والفواتير المرتبطة"
+        actions={canManage ? (
+          <Button asChild className="rounded-xl font-black shadow-sm">
+            <Link href="/customers/new">
+              <Plus className="ml-1.5 h-4 w-4" />
+              إضافة عميل جديد
+            </Link>
+          </Button>
+        ) : undefined}
       />
 
-      {/* Summary Info Strip */}
       <div className="rounded-2xl border border-indigo-200/50 bg-indigo-50/15 p-4 text-xs font-semibold text-indigo-900/90 flex items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <UserPlus className="h-4.5 w-4.5 text-indigo-600" aria-hidden="true" />
@@ -59,7 +61,6 @@ export default async function CustomersPage({
         </span>
       </div>
 
-      {/* Premium Filter Card */}
       <form className="erp-filter-card grid gap-5 sm:grid-cols-[1fr_auto] items-end">
         <div className="grid gap-2 text-xs font-extrabold text-slate-500">
           <span>بحث عن عميل</span>
@@ -81,7 +82,6 @@ export default async function CustomersPage({
         </div>
       </form>
 
-      {/* Table Container */}
       <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/50">
         {customers.length === 0 ? (
           <div className="p-12 text-center flex flex-col items-center justify-center">
@@ -90,14 +90,16 @@ export default async function CustomersPage({
             </div>
             <p className="mt-4 text-sm font-extrabold text-slate-900">لا يوجد عملاء بعد.</p>
             <p className="mt-2 text-xs text-slate-600 max-w-sm leading-relaxed font-medium">
-              يتم إنشاء ملفات العملاء تلقائياً في النظام بمجرد تسجيل طلب صيانة جديد أو عملية بيع جديدة.
+              يمكنك إضافة عميل يدوياً الآن، ثم اختياره لاحقاً عند إنشاء طلب صيانة أو عملية بيع.
             </p>
             <div className="mt-5 flex flex-col justify-center gap-2.5 sm:flex-row">
-              <Button asChild className="font-bold shadow-xs rounded-xl px-5" size="sm">
-                <Link href="/repair-orders/new">طلب صيانة جديد</Link>
-              </Button>
+              {canManage && (
+                <Button asChild className="font-bold shadow-xs rounded-xl px-5" size="sm">
+                  <Link href="/customers/new"><Plus className="ml-1 h-3.5 w-3.5" />إضافة عميل جديد</Link>
+                </Button>
+              )}
               <Button asChild variant="outline" className="font-bold shadow-xs border-slate-300 rounded-xl px-5" size="sm">
-                <Link href="/sales/new">عملية بيع POS</Link>
+                <Link href="/repair-orders/new">طلب صيانة جديد</Link>
               </Button>
             </div>
           </div>
@@ -121,27 +123,22 @@ export default async function CustomersPage({
                   <tr key={customer.id} className="align-middle">
                     <td className="font-black text-slate-900">{customer.name}</td>
                     <td className="font-numeric text-slate-700 font-medium">{customer.phone ?? "-"}</td>
-                    <td className="font-numeric text-slate-700 font-medium">
-                      {customer.phoneNormalized ?? "-"}
-                    </td>
-                    <td className="text-center font-black font-numeric text-teal-700">
-                      {customer._count.repairOrders}
-                    </td>
-                    <td className="text-center font-black font-numeric text-amber-700">
-                      {customer._count.sales}
-                    </td>
-                    <td className="text-center font-black font-numeric text-slate-800">
-                      {customer._count.invoices}
-                    </td>
-                    <td className="font-numeric text-slate-600 font-medium">
-                      {formatDateTime(customer.updatedAt)}
-                    </td>
+                    <td className="font-numeric text-slate-700 font-medium">{customer.phoneNormalized ?? "-"}</td>
+                    <td className="text-center font-black font-numeric text-teal-700">{customer._count.repairOrders}</td>
+                    <td className="text-center font-black font-numeric text-amber-700">{customer._count.sales}</td>
+                    <td className="text-center font-black font-numeric text-slate-800">{customer._count.invoices}</td>
+                    <td className="font-numeric text-slate-600 font-medium">{formatDateTime(customer.updatedAt)}</td>
                     <td className="text-center">
-                      <div className="flex items-center justify-center gap-1.5"><Button asChild variant="outline" size="sm" title="عرض" className="font-bold shadow-xs border-slate-300 hover:bg-primary/10 hover:text-primary hover:border-primary/30 rounded-lg">
-                        <Link href={`/customers/${customer.id}`}>
-                          <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-                        </Link>
-                      </Button>{canManage && <Button asChild variant="outline" size="sm" className="font-bold text-indigo-700"><Link href={`/customers/${customer.id}#edit-customer`}><Pencil className="ml-1 h-3.5 w-3.5" />تعديل</Link></Button>}</div>
+                      <div className="flex items-center justify-center gap-1.5">
+                        <Button asChild variant="outline" size="sm" title="عرض" className="font-bold shadow-xs border-slate-300 hover:bg-primary/10 hover:text-primary hover:border-primary/30 rounded-lg">
+                          <Link href={`/customers/${customer.id}`}><Eye className="h-3.5 w-3.5" aria-hidden="true" /></Link>
+                        </Button>
+                        {canManage && (
+                          <Button asChild variant="outline" size="sm" className="font-bold text-indigo-700">
+                            <Link href={`/customers/${customer.id}#edit-customer`}><Pencil className="ml-1 h-3.5 w-3.5" />تعديل</Link>
+                          </Button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
