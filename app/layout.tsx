@@ -42,12 +42,22 @@ export default async function RootLayout({
   let canReports = false;
   let canManageSubscription = false;
   let canManageDebts = false;
+  let showTutorialBanner = false;
 
   try {
     const auth = await getAuthContext({ allowRedirect: false });
     canSettings = can(auth, "shop:settings");
     canReports = can(auth, "reports:read");
     canManageDebts = can(auth, "debts:manage");
+
+    const tutorialRows = await prisma.$queryRaw<Array<{ tutorialBannerSeenAt: Date | null }>>`
+      SELECT "tutorialBannerSeenAt"
+      FROM "User"
+      WHERE "id" = ${auth.user.id}::uuid
+        AND "deletedAt" IS NULL
+      LIMIT 1
+    `;
+    showTutorialBanner = tutorialRows[0]?.tutorialBannerSeenAt == null;
 
     const hasSubscriptionPermission = can(auth, "subscription:manage");
     if (hasSubscriptionPermission) {
@@ -65,6 +75,7 @@ export default async function RootLayout({
     canReports = false;
     canManageSubscription = false;
     canManageDebts = false;
+    showTutorialBanner = false;
   }
 
   return (
@@ -80,6 +91,7 @@ export default async function RootLayout({
           canReports={canReports}
           canManageSubscription={canManageSubscription}
           canManageDebts={canManageDebts}
+          tutorialInitialShowBanner={showTutorialBanner}
         >
           {children}
         </AppShell>

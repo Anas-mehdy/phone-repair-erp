@@ -9,6 +9,7 @@ import { logoutAction } from "@/app/actions/authActions";
 import { cn } from "@/lib/utils";
 import { UserPresenceHeartbeat } from "@/components/user-presence-heartbeat";
 import { GlobalSubscriptionBanner } from "@/components/subscription/global-subscription-banner";
+import { TutorialOnboarding } from "@/components/tutorial-onboarding";
 
 export function AppShell({
   children,
@@ -16,12 +17,14 @@ export function AppShell({
   canReports = false,
   canManageSubscription = false,
   canManageDebts = false,
+  tutorialInitialShowBanner = false,
 }: {
   children: ReactNode;
   canSettings?: boolean;
   canReports?: boolean;
   canManageSubscription?: boolean;
   canManageDebts?: boolean;
+  tutorialInitialShowBanner?: boolean;
 }) {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -213,6 +216,7 @@ export function AppShell({
         <main className="mx-auto min-h-screen max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
           <UserPresenceHeartbeat />
           <GlobalSubscriptionBanner />
+          <TutorialOnboarding initialShowBanner={tutorialInitialShowBanner} />
           {children}
         </main>
       </div>
