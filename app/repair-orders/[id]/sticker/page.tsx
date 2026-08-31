@@ -80,12 +80,20 @@ export default async function RepairOrderStickerPage({ params }: StickerPageProp
               📱 {device}
             </div>
 
-            {/* Customer Name & Phone */}
-            <div className="text-[7.5px] font-bold text-slate-900 truncate">
-              👤 {repairOrder.customer?.name || "عميل نقدي"}
+            {/* Customer Name & Full Phone */}
+            <div
+              className="flex min-w-0 items-center justify-end gap-1 text-[7.5px] font-bold text-slate-900"
+              dir="rtl"
+            >
+              <span className="min-w-0 truncate">
+                👤 {repairOrder.customer?.name || "عميل نقدي"}
+              </span>
               {repairOrder.customer?.phone && (
-                <span className="font-numeric mr-1 text-[7px]" dir="ltr">
-                  ({repairOrder.customer.phone.slice(-7)})
+                <span
+                  className="shrink-0 whitespace-nowrap font-numeric text-[6.5px]"
+                  dir="ltr"
+                >
+                  ({repairOrder.customer.phone})
                 </span>
               )}
             </div>
