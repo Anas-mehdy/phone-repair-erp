@@ -182,18 +182,6 @@ export default async function RepairOrderPrintPage({ params }: PrintPageProps) {
           </p>
         </div>
 
-        {/* Signatures */}
-        <div className="pt-3 grid grid-cols-2 gap-4 text-center text-[9px] font-bold text-slate-700">
-          <div>
-            <span className="block mb-6">توقيع العميل:</span>
-            <div className="border-t border-slate-400 mx-2" />
-          </div>
-          <div>
-            <span className="block mb-6">توقيع المستلم:</span>
-            <div className="border-t border-slate-400 mx-2" />
-          </div>
-        </div>
-
         {/* Footer greeting */}
         <div className="mt-4 pt-2 text-center text-[9px] font-bold text-slate-500 border-t border-dotted border-slate-300">
           شكراً لثقتكم واختياركم {shop.name}!
