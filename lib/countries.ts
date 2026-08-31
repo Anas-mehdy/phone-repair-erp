@@ -274,6 +274,22 @@ export const COUNTRY_DIAL_CODES: CountryDialInfo[] = [
   },
 ];
 
+const PALESTINE_972_DIAL: CountryDialInfo = {
+  code: "PS972",
+  name: "فلسطين",
+  dialCode: "+972",
+  flag: "🇵🇸",
+  currency: "ILS",
+  placeholder: "501234567",
+  expectedDigits: [9],
+  startDigits: ["5"],
+  description: "9 أرقام (يبدأ بـ 5)",
+};
+
+export const PHONE_DIAL_CODES: CountryDialInfo[] = COUNTRY_DIAL_CODES.flatMap((country) =>
+  country.code === "PS" ? [country, PALESTINE_972_DIAL] : [country]
+);
+
 export interface PhoneValidationResult {
   isValid: boolean;
   error?: string;
@@ -289,7 +305,7 @@ export interface PhoneValidationResult {
 export function findCountryByDialCode(dialCodeOrCode: string): CountryDialInfo {
   const cleanDial = (dialCodeOrCode || "").trim();
   return (
-    COUNTRY_DIAL_CODES.find(
+    PHONE_DIAL_CODES.find(
       (c) =>
         c.dialCode === cleanDial ||
         c.code.toUpperCase() === cleanDial.toUpperCase() ||
@@ -443,7 +459,7 @@ export function parseStoredPhone(
   const digits = withoutInternationalPrefix.replace(/\D/g, "");
 
   // Find if digits start with any known dialCode (sorted by length descending)
-  const sorted = [...COUNTRY_DIAL_CODES].sort((a, b) => b.dialCode.length - a.dialCode.length);
+  const sorted = [...PHONE_DIAL_CODES].sort((a, b) => b.dialCode.length - a.dialCode.length);
   for (const country of sorted) {
     const dialDigits = country.dialCode.replace(/\D/g, "");
     if (digits.startsWith(dialDigits) && digits.length >= dialDigits.length + 6) {
