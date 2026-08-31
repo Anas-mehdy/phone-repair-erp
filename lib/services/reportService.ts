@@ -233,14 +233,21 @@ export async function getFinancialReport(shopId: string, range: FinancialRange) 
   );
 
   const movementCost = inventoryMovements.reduce((sum, movement) => {
+    const isSaleMovement =
+      movement.type === InventoryMovementType.SALE ||
+      movement.type === InventoryMovementType.RETURN;
     if (
-      movement.type === InventoryMovementType.SALE &&
+      isSaleMovement &&
       (movement.sale?.status !== SaleStatus.COMPLETED || movement.sale.deletedAt)
     ) {
       return sum;
     }
+
+    const isRepairMovement =
+      movement.type === InventoryMovementType.REPAIR_USAGE ||
+      movement.type === InventoryMovementType.REPAIR_RETURN;
     if (
-      movement.type === InventoryMovementType.REPAIR_USAGE &&
+      isRepairMovement &&
       (movement.repairOrder?.status === RepairStatus.CANCELLED || movement.repairOrder?.deletedAt)
     ) {
       return sum;
