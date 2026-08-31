@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Cairo, Outfit } from "next/font/google";
 import { AppShell } from "@/components/app-shell";
+import { DashboardKpiNavigation } from "@/components/dashboard/dashboard-kpi-navigation";
 import { getAuthContext, can } from "@/lib/auth/context";
 import { APP_URL } from "@/lib/app-url";
 import { prisma } from "@/lib/prisma";
@@ -73,6 +74,7 @@ export default async function RootLayout({
       className={`${cairo.variable} ${outfit.variable} overflow-x-hidden w-full max-w-full`}
     >
       <body className="font-sans antialiased overflow-x-hidden min-h-screen w-full max-w-full">
+        <DashboardKpiNavigation />
         <AppShell
           canSettings={canSettings}
           canReports={canReports}
