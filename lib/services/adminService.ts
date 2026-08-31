@@ -172,7 +172,7 @@ export const adminService = {
           Prisma.sql`
             SELECT "id", "lastLoginAt"
             FROM "User"
-            WHERE "id" IN (${Prisma.join(ownerIds)})
+            WHERE "id"::text IN (${Prisma.join(ownerIds)})
           `,
         )
       : [];
