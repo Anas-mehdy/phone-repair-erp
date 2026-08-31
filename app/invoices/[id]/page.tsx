@@ -80,7 +80,8 @@ export default async function InvoiceDetailsPage({
     Number(invoice.balanceDue) > 0 &&
     !invoice.installmentPlan;
   const canVoid =
-    invoice.status !== InvoiceStatus.VOID && invoice.payments.length === 0;
+    invoice.status !== InvoiceStatus.VOID && !invoice.installmentPlan;
+  const hasPayments = invoice.payments.length > 0;
 
   return (
     <div className="space-y-6">
@@ -331,15 +332,22 @@ export default async function InvoiceDetailsPage({
                   variant="destructive"
                   disabled={!canVoid}
                   className="w-full font-bold shadow-sm rounded-xl h-11 text-xs justify-center"
-                  message="هل تريد إلغاء هذه الفاتورة؟"
+                  message={hasPayments
+                    ? "سيتم إلغاء الفاتورة وعكس جميع الدفعات وسندات القبض المسجلة عليها. هل تريد المتابعة؟"
+                    : "هل تريد إلغاء هذه الفاتورة؟"}
                 >
                   <Ban className="h-4 w-4 ml-1.5 shrink-0" aria-hidden="true" />
-                  إلغاء الفاتورة (Void)
+                  {hasPayments ? "إلغاء الفاتورة وعكس الدفعات" : "إلغاء الفاتورة (Void)"}
                 </ConfirmSubmitButton>
               </form>
-              {!canVoid && invoice.status !== InvoiceStatus.VOID ? (
+              {hasPayments && canVoid ? (
+                <p className="text-[10px] leading-relaxed text-amber-700 font-bold bg-amber-50/70 p-3 rounded-xl border border-amber-200/70 text-right">
+                  ⚠️ سيتم عكس أثر {invoice.payments.length} دفعة/سند قبض وحفظ سجلاتها تاريخياً، ثم تحويل الفاتورة إلى ملغاة. بعدها يمكن حذف تذكرة الصيانة المرتبطة إذا لم يوجد مانع آخر.
+                </p>
+              ) : null}
+              {invoice.installmentPlan && invoice.status !== InvoiceStatus.VOID ? (
                 <p className="text-[10px] leading-relaxed text-slate-400 font-bold bg-slate-50/50 p-3 rounded-xl border border-slate-100/50 text-right">
-                  ⚠️ لا يمكن إلغاء فاتورة تحتوي على دفعات وسندات قبض مسجلة. يرجى حذف الدفعات أولاً إن أمكن.
+                  ⚠️ هذه الفاتورة مرتبطة بخطة أقساط. يجب إلغاء أو معالجة خطة الأقساط أولاً قبل إلغاء الفاتورة.
                 </p>
               ) : null}
             </div>
