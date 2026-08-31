@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Save, Trash2 } from "lucide-react";
+import { Banknote, Plus, Save, Trash2, UserPlus, Users } from "lucide-react";
 import { useActionState, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/format";
@@ -10,8 +10,13 @@ import {
   InventorySearchCombobox,
   type SaleInventoryOption,
 } from "./inventory-search-combobox";
+import {
+  CustomerSearchCombobox,
+  type SaleCustomerOption,
+} from "./customer-search-combobox";
 
 type InventoryOption = SaleInventoryOption;
+type CustomerMode = "EXISTING" | "NEW" | "CASH";
 
 type SaleLineDraft = {
   id: string;
@@ -47,6 +52,8 @@ export function SaleForm({
     initialState,
   );
   const [lines, setLines] = useState<SaleLineDraft[]>([createLine()]);
+  const [customerMode, setCustomerMode] = useState<CustomerMode>("CASH");
+  const [selectedCustomer, setSelectedCustomer] = useState<SaleCustomerOption | null>(null);
 
   const serializedItems = useMemo(() => {
     return JSON.stringify(
@@ -92,9 +99,16 @@ export function SaleForm({
     );
   }
 
+  function changeCustomerMode(mode: CustomerMode) {
+    setCustomerMode(mode);
+    if (mode !== "EXISTING") setSelectedCustomer(null);
+  }
+
   return (
     <form action={formAction} className="space-y-6">
       <input name="items" type="hidden" value={serializedItems} />
+      <input name="customerMode" type="hidden" value={customerMode} />
+      <input name="customerId" type="hidden" value={selectedCustomer?.id ?? ""} />
 
       {state.error ? (
         <div className="rounded-2xl border border-rose-250/30 bg-rose-50/40 p-4.5 text-xs font-extrabold text-rose-700">
@@ -181,7 +195,7 @@ export function SaleForm({
                           }
                         />
                       </Field>
-                      <Field label="سعر الوحدة (USD)">
+                      <Field label={`سعر الوحدة (${currency})`}>
                         <input
                           className={`${inputClassName} font-numeric`}
                           min="0"
@@ -218,16 +232,72 @@ export function SaleForm({
         <div className="space-y-6">
           <section className="erp-section">
             <div className="border-b border-slate-100/60 pb-3 mb-4">
-              <h3 className="font-bold text-slate-800 text-sm">بيانات العميل (اختياري)</h3>
+              <h3 className="font-bold text-slate-800 text-sm">بيانات العميل</h3>
+              <p className="mt-1 text-[11px] font-medium text-slate-400">اربط المبيعة بعميل موجود أو سجل عميلاً جديداً للمرة الأولى.</p>
             </div>
-            <div className="grid gap-4">
-              <Field label="اسم العميل">
-                <input className={inputClassName} name="customerName" placeholder="مثال: محمد علي" />
-              </Field>
-              <Field label="رقم الهاتف">
-                <input className={`${inputClassName} font-numeric`} name="customerPhone" inputMode="tel" placeholder="05xxxxxxxx" />
-              </Field>
+
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              <button
+                type="button"
+                onClick={() => changeCustomerMode("EXISTING")}
+                className={`rounded-xl border p-2.5 text-[10px] font-black transition ${customerMode === "EXISTING" ? "border-primary bg-primary/5 text-primary" : "border-slate-200 text-slate-500 hover:bg-slate-50"}`}
+              >
+                <Users className="mx-auto mb-1 h-4 w-4" />
+                عميل موجود
+              </button>
+              <button
+                type="button"
+                onClick={() => changeCustomerMode("NEW")}
+                className={`rounded-xl border p-2.5 text-[10px] font-black transition ${customerMode === "NEW" ? "border-primary bg-primary/5 text-primary" : "border-slate-200 text-slate-500 hover:bg-slate-50"}`}
+              >
+                <UserPlus className="mx-auto mb-1 h-4 w-4" />
+                عميل جديد
+              </button>
+              <button
+                type="button"
+                onClick={() => changeCustomerMode("CASH")}
+                className={`rounded-xl border p-2.5 text-[10px] font-black transition ${customerMode === "CASH" ? "border-primary bg-primary/5 text-primary" : "border-slate-200 text-slate-500 hover:bg-slate-50"}`}
+              >
+                <Banknote className="mx-auto mb-1 h-4 w-4" />
+                عميل نقدي
+              </button>
             </div>
+
+            {customerMode === "EXISTING" ? (
+              <div className="grid gap-3">
+                <Field label="اختر العميل">
+                  <CustomerSearchCombobox
+                    value={selectedCustomer?.id ?? ""}
+                    selectedCustomer={selectedCustomer}
+                    onSelect={setSelectedCustomer}
+                  />
+                </Field>
+                {selectedCustomer ? (
+                  <div className="rounded-xl border border-emerald-200/60 bg-emerald-50/50 px-3 py-2.5 text-xs">
+                    <div className="font-black text-emerald-800">{selectedCustomer.name}</div>
+                    {selectedCustomer.phone ? (
+                      <div className="mt-0.5 font-numeric text-[10px] font-bold text-emerald-600" dir="ltr">{selectedCustomer.phone}</div>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            ) : customerMode === "NEW" ? (
+              <div className="grid gap-4">
+                <Field label="اسم العميل الجديد">
+                  <input className={inputClassName} name="customerName" placeholder="مثال: محمود أحمد" required />
+                </Field>
+                <Field label="رقم الهاتف">
+                  <input className={`${inputClassName} font-numeric`} name="customerPhone" inputMode="tel" placeholder="05xxxxxxxx" />
+                </Field>
+                <p className="text-[10px] leading-5 font-semibold text-slate-400">
+                  سيتم حفظ العميل تلقائياً في إدارة العملاء. إذا كان رقم الهاتف مسجلاً مسبقاً، سيطلب منك النظام اختيار العميل الموجود بدلاً من إنشاء نسخة مكررة.
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-slate-200/70 bg-slate-50/60 px-3 py-3 text-[11px] font-semibold text-slate-500">
+                لن يتم إنشاء سجل عميل لهذه المبيعة.
+              </div>
+            )}
           </section>
 
           <section className="erp-section">
