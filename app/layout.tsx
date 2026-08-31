@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { Cairo, Outfit } from "next/font/google";
 import { AppShell } from "@/components/app-shell";
 import { DashboardKpiNavigation } from "@/components/dashboard/dashboard-kpi-navigation";
-import { TutorialOnboarding } from "@/components/tutorial-onboarding";
 import { getAuthContext, can } from "@/lib/auth/context";
 import { APP_URL } from "@/lib/app-url";
 import { prisma } from "@/lib/prisma";
@@ -87,12 +86,12 @@ export default async function RootLayout({
     >
       <body className="font-sans antialiased overflow-x-hidden min-h-screen w-full max-w-full">
         <DashboardKpiNavigation />
-        <TutorialOnboarding initialShowBanner={showTutorialBanner} />
         <AppShell
           canSettings={canSettings}
           canReports={canReports}
           canManageSubscription={canManageSubscription}
           canManageDebts={canManageDebts}
+          tutorialInitialShowBanner={showTutorialBanner}
         >
           {children}
         </AppShell>
