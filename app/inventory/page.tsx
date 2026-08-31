@@ -11,7 +11,7 @@ import { getAuthContext } from "@/lib/auth/context";
 import { isDatabaseConnectionError } from "@/lib/database-errors";
 import { inventoryService } from "@/lib/services/inventoryService";
 import { inventoryCategoryService } from "@/lib/services/inventoryCategoryService";
-import { deleteInventoryItemAction } from "./actions";
+import { deleteInventoryCategoryAction, deleteInventoryItemAction, renameInventoryCategoryAction } from "./actions";
 import { formatDate, formatMoney, inputClassName, isLowStock } from "./_components";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +24,8 @@ type InventoryPageProps = {
     uncategorized?: string;
     error?: string;
     deleted?: string;
+    categoryUpdated?: string;
+    categoryDeleted?: string;
   }>;
 };
 
@@ -88,6 +90,8 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
       />
 
       {params.deleted && <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-700">تم حذف قطعة المخزون بنجاح مع الاحتفاظ بحركاتها السابقة.</div>}
+      {params.categoryUpdated && <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-700">تم تعديل اسم التصنيف وتحديث المنتجات المرتبطة به بنجاح.</div>}
+      {params.categoryDeleted && <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-700">تم حذف التصنيف الفارغ بنجاح.</div>}
       {params.error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-700">{params.error}</div>}
 
       <div className="flex items-center justify-between gap-4 rounded-2xl border border-indigo-200/50 bg-indigo-50/15 p-4 text-xs font-semibold text-indigo-900/90">
@@ -107,7 +111,7 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
               <FolderOpen className="h-5 w-5 text-primary" aria-hidden="true" />
               <h2 className="text-base font-black text-slate-900">تصنيفات المخزون</h2>
             </div>
-            <p className="mt-1 text-xs font-medium text-slate-400">اختر تصنيفاً لعرض المنتجات التابعة له فقط.</p>
+            <p className="mt-1 text-xs font-medium text-slate-400">اختر تصنيفاً لعرض المنتجات التابعة له فقط. يمكنك تعديل اسم التصنيف أو حذف التصنيف الفارغ.</p>
           </div>
           <div className="text-xs font-bold text-slate-500">المحدد الآن: <span className="text-primary">{selectedLabel}</span></div>
         </div>
@@ -117,10 +121,12 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
           {overview.categories.map((category) => (
             <CategoryCard
               key={category.id}
+              categoryId={category.id}
               href={inventoryHref({ categoryId: category.id })}
               name={category.name}
               count={category.itemCount}
               active={category.id === categoryId}
+              canManage={canManage}
             />
           ))}
           {overview.uncategorizedCount > 0 && (
@@ -203,25 +209,80 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
   );
 }
 
-function CategoryCard({ href, name, count, active }: { href: string; name: string; count: number; active: boolean }) {
+function CategoryCard({
+  href,
+  name,
+  count,
+  active,
+  categoryId,
+  canManage = false,
+}: {
+  href: string;
+  name: string;
+  count: number;
+  active: boolean;
+  categoryId?: string;
+  canManage?: boolean;
+}) {
+  const manageable = Boolean(categoryId && canManage);
+
   return (
-    <Link
-      href={href}
+    <div
       className={cn(
-        "group flex min-h-28 flex-col justify-between rounded-2xl border p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md",
+        "overflow-hidden rounded-2xl border transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md",
         active ? "border-primary bg-primary/5 shadow-sm ring-1 ring-primary/10" : "border-slate-200 bg-slate-50/30 hover:border-primary/30 hover:bg-white",
       )}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl", active ? "bg-primary text-white" : "bg-white text-slate-500 shadow-sm group-hover:text-primary")}>
-          <FolderOpen className="h-5 w-5" aria-hidden="true" />
+      <Link href={href} className="group flex min-h-28 flex-col justify-between p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl", active ? "bg-primary text-white" : "bg-white text-slate-500 shadow-sm group-hover:text-primary")}>
+            <FolderOpen className="h-5 w-5" aria-hidden="true" />
+          </div>
+          {active && <span className="rounded-full bg-primary px-2 py-0.5 text-[9px] font-black text-white">محدد</span>}
         </div>
-        {active && <span className="rounded-full bg-primary px-2 py-0.5 text-[9px] font-black text-white">محدد</span>}
-      </div>
-      <div className="mt-4">
-        <div className="truncate text-sm font-black text-slate-900">{name}</div>
-        <div className="mt-1 font-numeric text-xs font-bold text-slate-400">{count} منتج</div>
-      </div>
-    </Link>
+        <div className="mt-4">
+          <div className="truncate text-sm font-black text-slate-900">{name}</div>
+          <div className="mt-1 font-numeric text-xs font-bold text-slate-400">{count} منتج</div>
+        </div>
+      </Link>
+
+      {manageable && categoryId && (
+        <details className="border-t border-slate-200/70 bg-white/80 px-3 py-2">
+          <summary className="cursor-pointer select-none text-[10px] font-black text-slate-500 hover:text-primary">إدارة التصنيف</summary>
+          <div className="mt-3 space-y-3">
+            <form action={renameInventoryCategoryAction} className="space-y-2">
+              <input type="hidden" name="categoryId" value={categoryId} />
+              <label className="block text-[10px] font-bold text-slate-500">تعديل اسم التصنيف</label>
+              <div className="flex gap-2">
+                <input name="name" defaultValue={name} maxLength={120} required className={`${inputClassName} h-9 min-w-0 flex-1 text-xs`} />
+                <Button type="submit" size="sm" variant="outline" className="h-9 shrink-0 border-indigo-200 text-indigo-700">
+                  <Pencil className="ml-1 h-3.5 w-3.5" />حفظ
+                </Button>
+              </div>
+            </form>
+
+            {count === 0 ? (
+              <form action={deleteInventoryCategoryAction}>
+                <input type="hidden" name="categoryId" value={categoryId} />
+                <ConfirmSubmitButton
+                  type="submit"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 w-full border-rose-200 font-bold text-rose-700 hover:bg-rose-50"
+                  message={`هل تريد حذف تصنيف ${name}؟ هذا التصنيف فارغ حالياً.`}
+                >
+                  <Trash2 className="ml-1 h-3.5 w-3.5" />
+                  حذف التصنيف
+                </ConfirmSubmitButton>
+              </form>
+            ) : (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[10px] font-bold leading-relaxed text-amber-800">
+                لإتاحة الحذف، انقل أو أزل المنتجات الـ {count} الموجودة داخل التصنيف أولاً.
+              </div>
+            )}
+          </div>
+        </details>
+      )}
+    </div>
   );
 }

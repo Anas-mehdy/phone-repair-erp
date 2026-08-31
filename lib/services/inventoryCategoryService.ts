@@ -11,6 +11,13 @@ function normalizeCategoryName(value: string) {
   return value.trim().toLocaleLowerCase();
 }
 
+function validateCategoryName(name: string) {
+  const trimmedName = name.trim();
+  if (!trimmedName) throw new Error("اسم التصنيف مطلوب.");
+  if (trimmedName.length > 120) throw new Error("اسم التصنيف طويل جداً.");
+  return trimmedName;
+}
+
 export async function listInventoryCategories(shopId: string) {
   const rows = await prisma.$queryRaw<InventoryCategoryRow[]>`
     SELECT
@@ -58,10 +65,7 @@ export async function getInventoryCategoryOverview(shopId: string) {
 }
 
 export async function createInventoryCategory(shopId: string, name: string) {
-  const trimmedName = name.trim();
-  if (!trimmedName) throw new Error("اسم التصنيف مطلوب.");
-  if (trimmedName.length > 120) throw new Error("اسم التصنيف طويل جداً.");
-
+  const trimmedName = validateCategoryName(name);
   const normalizedName = normalizeCategoryName(trimmedName);
   const existing = await prisma.$queryRaw<Array<{ id: string; name: string }>>`
     SELECT "id", "name"
@@ -81,6 +85,101 @@ export async function createInventoryCategory(shopId: string, name: string) {
   `;
 
   return created[0];
+}
+
+export async function renameInventoryCategory(shopId: string, categoryId: string, name: string) {
+  const trimmedName = validateCategoryName(name);
+  const normalizedName = normalizeCategoryName(trimmedName);
+
+  return prisma.$transaction(async (tx) => {
+    const categoryRows = await tx.$queryRaw<Array<{ id: string; name: string }>>`
+      SELECT "id", "name"
+      FROM "InventoryCategory"
+      WHERE "id" = ${categoryId}::uuid
+        AND "shopId" = ${shopId}::uuid
+        AND "deletedAt" IS NULL
+      LIMIT 1
+      FOR UPDATE
+    `;
+
+    if (!categoryRows[0]) throw new Error("التصنيف غير موجود أو تم حذفه.");
+
+    const duplicateRows = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT "id"
+      FROM "InventoryCategory"
+      WHERE "shopId" = ${shopId}::uuid
+        AND "deletedAt" IS NULL
+        AND "normalizedName" = ${normalizedName}
+        AND "id" <> ${categoryId}::uuid
+      LIMIT 1
+    `;
+
+    if (duplicateRows[0]) throw new Error("يوجد تصنيف آخر بنفس الاسم.");
+
+    await tx.$executeRaw`
+      UPDATE "InventoryCategory"
+      SET
+        "name" = ${trimmedName},
+        "normalizedName" = ${normalizedName},
+        "updatedAt" = NOW()
+      WHERE "id" = ${categoryId}::uuid
+        AND "shopId" = ${shopId}::uuid
+        AND "deletedAt" IS NULL
+    `;
+
+    // Keep the legacy category text synchronized for all active items.
+    await tx.$executeRaw`
+      UPDATE "InventoryItem"
+      SET
+        "category" = ${trimmedName},
+        "updatedAt" = NOW()
+      WHERE "shopId" = ${shopId}::uuid
+        AND "categoryId" = ${categoryId}::uuid
+        AND "deletedAt" IS NULL
+    `;
+
+    return { id: categoryId, name: trimmedName };
+  });
+}
+
+export async function deleteInventoryCategory(shopId: string, categoryId: string) {
+  return prisma.$transaction(async (tx) => {
+    const categoryRows = await tx.$queryRaw<Array<{ id: string; name: string }>>`
+      SELECT "id", "name"
+      FROM "InventoryCategory"
+      WHERE "id" = ${categoryId}::uuid
+        AND "shopId" = ${shopId}::uuid
+        AND "deletedAt" IS NULL
+      LIMIT 1
+      FOR UPDATE
+    `;
+
+    const category = categoryRows[0];
+    if (!category) throw new Error("التصنيف غير موجود أو تم حذفه.");
+
+    const itemRows = await tx.$queryRaw<Array<{ itemCount: bigint | number }>>`
+      SELECT COUNT(*)::bigint AS "itemCount"
+      FROM "InventoryItem"
+      WHERE "shopId" = ${shopId}::uuid
+        AND "categoryId" = ${categoryId}::uuid
+        AND "deletedAt" IS NULL
+    `;
+
+    const itemCount = Number(itemRows[0]?.itemCount ?? 0);
+    if (itemCount > 0) {
+      throw new Error(`لا يمكن حذف التصنيف قبل إفراغه. يوجد ${itemCount} منتج مرتبط به حالياً.`);
+    }
+
+    await tx.$executeRaw`
+      UPDATE "InventoryCategory"
+      SET "deletedAt" = NOW(), "updatedAt" = NOW()
+      WHERE "id" = ${categoryId}::uuid
+        AND "shopId" = ${shopId}::uuid
+        AND "deletedAt" IS NULL
+    `;
+
+    return category;
+  });
 }
 
 export async function resolveInventoryCategory(
@@ -141,6 +240,8 @@ export const inventoryCategoryService = {
   listInventoryCategories,
   getInventoryCategoryOverview,
   createInventoryCategory,
+  renameInventoryCategory,
+  deleteInventoryCategory,
   resolveInventoryCategory,
   listInventoryItemIdsForCategory,
 };
