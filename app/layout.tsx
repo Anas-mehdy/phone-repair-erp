@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Cairo, Outfit } from "next/font/google";
 import { AppShell } from "@/components/app-shell";
 import { DashboardKpiNavigation } from "@/components/dashboard/dashboard-kpi-navigation";
+import { TutorialOnboarding } from "@/components/tutorial-onboarding";
 import { getAuthContext, can } from "@/lib/auth/context";
 import { APP_URL } from "@/lib/app-url";
 import { prisma } from "@/lib/prisma";
@@ -42,12 +43,22 @@ export default async function RootLayout({
   let canReports = false;
   let canManageSubscription = false;
   let canManageDebts = false;
+  let showTutorialBanner = false;
 
   try {
     const auth = await getAuthContext({ allowRedirect: false });
     canSettings = can(auth, "shop:settings");
     canReports = can(auth, "reports:read");
     canManageDebts = can(auth, "debts:manage");
+
+    const tutorialRows = await prisma.$queryRaw<Array<{ tutorialBannerSeenAt: Date | null }>>`
+      SELECT "tutorialBannerSeenAt"
+      FROM "User"
+      WHERE "id" = ${auth.user.id}::uuid
+        AND "deletedAt" IS NULL
+      LIMIT 1
+    `;
+    showTutorialBanner = tutorialRows[0]?.tutorialBannerSeenAt == null;
 
     const hasSubscriptionPermission = can(auth, "subscription:manage");
     if (hasSubscriptionPermission) {
@@ -65,6 +76,7 @@ export default async function RootLayout({
     canReports = false;
     canManageSubscription = false;
     canManageDebts = false;
+    showTutorialBanner = false;
   }
 
   return (
@@ -75,6 +87,7 @@ export default async function RootLayout({
     >
       <body className="font-sans antialiased overflow-x-hidden min-h-screen w-full max-w-full">
         <DashboardKpiNavigation />
+        <TutorialOnboarding initialShowBanner={showTutorialBanner} />
         <AppShell
           canSettings={canSettings}
           canReports={canReports}
