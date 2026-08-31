@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth";
 
@@ -18,9 +19,6 @@ export interface PlatformStats {
 }
 
 export const adminService = {
-  /**
-   * Aggregates global platform statistics across all tenants
-   */
   async getPlatformStats(): Promise<PlatformStats> {
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -113,9 +111,6 @@ export const adminService = {
     };
   },
 
-  /**
-   * Lists all shops with their owner, ticket count, and customer metrics
-   */
   async listAllShops(query?: string) {
     const trimmed = query?.trim().toLowerCase();
     const now = new Date();
@@ -168,6 +163,24 @@ export const adminService = {
       },
     });
 
+    const ownerIds = shops
+      .map((shop) => shop.users[0]?.id)
+      .filter((id): id is string => Boolean(id));
+
+    const lastLoginRows = ownerIds.length
+      ? await prisma.$queryRaw<Array<{ id: string; lastLoginAt: Date | null }>>(
+          Prisma.sql`
+            SELECT "id", "lastLoginAt"
+            FROM "User"
+            WHERE "id" IN (${Prisma.join(ownerIds)})
+          `,
+        )
+      : [];
+
+    const lastLoginByUserId = new Map(
+      lastLoginRows.map((row) => [row.id, row.lastLoginAt] as const),
+    );
+
     return shops.map((shop) => {
       const owner = shop.users[0] || null;
       const isOnline = Boolean(
@@ -191,6 +204,7 @@ export const adminService = {
               name: owner.name,
               email: owner.email,
               lastActiveAt: owner.lastActiveAt,
+              lastLoginAt: lastLoginByUserId.get(owner.id) ?? null,
             }
           : null,
         counts: {
@@ -204,9 +218,6 @@ export const adminService = {
     });
   },
 
-  /**
-   * Resets a user's password directly as Super Admin
-   */
   async resetUserPassword(userId: string, newPassword: string) {
     if (!newPassword || newPassword.length < 6) {
       throw new Error("كلمة المرور يجب ألا تقل عن 6 خانات");
@@ -229,9 +240,6 @@ export const adminService = {
     return user;
   },
 
-  /**
-   * Toggles shop active/suspended status
-   */
   async toggleShopStatus(shopId: string, suspend: boolean) {
     return prisma.shop.update({
       where: { id: shopId },
@@ -241,9 +249,6 @@ export const adminService = {
     });
   },
 
-  /**
-   * Retrieves shop owner session payload for Super Admin impersonation
-   */
   async getShopOwnerForImpersonation(shopId: string) {
     const shop = await prisma.shop.findUnique({
       where: { id: shopId },
