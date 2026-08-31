@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Trash2, AlertTriangle, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { deleteRepairOrderAction } from "./actions";
@@ -16,6 +17,7 @@ export function DeleteRepairOrderButton({
   ticketNumber,
   variant = "button",
 }: DeleteRepairOrderButtonProps) {
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -26,15 +28,15 @@ export function DeleteRepairOrderButton({
     formData.append("repairOrderId", repairOrderId);
 
     startTransition(async () => {
-      try {
-        await deleteRepairOrderAction(formData);
-      } catch (err: unknown) {
-        // In Next.js redirect throws a NEXT_REDIRECT error which is normal behavior
-        if ((err as { digest?: string })?.digest?.startsWith("NEXT_REDIRECT")) {
-          return;
-        }
-        setError(err instanceof Error ? err.message : "فشل حذف طلب الصيانة");
+      const result = await deleteRepairOrderAction(formData);
+      if (!result.success) {
+        setError(result.error);
+        return;
       }
+
+      setIsOpen(false);
+      router.push("/repair-orders");
+      router.refresh();
     });
   }
 
@@ -79,7 +81,6 @@ export function DeleteRepairOrderButton({
         </Button>
       )}
 
-      {/* Confirmation Modal */}
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200">
           <div className="relative w-full max-w-md bg-white rounded-3xl border border-slate-200 shadow-2xl p-6 text-right">
@@ -107,7 +108,7 @@ export function DeleteRepairOrderButton({
             </div>
 
             {error && (
-              <div className="mt-4 p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold rounded-xl">
+              <div className="mt-4 p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold rounded-xl leading-relaxed">
                 ⚠️ {error}
               </div>
             )}
