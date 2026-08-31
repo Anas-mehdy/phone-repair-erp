@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth";
 
@@ -144,7 +145,6 @@ export const adminService = {
             email: true,
             createdAt: true,
             lastActiveAt: true,
-            lastLoginAt: true,
           },
           take: 1,
         },
@@ -162,6 +162,24 @@ export const adminService = {
         createdAt: "desc",
       },
     });
+
+    const ownerIds = shops
+      .map((shop) => shop.users[0]?.id)
+      .filter((id): id is string => Boolean(id));
+
+    const lastLoginRows = ownerIds.length
+      ? await prisma.$queryRaw<Array<{ id: string; lastLoginAt: Date | null }>>(
+          Prisma.sql`
+            SELECT "id", "lastLoginAt"
+            FROM "User"
+            WHERE "id"::text IN (${Prisma.join(ownerIds)})
+          `,
+        )
+      : [];
+
+    const lastLoginByUserId = new Map(
+      lastLoginRows.map((row) => [row.id, row.lastLoginAt] as const),
+    );
 
     return shops.map((shop) => {
       const owner = shop.users[0] || null;
@@ -186,7 +204,7 @@ export const adminService = {
               name: owner.name,
               email: owner.email,
               lastActiveAt: owner.lastActiveAt,
-              lastLoginAt: owner.lastLoginAt,
+              lastLoginAt: lastLoginByUserId.get(owner.id) ?? null,
             }
           : null,
         counts: {
