@@ -20,6 +20,7 @@ export type CreateSaleLineItemInput = {
 };
 
 export type CreateSaleInput = {
+  customerId?: string;
   customerName?: string;
   customerPhone?: string;
   items: CreateSaleLineItemInput[];
@@ -50,11 +51,27 @@ function normalizePhone(phone: string) {
   return hasPlus ? `+${digits}` : digits;
 }
 
-async function findOrCreateCustomerForSale(
+async function resolveCustomerForSale(
   tx: Prisma.TransactionClient,
   shopId: string,
-  input: Pick<CreateSaleInput, "customerName" | "customerPhone">,
+  input: Pick<CreateSaleInput, "customerId" | "customerName" | "customerPhone">,
 ) {
+  if (input.customerId) {
+    const selectedCustomer = await tx.customer.findFirst({
+      where: {
+        id: input.customerId,
+        shopId,
+        deletedAt: null,
+      },
+    });
+
+    if (!selectedCustomer) {
+      throw new Error("العميل المحدد غير موجود أو لا يتبع هذا المتجر.");
+    }
+
+    return selectedCustomer;
+  }
+
   const customerName = emptyToNull(input.customerName);
   const customerPhone = emptyToNull(input.customerPhone);
 
@@ -74,10 +91,13 @@ async function findOrCreateCustomerForSale(
           { phone: customerPhone },
         ],
       },
+      select: { id: true, name: true, phone: true },
     });
 
     if (existingCustomer) {
-      return existingCustomer;
+      throw new Error(
+        `يوجد عميل مسجل بهذا الرقم باسم «${existingCustomer.name}». اختر «عميل موجود» وابحث عنه بدلاً من إنشاء عميل جديد.`,
+      );
     }
   }
 
@@ -229,7 +249,7 @@ export async function createSale(
   const receiptNumber = await generateReceiptNumber(shopId);
 
   return prisma.$transaction(async (tx) => {
-    const customer = await findOrCreateCustomerForSale(tx, shopId, input);
+    const customer = await resolveCustomerForSale(tx, shopId, input);
     const subtotal = input.items.reduce((sum, item) => {
       return sum.add(decimal(item.unitPrice).mul(item.quantity));
     }, new Prisma.Decimal(0));
