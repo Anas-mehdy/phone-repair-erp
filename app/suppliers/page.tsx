@@ -1,4 +1,4 @@
-import { Eye, Plus, Search, Truck } from "lucide-react";
+import { Eye, Plus, ReceiptText, Search, Truck } from "lucide-react";
 import Link from "next/link";
 import { DatabaseUnavailable } from "@/components/database-unavailable";
 import { Button } from "@/components/ui/button";
@@ -43,9 +43,16 @@ export default async function SuppliersPage({
       <PageHeader
         title="الموردون وقطع الغيار"
         description="إدارة ومتابعة موردي قطع الغيار الخارجيين والأجهزة المرتبطة بهم"
+        actions={
+          <Button asChild variant="outline" className="font-bold">
+            <Link href="/suppliers/invoices">
+              <ReceiptText className="ml-1.5 h-4 w-4" />
+              فواتير الموردين
+            </Link>
+          </Button>
+        }
       />
 
-      {/* Summary Info Strip */}
       <div className="rounded-2xl border border-teal-200/50 bg-teal-50/15 p-4 text-xs font-semibold text-teal-900/90 flex items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <Truck className="h-4.5 w-4.5 text-teal-600" aria-hidden="true" />
@@ -58,9 +65,7 @@ export default async function SuppliersPage({
         </span>
       </div>
 
-      {/* Quick Add Supplier Form & Filter Card */}
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-        {/* Main List */}
         <div className="space-y-4">
           <form className="erp-filter-card grid gap-4 sm:grid-cols-[1fr_auto] items-end">
             <div className="grid gap-2 text-xs font-extrabold text-slate-700">
@@ -83,7 +88,6 @@ export default async function SuppliersPage({
             </div>
           </form>
 
-          {/* Table Container */}
           <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/50">
             {suppliers.length === 0 ? (
               <div className="p-12 text-center flex flex-col items-center justify-center">
@@ -137,7 +141,6 @@ export default async function SuppliersPage({
           </div>
         </div>
 
-        {/* Side Add Supplier Form */}
         <div>
           <form action={createSupplierAction} className="erp-section space-y-4 sticky top-6">
             <div className="border-b border-slate-100/60 pb-3">
