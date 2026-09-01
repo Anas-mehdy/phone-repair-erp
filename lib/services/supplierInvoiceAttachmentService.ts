@@ -34,27 +34,33 @@ export type SupplierInvoiceAttachmentSummary = {
 let attachmentTableReady = false;
 
 async function ensureAttachmentTable() {
-  if (attachmentTableReady) return;
+  if (attachmentTableReady) return true;
 
-  await prisma.$executeRawUnsafe(`
-    CREATE TABLE IF NOT EXISTS "SupplierInvoiceAttachment" (
-      "movementId" UUID PRIMARY KEY,
-      "shopId" UUID NOT NULL,
-      "fileName" TEXT NOT NULL,
-      "mimeType" VARCHAR(100) NOT NULL,
-      "fileSize" INTEGER NOT NULL,
-      "fileData" BYTEA NOT NULL,
-      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      CONSTRAINT "SupplierInvoiceAttachment_movementId_fkey"
-        FOREIGN KEY ("movementId") REFERENCES "InventoryMovement"("id") ON DELETE CASCADE ON UPDATE CASCADE,
-      CONSTRAINT "SupplierInvoiceAttachment_shopId_fkey"
-        FOREIGN KEY ("shopId") REFERENCES "Shop"("id") ON DELETE CASCADE ON UPDATE CASCADE
-    );
-    CREATE INDEX IF NOT EXISTS "SupplierInvoiceAttachment_shopId_createdAt_idx"
-      ON "SupplierInvoiceAttachment"("shopId", "createdAt");
-  `);
-
-  attachmentTableReady = true;
+  try {
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "SupplierInvoiceAttachment" (
+        "movementId" UUID PRIMARY KEY,
+        "shopId" UUID NOT NULL,
+        "fileName" TEXT NOT NULL,
+        "mimeType" VARCHAR(100) NOT NULL,
+        "fileSize" INTEGER NOT NULL,
+        "fileData" BYTEA NOT NULL,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "SupplierInvoiceAttachment_movementId_fkey"
+          FOREIGN KEY ("movementId") REFERENCES "InventoryMovement"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+        CONSTRAINT "SupplierInvoiceAttachment_shopId_fkey"
+          FOREIGN KEY ("shopId") REFERENCES "Shop"("id") ON DELETE CASCADE ON UPDATE CASCADE
+      )
+    `);
+    await prisma.$executeRawUnsafe(`
+      CREATE INDEX IF NOT EXISTS "SupplierInvoiceAttachment_shopId_createdAt_idx"
+        ON "SupplierInvoiceAttachment"("shopId", "createdAt")
+    `);
+    attachmentTableReady = true;
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function decimalOrNull(value?: string | null) {
@@ -72,7 +78,9 @@ export async function receiveStockWithInvoice(
     throw new Error("الكمية يجب أن تكون أكبر من صفر.");
   }
 
-  await ensureAttachmentTable();
+  if (!(await ensureAttachmentTable())) {
+    throw new Error("تعذر تجهيز مساحة حفظ مرفقات الفواتير. حاول مجدداً بعد تطبيق تحديث قاعدة البيانات.");
+  }
 
   return prisma.$transaction(async (tx) => {
     const item = await tx.inventoryItem.findFirst({
@@ -143,7 +151,7 @@ export async function receiveStockWithInvoice(
 }
 
 export async function listAttachmentsForInventoryItem(shopId: string, inventoryItemId: string) {
-  await ensureAttachmentTable();
+  if (!(await ensureAttachmentTable())) return [];
   return prisma.$queryRaw<SupplierInvoiceAttachmentSummary[]>`
     SELECT
       a."movementId" AS "movementId",
@@ -172,7 +180,7 @@ export async function listAttachmentsForInventoryItem(shopId: string, inventoryI
 }
 
 export async function listAttachmentsForSupplier(shopId: string, supplierId: string) {
-  await ensureAttachmentTable();
+  if (!(await ensureAttachmentTable())) return [];
   return prisma.$queryRaw<SupplierInvoiceAttachmentSummary[]>`
     SELECT
       a."movementId" AS "movementId",
@@ -201,7 +209,7 @@ export async function listAttachmentsForSupplier(shopId: string, supplierId: str
 }
 
 export async function getAttachmentFile(shopId: string, movementId: string) {
-  await ensureAttachmentTable();
+  if (!(await ensureAttachmentTable())) return null;
   const rows = await prisma.$queryRaw<Array<{
     fileName: string;
     mimeType: string;
