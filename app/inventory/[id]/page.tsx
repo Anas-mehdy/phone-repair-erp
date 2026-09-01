@@ -10,6 +10,7 @@ import { isDatabaseConnectionError } from "@/lib/database-errors";
 import { inventoryService } from "@/lib/services/inventoryService";
 import { inventoryCategoryService } from "@/lib/services/inventoryCategoryService";
 import { supplierService } from "@/lib/services/supplierService";
+import { supplierInvoiceAttachmentService } from "@/lib/services/supplierInvoiceAttachmentService";
 import { datasetKeyForSourceCategory } from "@/lib/services/compatibility/compatibility-datasets";
 import { Field, formatDate, formatMoney, inputClassName, isLowStock, textareaClassName } from "../_components";
 import { CompatibilityGroupPicker } from "../_compatibility-group-picker";
@@ -29,16 +30,18 @@ export default async function InventoryItemDetailsPage({ params, searchParams }:
   let movements: Awaited<ReturnType<typeof inventoryService.getInventoryMovements>>;
   let categories: Awaited<ReturnType<typeof inventoryCategoryService.listInventoryCategories>> = [];
   let suppliers: Awaited<ReturnType<typeof supplierService.listSuppliers>> = [];
+  let attachments: Awaited<ReturnType<typeof supplierInvoiceAttachmentService.listAttachmentsForInventoryItem>> = [];
   let currency = "SAR";
 
   try {
     const context = await getCurrentShopContext();
     currency = context.currency;
-    [item, movements, categories, suppliers] = await Promise.all([
+    [item, movements, categories, suppliers, attachments] = await Promise.all([
       inventoryService.getInventoryItemById(context.shopId, id),
       inventoryService.getInventoryMovements(context.shopId, id),
       inventoryCategoryService.listInventoryCategories(context.shopId),
       supplierService.listSuppliers(context.shopId),
+      supplierInvoiceAttachmentService.listAttachmentsForInventoryItem(context.shopId, id),
     ]);
   } catch (error) {
     if (isDatabaseConnectionError(error)) return <DatabaseUnavailable />;
@@ -47,6 +50,7 @@ export default async function InventoryItemDetailsPage({ params, searchParams }:
 
   if (!item) notFound();
 
+  const attachmentByMovementId = new Map(attachments.map((attachment) => [attachment.movementId, attachment]));
   const lowStock = isLowStock(item.quantity, item.reorderLevel);
   const linkedGroup = item.compatibilityGroupLinks[0]?.candidateGroup;
   const initialCompatibilitySelection = linkedGroup ? {
@@ -133,16 +137,18 @@ export default async function InventoryItemDetailsPage({ params, searchParams }:
             ) : (
               <div className="overflow-hidden rounded-xl border border-slate-200/50">
                 <div className="overflow-x-auto">
-                  <table className="erp-table min-w-[820px]">
-                    <thead><tr><th>النوع</th><th className="text-center">التغير</th><th className="text-center">الكمية بعد الحركة</th><th>المورد</th><th>التكلفة الفعلية</th><th>الملاحظة</th><th>التاريخ</th></tr></thead>
+                  <table className="erp-table min-w-[940px]">
+                    <thead><tr><th>النوع</th><th className="text-center">التغير</th><th className="text-center">الكمية بعد الحركة</th><th>المورد</th><th>الفاتورة</th><th>التكلفة الفعلية</th><th>الملاحظة</th><th>التاريخ</th></tr></thead>
                     <tbody>{movements.map((movement) => {
                       const isDamage = movement.note?.startsWith("تالف:") ?? false;
+                      const attachment = attachmentByMovementId.get(movement.id);
                       return (
                         <tr key={movement.id} className={cn("align-middle", isDamage && "bg-rose-50/30")}>
                           <td>{isDamage ? <PlainBadge tone="red" label="تالف" /> : <InventoryMovementTypeBadge type={movement.type} />}</td>
                           <td className="text-center font-numeric font-bold text-slate-700">{movement.quantityChange > 0 ? `+${movement.quantityChange}` : movement.quantityChange}</td>
                           <td className="text-center font-numeric font-medium text-slate-500">{movement.quantityAfter ?? "-"}</td>
                           <td className="text-xs font-bold text-slate-700">{movement.supplier ? <Link className="text-teal-700 hover:underline" href={`/suppliers/${movement.supplier.id}`}>{movement.supplier.name}</Link> : "-"}</td>
+                          <td className="text-xs font-bold text-slate-700">{attachment ? <a className="inline-flex rounded-lg border border-teal-200 bg-teal-50 px-2.5 py-1 text-teal-700 hover:bg-teal-100" href={`/inventory/movements/${movement.id}/invoice`} target="_blank" rel="noreferrer" title={attachment.fileName}>فتح الفاتورة</a> : "-"}</td>
                           <td className="font-numeric font-medium text-slate-700">{formatMoney(movement.unitCostSnapshot, currency)}</td>
                           <td className="text-xs font-medium text-slate-500">{movement.note ?? "-"}</td>
                           <td className="font-numeric font-medium text-slate-500">{formatDate(movement.createdAt)}</td>
