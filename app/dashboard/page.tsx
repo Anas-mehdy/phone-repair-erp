@@ -2,6 +2,7 @@ import {
   AlertTriangle,
   Boxes,
   CheckCircle2,
+  Code2,
   FileText,
   Plus,
   Receipt,
@@ -112,6 +113,15 @@ export default async function DashboardPage() {
       accent: "text-amber-600 bg-amber-50 border-amber-100",
       iconBg: "from-amber-500 to-amber-700",
       href: "/sales",
+    },
+    {
+      label: "مبيعات السوفتوير اليوم",
+      helper: "خدمات سوفتوير مسجلة اليوم بعد الخصم",
+      value: formatCurrency(metrics.softwareSalesToday, currency),
+      icon: Code2,
+      accent: "text-violet-600 bg-violet-50 border-violet-100",
+      iconBg: "from-violet-500 to-indigo-700",
+      href: "/software-services",
     },
     {
       label: "فواتير غير مكتملة",
@@ -418,6 +428,13 @@ export default async function DashboardPage() {
                 description="بيع مباشر لقطع وإكسسوارات"
                 icon={ShoppingCart}
                 iconBg="bg-amber-500"
+              />
+              <QuickActionCard
+                href="/software-services/new"
+                title="بيع خدمة سوفتوير"
+                description="تفليش، تحديث، FRP وخدمات رقمية"
+                icon={Code2}
+                iconBg="bg-violet-500"
               />
               <QuickActionCard
                 href="/inventory/new"

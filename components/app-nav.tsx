@@ -2,6 +2,7 @@
 
 import {
   Boxes,
+  Code2,
   Cpu,
   Headphones,
   Laptop,
@@ -47,6 +48,15 @@ export const navGroups: NavGroup[] = [
       { href: "/dashboard", label: "لوحة التحكم", icon: LayoutDashboard },
       { href: "/repair-orders", label: "طلبات الصيانة", icon: Wrench },
       { href: "/sales", label: "المبيعات والـ POS", icon: ShoppingCart },
+      {
+        href: "/software-services",
+        label: "خدمات السوفتوير",
+        icon: Code2,
+        badge: {
+          text: "جديد",
+          className: "border-violet-500/30 bg-gradient-to-r from-violet-500 to-indigo-600 text-white shadow-sm shadow-violet-500/20",
+        },
+      },
       {
         href: "/online-store",
         label: "المتجر الإلكتروني",
