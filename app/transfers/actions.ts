@@ -50,6 +50,8 @@ const transferSchema = z.object({
   operationType: z.enum(["CUSTOMER_DEPOSIT", "CUSTOMER_WITHDRAWAL", "WALLET_TOPUP", "WALLET_WITHDRAWAL"]),
   amount: z.string().trim().min(1, "المبلغ مطلوب"),
   commission: z.string().trim().optional(),
+  commissionMode: z.enum(["DEDUCTED", "ADDED", "NONE"]).optional(),
+  isDeferred: z.boolean().optional(),
   customerId: z.string().uuid().optional().or(z.literal("")),
   customerName: z.string().trim().max(120).optional(),
   customerPhone: z.string().trim().max(40).optional(),
@@ -64,6 +66,8 @@ export async function createTransferAction(formData: FormData) {
       operationType: readString(formData, "operationType"),
       amount: readString(formData, "amount"),
       commission: readString(formData, "commission"),
+      commissionMode: readString(formData, "commissionMode") || undefined,
+      isDeferred: readString(formData, "isDeferred") === "on",
       customerId: readString(formData, "customerId"),
       customerName: readString(formData, "customerName"),
       customerPhone: readString(formData, "customerPhone"),
@@ -76,6 +80,8 @@ export async function createTransferAction(formData: FormData) {
     });
     revalidatePath("/transfers");
     revalidatePath("/reports");
+    revalidatePath("/debts");
+    if (input.customerId) revalidatePath(`/debts/${input.customerId}`);
     redirectTo = "/transfers?saved=1";
   } catch (error) {
     redirectTo = `/transfers?error=${encodeURIComponent(errorMessage(error))}`;
@@ -91,6 +97,7 @@ export async function voidTransferAction(formData: FormData) {
     await financialTransferService.voidTransfer(auth.shop.id, id, auth.user.id);
     revalidatePath("/transfers");
     revalidatePath("/reports");
+    revalidatePath("/debts");
     redirectTo = "/transfers?voided=1";
   } catch (error) {
     redirectTo = `/transfers?error=${encodeURIComponent(errorMessage(error))}`;
