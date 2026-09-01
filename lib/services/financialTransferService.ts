@@ -89,7 +89,7 @@ function normalizePhone(value?: string | null) {
 async function createTables() {
   try {
     await prisma.$transaction(async (tx) => {
-      await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(68119724)");
+      await tx.$executeRawUnsafe("SELECT pg_advisory_xact_lock(68119724)");
       await tx.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "FinancialWallet" (
         "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         "shopId" UUID NOT NULL REFERENCES "Shop"("id") ON DELETE CASCADE,
@@ -354,40 +354,40 @@ export async function createTransfer(shopId: string, userId: string | null, inpu
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 10_000 });
 }
 
-export async function voidTransfer(shopId: string, transferId: string, userId: string | null) {
+export async function voidTransfer(shopId: string, id: string, userId: string | null) {
   await ensureTables();
   return prisma.$transaction(async (tx) => {
-    const transfers = await tx.$queryRaw<Array<{
+    const rows = await tx.$queryRaw<Array<{
       id: string;
       walletId: string;
       operationType: FinancialTransferType;
       amount: Prisma.Decimal;
-      status: string;
+      status: "ACTIVE" | "VOID";
     }>>`
       SELECT "id", "walletId", "operationType", "amount", "status"
       FROM "FinancialTransfer"
-      WHERE "id" = ${transferId}::uuid AND "shopId" = ${shopId}::uuid AND "deletedAt" IS NULL
+      WHERE "id" = ${id}::uuid AND "shopId" = ${shopId}::uuid AND "deletedAt" IS NULL
       FOR UPDATE
     `;
-    const transfer = transfers[0];
+    const transfer = rows[0];
     if (!transfer) throw new Error("العملية غير موجودة.");
-    if (transfer.status !== "ACTIVE") throw new Error("العملية ملغاة بالفعل.");
+    if (transfer.status === "VOID") throw new Error("العملية ملغاة بالفعل.");
 
-    const wallets = await tx.$queryRaw<Array<{ id: string; currentBalance: Prisma.Decimal }>>`
-      SELECT "id", "currentBalance" FROM "FinancialWallet"
+    const walletRows = await tx.$queryRaw<Array<{ id: string; currentBalance: Prisma.Decimal }>>`
+      SELECT "id", "currentBalance"
+      FROM "FinancialWallet"
       WHERE "id" = ${transfer.walletId}::uuid AND "shopId" = ${shopId}::uuid AND "deletedAt" IS NULL
       FOR UPDATE
     `;
-    const wallet = wallets[0];
+    const wallet = walletRows[0];
     if (!wallet) throw new Error("المحفظة المرتبطة غير موجودة.");
 
-    const originalDelta = balanceDelta(transfer.operationType, decimal(transfer.amount));
-    const newBalance = decimal(wallet.currentBalance).minus(originalDelta);
-    if (newBalance.lt(0)) throw new Error("لا يمكن إلغاء العملية لأن رصيد المحفظة الحالي لا يكفي لعكسها.");
+    const reversedBalance = decimal(wallet.currentBalance).minus(balanceDelta(transfer.operationType, transfer.amount));
+    if (reversedBalance.lt(0)) throw new Error("لا يمكن إلغاء العملية لأن رصيد المحفظة الحالي لا يكفي لعكسها.");
 
     await tx.$executeRaw`
       UPDATE "FinancialWallet"
-      SET "currentBalance" = ${newBalance}, "updatedAt" = NOW()
+      SET "currentBalance" = ${reversedBalance}, "updatedAt" = NOW()
       WHERE "id" = ${wallet.id}::uuid AND "shopId" = ${shopId}::uuid
     `;
     await tx.$executeRaw`
