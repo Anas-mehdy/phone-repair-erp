@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Cairo, Outfit } from "next/font/google";
 import { AppShell } from "@/components/app-shell";
 import { DashboardKpiNavigation } from "@/components/dashboard/dashboard-kpi-navigation";
+import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
 import { getAuthContext, can } from "@/lib/auth/context";
 import { APP_URL } from "@/lib/app-url";
 import { prisma } from "@/lib/prisma";
@@ -25,12 +26,27 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
+  themeColor: "#0f766e",
 };
 
 export const metadata: Metadata = {
   metadataBase: new URL(APP_URL),
   title: "مسار | إدارة صيانة الهواتف",
   description: "مسار متكامل لإدارة صيانة الهواتف من الاستلام حتى التسليم",
+  applicationName: "مسار",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/massar-pwa-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/massar-pwa-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/massar-apple-touch.png", sizes: "180x180", type: "image/png" }],
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "مسار",
+  },
 };
 
 export default async function RootLayout({
@@ -86,6 +102,7 @@ export default async function RootLayout({
     >
       <body className="font-sans antialiased overflow-x-hidden min-h-screen w-full max-w-full">
         <DashboardKpiNavigation />
+        <PwaInstallPrompt />
         <AppShell
           canSettings={canSettings}
           canReports={canReports}
