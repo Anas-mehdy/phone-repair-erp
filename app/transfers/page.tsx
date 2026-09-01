@@ -6,6 +6,7 @@ import { getCurrentShopContext } from "@/lib/current-shop";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { financialTransferService, type FinancialTransferType } from "@/lib/services/financialTransferService";
+import { getTransferDailyData } from "@/lib/services/transferDailyStatsService";
 import { createWalletAction, updateWalletAction, voidTransferAction } from "./actions";
 import { TransferStatsCards } from "./_transfer-stats-cards";
 import { TransferForm } from "./_transfer-form";
@@ -22,26 +23,16 @@ export default async function TransfersPage({ searchParams }: { searchParams: Pr
   const query = await searchParams;
   const context = await getCurrentShopContext();
   const type = Object.prototype.hasOwnProperty.call(transferLabels, query.type ?? "") ? (query.type as FinancialTransferType) : undefined;
-  const [wallets, stats, transfers, customers] = await Promise.all([
+  const [wallets, dailyData, transfers, customers] = await Promise.all([
     financialTransferService.listWallets(context.shopId),
-    financialTransferService.getStats(context.shopId),
+    getTransferDailyData(context.shopId),
     financialTransferService.listTransfers(context.shopId, { walletId: query.wallet || undefined, operationType: type, q: query.q, from: parseStartDate(query.from), to: parseEndDate(query.to) }),
     prisma.customer.findMany({ where: { shopId: context.shopId, deletedAt: null }, select: { id: true, name: true, phone: true }, orderBy: { name: "asc" }, take: 500 }),
   ]);
 
-  const todayOperations = await prisma.$queryRaw<Array<{ id: string; walletName: string; userName: string | null; customerName: string | null; operationType: "CUSTOMER_DEPOSIT" | "CUSTOMER_WITHDRAWAL"; amount: unknown; commission: unknown; createdAt: Date }>>`
-    SELECT t."id", w."name" AS "walletName", COALESCE(u."name", 'غير معروف') AS "userName", COALESCE(c."name", t."customerName") AS "customerName",
-      t."operationType", t."amount", t."commission", t."createdAt"
-    FROM "FinancialTransfer" t JOIN "FinancialWallet" w ON w."id" = t."walletId" LEFT JOIN "User" u ON u."id" = t."createdByUserId"
-    LEFT JOIN "Customer" c ON c."id" = t."customerId" AND c."deletedAt" IS NULL
-    WHERE t."shopId" = ${context.shopId}::uuid AND t."deletedAt" IS NULL AND t."status" = 'ACTIVE'
-      AND t."operationType" IN ('CUSTOMER_DEPOSIT', 'CUSTOMER_WITHDRAWAL') AND t."createdAt" >= date_trunc('day', NOW())
-      AND t."createdAt" < date_trunc('day', NOW()) + interval '1 day' ORDER BY t."createdAt" DESC
-  `;
-
   const currency = context.currency || "SAR";
   const statsWallets = wallets.map((wallet) => ({ id: wallet.id, name: wallet.name, balance: Number(wallet.currentBalance), monthlyLimit: wallet.monthlyLimit == null ? null : Number(wallet.monthlyLimit), monthlyUsed: Number(wallet.monthlyUsed) }));
-  const statsOperations = todayOperations.map((row) => ({ id: row.id, walletName: row.walletName, userName: row.userName || "غير معروف", customerName: row.customerName, operationType: row.operationType, amount: Number(row.amount ?? 0), commission: Number(row.commission ?? 0), createdAt: row.createdAt.toISOString() }));
+  const statsOperations = dailyData.operations.map((row) => ({ id: row.id, walletName: row.walletName, userName: row.userName, customerName: row.customerName, operationType: row.operationType, amount: row.amount, commission: row.commission, createdAt: row.createdAt.toISOString() }));
   const formWallets = wallets.map((wallet) => ({ id: wallet.id, name: wallet.name, balance: Number(wallet.currentBalance), depositCommission: Number(wallet.defaultDepositCommission), withdrawalCommission: Number(wallet.defaultWithdrawalCommission) }));
 
   return <div className="space-y-7">
@@ -52,7 +43,7 @@ export default async function TransfersPage({ searchParams }: { searchParams: Pr
     {query.voided ? <Notice text="تم إلغاء العملية وعكس أثرها على رصيد المحفظة والدين المرتبط إن وجد." /> : null}
     {query.error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-700">{query.error}</div> : null}
 
-    <TransferStatsCards stats={stats} wallets={statsWallets} operations={statsOperations} currency={currency} />
+    <TransferStatsCards stats={dailyData.stats} wallets={statsWallets} operations={statsOperations} currency={currency} />
 
     <section className="erp-section">
       <div className="mb-5 border-b border-slate-100 pb-4"><h2 className="text-sm font-black text-slate-900">المحافظ والأرصدة</h2><p className="mt-1 text-[11px] font-medium text-slate-500">أضف Vodafone Cash أو InstaPay أو أي محفظة تستخدمها، وحدد رصيدها وحدها الشهري وعمولاتها الافتراضية.</p></div>
