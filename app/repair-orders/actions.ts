@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requirePermission } from "@/lib/auth/context";
 import { repairOrderService } from "@/lib/services/repairOrderService";
+import { salesCustomerSearchService } from "@/lib/services/salesCustomerSearchService";
 import { entitlementService } from "@/lib/services/subscriptionEntitlementService";
 
 const repairOrderItemSchema = z.object({
@@ -111,6 +112,14 @@ function readItems(formData: FormData): z.infer<typeof repairOrderItemSchema>[] 
     return undefined;
   }
   return undefined;
+}
+
+export async function searchCustomersForRepairAction(query: string) {
+  const safeQuery = z.string().max(120).parse(query).trim();
+  if (!safeQuery) return [];
+
+  const auth = await requirePermission("repairs:create");
+  return salesCustomerSearchService.searchCustomersForSale(auth.shop.id, safeQuery, 20);
 }
 
 export async function createRepairOrderAction(formData: FormData) {

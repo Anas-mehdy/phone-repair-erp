@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { normalizePhone } from "./repairOrderService";
 
@@ -17,6 +18,18 @@ export type UpdateSupplierInput = {
   phone?: string;
   address?: string;
   notes?: string;
+};
+
+export type SupplierStockReceipt = {
+  id: string;
+  inventoryItemId: string;
+  itemName: string;
+  sku: string | null;
+  category: string | null;
+  quantity: number;
+  unitCostSnapshot: Prisma.Decimal | null;
+  note: string | null;
+  createdAt: Date;
 };
 
 function emptyToNull(value?: string) {
@@ -62,8 +75,38 @@ export async function listSuppliers(
   });
 }
 
+export async function listSupplierStockReceipts(
+  shopId: string,
+  supplierId: string,
+  limit = 100,
+) {
+  const safeLimit = Math.min(Math.max(limit, 1), 250);
+  return prisma.$queryRaw<SupplierStockReceipt[]>`
+    SELECT
+      m."id" AS "id",
+      m."inventoryItemId" AS "inventoryItemId",
+      i."name" AS "itemName",
+      i."sku" AS "sku",
+      i."category" AS "category",
+      m."quantityChange" AS "quantity",
+      m."unitCostSnapshot" AS "unitCostSnapshot",
+      m."note" AS "note",
+      m."createdAt" AS "createdAt"
+    FROM "InventoryMovement" m
+    INNER JOIN "InventoryItem" i
+      ON i."id" = m."inventoryItemId"
+      AND i."shopId" = ${shopId}::uuid
+    WHERE m."shopId" = ${shopId}::uuid
+      AND m."supplierId" = ${supplierId}::uuid
+      AND m."type" = 'STOCK_IN'::"InventoryMovementType"
+      AND m."deletedAt" IS NULL
+    ORDER BY m."createdAt" DESC
+    LIMIT ${safeLimit}
+  `;
+}
+
 export async function getSupplierById(shopId: string, supplierId: string) {
-  return prisma.supplier.findFirst({
+  const supplier = await prisma.supplier.findFirst({
     where: {
       id: supplierId,
       shopId,
@@ -83,6 +126,11 @@ export async function getSupplierById(shopId: string, supplierId: string) {
       },
     },
   });
+
+  if (!supplier) return null;
+
+  const stockReceipts = await listSupplierStockReceipts(shopId, supplierId);
+  return { ...supplier, stockReceipts };
 }
 
 export async function findOrCreateSupplier(
@@ -205,6 +253,7 @@ export async function deleteSupplier(shopId: string, supplierId: string) {
 
 export const supplierService = {
   listSuppliers,
+  listSupplierStockReceipts,
   getSupplierById,
   findOrCreateSupplier,
   createSupplier,

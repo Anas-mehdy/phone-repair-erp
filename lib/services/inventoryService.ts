@@ -41,6 +41,7 @@ export type UpdateInventoryItemDetailsInput = {
 
 export type AddStockInput = {
   quantity: string;
+  supplierId?: string | null;
   note?: string;
 };
 
@@ -49,7 +50,7 @@ export type AdjustStockInput = {
   note?: string;
 };
 
-function emptyToNull(value?: string) {
+function emptyToNull(value?: string | null) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
 }
@@ -180,7 +181,7 @@ async function validateCompatibilityGroups(
 }
 
 export async function getInventoryMovements(shopId: string, inventoryItemId: string) {
-  return prisma.inventoryMovement.findMany({
+  const movements = await prisma.inventoryMovement.findMany({
     where: { shopId, inventoryItemId, deletedAt: null },
     include: {
       repairOrder: { select: { id: true, ticketNumber: true } },
@@ -188,6 +189,39 @@ export async function getInventoryMovements(shopId: string, inventoryItemId: str
     orderBy: { createdAt: "desc" },
     take: 25,
   });
+
+  if (movements.length === 0) return [];
+
+  const supplierLinks = await prisma.$queryRaw<
+    Array<{ movementId: string; supplierId: string | null; supplierName: string | null }>
+  >`
+    SELECT
+      m."id" AS "movementId",
+      m."supplierId" AS "supplierId",
+      s."name" AS "supplierName"
+    FROM "InventoryMovement" m
+    LEFT JOIN "Supplier" s
+      ON s."id" = m."supplierId"
+      AND s."shopId" = ${shopId}::uuid
+      AND s."deletedAt" IS NULL
+    WHERE m."shopId" = ${shopId}::uuid
+      AND m."inventoryItemId" = ${inventoryItemId}::uuid
+      AND m."id" IN (${Prisma.join(movements.map((movement) => Prisma.sql`${movement.id}::uuid`))})
+  `;
+
+  const supplierByMovement = new Map(
+    supplierLinks.map((row) => [
+      row.movementId,
+      row.supplierId && row.supplierName
+        ? { id: row.supplierId, name: row.supplierName }
+        : null,
+    ]),
+  );
+
+  return movements.map((movement) => ({
+    ...movement,
+    supplier: supplierByMovement.get(movement.id) ?? null,
+  }));
 }
 
 export async function createInventoryItem(
@@ -296,29 +330,61 @@ export async function addStock(
   input: AddStockInput,
 ) {
   const quantityToAdd = integerOrZero(input.quantity);
-  const item = await prisma.inventoryItem.findFirst({ where: { id: inventoryItemId, shopId, deletedAt: null } });
-  if (!item) throw new Error("قطعة المخزون غير موجودة.");
-  const quantityAfter = item.quantity + quantityToAdd;
+  if (quantityToAdd <= 0) {
+    throw new Error("الكمية يجب أن تكون أكبر من صفر.");
+  }
 
-  const [updatedItem] = await prisma.$transaction([
-    prisma.inventoryItem.update({
+  return prisma.$transaction(async (tx) => {
+    const item = await tx.inventoryItem.findFirst({
+      where: { id: inventoryItemId, shopId, deletedAt: null },
+      select: { id: true, quantity: true, unitCost: true },
+    });
+    if (!item) throw new Error("قطعة المخزون غير موجودة.");
+
+    const supplierId = emptyToNull(input.supplierId);
+    if (supplierId) {
+      const supplier = await tx.supplier.findFirst({
+        where: { id: supplierId, shopId, deletedAt: null },
+        select: { id: true },
+      });
+      if (!supplier) {
+        throw new Error("المورد المحدد غير موجود أو لا ينتمي إلى هذا المتجر.");
+      }
+    }
+
+    const updatedItem = await tx.inventoryItem.update({
       where: { id: inventoryItemId },
-      data: { quantity: quantityAfter, version: { increment: 1 } },
-    }),
-    prisma.inventoryMovement.create({
+      data: {
+        quantity: { increment: quantityToAdd },
+        version: { increment: 1 },
+      },
+    });
+
+    const movement = await tx.inventoryMovement.create({
       data: {
         shopId,
         inventoryItemId,
         createdByUserId,
         type: InventoryMovementType.STOCK_IN,
         quantityChange: quantityToAdd,
-        quantityAfter,
+        quantityAfter: updatedItem.quantity,
         unitCostSnapshot: item.unitCost,
         note: emptyToNull(input.note),
       },
-    }),
-  ]);
-  return updatedItem;
+      select: { id: true },
+    });
+
+    if (supplierId) {
+      await tx.$executeRaw`
+        UPDATE "InventoryMovement"
+        SET "supplierId" = ${supplierId}::uuid
+        WHERE "id" = ${movement.id}::uuid
+          AND "shopId" = ${shopId}::uuid
+      `;
+    }
+
+    return updatedItem;
+  });
 }
 
 export async function adjustStock(
