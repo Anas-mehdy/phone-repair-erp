@@ -12,7 +12,9 @@ export async function GET(
     const attachment = await supplierInvoiceService.getAttachment(auth.shop.id, invoiceId);
     if (!attachment) return new NextResponse("Not found", { status: 404 });
 
-    return new NextResponse(attachment.data, {
+    const body = new Uint8Array(attachment.data);
+
+    return new NextResponse(body, {
       status: 200,
       headers: {
         "Content-Type": attachment.contentType,
