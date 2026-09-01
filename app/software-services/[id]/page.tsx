@@ -83,8 +83,7 @@ export default async function SoftwareServiceDetailsPage({ params, searchParams 
                 <p className="mb-3 text-xs font-medium text-slate-500">الجهاز ما زال مسجلاً داخل المحل. لا توجد حالات تنفيذ؛ هذا فقط لتتبع العهدة.</p>
                 <ConfirmSubmitButton
                   className="h-10 w-full rounded-xl text-xs font-black"
-                  confirmMessage="تأكيد أن الجهاز تم تسليمه للعميل؟"
-                  loadingText="جاري التسجيل..."
+                  message="تأكيد أن الجهاز تم تسليمه للعميل؟"
                 >
                   تم تسليم الجهاز
                 </ConfirmSubmitButton>
