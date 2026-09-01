@@ -1,8 +1,5 @@
 import {
-  ArrowDownLeft,
   ArrowLeftRight,
-  ArrowUpRight,
-  Banknote,
   Plus,
   Search,
   WalletCards,
@@ -18,6 +15,7 @@ import {
   type FinancialTransferType,
 } from "@/lib/services/financialTransferService";
 import { createTransferAction, createWalletAction, voidTransferAction } from "./actions";
+import { TransferStatsCards } from "./_transfer-stats-cards";
 
 export const dynamic = "force-dynamic";
 
@@ -78,7 +76,57 @@ export default async function TransfersPage({ searchParams }: { searchParams: Pr
       take: 500,
     }),
   ]);
+
+  const todayOperations = await prisma.$queryRaw<Array<{
+    id: string;
+    walletName: string;
+    userName: string | null;
+    customerName: string | null;
+    operationType: "CUSTOMER_DEPOSIT" | "CUSTOMER_WITHDRAWAL";
+    amount: unknown;
+    commission: unknown;
+    createdAt: Date;
+  }>>`
+    SELECT
+      t."id",
+      w."name" AS "walletName",
+      COALESCE(u."name", 'غير معروف') AS "userName",
+      COALESCE(c."name", t."customerName") AS "customerName",
+      t."operationType",
+      t."amount",
+      t."commission",
+      t."createdAt"
+    FROM "FinancialTransfer" t
+    JOIN "FinancialWallet" w ON w."id" = t."walletId"
+    LEFT JOIN "User" u ON u."id" = t."createdByUserId"
+    LEFT JOIN "Customer" c ON c."id" = t."customerId" AND c."deletedAt" IS NULL
+    WHERE t."shopId" = ${context.shopId}::uuid
+      AND t."deletedAt" IS NULL
+      AND t."status" = 'ACTIVE'
+      AND t."operationType" IN ('CUSTOMER_DEPOSIT', 'CUSTOMER_WITHDRAWAL')
+      AND t."createdAt" >= date_trunc('day', NOW())
+      AND t."createdAt" < date_trunc('day', NOW()) + interval '1 day'
+    ORDER BY t."createdAt" DESC
+  `;
+
   const currency = context.currency || "SAR";
+  const statsWallets = wallets.map((wallet) => ({
+    id: wallet.id,
+    name: wallet.name,
+    balance: Number(wallet.currentBalance),
+    monthlyLimit: wallet.monthlyLimit == null ? null : Number(wallet.monthlyLimit),
+    monthlyUsed: Number(wallet.monthlyUsed),
+  }));
+  const statsOperations = todayOperations.map((row) => ({
+    id: row.id,
+    walletName: row.walletName,
+    userName: row.userName || "غير معروف",
+    customerName: row.customerName,
+    operationType: row.operationType,
+    amount: Number(row.amount ?? 0),
+    commission: Number(row.commission ?? 0),
+    createdAt: row.createdAt.toISOString(),
+  }));
 
   return (
     <div className="space-y-7">
@@ -93,13 +141,12 @@ export default async function TransfersPage({ searchParams }: { searchParams: Pr
       {query.voided ? <Notice text="تم إلغاء العملية وعكس أثرها على رصيد المحفظة." /> : null}
       {query.error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-700">{query.error}</div> : null}
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <Stat label="إجمالي الأرصدة" value={formatCurrency(stats.totalBalance, currency)} icon={<WalletCards className="h-4 w-4" />} />
-        <Stat label="عمولة اليوم" value={formatCurrency(stats.todayCommission, currency)} icon={<Banknote className="h-4 w-4" />} />
-        <Stat label="إيداعات اليوم" value={formatCurrency(stats.todayDeposits, currency)} icon={<ArrowDownLeft className="h-4 w-4" />} />
-        <Stat label="سحوبات اليوم" value={formatCurrency(stats.todayWithdrawals, currency)} icon={<ArrowUpRight className="h-4 w-4" />} />
-        <Stat label="عمليات اليوم" value={String(stats.todayOperations)} icon={<ArrowLeftRight className="h-4 w-4" />} />
-      </section>
+      <TransferStatsCards
+        stats={stats}
+        wallets={statsWallets}
+        operations={statsOperations}
+        currency={currency}
+      />
 
       <section className="erp-section">
         <div className="mb-5 flex flex-col gap-2 border-b border-slate-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
@@ -234,8 +281,4 @@ function Label({ children }: { children: React.ReactNode }) {
 
 function Notice({ text }: { text: string }) {
   return <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-bold text-emerald-800">{text}</div>;
-}
-
-function Stat({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
-  return <div className="erp-card p-4"><div className="flex items-center justify-between text-slate-500"><span className="text-[11px] font-black">{label}</span><span className="text-teal-600">{icon}</span></div><p className="mt-2 font-numeric text-lg font-black text-slate-950">{value}</p></div>;
 }
