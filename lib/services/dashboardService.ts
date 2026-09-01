@@ -1,4 +1,4 @@
-import { InvoiceStatus, RepairStatus, SaleStatus } from "@prisma/client";
+import { InvoiceStatus, RepairStatus, SaleStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 function getTodayRange() {
@@ -25,6 +25,7 @@ export async function getDashboardMetrics(shopId: string) {
     salesTodayAggregate,
     unpaidInvoicesAggregate,
     inventoryItems,
+    debtRows,
   ] = await Promise.all([
     prisma.repairOrder.count({
       where: {
@@ -101,6 +102,26 @@ export async function getDashboardMetrics(shopId: string) {
         reorderLevel: true,
       },
     }),
+    prisma.$queryRaw<Array<{ totalOutstanding: Prisma.Decimal | number | string }>>`
+      WITH balances AS (
+        SELECT
+          a."customerId",
+          COALESCE(SUM(
+            CASE
+              WHEN e."isReversed" THEN 0
+              WHEN e."type" IN ('DEBT','OPENING_BALANCE','ADJUSTMENT_DEBIT') THEN e."amount"
+              WHEN e."type" IN ('PAYMENT','ADJUSTMENT_CREDIT') THEN -e."amount"
+              ELSE 0
+            END
+          ), 0) AS balance
+        FROM "DebtLedgerAccount" a
+        LEFT JOIN "DebtLedgerEntry" e ON e."accountId" = a."id"
+        WHERE a."shopId" = ${shopId}::uuid
+        GROUP BY a."customerId"
+      )
+      SELECT COALESCE(SUM(GREATEST(balance, 0)), 0) AS "totalOutstanding"
+      FROM balances
+    `,
   ]);
 
   return {
@@ -111,6 +132,7 @@ export async function getDashboardMetrics(shopId: string) {
     salesRevenueToday: salesTodayAggregate._sum.total ?? 0,
     unpaidInvoicesCount: unpaidInvoicesAggregate._count.id ?? 0,
     unpaidBalanceTotal: unpaidInvoicesAggregate._sum.balanceDue ?? 0,
+    totalDebtOutstanding: Number(debtRows[0]?.totalOutstanding ?? 0),
     lowStockItemsCount: inventoryItems.filter(
       (item) => item.quantity <= item.reorderLevel,
     ).length,
