@@ -94,7 +94,7 @@ export default async function SoftwareServicesPage({ searchParams }: Props) {
                     <td className="font-bold text-slate-700">{sale.customerName ?? "عميل نقدي"}</td>
                     <td className="text-xs font-medium text-slate-600">{[sale.deviceBrand, sale.deviceModel].filter(Boolean).join(" ") || "-"}</td>
                     <td className="font-numeric font-black">{formatCurrency(sale.invoiceTotal, currency)}</td>
-                    <td className="font-numeric text-slate-600">{sale.serviceCost != null ? formatCurrency(sale.serviceCost, currency) : "غير مدخلة"}</td>
+                    <td className="font-numeric text-slate-600">{formatCurrency(Number(sale.serviceCost ?? 0), currency)}</td>
                     <td className="font-numeric font-bold text-amber-700">{formatCurrency(sale.invoiceBalanceDue, currency)}</td>
                     <td className="text-xs font-bold">{sale.deviceKept ? (sale.deliveredAt ? "تم التسليم" : "بالمحل") : "-"}</td>
                     <td className="font-numeric text-xs text-slate-500">{formatDate(sale.soldAt)}</td>

@@ -118,7 +118,7 @@ export function SoftwareServiceForm({
           <div>
             <label className={labelClass}>تكلفة الخدمة على المحل</label>
             <input className={`${inputClass} font-numeric`} name="serviceCost" value={serviceCost} onChange={(e) => setServiceCost(e.target.value)} min="0" step="0.01" type="number" placeholder="اختياري" />
-            <p className="mt-1 text-[10px] font-bold text-slate-400">اتركها فارغة إذا لم توجد تكلفة أو لا تعرفها.</p>
+            <p className="mt-1 text-[10px] font-bold text-slate-400">اتركها فارغة إذا لم توجد تكلفة، وسيعتبرها مسار 0.</p>
           </div>
         </div>
         {selectedCatalog ? (
