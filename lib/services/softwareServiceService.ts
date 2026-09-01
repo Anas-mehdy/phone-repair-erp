@@ -71,7 +71,7 @@ async function createTables() {
     await prisma.$transaction(async (tx) => {
       // PostgreSQL can race on concurrent CREATE TABLE IF NOT EXISTS calls because
       // a table also creates a pg_type row. Serialize initialization across requests.
-      await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(68119723)");
+      await tx.$executeRawUnsafe("SELECT pg_advisory_xact_lock(68119723)");
 
       await tx.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "SoftwareServiceCatalog" (
         "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
