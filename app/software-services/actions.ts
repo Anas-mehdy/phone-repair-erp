@@ -74,6 +74,7 @@ const catalogSchema = z.object({
 });
 
 export async function createSoftwareServiceCatalogAction(formData: FormData) {
+  let redirectTo = "/software-services";
   try {
     const input = catalogSchema.parse({
       name: readString(formData, "name"),
@@ -83,21 +84,24 @@ export async function createSoftwareServiceCatalogAction(formData: FormData) {
     const auth = await requirePermission("sales:create");
     await softwareServiceService.createCatalogItem(auth.shop.id, input);
     revalidatePath("/software-services");
-    redirect("/software-services?catalogSaved=1");
+    redirectTo = "/software-services?catalogSaved=1";
   } catch (error) {
-    redirect(`/software-services?catalogError=${encodeURIComponent(getErrorMessage(error))}`);
+    redirectTo = `/software-services?catalogError=${encodeURIComponent(getErrorMessage(error))}`;
   }
+  redirect(redirectTo);
 }
 
 export async function markSoftwareDeviceDeliveredAction(formData: FormData) {
   const id = readString(formData, "id");
+  let redirectTo = `/software-services/${id}`;
   try {
     const auth = await requirePermission("sales:create");
     await softwareServiceService.markDeviceDelivered(auth.shop.id, id);
     revalidatePath("/software-services");
     revalidatePath(`/software-services/${id}`);
-    redirect(`/software-services/${id}?delivered=1`);
+    redirectTo = `/software-services/${id}?delivered=1`;
   } catch (error) {
-    redirect(`/software-services/${id}?error=${encodeURIComponent(getErrorMessage(error))}`);
+    redirectTo = `/software-services/${id}?error=${encodeURIComponent(getErrorMessage(error))}`;
   }
+  redirect(redirectTo);
 }
