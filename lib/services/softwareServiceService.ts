@@ -64,47 +64,65 @@ function normalizePhone(value?: string) {
   return text.replace(/[^\d+]/g, "");
 }
 
-async function ensureTables() {
+let tablesReady: Promise<void> | null = null;
+
+async function createTables() {
   try {
-    await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "SoftwareServiceCatalog" (
-      "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      "shopId" UUID NOT NULL REFERENCES "Shop"("id") ON DELETE CASCADE,
-      "name" TEXT NOT NULL,
-      "defaultPrice" DECIMAL(12,2),
-      "defaultCost" DECIMAL(12,2),
-      "isActive" BOOLEAN NOT NULL DEFAULT TRUE,
-      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      "deletedAt" TIMESTAMP(3)
-    )`);
-    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "SoftwareServiceCatalog_shopId_name_idx" ON "SoftwareServiceCatalog"("shopId", "name")`);
-    await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "SoftwareServiceSale" (
-      "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      "shopId" UUID NOT NULL REFERENCES "Shop"("id") ON DELETE CASCADE,
-      "customerId" UUID REFERENCES "Customer"("id") ON DELETE SET NULL,
-      "catalogId" UUID REFERENCES "SoftwareServiceCatalog"("id") ON DELETE SET NULL,
-      "invoiceId" UUID NOT NULL UNIQUE REFERENCES "Invoice"("id") ON DELETE CASCADE,
-      "createdByUserId" UUID,
-      "serviceName" TEXT NOT NULL,
-      "deviceBrand" TEXT,
-      "deviceModel" TEXT,
-      "deviceSerial" TEXT,
-      "salePrice" DECIMAL(12,2) NOT NULL,
-      "serviceCost" DECIMAL(12,2),
-      "notes" TEXT,
-      "deviceKept" BOOLEAN NOT NULL DEFAULT FALSE,
-      "deliveredAt" TIMESTAMP(3),
-      "soldAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      "deletedAt" TIMESTAMP(3)
-    )`);
-    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "SoftwareServiceSale_shopId_soldAt_idx" ON "SoftwareServiceSale"("shopId", "soldAt")`);
-    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "SoftwareServiceSale_shopId_customerId_idx" ON "SoftwareServiceSale"("shopId", "customerId")`);
-    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "SoftwareServiceSale_shopId_deviceKept_idx" ON "SoftwareServiceSale"("shopId", "deviceKept", "deliveredAt")`);
+    await prisma.$transaction(async (tx) => {
+      // PostgreSQL can race on concurrent CREATE TABLE IF NOT EXISTS calls because
+      // a table also creates a pg_type row. Serialize initialization across requests.
+      await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(68119723)");
+
+      await tx.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "SoftwareServiceCatalog" (
+        "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        "shopId" UUID NOT NULL REFERENCES "Shop"("id") ON DELETE CASCADE,
+        "name" TEXT NOT NULL,
+        "defaultPrice" DECIMAL(12,2),
+        "defaultCost" DECIMAL(12,2),
+        "isActive" BOOLEAN NOT NULL DEFAULT TRUE,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "deletedAt" TIMESTAMP(3)
+      )`);
+      await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "SoftwareServiceCatalog_shopId_name_idx" ON "SoftwareServiceCatalog"("shopId", "name")`);
+      await tx.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "SoftwareServiceSale" (
+        "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        "shopId" UUID NOT NULL REFERENCES "Shop"("id") ON DELETE CASCADE,
+        "customerId" UUID REFERENCES "Customer"("id") ON DELETE SET NULL,
+        "catalogId" UUID REFERENCES "SoftwareServiceCatalog"("id") ON DELETE SET NULL,
+        "invoiceId" UUID NOT NULL UNIQUE REFERENCES "Invoice"("id") ON DELETE CASCADE,
+        "createdByUserId" UUID,
+        "serviceName" TEXT NOT NULL,
+        "deviceBrand" TEXT,
+        "deviceModel" TEXT,
+        "deviceSerial" TEXT,
+        "salePrice" DECIMAL(12,2) NOT NULL,
+        "serviceCost" DECIMAL(12,2),
+        "notes" TEXT,
+        "deviceKept" BOOLEAN NOT NULL DEFAULT FALSE,
+        "deliveredAt" TIMESTAMP(3),
+        "soldAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "deletedAt" TIMESTAMP(3)
+      )`);
+      await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "SoftwareServiceSale_shopId_soldAt_idx" ON "SoftwareServiceSale"("shopId", "soldAt")`);
+      await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "SoftwareServiceSale_shopId_customerId_idx" ON "SoftwareServiceSale"("shopId", "customerId")`);
+      await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "SoftwareServiceSale_shopId_deviceKept_idx" ON "SoftwareServiceSale"("shopId", "deviceKept", "deliveredAt")`);
+    }, { timeout: 10_000 });
   } catch {
     throw new Error("تعذر تجهيز مساحة خدمات السوفتوير. يرجى تطبيق تحديث قاعدة البيانات ثم المحاولة مجدداً.");
   }
+}
+
+async function ensureTables() {
+  if (!tablesReady) {
+    tablesReady = createTables().catch((error) => {
+      tablesReady = null;
+      throw error;
+    });
+  }
+  await tablesReady;
 }
 
 export async function listCatalog(shopId: string) {

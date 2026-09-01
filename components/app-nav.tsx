@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ArrowLeftRight,
   Boxes,
   Code2,
   Cpu,
@@ -55,6 +56,15 @@ export const navGroups: NavGroup[] = [
         badge: {
           text: "جديد",
           className: "border-violet-500/30 bg-gradient-to-r from-violet-500 to-indigo-600 text-white shadow-sm shadow-violet-500/20",
+        },
+      },
+      {
+        href: "/transfers",
+        label: "التحويلات والمحافظ",
+        icon: ArrowLeftRight,
+        badge: {
+          text: "جديد",
+          className: "border-cyan-500/30 bg-gradient-to-r from-cyan-500 to-teal-600 text-white shadow-sm shadow-cyan-500/20",
         },
       },
       {
