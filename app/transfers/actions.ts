@@ -46,24 +46,57 @@ export async function createWalletAction(formData: FormData) {
   redirect(redirectTo);
 }
 
-const balanceSchema = z.object({
+const updateWalletSchema = z.object({
   walletId: z.string().uuid("المحفظة غير صحيحة"),
-  balance: z.string().trim().min(1, "أدخل الرصيد الجديد"),
+  name: z.string().trim().min(1, "اسم المحفظة مطلوب").max(120),
+  balance: z.string().trim().min(1, "الرصيد مطلوب"),
+  monthlyLimit: z.string().trim().optional(),
+  defaultDepositCommission: z.string().trim().optional(),
+  defaultWithdrawalCommission: z.string().trim().optional(),
 });
 
-export async function setWalletBalanceAction(formData: FormData) {
+export async function updateWalletAction(formData: FormData) {
   let redirectTo = "/transfers";
   try {
-    const input = balanceSchema.parse({
+    const input = updateWalletSchema.parse({
       walletId: readString(formData, "walletId"),
+      name: readString(formData, "name"),
       balance: readString(formData, "balance"),
+      monthlyLimit: readString(formData, "monthlyLimit"),
+      defaultDepositCommission: readString(formData, "defaultDepositCommission"),
+      defaultWithdrawalCommission: readString(formData, "defaultWithdrawalCommission"),
     });
-    const balance = Number(input.balance.replace(",", "."));
-    if (!Number.isFinite(balance) || balance < 0) throw new Error("الرصيد يجب أن يكون صفراً أو أكبر.");
+    const parseNumber = (value: string, label: string, allowEmpty = false) => {
+      if (allowEmpty && !value.trim()) return null;
+      const parsed = Number(value.replace(",", "."));
+      if (!Number.isFinite(parsed) || parsed < 0) throw new Error(`${label} يجب أن يكون صفراً أو أكبر.`);
+      return parsed;
+    };
+    const balance = parseNumber(input.balance, "الرصيد")!;
+    const monthlyLimit = parseNumber(input.monthlyLimit ?? "", "الحد الشهري", true);
+    if (monthlyLimit !== null && monthlyLimit <= 0) throw new Error("الحد الشهري يجب أن يكون أكبر من صفر أو يُترك فارغاً.");
+    const depositCommission = parseNumber(input.defaultDepositCommission ?? "", "عمولة الإيداع") ?? 0;
+    const withdrawalCommission = parseNumber(input.defaultWithdrawalCommission ?? "", "عمولة السحب") ?? 0;
+
     const auth = await requirePermission("sales:create");
+    const duplicate = await prisma.$queryRaw<Array<{ id: string }>>`
+      SELECT "id" FROM "FinancialWallet"
+      WHERE "shopId" = ${auth.shop.id}::uuid
+        AND "id" <> ${input.walletId}::uuid
+        AND "deletedAt" IS NULL
+        AND LOWER("name") = LOWER(${input.name})
+      LIMIT 1
+    `;
+    if (duplicate[0]) throw new Error("يوجد بالفعل محفظة أخرى بهذا الاسم.");
+
     const updated = await prisma.$executeRaw`
       UPDATE "FinancialWallet"
-      SET "currentBalance" = ${balance}, "updatedAt" = NOW()
+      SET "name" = ${input.name},
+          "currentBalance" = ${balance},
+          "monthlyLimit" = ${monthlyLimit},
+          "defaultDepositCommission" = ${depositCommission},
+          "defaultWithdrawalCommission" = ${withdrawalCommission},
+          "updatedAt" = NOW()
       WHERE "id" = ${input.walletId}::uuid
         AND "shopId" = ${auth.shop.id}::uuid
         AND "deletedAt" IS NULL
@@ -71,7 +104,7 @@ export async function setWalletBalanceAction(formData: FormData) {
     `;
     if (!updated) throw new Error("المحفظة غير موجودة.");
     revalidatePath("/transfers");
-    redirectTo = "/transfers?balanceUpdated=1";
+    redirectTo = "/transfers?walletUpdated=1";
   } catch (error) {
     redirectTo = `/transfers?error=${encodeURIComponent(errorMessage(error))}`;
   }
