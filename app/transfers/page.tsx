@@ -6,13 +6,13 @@ import { getCurrentShopContext } from "@/lib/current-shop";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { financialTransferService, type FinancialTransferType } from "@/lib/services/financialTransferService";
-import { createWalletAction, voidTransferAction } from "./actions";
+import { createWalletAction, setWalletBalanceAction, voidTransferAction } from "./actions";
 import { TransferStatsCards } from "./_transfer-stats-cards";
 import { TransferForm } from "./_transfer-form";
 
 export const dynamic = "force-dynamic";
 
-type SearchParams = { saved?: string; walletSaved?: string; voided?: string; error?: string; wallet?: string; type?: string; q?: string; from?: string; to?: string };
+type SearchParams = { saved?: string; walletSaved?: string; balanceUpdated?: string; voided?: string; error?: string; wallet?: string; type?: string; q?: string; from?: string; to?: string };
 const transferLabels: Record<FinancialTransferType, string> = { CUSTOMER_DEPOSIT: "إيداع للعميل", CUSTOMER_WITHDRAWAL: "سحب للعميل", WALLET_TOPUP: "شحن المحفظة", WALLET_WITHDRAWAL: "سحب من المحفظة" };
 const commissionLabels = { ADDED: "مضافة", DEDUCTED: "مخصومة", NONE: "بدون عمولة" } as const;
 function parseStartDate(value?: string) { if (!value) return undefined; const date = new Date(`${value}T00:00:00`); return Number.isNaN(date.getTime()) ? undefined : date; }
@@ -48,6 +48,7 @@ export default async function TransfersPage({ searchParams }: { searchParams: Pr
     <PageHeader eyebrow="المحافظ والأرصدة" title="التحويلات المالية" description="إدارة محافظ التحويل، إيداعات وسحوبات العملاء، العمولات وحركة الرصيد من مكان واحد." />
     {query.saved ? <Notice text="تم تسجيل العملية وتحديث رصيد المحفظة." /> : null}
     {query.walletSaved ? <Notice text="تمت إضافة المحفظة بنجاح." /> : null}
+    {query.balanceUpdated ? <Notice text="تم تعديل رصيد المحفظة مباشرة دون إضافة حركة إلى سجل التحويلات." /> : null}
     {query.voided ? <Notice text="تم إلغاء العملية وعكس أثرها على رصيد المحفظة والدين المرتبط إن وجد." /> : null}
     {query.error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-700">{query.error}</div> : null}
 
@@ -60,6 +61,15 @@ export default async function TransfersPage({ searchParams }: { searchParams: Pr
           <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-black text-slate-800">{wallet.name}</p><p className="mt-3 font-numeric text-2xl font-black text-slate-950">{formatCurrency(balance, currency)}</p></div><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-50 text-teal-700"><WalletCards className="h-5 w-5" /></div></div>
           {limit ? <div className="mt-4"><div className="mb-1.5 flex items-center justify-between text-[10px] font-bold text-slate-500"><span>استخدام الشهر</span><span>{formatCurrency(used, currency)} / {formatCurrency(limit, currency)}</span></div><div className="h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-teal-500" style={{ width: `${percent}%` }} /></div><p className="mt-1 text-[10px] font-bold text-slate-400">المتبقي {formatCurrency(Math.max(0, limit - used), currency)}</p></div> : <p className="mt-4 text-[10px] font-bold text-slate-400">لا يوجد حد شهري محدد.</p>}
           <div className="mt-4 grid grid-cols-2 gap-2 rounded-xl bg-slate-50 p-3 text-[10px] font-bold text-slate-600"><span>عمولة الإيداع: {Number(wallet.defaultDepositCommission)}%</span><span>عمولة السحب: {Number(wallet.defaultWithdrawalCommission)}%</span></div>
+          <details className="mt-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+            <summary className="cursor-pointer text-[10px] font-black text-slate-600">تعديل الرصيد مباشرة</summary>
+            <form action={setWalletBalanceAction} className="mt-3 space-y-2">
+              <input type="hidden" name="walletId" value={wallet.id} />
+              <div><Label>الرصيد الجديد</Label><input name="balance" type="number" min="0" step="0.01" required defaultValue={balance.toFixed(2)} className={`${inputClass} font-numeric`} /></div>
+              <p className="text-[9px] font-bold leading-4 text-amber-600">هذا التعديل يغيّر الرصيد مباشرة ولن يظهر كسحب أو إيداع في سجل التحويلات.</p>
+              <ConfirmSubmitButton message="تعديل رصيد المحفظة مباشرة بدون إنشاء حركة في السجل؟" size="sm" className="w-full rounded-lg text-[10px] font-black">حفظ الرصيد</ConfirmSubmitButton>
+            </form>
+          </details>
         </div>; })}
         {wallets.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-300 p-8 text-center text-xs font-bold text-slate-400">ابدأ بإضافة أول محفظة.</div> : null}
       </div>

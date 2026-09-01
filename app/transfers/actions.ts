@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requirePermission } from "@/lib/auth/context";
+import { prisma } from "@/lib/prisma";
 import { financialTransferService } from "@/lib/services/financialTransferService";
 
 function readString(formData: FormData, key: string) {
@@ -39,6 +40,38 @@ export async function createWalletAction(formData: FormData) {
     await financialTransferService.createWallet(auth.shop.id, input);
     revalidatePath("/transfers");
     redirectTo = "/transfers?walletSaved=1";
+  } catch (error) {
+    redirectTo = `/transfers?error=${encodeURIComponent(errorMessage(error))}`;
+  }
+  redirect(redirectTo);
+}
+
+const balanceSchema = z.object({
+  walletId: z.string().uuid("المحفظة غير صحيحة"),
+  balance: z.string().trim().min(1, "أدخل الرصيد الجديد"),
+});
+
+export async function setWalletBalanceAction(formData: FormData) {
+  let redirectTo = "/transfers";
+  try {
+    const input = balanceSchema.parse({
+      walletId: readString(formData, "walletId"),
+      balance: readString(formData, "balance"),
+    });
+    const balance = Number(input.balance.replace(",", "."));
+    if (!Number.isFinite(balance) || balance < 0) throw new Error("الرصيد يجب أن يكون صفراً أو أكبر.");
+    const auth = await requirePermission("sales:create");
+    const updated = await prisma.$executeRaw`
+      UPDATE "FinancialWallet"
+      SET "currentBalance" = ${balance}, "updatedAt" = NOW()
+      WHERE "id" = ${input.walletId}::uuid
+        AND "shopId" = ${auth.shop.id}::uuid
+        AND "deletedAt" IS NULL
+        AND "isActive" = TRUE
+    `;
+    if (!updated) throw new Error("المحفظة غير موجودة.");
+    revalidatePath("/transfers");
+    redirectTo = "/transfers?balanceUpdated=1";
   } catch (error) {
     redirectTo = `/transfers?error=${encodeURIComponent(errorMessage(error))}`;
   }
