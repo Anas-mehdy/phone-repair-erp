@@ -65,8 +65,8 @@ function normalizePhone(value?: string) {
 }
 
 async function ensureTables() {
-  await prisma.$executeRawUnsafe(`
-    CREATE TABLE IF NOT EXISTS "SoftwareServiceCatalog" (
+  try {
+    await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "SoftwareServiceCatalog" (
       "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       "shopId" UUID NOT NULL REFERENCES "Shop"("id") ON DELETE CASCADE,
       "name" TEXT NOT NULL,
@@ -76,11 +76,9 @@ async function ensureTables() {
       "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
       "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
       "deletedAt" TIMESTAMP(3)
-    );
-    CREATE INDEX IF NOT EXISTS "SoftwareServiceCatalog_shopId_name_idx"
-      ON "SoftwareServiceCatalog"("shopId", "name");
-
-    CREATE TABLE IF NOT EXISTS "SoftwareServiceSale" (
+    )`);
+    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "SoftwareServiceCatalog_shopId_name_idx" ON "SoftwareServiceCatalog"("shopId", "name")`);
+    await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "SoftwareServiceSale" (
       "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       "shopId" UUID NOT NULL REFERENCES "Shop"("id") ON DELETE CASCADE,
       "customerId" UUID REFERENCES "Customer"("id") ON DELETE SET NULL,
@@ -100,14 +98,13 @@ async function ensureTables() {
       "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
       "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
       "deletedAt" TIMESTAMP(3)
-    );
-    CREATE INDEX IF NOT EXISTS "SoftwareServiceSale_shopId_soldAt_idx"
-      ON "SoftwareServiceSale"("shopId", "soldAt");
-    CREATE INDEX IF NOT EXISTS "SoftwareServiceSale_shopId_customerId_idx"
-      ON "SoftwareServiceSale"("shopId", "customerId");
-    CREATE INDEX IF NOT EXISTS "SoftwareServiceSale_shopId_deviceKept_idx"
-      ON "SoftwareServiceSale"("shopId", "deviceKept", "deliveredAt");
-  `);
+    )`);
+    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "SoftwareServiceSale_shopId_soldAt_idx" ON "SoftwareServiceSale"("shopId", "soldAt")`);
+    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "SoftwareServiceSale_shopId_customerId_idx" ON "SoftwareServiceSale"("shopId", "customerId")`);
+    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "SoftwareServiceSale_shopId_deviceKept_idx" ON "SoftwareServiceSale"("shopId", "deviceKept", "deliveredAt")`);
+  } catch {
+    throw new Error("تعذر تجهيز مساحة خدمات السوفتوير. يرجى تطبيق تحديث قاعدة البيانات ثم المحاولة مجدداً.");
+  }
 }
 
 export async function listCatalog(shopId: string) {
@@ -148,32 +145,16 @@ export async function listSales(shopId: string, take = 100) {
   await ensureTables();
   return prisma.$queryRaw<SaleRow[]>`
     SELECT
-      s."id",
-      s."customerId",
-      c."name" AS "customerName",
-      c."phone" AS "customerPhone",
-      s."catalogId",
-      s."invoiceId",
-      i."invoiceNumber",
-      i."status" AS "invoiceStatus",
-      i."total" AS "invoiceTotal",
-      i."discountTotal" AS "invoiceDiscountTotal",
-      i."balanceDue" AS "invoiceBalanceDue",
-      s."serviceName",
-      s."deviceBrand",
-      s."deviceModel",
-      s."deviceSerial",
-      s."salePrice",
-      s."serviceCost",
-      s."notes",
-      s."deviceKept",
-      s."deliveredAt",
-      s."soldAt"
+      s."id", s."customerId", c."name" AS "customerName", c."phone" AS "customerPhone",
+      s."catalogId", s."invoiceId", i."invoiceNumber", i."status" AS "invoiceStatus",
+      i."total" AS "invoiceTotal", i."discountTotal" AS "invoiceDiscountTotal",
+      i."balanceDue" AS "invoiceBalanceDue", s."serviceName", s."deviceBrand",
+      s."deviceModel", s."deviceSerial", s."salePrice", s."serviceCost", s."notes",
+      s."deviceKept", s."deliveredAt", s."soldAt"
     FROM "SoftwareServiceSale" s
     LEFT JOIN "Customer" c ON c."id" = s."customerId" AND c."deletedAt" IS NULL
     JOIN "Invoice" i ON i."id" = s."invoiceId" AND i."deletedAt" IS NULL
-    WHERE s."shopId" = ${shopId}::uuid
-      AND s."deletedAt" IS NULL
+    WHERE s."shopId" = ${shopId}::uuid AND s."deletedAt" IS NULL
     ORDER BY s."soldAt" DESC
     LIMIT ${take}
   `;
@@ -183,27 +164,12 @@ export async function getSaleById(shopId: string, id: string) {
   await ensureTables();
   const rows = await prisma.$queryRaw<SaleRow[]>`
     SELECT
-      s."id",
-      s."customerId",
-      c."name" AS "customerName",
-      c."phone" AS "customerPhone",
-      s."catalogId",
-      s."invoiceId",
-      i."invoiceNumber",
-      i."status" AS "invoiceStatus",
-      i."total" AS "invoiceTotal",
-      i."discountTotal" AS "invoiceDiscountTotal",
-      i."balanceDue" AS "invoiceBalanceDue",
-      s."serviceName",
-      s."deviceBrand",
-      s."deviceModel",
-      s."deviceSerial",
-      s."salePrice",
-      s."serviceCost",
-      s."notes",
-      s."deviceKept",
-      s."deliveredAt",
-      s."soldAt"
+      s."id", s."customerId", c."name" AS "customerName", c."phone" AS "customerPhone",
+      s."catalogId", s."invoiceId", i."invoiceNumber", i."status" AS "invoiceStatus",
+      i."total" AS "invoiceTotal", i."discountTotal" AS "invoiceDiscountTotal",
+      i."balanceDue" AS "invoiceBalanceDue", s."serviceName", s."deviceBrand",
+      s."deviceModel", s."deviceSerial", s."salePrice", s."serviceCost", s."notes",
+      s."deviceKept", s."deliveredAt", s."soldAt"
     FROM "SoftwareServiceSale" s
     LEFT JOIN "Customer" c ON c."id" = s."customerId" AND c."deletedAt" IS NULL
     JOIN "Invoice" i ON i."id" = s."invoiceId" AND i."deletedAt" IS NULL
@@ -251,6 +217,7 @@ export async function createSale(
 
   return prisma.$transaction(async (tx) => {
     let customerId = input.customerId?.trim() || null;
+    let catalogId = input.catalogId?.trim() || null;
 
     if (customerId) {
       const customer = await tx.customer.findFirst({
@@ -269,6 +236,19 @@ export async function createSale(
         select: { id: true },
       });
       customerId = customer.id;
+    }
+
+    if (catalogId) {
+      const catalogRows = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT "id" FROM "SoftwareServiceCatalog"
+        WHERE "id" = ${catalogId}::uuid
+          AND "shopId" = ${shopId}::uuid
+          AND "deletedAt" IS NULL
+          AND "isActive" = TRUE
+        LIMIT 1
+      `;
+      if (!catalogRows[0]) throw new Error("الخدمة المحفوظة غير موجودة في هذا المتجر.");
+      catalogId = catalogRows[0].id;
     }
 
     const invoice = await tx.invoice.create({
@@ -294,23 +274,15 @@ export async function createSale(
         "serviceName", "deviceBrand", "deviceModel", "deviceSerial",
         "salePrice", "serviceCost", "notes", "deviceKept"
       ) VALUES (
-        ${shopId}::uuid,
-        ${customerId}::uuid,
-        ${input.catalogId?.trim() || null}::uuid,
-        ${invoice.id}::uuid,
-        ${createdByUserId}::uuid,
-        ${serviceName},
-        ${nullableText(input.deviceBrand)},
-        ${nullableText(input.deviceModel)},
-        ${nullableText(input.deviceSerial)},
-        ${salePrice},
-        ${serviceCost},
-        ${nullableText(input.notes)},
-        ${Boolean(input.deviceKept)}
+        ${shopId}::uuid, ${customerId}::uuid, ${catalogId}::uuid, ${invoice.id}::uuid,
+        ${createdByUserId}::uuid, ${serviceName}, ${nullableText(input.deviceBrand)},
+        ${nullableText(input.deviceModel)}, ${nullableText(input.deviceSerial)}, ${salePrice},
+        ${serviceCost}, ${nullableText(input.notes)}, ${Boolean(input.deviceKept)}
       )
       RETURNING "id"
     `;
 
+    if (!rows[0]) throw new Error("تعذر حفظ خدمة السوفتوير.");
     return { id: rows[0].id, invoiceId: invoice.id };
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 10_000 });
 }
@@ -345,6 +317,29 @@ export async function getTodaySalesTotal(shopId: string) {
   return Number(rows[0]?.total ?? 0);
 }
 
+export async function getFinancialRows(shopId: string, start: Date, end: Date) {
+  await ensureTables();
+  return prisma.$queryRaw<Array<{
+    invoiceId: string;
+    invoiceTotal: Prisma.Decimal;
+    invoiceStatus: InvoiceStatus;
+    serviceCost: Prisma.Decimal | null;
+  }>>`
+    SELECT
+      s."invoiceId",
+      i."total" AS "invoiceTotal",
+      i."status" AS "invoiceStatus",
+      s."serviceCost"
+    FROM "SoftwareServiceSale" s
+    JOIN "Invoice" i ON i."id" = s."invoiceId"
+    WHERE s."shopId" = ${shopId}::uuid
+      AND s."deletedAt" IS NULL
+      AND i."deletedAt" IS NULL
+      AND s."soldAt" >= ${start}
+      AND s."soldAt" < ${end}
+  `;
+}
+
 export const softwareServiceService = {
   listCatalog,
   createCatalogItem,
@@ -354,4 +349,5 @@ export const softwareServiceService = {
   createSale,
   markDeviceDelivered,
   getTodaySalesTotal,
+  getFinancialRows,
 };

@@ -9,10 +9,7 @@ function getTodayRange() {
   const startOfTomorrow = new Date(startOfToday);
   startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
 
-  return {
-    startOfToday,
-    startOfTomorrow,
-  };
+  return { startOfToday, startOfTomorrow };
 }
 
 export async function getDashboardMetrics(shopId: string) {
@@ -33,36 +30,24 @@ export async function getDashboardMetrics(shopId: string) {
       where: {
         shopId,
         deletedAt: null,
-        status: {
-          notIn: [RepairStatus.DELIVERED, RepairStatus.CANCELLED],
-        },
+        status: { notIn: [RepairStatus.DELIVERED, RepairStatus.CANCELLED] },
+      },
+    }),
+    prisma.repairOrder.count({
+      where: { shopId, deletedAt: null, status: RepairStatus.DONE },
+    }),
+    prisma.repairOrder.count({
+      where: {
+        shopId,
+        deletedAt: null,
+        createdAt: { gte: startOfToday, lt: startOfTomorrow },
       },
     }),
     prisma.repairOrder.count({
       where: {
         shopId,
         deletedAt: null,
-        status: RepairStatus.DONE,
-      },
-    }),
-    prisma.repairOrder.count({
-      where: {
-        shopId,
-        deletedAt: null,
-        createdAt: {
-          gte: startOfToday,
-          lt: startOfTomorrow,
-        },
-      },
-    }),
-    prisma.repairOrder.count({
-      where: {
-        shopId,
-        deletedAt: null,
-        deliveredAt: {
-          gte: startOfToday,
-          lt: startOfTomorrow,
-        },
+        deliveredAt: { gte: startOfToday, lt: startOfTomorrow },
       },
     }),
     prisma.sale.aggregate({
@@ -70,40 +55,23 @@ export async function getDashboardMetrics(shopId: string) {
         shopId,
         deletedAt: null,
         status: SaleStatus.COMPLETED,
-        soldAt: {
-          gte: startOfToday,
-          lt: startOfTomorrow,
-        },
+        soldAt: { gte: startOfToday, lt: startOfTomorrow },
       },
-      _sum: {
-        total: true,
-      },
+      _sum: { total: true },
     }),
-    softwareServiceService.getTodaySalesTotal(shopId),
+    softwareServiceService.getTodaySalesTotal(shopId).catch(() => 0),
     prisma.invoice.aggregate({
       where: {
         shopId,
         deletedAt: null,
-        status: {
-          in: [InvoiceStatus.UNPAID, InvoiceStatus.PARTIALLY_PAID],
-        },
+        status: { in: [InvoiceStatus.UNPAID, InvoiceStatus.PARTIALLY_PAID] },
       },
-      _count: {
-        id: true,
-      },
-      _sum: {
-        balanceDue: true,
-      },
+      _count: { id: true },
+      _sum: { balanceDue: true },
     }),
     prisma.inventoryItem.findMany({
-      where: {
-        shopId,
-        deletedAt: null,
-      },
-      select: {
-        quantity: true,
-        reorderLevel: true,
-      },
+      where: { shopId, deletedAt: null },
+      select: { quantity: true, reorderLevel: true },
     }),
     prisma.$queryRaw<Array<{ totalOutstanding: Prisma.Decimal | number | string }>>`
       WITH balances AS (
@@ -146,51 +114,26 @@ export async function getDashboardMetrics(shopId: string) {
 export async function getRecentActivity(shopId: string) {
   const [repairOrders, sales, invoices] = await Promise.all([
     prisma.repairOrder.findMany({
-      where: {
-        shopId,
-        deletedAt: null,
-      },
-      include: {
-        customer: true,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
+      where: { shopId, deletedAt: null },
+      include: { customer: true },
+      orderBy: { createdAt: "desc" },
       take: 5,
     }),
     prisma.sale.findMany({
-      where: {
-        shopId,
-        deletedAt: null,
-      },
-      include: {
-        customer: true,
-      },
-      orderBy: {
-        soldAt: "desc",
-      },
+      where: { shopId, deletedAt: null },
+      include: { customer: true },
+      orderBy: { soldAt: "desc" },
       take: 5,
     }),
     prisma.invoice.findMany({
-      where: {
-        shopId,
-        deletedAt: null,
-      },
-      include: {
-        customer: true,
-      },
-      orderBy: {
-        issuedAt: "desc",
-      },
+      where: { shopId, deletedAt: null },
+      include: { customer: true },
+      orderBy: { issuedAt: "desc" },
       take: 5,
     }),
   ]);
 
-  return {
-    repairOrders,
-    sales,
-    invoices,
-  };
+  return { repairOrders, sales, invoices };
 }
 
 export const dashboardService = {
