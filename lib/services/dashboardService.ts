@@ -1,5 +1,6 @@
 import { InvoiceStatus, RepairStatus, SaleStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { softwareServiceService } from "@/lib/services/softwareServiceService";
 
 function getTodayRange() {
   const startOfToday = new Date();
@@ -23,6 +24,7 @@ export async function getDashboardMetrics(shopId: string) {
     repairOrdersCreatedToday,
     deliveredToday,
     salesTodayAggregate,
+    softwareSalesToday,
     unpaidInvoicesAggregate,
     inventoryItems,
     debtRows,
@@ -77,6 +79,7 @@ export async function getDashboardMetrics(shopId: string) {
         total: true,
       },
     }),
+    softwareServiceService.getTodaySalesTotal(shopId),
     prisma.invoice.aggregate({
       where: {
         shopId,
@@ -130,6 +133,7 @@ export async function getDashboardMetrics(shopId: string) {
     repairOrdersCreatedToday,
     deliveredToday,
     salesRevenueToday: salesTodayAggregate._sum.total ?? 0,
+    softwareSalesToday,
     unpaidInvoicesCount: unpaidInvoicesAggregate._count.id ?? 0,
     unpaidBalanceTotal: unpaidInvoicesAggregate._sum.balanceDue ?? 0,
     totalDebtOutstanding: Number(debtRows[0]?.totalOutstanding ?? 0),
