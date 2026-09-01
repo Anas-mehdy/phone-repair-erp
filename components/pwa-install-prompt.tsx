@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Download, Share2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -15,6 +16,7 @@ export function PwaInstallPrompt() {
   const [isIos, setIsIos] = useState(false);
   const [isInstalled, setIsInstalled] = useState(true);
   const [showIosHelp, setShowIosHelp] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
     const navigatorWithStandalone = navigator as NavigatorWithStandalone;
@@ -65,19 +67,44 @@ export function PwaInstallPrompt() {
     if (isIos) setShowIosHelp(true);
   }
 
-  if (isInstalled || (!installPrompt && !isIos)) return null;
+  if (isInstalled || dismissed || (!installPrompt && !isIos)) return null;
 
   return (
     <>
-      <button
-        type="button"
-        onClick={install}
-        className="fixed bottom-4 left-4 z-[70] inline-flex items-center gap-2 rounded-2xl border border-teal-200 bg-white px-4 py-3 text-xs font-black text-teal-800 shadow-xl shadow-slate-900/10 transition hover:-translate-y-0.5 hover:bg-teal-50"
-        aria-label="تثبيت تطبيق مسار"
-      >
-        <Download className="h-4 w-4" aria-hidden="true" />
-        تثبيت تطبيق مسار
-      </button>
+      <div className="fixed bottom-4 left-1/2 z-[70] w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 sm:bottom-5">
+        <div className="flex items-center gap-3 rounded-2xl border border-teal-700/20 bg-teal-700 px-3 py-3 text-white shadow-2xl shadow-slate-950/25 sm:gap-4 sm:px-4">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/12 ring-1 ring-white/15">
+            <Image src="/masar-icon.png" alt="مسار" width={34} height={34} className="h-8 w-8 rounded-lg object-contain" />
+          </div>
+
+          <div className="min-w-0 flex-1 text-right">
+            <p className="text-sm font-black leading-5">ثبّت تطبيق مسار</p>
+            <p className="mt-0.5 text-[11px] font-medium leading-5 text-teal-50/90 sm:text-xs">
+              وصول أسرع من سطح المكتب أو الشاشة الرئيسية — بدون الحاجة لفتح المتصفح كل مرة.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={install}
+            className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl bg-white px-4 text-xs font-black text-teal-800 shadow-sm transition hover:bg-teal-50 active:scale-[0.98]"
+            aria-label="تثبيت تطبيق مسار"
+          >
+            <Download className="h-4 w-4" aria-hidden="true" />
+            تثبيت
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setDismissed(true)}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white/80 transition hover:bg-white/10 hover:text-white"
+            aria-label="إخفاء اقتراح التثبيت"
+            title="إخفاء"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+      </div>
 
       {showIosHelp ? (
         <div className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-950/50 p-4 backdrop-blur-sm sm:items-center">
