@@ -14,6 +14,7 @@ import {
   ArrowRightLeft,
   type LucideIcon,
   Crown,
+  WalletCards,
 } from "lucide-react";
 import { SubscriptionStatus } from "@prisma/client";
 import Image from "next/image";
@@ -74,6 +75,7 @@ export default async function DashboardPage() {
       icon: Wrench,
       accent: "text-teal-600 bg-teal-50 border-teal-100",
       iconBg: "from-teal-500 to-teal-700",
+      href: "/repair-orders",
     },
     {
       label: "جاهزة للتسليم",
@@ -82,6 +84,7 @@ export default async function DashboardPage() {
       icon: CheckCircle2,
       accent: "text-emerald-600 bg-emerald-50 border-emerald-100",
       iconBg: "from-emerald-500 to-emerald-700",
+      href: "/repair-orders",
     },
     {
       label: "طلبات استلمت اليوم",
@@ -90,6 +93,7 @@ export default async function DashboardPage() {
       icon: Plus,
       accent: "text-indigo-600 bg-indigo-50 border-indigo-100",
       iconBg: "from-indigo-500 to-indigo-700",
+      href: "/repair-orders",
     },
     {
       label: "طلبات سلمت اليوم",
@@ -98,6 +102,7 @@ export default async function DashboardPage() {
       icon: CheckCircle2,
       accent: "text-sky-600 bg-sky-50 border-sky-100",
       iconBg: "from-sky-500 to-sky-700",
+      href: "/repair-orders",
     },
     {
       label: "مبيعات اليوم",
@@ -106,6 +111,7 @@ export default async function DashboardPage() {
       icon: ShoppingCart,
       accent: "text-amber-600 bg-amber-50 border-amber-100",
       iconBg: "from-amber-500 to-amber-700",
+      href: "/sales",
     },
     {
       label: "فواتير غير مكتملة",
@@ -114,6 +120,7 @@ export default async function DashboardPage() {
       icon: FileText,
       accent: "text-orange-600 bg-orange-50 border-orange-100",
       iconBg: "from-orange-500 to-orange-700",
+      href: "/invoices",
     },
     {
       label: "مبالغ مستحقة",
@@ -122,6 +129,16 @@ export default async function DashboardPage() {
       icon: Receipt,
       accent: "text-rose-600 bg-rose-50 border-rose-100",
       iconBg: "from-rose-500 to-rose-700",
+      href: "/invoices",
+    },
+    {
+      label: "إجمالي الديون",
+      helper: "إجمالي أرصدة العملاء في دفتر الديون",
+      value: formatCurrency(metrics.totalDebtOutstanding, currency),
+      icon: WalletCards,
+      accent: "text-violet-600 bg-violet-50 border-violet-100",
+      iconBg: "from-violet-500 to-violet-700",
+      href: "/debts",
     },
     {
       label: "تنبيهات المخزون",
@@ -130,10 +147,10 @@ export default async function DashboardPage() {
       icon: Boxes,
       accent: "text-red-600 bg-red-50 border-red-100",
       iconBg: "from-red-500 to-red-700",
+      href: "/inventory?lowStockOnly=true",
     },
   ];
 
-  // Attention indicators logic
   const hasAttentionItems =
     metrics.readyForDeliveryCount > 0 ||
     metrics.lowStockItemsCount > 0 ||
@@ -162,7 +179,6 @@ export default async function DashboardPage() {
         </section>
       )}
 
-      {/* Masar brand and decorative device journey */}
       <section className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm shadow-slate-200/60 sm:p-7">
         <MasarWaveBackground />
 
@@ -218,13 +234,17 @@ export default async function DashboardPage() {
         </p>
       </section>
 
-      {/* KPI Cards Grid */}
       <section className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {metricCards.map((card) => (
-          <div key={card.label} className="erp-card erp-card-hover p-5 flex flex-col justify-between">
+          <Link
+            key={card.label}
+            href={card.href}
+            aria-label={`${card.label} - فتح القسم`}
+            className="erp-card erp-card-hover group flex flex-col justify-between p-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          >
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-1">
-                <p className="text-xs font-extrabold text-slate-700 uppercase tracking-wide">
+                <p className="text-xs font-extrabold text-slate-700 uppercase tracking-wide group-hover:text-primary transition-colors">
                   {card.label}
                 </p>
                 <p className="text-[11px] font-medium text-slate-500">
@@ -237,19 +257,19 @@ export default async function DashboardPage() {
                 <card.icon className="h-5 w-5" aria-hidden="true" />
               </div>
             </div>
-            <div className="mt-5 flex items-baseline justify-between">
+            <div className="mt-5 flex items-baseline justify-between gap-3">
               <p className="font-numeric text-3xl font-black text-slate-900 tracking-tight">
                 {card.value}
               </p>
               <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-bold border ${card.accent}`}>
-                مؤشر حي
+                فتح القسم
+                <ArrowUpRight className="mr-1 h-3 w-3" aria-hidden="true" />
               </span>
             </div>
-          </div>
+          </Link>
         ))}
       </section>
 
-      {/* Needs Attention Alert Cockpit */}
       {hasAttentionItems ? (
         <section className="space-y-4">
           <div className="flex items-center gap-2 border-r-4 border-amber-500 pr-3.5">
@@ -324,12 +344,9 @@ export default async function DashboardPage() {
         </section>
       ) : null}
 
-      {/* Dedicated Updates & Features Bulletin Section */}
       <DashboardUpdatesSection />
 
-      {/* Main activities feeds and actions */}
       <section className="grid gap-6 lg:grid-cols-[1fr_320px]">
-        {/* Activity feeds */}
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           <ActivityCard title="آخر تذاكر صيانة" icon={Wrench} iconColor="text-teal-600 bg-teal-50">
             {activity.repairOrders.length === 0 ? (
@@ -380,7 +397,6 @@ export default async function DashboardPage() {
           </ActivityCard>
         </div>
 
-        {/* Quick action visual cards sidebar */}
         <aside className="erp-section flex flex-col justify-between h-full">
           <div>
             <div className="flex items-center gap-2 pb-4 border-b border-slate-100">
