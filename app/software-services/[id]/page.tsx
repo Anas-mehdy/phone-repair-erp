@@ -22,7 +22,8 @@ export default async function SoftwareServiceDetailsPage({ params, searchParams 
   const sale = await softwareServiceService.getSaleById(context.shopId, id);
   if (!sale) notFound();
   const currency = context.currency || "SAR";
-  const profit = Number(sale.invoiceTotal) - Number(sale.serviceCost ?? 0);
+  const serviceCost = Number(sale.serviceCost ?? 0);
+  const profit = Number(sale.invoiceTotal) - serviceCost;
 
   return (
     <div className="space-y-6">
@@ -63,8 +64,8 @@ export default async function SoftwareServiceDetailsPage({ params, searchParams 
             <Info label="سعر البيع الأصلي" value={formatCurrency(sale.salePrice, currency)} />
             <Info label="خصم الفاتورة" value={formatCurrency(sale.invoiceDiscountTotal, currency)} />
             <Info label="إجمالي الفاتورة بعد الخصم" value={formatCurrency(sale.invoiceTotal, currency)} />
-            <Info label="تكلفة الخدمة" value={sale.serviceCost != null ? formatCurrency(sale.serviceCost, currency) : "غير مدخلة"} />
-            <Info label="الربح الحالي" value={sale.serviceCost != null ? formatCurrency(profit, currency) : "غير مؤكد — التكلفة غير مدخلة"} />
+            <Info label="تكلفة الخدمة" value={formatCurrency(serviceCost, currency)} />
+            <Info label="الربح الحالي" value={formatCurrency(profit, currency)} />
             <Info label="المتبقي" value={formatCurrency(sale.invoiceBalanceDue, currency)} />
             <Info label="ملاحظات" value={sale.notes ?? "-"} />
           </div>
