@@ -50,6 +50,11 @@ const optionalPostgresUuidSchema = z.string().trim().optional().refine(
   "التصنيف المحدد غير صالح",
 );
 
+const optionalSupplierUuidSchema = z.string().trim().optional().refine(
+  (value) => !value || postgresUuidSchema.safeParse(value).success,
+  "المورد المحدد غير صالح",
+);
+
 const categoryNameSchema = z.string().trim().max(120, "اسم التصنيف طويل جداً").optional();
 
 const createInventoryItemSchema = z.object({
@@ -81,7 +86,8 @@ const updateInventoryItemDetailsSchema = z.object({
 const addStockSchema = z.object({
   inventoryItemId: z.string().uuid(),
   quantity: positiveIntegerSchema,
-  note: z.string().optional(),
+  supplierId: optionalSupplierUuidSchema,
+  note: z.string().trim().max(1000, "ملاحظة التوريد طويلة جداً").optional(),
 });
 
 const adjustStockSchema = z.object({
@@ -184,16 +190,33 @@ export async function updateInventoryItemDetailsAction(formData: FormData) {
 }
 
 export async function addStockAction(formData: FormData) {
-  const input = addStockSchema.parse({
+  const parsed = addStockSchema.safeParse({
     inventoryItemId: readString(formData, "inventoryItemId"),
     quantity: readString(formData, "quantity"),
+    supplierId: readString(formData, "supplierId"),
     note: readString(formData, "note"),
   });
+
+  const itemId = readString(formData, "inventoryItemId");
+  const destination = z.string().uuid().safeParse(itemId).success ? `/inventory/${itemId}` : "/inventory";
+  if (!parsed.success) redirect(`${destination}?error=${encodeURIComponent(errorMessage(parsed.error))}`);
+
   const auth = await requirePermission("inventory:manage");
-  await inventoryService.addStock(auth.shop.id, input.inventoryItemId, auth.user.id, input);
+  try {
+    await inventoryService.addStock(auth.shop.id, parsed.data.inventoryItemId, auth.user.id, {
+      quantity: parsed.data.quantity,
+      supplierId: parsed.data.supplierId || null,
+      note: parsed.data.note,
+    });
+  } catch (error) {
+    redirect(`${destination}?error=${encodeURIComponent(errorMessage(error))}`);
+  }
+
   revalidatePath("/inventory");
-  revalidatePath(`/inventory/${input.inventoryItemId}`);
-  redirect(`/inventory/${input.inventoryItemId}`);
+  revalidatePath(`/inventory/${parsed.data.inventoryItemId}`);
+  revalidatePath("/suppliers");
+  if (parsed.data.supplierId) revalidatePath(`/suppliers/${parsed.data.supplierId}`);
+  redirect(`/inventory/${parsed.data.inventoryItemId}?stockAdded=1`);
 }
 
 export async function adjustStockAction(formData: FormData) {

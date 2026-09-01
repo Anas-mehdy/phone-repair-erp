@@ -9,6 +9,7 @@ import { getCurrentShopContext } from "@/lib/current-shop";
 import { isDatabaseConnectionError } from "@/lib/database-errors";
 import { inventoryService } from "@/lib/services/inventoryService";
 import { inventoryCategoryService } from "@/lib/services/inventoryCategoryService";
+import { supplierService } from "@/lib/services/supplierService";
 import { datasetKeyForSourceCategory } from "@/lib/services/compatibility/compatibility-datasets";
 import { Field, formatDate, formatMoney, inputClassName, isLowStock, textareaClassName } from "../_components";
 import { CompatibilityGroupPicker } from "../_compatibility-group-picker";
@@ -19,7 +20,7 @@ export const dynamic = "force-dynamic";
 
 type InventoryItemDetailsPageProps = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string; damaged?: string }>;
+  searchParams: Promise<{ error?: string; damaged?: string; stockAdded?: string }>;
 };
 
 export default async function InventoryItemDetailsPage({ params, searchParams }: InventoryItemDetailsPageProps) {
@@ -27,15 +28,17 @@ export default async function InventoryItemDetailsPage({ params, searchParams }:
   let item: Awaited<ReturnType<typeof inventoryService.getInventoryItemById>>;
   let movements: Awaited<ReturnType<typeof inventoryService.getInventoryMovements>>;
   let categories: Awaited<ReturnType<typeof inventoryCategoryService.listInventoryCategories>> = [];
+  let suppliers: Awaited<ReturnType<typeof supplierService.listSuppliers>> = [];
   let currency = "SAR";
 
   try {
     const context = await getCurrentShopContext();
     currency = context.currency;
-    [item, movements, categories] = await Promise.all([
+    [item, movements, categories, suppliers] = await Promise.all([
       inventoryService.getInventoryItemById(context.shopId, id),
       inventoryService.getInventoryMovements(context.shopId, id),
       inventoryCategoryService.listInventoryCategories(context.shopId),
+      supplierService.listSuppliers(context.shopId),
     ]);
   } catch (error) {
     if (isDatabaseConnectionError(error)) return <DatabaseUnavailable />;
@@ -58,6 +61,7 @@ export default async function InventoryItemDetailsPage({ params, searchParams }:
     <div className="space-y-6">
       {query.error ? <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-700">{query.error}</div> : null}
       {query.damaged ? <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-700">تم تسجيل التالف وخصم الكمية من المخزون بنجاح.</div> : null}
+      {query.stockAdded ? <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-700">تم تسجيل التوريد وإضافة الكمية إلى المخزون بنجاح.</div> : null}
 
       <div className="rounded-3xl border border-slate-200/50 bg-white/95 p-6 shadow-sm shadow-slate-100/40">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
@@ -129,8 +133,8 @@ export default async function InventoryItemDetailsPage({ params, searchParams }:
             ) : (
               <div className="overflow-hidden rounded-xl border border-slate-200/50">
                 <div className="overflow-x-auto">
-                  <table className="erp-table min-w-[720px]">
-                    <thead><tr><th>النوع</th><th className="text-center">التغير</th><th className="text-center">الكمية بعد الحركة</th><th>التكلفة الفعلية</th><th>الملاحظة</th><th>التاريخ</th></tr></thead>
+                  <table className="erp-table min-w-[820px]">
+                    <thead><tr><th>النوع</th><th className="text-center">التغير</th><th className="text-center">الكمية بعد الحركة</th><th>المورد</th><th>التكلفة الفعلية</th><th>الملاحظة</th><th>التاريخ</th></tr></thead>
                     <tbody>{movements.map((movement) => {
                       const isDamage = movement.note?.startsWith("تالف:") ?? false;
                       return (
@@ -138,6 +142,7 @@ export default async function InventoryItemDetailsPage({ params, searchParams }:
                           <td>{isDamage ? <PlainBadge tone="red" label="تالف" /> : <InventoryMovementTypeBadge type={movement.type} />}</td>
                           <td className="text-center font-numeric font-bold text-slate-700">{movement.quantityChange > 0 ? `+${movement.quantityChange}` : movement.quantityChange}</td>
                           <td className="text-center font-numeric font-medium text-slate-500">{movement.quantityAfter ?? "-"}</td>
+                          <td className="text-xs font-bold text-slate-700">{movement.supplier ? <Link className="text-teal-700 hover:underline" href={`/suppliers/${movement.supplier.id}`}>{movement.supplier.name}</Link> : "-"}</td>
                           <td className="font-numeric font-medium text-slate-700">{formatMoney(movement.unitCostSnapshot, currency)}</td>
                           <td className="text-xs font-medium text-slate-500">{movement.note ?? "-"}</td>
                           <td className="font-numeric font-medium text-slate-500">{formatDate(movement.createdAt)}</td>
@@ -162,10 +167,19 @@ export default async function InventoryItemDetailsPage({ params, searchParams }:
 
           <form action={addStockAction} className="erp-section">
             <input type="hidden" name="inventoryItemId" value={item.id} />
-            <div className="mb-4 border-b border-slate-100/60 pb-3"><h3 className="text-sm font-bold text-slate-800">توريد وإدخال كمية للمخزون</h3></div>
+            <div className="mb-4 border-b border-slate-100/60 pb-3">
+              <h3 className="text-sm font-bold text-slate-800">توريد وإدخال كمية للمخزون</h3>
+              <p className="mt-1 text-[10px] font-medium text-slate-400">يمكن ربط كل دفعة بالمورد الذي جاءت منه، بدون تثبيت مورد واحد على المنتج.</p>
+            </div>
             <div className="grid gap-4">
               <Field label="الكمية المضافة"><input className={`${inputClassName} font-numeric`} name="quantity" min="1" required step="1" type="number" placeholder="عدد الوحدات المضافة..." /></Field>
-              <Field label="ملاحظة التوريد"><textarea className={textareaClassName} name="note" placeholder="مثال: فاتورة توريد رقم 123..." /></Field>
+              <Field label="المورد (اختياري)">
+                <select className={inputClassName} name="supplierId" defaultValue="">
+                  <option value="">بدون تحديد مورد</option>
+                  {suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}
+                </select>
+              </Field>
+              <Field label="ملاحظة / رقم الفاتورة"><textarea className={textareaClassName} name="note" maxLength={1000} placeholder="مثال: فاتورة توريد رقم 123..." /></Field>
               <Button type="submit" className="h-11 w-full rounded-xl font-bold shadow-sm"><Save className="ml-1.5 h-4 w-4" />حفظ حركة التوريد</Button>
             </div>
           </form>

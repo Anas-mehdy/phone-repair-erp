@@ -1,12 +1,13 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { ArrowRight, Save, Loader2, User, Smartphone, UserRoundCheck } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { createRepairOrderAction } from "../actions";
 import { Field, inputClassName, textareaClassName } from "../_components";
 import { SupplierFields, type SupplierOption, type InventoryItemOption } from "../_supplier-fields";
+import { RepairCustomerSearch, type RepairCustomerOption } from "./_customer-search";
 
 export function CreateRepairOrderForm({
   suppliers,
@@ -20,6 +21,9 @@ export function CreateRepairOrderForm({
   technicians?: Array<{ id: string; name: string; email: string }>;
 }) {
   const [isPending, startTransition] = useTransition();
+  const [selectedCustomer, setSelectedCustomer] = useState<RepairCustomerOption | null>(null);
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -33,9 +37,16 @@ export function CreateRepairOrderForm({
     });
   }
 
+  function handleCustomerSelect(customer: RepairCustomerOption | null) {
+    setSelectedCustomer(customer);
+    if (customer) {
+      setCustomerName(customer.name);
+      setCustomerPhone(customer.phone ?? "");
+    }
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Customer Info Card */}
       <section className="erp-section">
         <div className="flex items-center gap-2 border-b border-slate-100/60 pb-3 mb-4">
           <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-teal-50 text-teal-800">
@@ -44,10 +55,25 @@ export function CreateRepairOrderForm({
           <div>
             <h3 className="font-bold text-slate-800 text-sm">بيانات العميل</h3>
             <p className="text-xs text-slate-400 font-medium mt-0.5">
-              سيتم البحث عن العميل تلقائياً أو إنشاؤه في حالة عدم وجوده مسبقاً.
+              ابحث عن عميل موجود أو أدخل بيانات عميل جديد.
             </p>
           </div>
         </div>
+
+        <div className="mb-4 rounded-xl border border-teal-100 bg-teal-50/30 p-3">
+          <Field label="البحث عن عميل موجود">
+            <RepairCustomerSearch
+              value={selectedCustomer?.id ?? ""}
+              selectedCustomer={selectedCustomer}
+              disabled={isPending}
+              onSelect={handleCustomerSelect}
+            />
+          </Field>
+          <p className="mt-1.5 text-[10px] font-medium text-slate-400">
+            اكتب أول حرف من الاسم أو جزءاً من رقم الهاتف، ثم اختر العميل لتعبئة بياناته مباشرة.
+          </p>
+        </div>
+
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="اسم العميل">
             <input
@@ -56,6 +82,11 @@ export function CreateRepairOrderForm({
               required
               disabled={isPending}
               placeholder="مثال: محمد أحمد"
+              value={customerName}
+              onChange={(event) => {
+                setCustomerName(event.target.value);
+                if (selectedCustomer) setSelectedCustomer(null);
+              }}
             />
           </Field>
           <Field label="رقم الهاتف">
@@ -66,6 +97,11 @@ export function CreateRepairOrderForm({
               disabled={isPending}
               inputMode="tel"
               placeholder="05xxxxxxxx"
+              value={customerPhone}
+              onChange={(event) => {
+                setCustomerPhone(event.target.value);
+                if (selectedCustomer) setSelectedCustomer(null);
+              }}
             />
           </Field>
           <div className="sm:col-span-2">
@@ -81,7 +117,6 @@ export function CreateRepairOrderForm({
         </div>
       </section>
 
-      {/* Device and Problem Card */}
       <section className="erp-section">
         <div className="flex items-center gap-2 border-b border-slate-100/60 pb-3 mb-4">
           <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/5 text-primary">
@@ -96,65 +131,28 @@ export function CreateRepairOrderForm({
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="الشركة المصنعة">
-            <input
-              className={inputClassName}
-              name="deviceBrand"
-              disabled={isPending}
-              placeholder="مثال: Apple, Samsung"
-            />
+            <input className={inputClassName} name="deviceBrand" disabled={isPending} placeholder="مثال: Apple, Samsung" />
           </Field>
           <Field label="الموديل">
-            <input
-              className={inputClassName}
-              name="deviceModel"
-              disabled={isPending}
-              placeholder="مثال: iPhone 15 Pro"
-            />
+            <input className={inputClassName} name="deviceModel" disabled={isPending} placeholder="مثال: iPhone 15 Pro" />
           </Field>
           <Field label="الرقم التسلسلي (SN / IMEI)">
-            <input
-              className={`${inputClassName} font-numeric`}
-              name="deviceSerial"
-              disabled={isPending}
-              placeholder="أدخل الرقم التسلسلي لجهاز العميل..."
-            />
+            <input className={`${inputClassName} font-numeric`} name="deviceSerial" disabled={isPending} placeholder="أدخل الرقم التسلسلي لجهاز العميل..." />
           </Field>
           <Field label="سعر الصيانة المتوقع للعميل (تقديري)">
-            <input
-              className={`${inputClassName} font-numeric`}
-              name="estimatedTotal"
-              disabled={isPending}
-              inputMode="decimal"
-              placeholder="0.00"
-            />
+            <input className={`${inputClassName} font-numeric`} name="estimatedTotal" disabled={isPending} inputMode="decimal" placeholder="0.00" />
           </Field>
           <Field label="تاريخ التسليم المتوقع">
-            <input
-              className={`${inputClassName} font-numeric`}
-              name="dueAt"
-              disabled={isPending}
-              type="date"
-            />
+            <input className={`${inputClassName} font-numeric`} name="dueAt" disabled={isPending} type="date" />
           </Field>
           <div className="sm:col-span-2">
             <Field label="المشكلة المبلغ عنها">
-              <textarea
-                className={textareaClassName}
-                name="reportedIssue"
-                required
-                disabled={isPending}
-                placeholder="مثال: الشاشة مكسورة، الجهاز لا يشحن..."
-              />
+              <textarea className={textareaClassName} name="reportedIssue" required disabled={isPending} placeholder="مثال: الشاشة مكسورة، الجهاز لا يشحن..." />
             </Field>
           </div>
           <div className="sm:col-span-2">
             <Field label="ملاحظات داخلية للفنيين">
-              <textarea
-                className={textareaClassName}
-                name="notes"
-                disabled={isPending}
-                placeholder="ملاحظات تظهر للفنيين فقط ولا تظهر للعميل..."
-              />
+              <textarea className={textareaClassName} name="notes" disabled={isPending} placeholder="ملاحظات تظهر للفنيين فقط ولا تظهر للعميل..." />
             </Field>
           </div>
         </div>
@@ -174,50 +172,27 @@ export function CreateRepairOrderForm({
             </div>
           </div>
           <Field label="إسناد التذكرة إلى">
-            <select
-              className={inputClassName}
-              name="assignedToUserId"
-              disabled={isPending}
-              defaultValue=""
-            >
+            <select className={inputClassName} name="assignedToUserId" disabled={isPending} defaultValue="">
               <option value="">غير مسندة حالياً</option>
               {technicians.map((technician) => (
-                <option key={technician.id} value={technician.id}>
-                  {technician.name}
-                </option>
+                <option key={technician.id} value={technician.id}>{technician.name}</option>
               ))}
             </select>
           </Field>
         </section>
       ) : null}
 
-      {/* Supplier & Parts Section */}
-      <SupplierFields
-        suppliers={suppliers}
-        inventoryItems={inventoryItems}
-        currency={currency}
-      />
+      <SupplierFields suppliers={suppliers} inventoryItems={inventoryItems} currency={currency} />
 
-      {/* Submit Button Action */}
       <div className="flex items-center justify-between gap-3 pt-2">
-        <Button
-          asChild
-          variant="outline"
-          type="button"
-          disabled={isPending}
-          className="rounded-xl h-12 px-5 font-bold border-slate-300"
-        >
+        <Button asChild variant="outline" type="button" disabled={isPending} className="rounded-xl h-12 px-5 font-bold border-slate-300">
           <Link href="/repair-orders">
             <ArrowRight className="h-4 w-4 ml-1.5" />
             إلغاء والعودة
           </Link>
         </Button>
 
-        <Button
-          type="submit"
-          disabled={isPending}
-          className="h-12 px-8 rounded-xl bg-teal-800 hover:bg-teal-700 text-white font-bold text-sm shadow-md shadow-teal-900/15 flex items-center justify-center gap-2 min-w-[180px]"
-        >
+        <Button type="submit" disabled={isPending} className="h-12 px-8 rounded-xl bg-teal-800 hover:bg-teal-700 text-white font-bold text-sm shadow-md shadow-teal-900/15 flex items-center justify-center gap-2 min-w-[180px]">
           {isPending ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
