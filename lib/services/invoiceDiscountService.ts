@@ -61,7 +61,7 @@ export async function updateInvoiceDiscount(
     }
 
     const newBalanceDue = newTotal.sub(invoice.amountPaid);
-    let status = InvoiceStatus.UNPAID;
+    let status: InvoiceStatus = InvoiceStatus.UNPAID;
     let paidAt: Date | null = null;
 
     if (newBalanceDue.lte(0)) {
