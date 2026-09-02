@@ -1,0 +1,128 @@
+import { Prisma } from "@prisma/client";
+
+import { cashDrawerService } from "@/lib/services/cashDrawerService";
+import { financialTransferService } from "@/lib/services/financialTransferService";
+
+export type CollectionMoneyDestination = "DRAWER" | "WALLET" | "OTHER";
+export type CollectionMovementType = "INSTALLMENT_PAYMENT" | "INSTALLMENT_DOWN_PAYMENT" | "DEBT_PAYMENT";
+
+function decimal(value: string | number | Prisma.Decimal) {
+  return new Prisma.Decimal(String(value).replace(",", "."));
+}
+
+export async function prepareCollectionMoneyAccount(
+  shopId: string,
+  destination: CollectionMoneyDestination,
+) {
+  if (destination === "DRAWER") {
+    await cashDrawerService.getSnapshot(shopId, 1);
+    return;
+  }
+  if (destination === "WALLET") {
+    await financialTransferService.listWallets(shopId);
+  }
+}
+
+export async function applyCollectionIncomingTx(
+  tx: Prisma.TransactionClient,
+  shopId: string,
+  userId: string | null,
+  input: {
+    destination: CollectionMoneyDestination;
+    walletId?: string;
+    amount: string | number | Prisma.Decimal;
+    reference?: string | null;
+    description: string;
+    movementType: CollectionMovementType;
+    occurredAt?: Date;
+  },
+) {
+  const amount = decimal(input.amount);
+  if (amount.lte(0)) throw new Error("قيمة التحصيل يجب أن تكون أكبر من صفر.");
+  if (input.destination === "OTHER") return null;
+
+  const occurredAt = input.occurredAt ?? new Date();
+
+  if (input.destination === "DRAWER") {
+    const rows = await tx.$queryRaw<Array<{ id: string; currentBalance: Prisma.Decimal }>>`
+      SELECT "id", "currentBalance"
+      FROM "CashDrawer"
+      WHERE "shopId" = ${shopId}::uuid
+      FOR UPDATE
+    `;
+    const drawer = rows[0];
+    if (!drawer) throw new Error("الدرج النقدي غير موجود.");
+
+    const nextBalance = drawer.currentBalance.add(amount);
+    await tx.$executeRaw`
+      UPDATE "CashDrawer"
+      SET "currentBalance" = ${nextBalance}, "updatedAt" = NOW()
+      WHERE "id" = ${drawer.id}::uuid
+    `;
+    await tx.$executeRaw`
+      INSERT INTO "CashDrawerMovement" (
+        "shopId", "drawerId", "createdByUserId", "type", "direction",
+        "amount", "description", "reference", "createdAt"
+      ) VALUES (
+        ${shopId}::uuid,
+        ${drawer.id}::uuid,
+        ${userId}::uuid,
+        ${input.movementType},
+        'IN',
+        ${amount},
+        ${input.description},
+        ${input.reference ?? null},
+        ${occurredAt}
+      )
+    `;
+    return "الدرج النقدي";
+  }
+
+  if (!input.walletId) throw new Error("اختر المحفظة التي استلمت المبلغ.");
+  const walletRows = await tx.$queryRaw<Array<{
+    id: string;
+    name: string;
+    currentBalance: Prisma.Decimal;
+  }>>`
+    SELECT "id", "name", "currentBalance"
+    FROM "FinancialWallet"
+    WHERE "id" = ${input.walletId}::uuid
+      AND "shopId" = ${shopId}::uuid
+      AND "deletedAt" IS NULL
+      AND "isActive" = TRUE
+    FOR UPDATE
+  `;
+  const wallet = walletRows[0];
+  if (!wallet) throw new Error("المحفظة المحددة غير موجودة.");
+
+  const nextBalance = wallet.currentBalance.add(amount);
+  await tx.$executeRaw`
+    UPDATE "FinancialWallet"
+    SET "currentBalance" = ${nextBalance}, "updatedAt" = NOW()
+    WHERE "id" = ${wallet.id}::uuid
+  `;
+  await tx.$executeRaw`
+    INSERT INTO "FinancialTransfer" (
+      "shopId", "walletId", "createdByUserId", "operationType", "amount",
+      "walletAmount", "commission", "commissionMode", "isDeferred", "notes", "createdAt"
+    ) VALUES (
+      ${shopId}::uuid,
+      ${wallet.id}::uuid,
+      ${userId}::uuid,
+      'WALLET_TOPUP',
+      ${amount},
+      ${amount},
+      0,
+      'NONE',
+      FALSE,
+      ${input.description},
+      ${occurredAt}
+    )
+  `;
+  return wallet.name;
+}
+
+export const collectionMoneyService = {
+  prepareCollectionMoneyAccount,
+  applyCollectionIncomingTx,
+};

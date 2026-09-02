@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { requirePermission } from "@/lib/auth/context";
+import { installmentCollectionService } from "@/lib/services/installmentCollectionService";
 import { installmentService } from "@/lib/services/installmentService";
 import { entitlementService } from "@/lib/services/subscriptionEntitlementService";
 
@@ -46,6 +47,8 @@ const paymentSchema = z.object({
   reference: z.string().trim().optional(),
   note: z.string().trim().optional(),
   paidAt: z.string().optional(),
+  moneyDestination: z.enum(["DRAWER", "WALLET", "OTHER"]).default("DRAWER"),
+  walletId: z.string().uuid().optional().or(z.literal("")),
 });
 
 const updateSchema = z.object({
@@ -108,12 +111,28 @@ export async function addInstallmentPaymentAction(formData: FormData) {
       reference: read(formData, "reference"),
       note: read(formData, "note"),
       paidAt: read(formData, "paidAt"),
+      moneyDestination: read(formData, "moneyDestination") || "DRAWER",
+      walletId: read(formData, "walletId"),
     });
     const auth = await requirePermission("invoices:pay");
-    await installmentService.addPayment(auth.shop.id, input.planId, auth.user.id, input);
+    await installmentCollectionService.addPayment(auth.shop.id, input.planId, auth.user.id, {
+      clientGeneratedId: input.clientGeneratedId,
+      amount: input.amount,
+      method: input.method,
+      sourceOptionId: input.sourceOptionId || undefined,
+      customSourceName: input.customSourceName,
+      saveCustomSource: input.saveCustomSource,
+      reference: input.reference,
+      note: input.note,
+      paidAt: input.paidAt,
+      moneyDestination: input.moneyDestination,
+      walletId: input.walletId || undefined,
+    });
     revalidatePath("/installments");
     revalidatePath(`/installments/${input.planId}`);
     revalidatePath("/invoices");
+    revalidatePath("/transfers");
+    revalidatePath("/reports");
     redirect(`/installments/${input.planId}?paid=1`);
   } catch (error) {
     if (error && typeof error === "object" && "digest" in error) throw error;

@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { requirePermission } from "@/lib/auth/context";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
 import { createInstallmentPublicToken } from "@/lib/installment-public-link";
+import { financialTransferService } from "@/lib/services/financialTransferService";
 import { installmentService } from "@/lib/services/installmentService";
 import { paymentSourceService } from "@/lib/services/paymentSourceService";
 import { addInstallmentPaymentAction, rotateInstallmentLinkAction } from "../actions";
@@ -24,9 +25,10 @@ export const dynamic = "force-dynamic";
 export default async function InstallmentDetailsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string; created?: string; paid?: string; linkReset?: string; updated?: string }> }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const auth = await requirePermission("invoices:read");
-  const [plan, paymentSources] = await Promise.all([
+  const [plan, paymentSources, wallets] = await Promise.all([
     installmentService.getPlanById(auth.shop.id, id),
     paymentSourceService.listPaymentSourceOptions(auth.shop.id),
+    financialTransferService.listWallets(auth.shop.id),
   ]);
   if (!plan) notFound();
 
@@ -43,7 +45,7 @@ export default async function InstallmentDetailsPage({ params, searchParams }: {
       <Button asChild variant="outline"><Link href="/installments/new">خطة جديدة</Link></Button>
     </div>
 
-    {(query.created || query.paid || query.linkReset || query.updated) && <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-700">{query.created ? "تم إنشاء الخطة وجدول الأقساط بنجاح." : query.paid ? "تم تسجيل الدفعة وتوزيعها على الأقساط بنجاح." : query.updated ? "تم حفظ تعديلات خطة الأقساط بنجاح." : "تم إلغاء الرابط السابق وإصدار رابط جديد."}</div>}
+    {(query.created || query.paid || query.linkReset || query.updated) && <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-700">{query.created ? "تم إنشاء الخطة وجدول الأقساط بنجاح." : query.paid ? "تم تسجيل الدفعة وتوزيعها على الأقساط وتحديث رصيد المال بنجاح." : query.updated ? "تم حفظ تعديلات خطة الأقساط بنجاح." : "تم إلغاء الرابط السابق وإصدار رابط جديد."}</div>}
     {query.error && <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-700">{query.error}</div>}
 
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -81,6 +83,11 @@ export default async function InstallmentDetailsPage({ params, searchParams }: {
           <h2 className="font-black text-slate-900">تسجيل دفعة جديدة</h2>
           <label className="grid gap-2"><span className="text-xs font-bold">المبلغ</span><input name="amount" className="erp-input" type="number" min="0.01" max={plan.balanceDue.toString()} step="0.01" required /></label>
           <label className="grid gap-2"><span className="text-xs font-bold">طريقة الدفع</span><select name="method" className="erp-input" defaultValue={PaymentMethod.CASH}><option value="CASH">نقدي</option><option value="CARD">بطاقة</option><option value="BANK_TRANSFER">تحويل بنكي</option><option value="OTHER">أخرى</option></select></label>
+          <div className="grid gap-3 rounded-xl border border-teal-100 bg-teal-50/40 p-3">
+            <label className="grid gap-2"><span className="text-xs font-bold text-slate-700">مكان وصول المال</span><select name="moneyDestination" className="erp-input" defaultValue="DRAWER"><option value="DRAWER">الدرج النقدي</option><option value="WALLET">محفظة إلكترونية</option><option value="OTHER">بدون تحديث رصيد</option></select></label>
+            <label className="grid gap-2"><span className="text-xs font-bold text-slate-700">المحفظة</span><select name="walletId" className="erp-input" defaultValue=""><option value="">اخترها فقط عند التحصيل على محفظة</option>{wallets.map((wallet) => <option key={wallet.id} value={wallet.id}>{wallet.name} — {formatCurrency(wallet.currentBalance, auth.shop.currency)}</option>)}</select></label>
+            <p className="text-[11px] font-semibold leading-5 text-teal-700">القسط يبقى دفعة واحدة محاسبياً؛ الاختيار هنا يحدد فقط أين أصبح المال فعلياً.</p>
+          </div>
           <PaymentSourceField options={paymentSources} />
           <label className="grid gap-2"><span className="text-xs font-bold">المرجع</span><input name="reference" className="erp-input" placeholder="اختياري" /></label>
           <label className="grid gap-2"><span className="text-xs font-bold">تاريخ الدفع</span><input name="paidAt" className="erp-input" type="date" /></label>
