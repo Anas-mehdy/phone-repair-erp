@@ -1,0 +1,117 @@
+/* Debt ledger finishing: precise table/card semantics and edit experience. */
+
+/* Dashboard filters are a calm cyan/indigo surface. */
+.debts-workspace section.rounded-3xl:has(table.min-w-\[960px\]) > div:first-child > div.rounded-2xl {
+  border-color: rgba(165,243,252,.9) !important;
+  background: linear-gradient(145deg,#ecfeff,#fff 52%,#eef2ff) !important;
+}
+.debts-workspace section.rounded-3xl:has(table.min-w-\[960px\]) > div:first-child > div.rounded-2xl svg { color:#0d9488!important; }
+
+/* Customer debt rows: settled stays calm green, outstanding gets a gentle rose cue. */
+.debts-workspace table.min-w-\[960px\] tbody tr:has(.text-rose-600) {
+  background: linear-gradient(90deg,rgba(255,241,242,.65),rgba(255,255,255,.96)) !important;
+}
+.debts-workspace table.min-w-\[960px\] tbody tr:has(.text-emerald-700) {
+  background: linear-gradient(90deg,rgba(236,253,245,.62),rgba(255,255,255,.96)) !important;
+}
+.debts-workspace table.min-w-\[960px\] td:last-child a {
+  border-color:rgba(165,243,252,.95)!important;
+  background:linear-gradient(135deg,#ecfeff,#f0fdfa)!important;
+  color:#0f766e!important;
+}
+
+/* Ledger edit row should read as an editable workspace, not another transaction. */
+.debts-workspace table.min-w-\[980px\] tr.bg-sky-50\/40 > td {
+  padding:16px!important;
+  background:linear-gradient(145deg,#eef2ff,#fff 50%,#ecfeff)!important;
+  border-top:1px solid rgba(199,210,254,.88)!important;
+  border-bottom:1px solid rgba(199,210,254,.88)!important;
+}
+.debts-workspace table.min-w-\[980px\] tr.bg-sky-50\/40 input,
+.debts-workspace table.min-w-\[980px\] tr.bg-sky-50\/40 select {
+  min-height:44px;
+  border-radius:11px!important;
+  border-color:#c7d2fe!important;
+}
+.debts-workspace table.min-w-\[980px\] tr.bg-sky-50\/40 button.bg-sky-600 {
+  min-height:42px;
+  border-radius:11px!important;
+  background:linear-gradient(135deg,#4f46e5,#06b6d4)!important;
+}
+
+/* Reversed entries remain visible but clearly historical. */
+.debts-workspace table.min-w-\[980px\] tr.opacity-40 {
+  background:#f8fafc!important;
+  filter:saturate(.55);
+}
+
+/* Print/PDF action gets an indigo identity while delete remains rose. */
+.debts-workspace a[href$="/print"] {
+  border-color:#c7d2fe!important;
+  background:linear-gradient(145deg,#eef2ff,#fff)!important;
+  color:#4338ca!important;
+}
+
+@media (max-width:767px) {
+  /* Dashboard debtor table -> precise customer ledger cards. */
+  .debts-workspace table.min-w-\[960px\] tbody tr {
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    border-color:rgba(165,243,252,.9);
+  }
+  .debts-workspace table.min-w-\[960px\] tbody td:nth-child(1) { grid-column:1/-1; }
+  .debts-workspace table.min-w-\[960px\] tbody td:nth-child(1)::before { content:"العميل"; }
+  .debts-workspace table.min-w-\[960px\] tbody td:nth-child(2)::before { content:"الهاتف"; }
+  .debts-workspace table.min-w-\[960px\] tbody td:nth-child(3)::before { content:"الحالة"; }
+  .debts-workspace table.min-w-\[960px\] tbody td:nth-child(4)::before { content:"الرصيد المستحق"; }
+  .debts-workspace table.min-w-\[960px\] tbody td:nth-child(5)::before { content:"أقدم دين"; }
+  .debts-workspace table.min-w-\[960px\] tbody td:nth-child(6)::before { content:"آخر حركة"; }
+  .debts-workspace table.min-w-\[960px\] tbody td:nth-child(7) { grid-column:1/-1; }
+  .debts-workspace table.min-w-\[960px\] tbody td:nth-child(7)::before { content:none; }
+  .debts-workspace table.min-w-\[960px\] tbody td:nth-child(7) a { width:100%; justify-content:center; }
+
+  /* Customer movement table -> precise accounting cards. */
+  .debts-workspace table.min-w-\[980px\] tbody tr:not(.bg-sky-50\/40) {
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    border-color:rgba(199,210,254,.9);
+    background:linear-gradient(145deg,#fff,#eef2ff 66%,#ecfeff)!important;
+  }
+  .debts-workspace table.min-w-\[980px\] tbody tr:not(.bg-sky-50\/40) td:nth-child(1) { grid-column:1/-1; }
+  .debts-workspace table.min-w-\[980px\] tbody tr:not(.bg-sky-50\/40) td:nth-child(1)::before { content:"التاريخ"; }
+  .debts-workspace table.min-w-\[980px\] tbody tr:not(.bg-sky-50\/40) td:nth-child(2)::before { content:"الحركة"; }
+  .debts-workspace table.min-w-\[980px\] tbody tr:not(.bg-sky-50\/40) td:nth-child(3)::before { content:"مدين"; }
+  .debts-workspace table.min-w-\[980px\] tbody tr:not(.bg-sky-50\/40) td:nth-child(4)::before { content:"دائن / تحصيل"; }
+  .debts-workspace table.min-w-\[980px\] tbody tr:not(.bg-sky-50\/40) td:nth-child(5)::before { content:"مصدر الدفع"; }
+  .debts-workspace table.min-w-\[980px\] tbody tr:not(.bg-sky-50\/40) td:nth-child(6)::before { content:"البيان"; }
+  .debts-workspace table.min-w-\[980px\] tbody tr:not(.bg-sky-50\/40) td:nth-child(7)::before { content:"المرجع"; }
+  .debts-workspace table.min-w-\[980px\] tbody tr:not(.bg-sky-50\/40) td:nth-child(8)::before { content:"المستخدم"; }
+  .debts-workspace table.min-w-\[980px\] tbody tr:not(.bg-sky-50\/40) td:nth-child(9) { grid-column:1/-1; }
+  .debts-workspace table.min-w-\[980px\] tbody tr:not(.bg-sky-50\/40) td:nth-child(9)::before { content:none; }
+  .debts-workspace table.min-w-\[980px\] tbody tr:not(.bg-sky-50\/40) td:nth-child(9) button { width:100%; justify-content:center; }
+
+  /* Edit row becomes a standalone form card and must not inherit transaction labels. */
+  .debts-workspace table.min-w-\[980px\] tbody tr.bg-sky-50\/40 {
+    display:block!important;
+    border:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+  }
+  .debts-workspace table.min-w-\[980px\] tbody tr.bg-sky-50\/40 > td {
+    display:block!important;
+    width:100%;
+    border:1px solid #c7d2fe!important;
+    border-radius:16px;
+  }
+  .debts-workspace table.min-w-\[980px\] tbody tr.bg-sky-50\/40 > td::before { content:none!important; }
+  .debts-workspace table.min-w-\[980px\] tr.bg-sky-50\/40 .mt-3.flex.gap-2 { flex-direction:column; }
+  .debts-workspace table.min-w-\[980px\] tr.bg-sky-50\/40 .mt-3.flex.gap-2 button { width:100%; min-height:42px; }
+
+  /* Empty rows should remain a single clean empty-state card. */
+  .debts-workspace table.min-w-\[960px\] tbody tr:has(td[colspan="7"]),
+  .debts-workspace table.min-w-\[980px\] tbody tr:has(td[colspan="9"]):not(.bg-sky-50\/40) {
+    display:block!important;
+    border-style:dashed!important;
+    background:linear-gradient(145deg,#f8fafc,#fff)!important;
+  }
+  .debts-workspace table tbody td[colspan] { display:block!important; grid-column:1/-1; width:100%; }
+  .debts-workspace table tbody td[colspan]::before { content:none!important; }
+}
