@@ -1,0 +1,147 @@
+/* Masar UI System — debt ledger workspace. Pure CSS, no business logic changes. */
+.debts-workspace {
+  --debt-cyan:#06b6d4;
+  --debt-teal:#0d9488;
+  --debt-indigo:#4f46e5;
+  --debt-emerald:#059669;
+  --debt-amber:#d97706;
+  --debt-rose:#e11d48;
+}
+.debts-workspace > div { max-width:100%; }
+.debts-workspace h1,.debts-workspace h2 { letter-spacing:-.02em; }
+.debts-workspace h1 { font-size:clamp(26px,3vw,32px)!important; }
+.debts-workspace h2 { font-size:17px!important; }
+.debts-workspace p,.debts-workspace label,.debts-workspace button,.debts-workspace a { line-height:1.55; }
+.debts-workspace input,.debts-workspace select,.debts-workspace textarea { min-height:46px; font-size:15px!important; border-radius:12px!important; }
+.debts-workspace label { font-size:14px!important; font-weight:800!important; }
+.debts-workspace button,.debts-workspace a { font-size:14px!important; }
+
+/* Dashboard hero */
+.debts-workspace header.rounded-3xl {
+  border-color:rgba(153,246,228,.92)!important;
+  background:radial-gradient(circle at 8% 12%,rgba(79,70,229,.10),transparent 28%),linear-gradient(135deg,#f0fdfa,#fff 52%,#ecfeff)!important;
+  box-shadow:0 24px 56px -42px rgba(13,148,136,.42)!important;
+}
+.debts-workspace header.rounded-3xl > button {
+  background:linear-gradient(135deg,#0d9488,#06b6d4)!important;
+  box-shadow:0 14px 30px -22px rgba(13,148,136,.55)!important;
+}
+.debts-workspace header.rounded-3xl .text-sky-700 { color:#0f766e!important; }
+
+/* New debt form */
+.debts-workspace section.rounded-3xl:has(input[type="number"]):has(input[type="date"]) {
+  border-color:rgba(165,243,252,.92)!important;
+  background:radial-gradient(circle at 100% 0,rgba(99,102,241,.08),transparent 32%),linear-gradient(145deg,#ecfeff,#fff 50%,#eef2ff)!important;
+  box-shadow:0 20px 48px -38px rgba(6,182,212,.34)!important;
+}
+.debts-workspace section.rounded-3xl:has(input[type="number"]):has(input[type="date"]) button.bg-sky-600 { background:linear-gradient(135deg,#0d9488,#06b6d4)!important; }
+.debts-workspace section.rounded-3xl:has(input[type="number"]):has(input[type="date"]) div.bg-slate-50\/70 {
+  border-color:rgba(199,210,254,.86)!important;
+  background:linear-gradient(145deg,#eef2ff,#fff)!important;
+}
+
+/* Dashboard KPI cards */
+.debts-workspace section.grid.md\:grid-cols-3 > div {
+  min-height:150px;
+  border-radius:20px!important;
+  box-shadow:0 18px 44px -36px rgba(15,23,42,.32)!important;
+}
+.debts-workspace section.grid.md\:grid-cols-3 > div:nth-child(1) { border-color:#fecdd3!important; background:linear-gradient(145deg,#fff1f2,#fff)!important; }
+.debts-workspace section.grid.md\:grid-cols-3 > div:nth-child(2) { border-color:#c7d2fe!important; background:linear-gradient(145deg,#eef2ff,#fff)!important; }
+.debts-workspace section.grid.md\:grid-cols-3 > div:nth-child(3) { border-color:#a7f3d0!important; background:linear-gradient(145deg,#ecfdf5,#fff)!important; }
+.debts-workspace section.grid.md\:grid-cols-3 > div .text-2xl { font-size:24px!important; }
+
+/* Aging buckets, dashboard cards and filters */
+.debts-workspace div.grid:has(> div > .text-\[11px\]) > div { border-radius:17px!important; }
+.debts-workspace div.grid:has(> div > .text-\[11px\]) > div:nth-child(1) { border-color:#a5f3fc!important; background:linear-gradient(145deg,#ecfeff,#fff)!important; }
+.debts-workspace div.grid:has(> div > .text-\[11px\]) > div:nth-child(2) { border-color:#fde68a!important; background:linear-gradient(145deg,#fffbeb,#fff)!important; }
+.debts-workspace div.grid:has(> div > .text-\[11px\]) > div:nth-child(3) { border-color:#fed7aa!important; background:linear-gradient(145deg,#fff7ed,#fff)!important; }
+.debts-workspace div.grid:has(> div > .text-\[11px\]) > div:nth-child(4) { border-color:#fecdd3!important; background:linear-gradient(145deg,#fff1f2,#fff)!important; }
+.debts-workspace [class*="text-[10px]"],.debts-workspace [class*="text-[11px]"] { font-size:13px!important; }
+.debts-workspace .text-xs { font-size:14px!important; }
+
+/* Customer ledger header */
+.debts-workspace > div > div.flex.flex-col.gap-4.sm\:flex-row {
+  border:1px solid rgba(199,210,254,.88);
+  border-radius:22px;
+  padding:20px;
+  background:radial-gradient(circle at 100% 0,rgba(6,182,212,.10),transparent 30%),linear-gradient(145deg,#eef2ff,#fff 52%,#f0fdfa);
+  box-shadow:0 22px 52px -42px rgba(79,70,229,.34);
+}
+.debts-workspace > div > div.flex.flex-col.gap-4.sm\:flex-row > div:last-child {
+  border-color:#fecdd3!important;
+  background:linear-gradient(145deg,#fff1f2,#fff)!important;
+  box-shadow:0 14px 30px -26px rgba(225,29,72,.32);
+}
+
+/* Collection form */
+.debts-workspace section:has(button.bg-emerald-600):has(input[type="number"]) {
+  border-color:#a7f3d0!important;
+  background:radial-gradient(circle at 100% 0,rgba(6,182,212,.08),transparent 30%),linear-gradient(145deg,#ecfdf5,#fff 50%,#f0fdfa)!important;
+  box-shadow:0 20px 48px -38px rgba(5,150,105,.34)!important;
+}
+.debts-workspace section:has(button.bg-emerald-600) button.bg-emerald-600 { background:linear-gradient(135deg,#059669,#0d9488)!important; }
+
+/* Ledger movements */
+.debts-workspace section.overflow-hidden:has(table) {
+  border-color:rgba(199,210,254,.82)!important;
+  background:linear-gradient(145deg,#eef2ff,#fff 26%)!important;
+  box-shadow:0 18px 44px -38px rgba(79,70,229,.28)!important;
+}
+.debts-workspace section.overflow-hidden:has(table) > div:first-child { background:linear-gradient(90deg,#eef2ff,#ecfeff)!important; }
+.debts-workspace table { font-size:14px!important; }
+.debts-workspace table thead { background:linear-gradient(90deg,#f0fdfa,#ecfeff,#eef2ff)!important; }
+.debts-workspace table th { font-size:13px!important; font-weight:900!important; color:#475569!important; }
+.debts-workspace table td { font-size:14px!important; }
+.debts-workspace table tbody tr:hover { background:rgba(240,253,250,.62)!important; }
+
+/* Messages and alerts */
+.debts-workspace div.border-sky-200.bg-sky-50 { border-color:#a5f3fc!important; background:linear-gradient(145deg,#ecfeff,#fff)!important; font-size:14px!important; border-radius:16px!important; }
+
+@media (max-width:767px) {
+  .debts-workspace { overflow-x:hidden; }
+  .debts-workspace header.rounded-3xl { padding:16px!important; }
+  .debts-workspace header.rounded-3xl > button { width:100%; min-height:46px; }
+  .debts-workspace section.grid.md\:grid-cols-3 { grid-template-columns:1fr!important; }
+  .debts-workspace section.grid.md\:grid-cols-3 > div { min-height:126px; }
+  .debts-workspace > div > div.flex.flex-col.gap-4.sm\:flex-row { padding:16px; }
+  .debts-workspace > div > div.flex.flex-col.gap-4.sm\:flex-row a,
+  .debts-workspace > div > div.flex.flex-col.gap-4.sm\:flex-row button { width:100%; justify-content:center; min-height:42px; }
+  .debts-workspace section { padding-left:14px!important; padding-right:14px!important; }
+  .debts-workspace table {
+    display:block;
+    min-width:0!important;
+    width:100%;
+  }
+  .debts-workspace table thead { display:none; }
+  .debts-workspace table tbody { display:grid; gap:12px; padding:12px; }
+  .debts-workspace table tbody tr {
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    overflow:hidden;
+    border:1px solid rgba(165,243,252,.88);
+    border-radius:16px;
+    background:linear-gradient(145deg,#fff,#f0fdfa 62%,#eef2ff)!important;
+    box-shadow:0 12px 30px -26px rgba(13,148,136,.3);
+  }
+  .debts-workspace table tbody td {
+    display:flex;
+    flex-direction:column;
+    gap:3px;
+    padding:10px 12px!important;
+    border:0!important;
+    white-space:normal!important;
+    text-align:right!important;
+  }
+  .debts-workspace table tbody td::before { font-size:11px; font-weight:900; color:#94a3b8; }
+  /* Dashboard debtor table: customer, phone, balance, activity, oldest debt, actions. */
+  .debts-workspace table tbody td:nth-child(1) { grid-column:1/-1; background:rgba(236,254,255,.72); font-size:16px!important; }
+  .debts-workspace table tbody td:nth-child(1)::before { content:"العميل / التاريخ"; }
+  .debts-workspace table tbody td:nth-child(2)::before { content:"النوع / الهاتف"; }
+  .debts-workspace table tbody td:nth-child(3)::before { content:"المبلغ / الرصيد"; }
+  .debts-workspace table tbody td:nth-child(4)::before { content:"الاستحقاق / آخر نشاط"; }
+  .debts-workspace table tbody td:nth-child(5)::before { content:"البيان / أقدم دين"; }
+  .debts-workspace table tbody td:nth-child(6)::before { content:"المرجع / الإجراء"; }
+  .debts-workspace table tbody td:nth-child(n+7)::before { content:"تفاصيل"; }
+  .debts-workspace table tbody td a,.debts-workspace table tbody td button { min-height:40px; }
+}
