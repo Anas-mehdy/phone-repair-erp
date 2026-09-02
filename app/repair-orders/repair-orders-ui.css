@@ -14,6 +14,7 @@
 }
 
 /* Approved Masar readable type scale. */
+.masar-repair-orders .text-\[9px\] { font-size: 13px !important; line-height: 1.45 !important; }
 .masar-repair-orders .text-\[10px\] { font-size: 14px !important; line-height: 1.5 !important; }
 .masar-repair-orders .text-\[11px\] { font-size: 15px !important; line-height: 1.55 !important; }
 .masar-repair-orders .text-xs { font-size: 16px !important; line-height: 1.6 !important; }
@@ -97,10 +98,108 @@
   line-height: 1.45;
 }
 
-/* Mobile: turn the page into a comfortable vertical workspace. */
-@media (max-width: 639px) {
+/* Mobile: the wide desktop table becomes a readable card list. */
+@media (max-width: 767px) {
   .masar-repair-orders .text-xs { font-size: 15px !important; }
   .masar-repair-orders .text-sm { font-size: 17px !important; }
   .masar-repair-orders .erp-filter-card { padding: 16px !important; gap: 14px !important; }
-  .masar-repair-orders table.erp-table { font-size: 14px !important; }
+
+  .masar-repair-orders .overflow-x-auto:has(> table.erp-table) {
+    overflow: visible !important;
+    padding: 12px;
+    background: linear-gradient(180deg, #f8fafc 0%, #f0fdfa 100%);
+  }
+
+  .masar-repair-orders table.erp-table {
+    min-width: 0 !important;
+    width: 100% !important;
+    display: block;
+    background: transparent;
+  }
+
+  .masar-repair-orders .erp-table thead {
+    display: none;
+  }
+
+  .masar-repair-orders .erp-table tbody {
+    display: grid;
+    gap: 12px;
+  }
+
+  .masar-repair-orders .erp-table tbody tr {
+    display: grid;
+    gap: 0;
+    overflow: hidden;
+    border: 1px solid rgba(153,246,228,.7);
+    border-radius: 18px;
+    background: rgba(255,255,255,.98);
+    box-shadow: 0 14px 36px -30px rgba(15,23,42,.3);
+  }
+
+  .masar-repair-orders .erp-table tbody tr:hover {
+    background: white !important;
+  }
+
+  .masar-repair-orders .erp-table td {
+    position: static !important;
+    display: grid;
+    grid-template-columns: 108px minmax(0, 1fr);
+    align-items: start;
+    gap: 10px;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    padding: 10px 14px !important;
+    border: 0;
+    border-bottom: 1px solid #f1f5f9;
+    background: transparent !important;
+    box-shadow: none !important;
+    white-space: normal !important;
+    text-align: right !important;
+  }
+
+  .masar-repair-orders .erp-table td::before {
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 800;
+  }
+
+  .masar-repair-orders .erp-table td:nth-child(1)::before { content: "رقم الطلب"; }
+  .masar-repair-orders .erp-table td:nth-child(2)::before { content: "العميل"; }
+  .masar-repair-orders .erp-table td:nth-child(3)::before { content: "الهاتف"; }
+  .masar-repair-orders .erp-table td:nth-child(4)::before { content: "الجهاز"; }
+  .masar-repair-orders .erp-table td:nth-child(5)::before { content: "المشكلة"; }
+  .masar-repair-orders .erp-table td:nth-child(6)::before { content: "الحالة"; }
+  .masar-repair-orders .erp-table td:nth-child(7)::before { content: "التكلفة"; }
+  .masar-repair-orders .erp-table td:nth-child(8)::before { content: "المنشئ"; }
+  .masar-repair-orders .erp-table td:nth-child(9)::before { content: "الفني"; }
+  .masar-repair-orders .erp-table td:nth-child(10)::before { content: "تاريخ الإنشاء"; }
+  .masar-repair-orders .erp-table td:nth-child(11)::before { content: "التسليم المتوقع"; }
+
+  .masar-repair-orders .erp-table td:first-child {
+    padding-top: 14px !important;
+    background: linear-gradient(90deg, rgba(240,253,250,.92), rgba(236,254,255,.72)) !important;
+  }
+
+  .masar-repair-orders .erp-table td:nth-child(12) {
+    grid-template-columns: 1fr;
+    padding: 12px 14px 14px !important;
+    border-bottom: 0;
+    background: #f8fafc !important;
+  }
+
+  .masar-repair-orders .erp-table td:nth-child(12)::before {
+    content: none;
+  }
+
+  .masar-repair-orders .erp-table td:nth-child(12) > div {
+    justify-content: stretch !important;
+    width: 100%;
+  }
+
+  .masar-repair-orders .erp-table td:nth-child(12) a,
+  .masar-repair-orders .erp-table td:nth-child(12) button {
+    flex: 1 1 auto;
+    min-height: 40px;
+  }
 }
