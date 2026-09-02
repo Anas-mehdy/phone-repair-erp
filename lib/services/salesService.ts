@@ -62,7 +62,7 @@ export async function createSale(shopId: string, createdByUserId: string | null,
 export async function cancelSale(shopId: string, saleId: string, createdByUserId: string | null) {
   return prisma.$transaction(async (tx) => {
     const sale = await tx.sale.findFirst({ where: { id: saleId, shopId, deletedAt: null }, include: { items: true } }); if (!sale) throw new Error("عملية البيع غير موجودة."); if (sale.status !== SaleStatus.COMPLETED) return sale;
-    await moneyAccountService.reverseSaleMoneyTx(tx, shopId, sale.receiptNumber);
+    if (sale.receiptNumber) await moneyAccountService.reverseSaleMoneyTx(tx, shopId, sale.receiptNumber);
     for (const saleItem of sale.items) { if (!saleItem.inventoryItemId) continue; const inventoryItem = await tx.inventoryItem.findFirst({ where: { id: saleItem.inventoryItemId, shopId, deletedAt: null } }); if (!inventoryItem) throw new Error("لا يمكن إلغاء البيع لأن قطعة مخزون مرتبطة غير موجودة."); const quantityAfter = inventoryItem.quantity + saleItem.quantity; await tx.inventoryItem.update({ where: { id: inventoryItem.id }, data: { quantity: quantityAfter, version: { increment: 1 } } }); await tx.inventoryMovement.create({ data: { shopId, inventoryItemId: inventoryItem.id, saleId: sale.id, saleItemId: saleItem.id, createdByUserId, type: InventoryMovementType.RETURN, quantityChange: saleItem.quantity, quantityAfter, unitCostSnapshot: inventoryItem.unitCost, note: "إلغاء عملية بيع" } }); }
     return tx.sale.update({ where: { id: sale.id }, data: { status: SaleStatus.CANCELLED, version: { increment: 1 } }, include: { items: true } });
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 10_000 });
