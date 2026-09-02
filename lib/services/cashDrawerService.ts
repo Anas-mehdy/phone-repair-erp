@@ -10,6 +10,9 @@ export type CashDrawerMovementType =
   | "WALLET_TRANSFER_OUT"
   | "SALE_CASH"
   | "INVOICE_PAYMENT"
+  | "INSTALLMENT_PAYMENT"
+  | "INSTALLMENT_DOWN_PAYMENT"
+  | "DEBT_PAYMENT"
   | "CHANGE_RETURN";
 
 export type CashDrawerMovementRow = {

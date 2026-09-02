@@ -22,6 +22,9 @@ const movementLabels: Record<string, string> = {
   WALLET_TRANSFER_OUT: "تحويل إلى محفظة",
   SALE_CASH: "بيع نقدي",
   INVOICE_PAYMENT: "تحصيل فاتورة",
+  INSTALLMENT_PAYMENT: "تحصيل قسط",
+  INSTALLMENT_DOWN_PAYMENT: "دفعة أولى لأقساط",
+  DEBT_PAYMENT: "تحصيل دين",
   CHANGE_RETURN: "باقي للعميل",
 };
 
