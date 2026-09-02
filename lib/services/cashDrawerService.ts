@@ -15,6 +15,16 @@ export type CashDrawerMovementType =
   | "DEBT_PAYMENT"
   | "CHANGE_RETURN";
 
+export type CashDrawerSourceType =
+  | "SALE"
+  | "SALE_CHANGE"
+  | "INVOICE"
+  | "INSTALLMENT"
+  | "INSTALLMENT_DOWN_PAYMENT"
+  | "DEBT"
+  | "CASH_DRAWER_TRANSFER"
+  | "MANUAL";
+
 export type CashDrawerMovementRow = {
   id: string;
   type: CashDrawerMovementType;
@@ -22,9 +32,20 @@ export type CashDrawerMovementRow = {
   amount: Prisma.Decimal;
   description: string | null;
   reference: string | null;
+  sourceType: CashDrawerSourceType;
+  sourceId: string | null;
+  sourceReference: string | null;
+  customerId: string | null;
+  customerName: string | null;
+  customerPhone: string | null;
   walletId: string | null;
   walletName: string | null;
+  financialTransferId: string | null;
+  createdByUserId: string | null;
+  createdByName: string | null;
+  status: "ACTIVE" | "VOID";
   createdAt: Date;
+  voidedAt: Date | null;
 };
 
 let tablesReady: Promise<void> | null = null;
@@ -32,7 +53,6 @@ let tablesReady: Promise<void> | null = null;
 function decimal(value: string | number | Prisma.Decimal | null | undefined) {
   return new Prisma.Decimal(String(value ?? 0).replace(",", "."));
 }
-
 function nullableText(value?: string | null) {
   const text = value?.trim();
   return text ? text : null;
@@ -67,8 +87,65 @@ async function createTables() {
         "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "voidedAt" TIMESTAMP(3)
       )`);
+      await tx.$executeRawUnsafe(`ALTER TABLE "CashDrawerMovement" ADD COLUMN IF NOT EXISTS "sourceType" TEXT`);
+      await tx.$executeRawUnsafe(`ALTER TABLE "CashDrawerMovement" ADD COLUMN IF NOT EXISTS "sourceId" TEXT`);
+      await tx.$executeRawUnsafe(`ALTER TABLE "CashDrawerMovement" ADD COLUMN IF NOT EXISTS "sourceReference" TEXT`);
+      await tx.$executeRawUnsafe(`ALTER TABLE "CashDrawerMovement" ADD COLUMN IF NOT EXISTS "customerId" UUID REFERENCES "Customer"("id") ON DELETE SET NULL`);
       await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "CashDrawerMovement_shopId_createdAt_idx" ON "CashDrawerMovement"("shopId", "createdAt")`);
       await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "CashDrawerMovement_drawerId_createdAt_idx" ON "CashDrawerMovement"("drawerId", "createdAt")`);
+      await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "CashDrawerMovement_source_idx" ON "CashDrawerMovement"("shopId", "sourceType", "sourceId")`);
+
+      await tx.$executeRawUnsafe(`UPDATE "CashDrawerMovement" SET
+        "sourceType" = COALESCE("sourceType", CASE
+          WHEN "type" = 'SALE_CASH' THEN 'SALE'
+          WHEN "type" = 'CHANGE_RETURN' THEN 'SALE_CHANGE'
+          WHEN "type" = 'INVOICE_PAYMENT' THEN 'INVOICE'
+          WHEN "type" = 'INSTALLMENT_PAYMENT' THEN 'INSTALLMENT'
+          WHEN "type" = 'INSTALLMENT_DOWN_PAYMENT' THEN 'INSTALLMENT_DOWN_PAYMENT'
+          WHEN "type" = 'DEBT_PAYMENT' THEN 'DEBT'
+          WHEN "type" IN ('WALLET_TRANSFER_IN','WALLET_TRANSFER_OUT') THEN 'CASH_DRAWER_TRANSFER'
+          ELSE 'MANUAL'
+        END),
+        "sourceReference" = COALESCE("sourceReference", "reference")`);
+
+      await tx.$executeRawUnsafe(`UPDATE "CashDrawerMovement" m SET
+        "sourceId" = s."id"::text,
+        "customerId" = COALESCE(m."customerId", s."customerId"),
+        "sourceReference" = COALESCE(m."sourceReference", s."receiptNumber")
+      FROM "Sale" s
+      WHERE m."shopId" = s."shopId"
+        AND m."sourceType" IN ('SALE','SALE_CHANGE')
+        AND m."sourceId" IS NULL
+        AND m."reference" IS NOT NULL
+        AND m."reference" = s."receiptNumber"`);
+
+      await tx.$executeRawUnsafe(`UPDATE "CashDrawerMovement" m SET
+        "sourceId" = i."id"::text,
+        "customerId" = COALESCE(m."customerId", i."customerId"),
+        "sourceReference" = COALESCE(m."sourceReference", i."invoiceNumber")
+      FROM "Invoice" i
+      WHERE m."shopId" = i."shopId"
+        AND m."sourceType" = 'INVOICE'
+        AND m."sourceId" IS NULL
+        AND m."reference" IS NOT NULL
+        AND m."reference" = i."invoiceNumber"`);
+
+      await tx.$executeRawUnsafe(`UPDATE "CashDrawerMovement" m SET
+        "sourceId" = p."id"::text,
+        "customerId" = COALESCE(m."customerId", p."customerId"),
+        "sourceReference" = COALESCE(m."sourceReference", p."planNumber")
+      FROM "InstallmentPlan" p
+      WHERE m."shopId" = p."shopId"
+        AND m."sourceType" IN ('INSTALLMENT','INSTALLMENT_DOWN_PAYMENT')
+        AND m."sourceId" IS NULL
+        AND m."sourceReference" IS NOT NULL
+        AND m."sourceReference" = p."planNumber"`);
+
+      await tx.$executeRawUnsafe(`UPDATE "CashDrawerMovement"
+        SET "sourceId" = "financialTransferId"::text
+        WHERE "sourceType" = 'CASH_DRAWER_TRANSFER'
+          AND "sourceId" IS NULL
+          AND "financialTransferId" IS NOT NULL`);
     }, { timeout: 10_000 });
   } catch {
     throw new Error("تعذر تجهيز الدرج النقدي. يرجى المحاولة مجدداً.");
@@ -90,17 +167,27 @@ async function ensureDrawer(shopId: string) {
   return rows[0];
 }
 
-export async function getSnapshot(shopId: string, limit = 30) {
-  const drawer = await ensureDrawer(shopId);
-  const movements = await prisma.$queryRaw<CashDrawerMovementRow[]>`
-    SELECT m."id", m."type", m."direction", m."amount", m."description", m."reference", m."walletId",
-      w."name" AS "walletName", m."createdAt"
+async function listMovements(shopId: string, drawerId: string, limit: number, includeVoided: boolean) {
+  return prisma.$queryRaw<CashDrawerMovementRow[]>(Prisma.sql`
+    SELECT m."id", m."type", m."direction", m."amount", m."description", m."reference",
+      COALESCE(m."sourceType", 'MANUAL') AS "sourceType", m."sourceId", m."sourceReference",
+      m."customerId", c."name" AS "customerName", c."phone" AS "customerPhone",
+      m."walletId", w."name" AS "walletName", m."financialTransferId",
+      m."createdByUserId", u."name" AS "createdByName", m."status", m."createdAt", m."voidedAt"
     FROM "CashDrawerMovement" m
     LEFT JOIN "FinancialWallet" w ON w."id" = m."walletId"
-    WHERE m."shopId" = ${shopId}::uuid AND m."drawerId" = ${drawer.id}::uuid AND m."status" = 'ACTIVE'
+    LEFT JOIN "Customer" c ON c."id" = m."customerId"
+    LEFT JOIN "User" u ON u."id" = m."createdByUserId"
+    WHERE m."shopId" = ${shopId}::uuid AND m."drawerId" = ${drawerId}::uuid
+      ${includeVoided ? Prisma.empty : Prisma.sql`AND m."status" = 'ACTIVE'`}
     ORDER BY m."createdAt" DESC
-    LIMIT ${Math.max(1, Math.min(limit, 100))}
-  `;
+    LIMIT ${Math.max(1, Math.min(limit, 250))}
+  `);
+}
+
+export async function getSnapshot(shopId: string, limit = 30) {
+  const drawer = await ensureDrawer(shopId);
+  const movements = await listMovements(shopId, drawer.id, limit, false);
   const today = await prisma.$queryRaw<Array<{ inflow: Prisma.Decimal; outflow: Prisma.Decimal }>>`
     SELECT
       COALESCE(SUM("amount") FILTER (WHERE "direction" = 'IN' AND "type" <> 'OPENING_BALANCE'), 0) AS "inflow",
@@ -120,6 +207,46 @@ export async function getSnapshot(shopId: string, limit = 30) {
   };
 }
 
+export async function getAuditSnapshot(shopId: string, limit = 150) {
+  const drawer = await ensureDrawer(shopId);
+  const movements = await listMovements(shopId, drawer.id, limit, true);
+  const today = await prisma.$queryRaw<Array<{ inflow: Prisma.Decimal; outflow: Prisma.Decimal }>>`
+    SELECT
+      COALESCE(SUM("amount") FILTER (WHERE "direction" = 'IN' AND "type" <> 'OPENING_BALANCE'), 0) AS "inflow",
+      COALESCE(SUM("amount") FILTER (WHERE "direction" = 'OUT'), 0) AS "outflow"
+    FROM "CashDrawerMovement"
+    WHERE "shopId" = ${shopId}::uuid AND "drawerId" = ${drawer.id}::uuid AND "status" = 'ACTIVE'
+      AND "createdAt" >= date_trunc('day', NOW()) AND "createdAt" < date_trunc('day', NOW()) + interval '1 day'
+  `;
+  return {
+    id: drawer.id,
+    currentBalance: Number(drawer.currentBalance),
+    openingBalance: Number(drawer.openingBalance),
+    openingBalanceSetAt: drawer.openingBalanceSetAt,
+    todayIn: Number(today[0]?.inflow ?? 0),
+    todayOut: Number(today[0]?.outflow ?? 0),
+    movements,
+  };
+}
+
+export async function getMovementById(shopId: string, movementId: string) {
+  await ensureTables();
+  const rows = await prisma.$queryRaw<CashDrawerMovementRow[]>`
+    SELECT m."id", m."type", m."direction", m."amount", m."description", m."reference",
+      COALESCE(m."sourceType", 'MANUAL') AS "sourceType", m."sourceId", m."sourceReference",
+      m."customerId", c."name" AS "customerName", c."phone" AS "customerPhone",
+      m."walletId", w."name" AS "walletName", m."financialTransferId",
+      m."createdByUserId", u."name" AS "createdByName", m."status", m."createdAt", m."voidedAt"
+    FROM "CashDrawerMovement" m
+    LEFT JOIN "FinancialWallet" w ON w."id" = m."walletId"
+    LEFT JOIN "Customer" c ON c."id" = m."customerId"
+    LEFT JOIN "User" u ON u."id" = m."createdByUserId"
+    WHERE m."shopId" = ${shopId}::uuid AND m."id" = ${movementId}::uuid
+    LIMIT 1
+  `;
+  return rows[0] ?? null;
+}
+
 export async function setOpeningBalance(shopId: string, userId: string | null, value: string, notes?: string) {
   const amount = decimal(value);
   if (amount.lt(0)) throw new Error("الرصيد الافتتاحي لا يمكن أن يكون سالباً.");
@@ -137,8 +264,8 @@ export async function setOpeningBalance(shopId: string, userId: string | null, v
     `;
     if (amount.gt(0)) {
       await tx.$executeRaw`
-        INSERT INTO "CashDrawerMovement" ("shopId", "drawerId", "createdByUserId", "type", "direction", "amount", "description")
-        VALUES (${shopId}::uuid, ${drawer.id}::uuid, ${userId}::uuid, 'OPENING_BALANCE', 'IN', ${amount}, ${nullableText(notes) || "الرصيد الافتتاحي للدرج"})
+        INSERT INTO "CashDrawerMovement" ("shopId", "drawerId", "createdByUserId", "type", "direction", "amount", "description", "sourceType", "sourceReference")
+        VALUES (${shopId}::uuid, ${drawer.id}::uuid, ${userId}::uuid, 'OPENING_BALANCE', 'IN', ${amount}, ${nullableText(notes) || "الرصيد الافتتاحي للدرج"}, 'MANUAL', 'الرصيد الافتتاحي')
       `;
     }
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 10_000 });
@@ -164,8 +291,8 @@ export async function addManualMovement(
     if (next.lt(0)) throw new Error("رصيد الدرج غير كافٍ.");
     await tx.$executeRaw`UPDATE "CashDrawer" SET "currentBalance" = ${next}, "updatedAt" = NOW() WHERE "id" = ${locked.id}::uuid`;
     await tx.$executeRaw`
-      INSERT INTO "CashDrawerMovement" ("shopId", "drawerId", "createdByUserId", "type", "direction", "amount", "description", "reference")
-      VALUES (${shopId}::uuid, ${locked.id}::uuid, ${userId}::uuid, ${input.direction === "IN" ? "MANUAL_IN" : "MANUAL_OUT"}, ${input.direction}, ${amount}, ${description}, ${nullableText(input.reference)})
+      INSERT INTO "CashDrawerMovement" ("shopId", "drawerId", "createdByUserId", "type", "direction", "amount", "description", "reference", "sourceType", "sourceReference")
+      VALUES (${shopId}::uuid, ${locked.id}::uuid, ${userId}::uuid, ${input.direction === "IN" ? "MANUAL_IN" : "MANUAL_OUT"}, ${input.direction}, ${amount}, ${description}, ${nullableText(input.reference)}, 'MANUAL', ${nullableText(input.reference)})
     `;
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 10_000 });
 }
@@ -202,17 +329,18 @@ export async function transferWithWallet(
     await tx.$executeRaw`UPDATE "FinancialWallet" SET "currentBalance" = ${nextWallet}, "updatedAt" = NOW() WHERE "id" = ${wallet.id}::uuid`;
 
     const transferRows = await tx.$queryRaw<Array<{ id: string }>>`
-      INSERT INTO "FinancialTransfer" ("shopId", "walletId", "createdByUserId", "operationType", "amount", "walletAmount", "commission", "commissionMode", "isDeferred", "notes")
-      VALUES (${shopId}::uuid, ${wallet.id}::uuid, ${userId}::uuid, ${drawerToWallet ? "WALLET_TOPUP" : "WALLET_WITHDRAWAL"}, ${amount}, ${amount}, 0, 'NONE', FALSE, ${nullableText(input.notes) || (drawerToWallet ? "تحويل من الدرج النقدي" : "تحويل إلى الدرج النقدي")})
+      INSERT INTO "FinancialTransfer" ("shopId", "walletId", "createdByUserId", "operationType", "amount", "walletAmount", "commission", "commissionMode", "isDeferred", "notes", "sourceType", "sourceReference")
+      VALUES (${shopId}::uuid, ${wallet.id}::uuid, ${userId}::uuid, ${drawerToWallet ? "WALLET_TOPUP" : "WALLET_WITHDRAWAL"}, ${amount}, ${amount}, 0, 'NONE', FALSE, ${nullableText(input.notes) || (drawerToWallet ? "تحويل من الدرج النقدي" : "تحويل إلى الدرج النقدي")}, 'CASH_DRAWER_TRANSFER', 'الدرج النقدي')
       RETURNING "id"
     `;
     const financialTransferId = transferRows[0]?.id ?? null;
 
     await tx.$executeRaw`
-      INSERT INTO "CashDrawerMovement" ("shopId", "drawerId", "createdByUserId", "type", "direction", "amount", "description", "walletId", "financialTransferId")
+      INSERT INTO "CashDrawerMovement" ("shopId", "drawerId", "createdByUserId", "type", "direction", "amount", "description", "walletId", "financialTransferId", "sourceType", "sourceId", "sourceReference")
       VALUES (${shopId}::uuid, ${lockedDrawer.id}::uuid, ${userId}::uuid,
         ${drawerToWallet ? "WALLET_TRANSFER_OUT" : "WALLET_TRANSFER_IN"}, ${drawerToWallet ? "OUT" : "IN"}, ${amount},
-        ${drawerToWallet ? `تحويل إلى ${wallet.name}` : `تحويل من ${wallet.name}`}, ${wallet.id}::uuid, ${financialTransferId}::uuid)
+        ${drawerToWallet ? `تحويل إلى ${wallet.name}` : `تحويل من ${wallet.name}`}, ${wallet.id}::uuid, ${financialTransferId}::uuid,
+        'CASH_DRAWER_TRANSFER', ${financialTransferId}, ${wallet.name})
     `;
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 10_000 });
 }
@@ -239,6 +367,8 @@ export async function getReportSnapshot(shopId: string, start: Date, end: Date) 
 
 export const cashDrawerService = {
   getSnapshot,
+  getAuditSnapshot,
+  getMovementById,
   setOpeningBalance,
   addManualMovement,
   transferWithWallet,

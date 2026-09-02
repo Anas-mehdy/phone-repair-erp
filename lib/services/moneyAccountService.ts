@@ -43,7 +43,17 @@ export async function applyIncomingMoneyTx(
     const drawer = rows[0]; if (!drawer) throw new Error("الدرج النقدي غير موجود.");
     const next = drawer.currentBalance.add(amount);
     await tx.$executeRaw`UPDATE "CashDrawer" SET "currentBalance" = ${next}, "updatedAt" = NOW() WHERE "id" = ${drawer.id}::uuid`;
-    await tx.$executeRaw`INSERT INTO "CashDrawerMovement" ("shopId", "drawerId", "createdByUserId", "type", "direction", "amount", "description", "reference") VALUES (${shopId}::uuid, ${drawer.id}::uuid, ${userId}::uuid, ${input.drawerType}, 'IN', ${amount}, ${input.description}, ${input.reference ?? input.source?.sourceReference ?? null})`;
+    await tx.$executeRaw`
+      INSERT INTO "CashDrawerMovement" (
+        "shopId", "drawerId", "createdByUserId", "type", "direction", "amount", "description", "reference",
+        "sourceType", "sourceId", "sourceReference", "customerId"
+      ) VALUES (
+        ${shopId}::uuid, ${drawer.id}::uuid, ${userId}::uuid, ${input.drawerType}, 'IN', ${amount}, ${input.description},
+        ${input.reference ?? input.source?.sourceReference ?? null}, ${input.source?.sourceType ?? "MANUAL"},
+        ${input.source?.sourceId ?? null}, ${input.source?.sourceReference ?? input.reference ?? null},
+        ${input.source?.customerId ?? null}::uuid
+      )
+    `;
     return "الدرج النقدي";
   }
   if (!input.walletId) throw new Error("اختر المحفظة التي استلمت المبلغ.");
@@ -85,7 +95,17 @@ export async function applyOutgoingMoneyTx(
     const drawer = rows[0]; if (!drawer) throw new Error("الدرج النقدي غير موجود.");
     const next = drawer.currentBalance.sub(amount); if (next.lt(0)) throw new Error("رصيد الدرج غير كافٍ لإرجاع الباقي.");
     await tx.$executeRaw`UPDATE "CashDrawer" SET "currentBalance" = ${next}, "updatedAt" = NOW() WHERE "id" = ${drawer.id}::uuid`;
-    await tx.$executeRaw`INSERT INTO "CashDrawerMovement" ("shopId", "drawerId", "createdByUserId", "type", "direction", "amount", "description", "reference") VALUES (${shopId}::uuid, ${drawer.id}::uuid, ${userId}::uuid, 'CHANGE_RETURN', 'OUT', ${amount}, ${input.description}, ${input.reference ?? input.source?.sourceReference ?? null})`;
+    await tx.$executeRaw`
+      INSERT INTO "CashDrawerMovement" (
+        "shopId", "drawerId", "createdByUserId", "type", "direction", "amount", "description", "reference",
+        "sourceType", "sourceId", "sourceReference", "customerId"
+      ) VALUES (
+        ${shopId}::uuid, ${drawer.id}::uuid, ${userId}::uuid, 'CHANGE_RETURN', 'OUT', ${amount}, ${input.description},
+        ${input.reference ?? input.source?.sourceReference ?? null}, ${input.source?.sourceType ?? "SALE_CHANGE"},
+        ${input.source?.sourceId ?? null}, ${input.source?.sourceReference ?? input.reference ?? null},
+        ${input.source?.customerId ?? null}::uuid
+      )
+    `;
     return;
   }
   if (!input.walletId) throw new Error("اختر محفظة إرجاع الباقي.");
