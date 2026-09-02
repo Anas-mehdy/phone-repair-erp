@@ -1,0 +1,62 @@
+/* Masar invoices finishing layer: mobile, actions, empty states and readable microcopy. */
+
+.invoices-workspace .lg\:grid-cols-\[1fr_340px\] h3 { font-size: 16px !important; line-height: 1.45; font-weight: 900 !important; }
+.invoices-workspace .lg\:grid-cols-\[1fr_340px\] p[class*="text-[10px]"],
+.invoices-workspace .lg\:grid-cols-\[1fr_340px\] span[class*="text-[10px]"],
+.invoices-workspace .lg\:grid-cols-\[1fr_340px\] button[class*="text-[10px]"] { font-size: 12px !important; line-height: 1.55; }
+.invoices-workspace .lg\:grid-cols-\[1fr_340px\] p[class*="text-xs"],
+.invoices-workspace .lg\:grid-cols-\[1fr_340px\] label span[class*="text-xs"] { font-size: 13px !important; line-height: 1.55; }
+
+.invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:first-child > .erp-section:nth-child(2) > p {
+  margin: 8px 0 0; border: 1px dashed rgba(110,231,183,.8); border-radius: 16px;
+  background: rgba(236,253,245,.7); color: #64748b !important; font-size: 14px !important; line-height: 1.7;
+}
+
+.invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:last-child > .erp-section a,
+.invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:last-child > .erp-section button { min-height: 44px; font-size: 13px !important; line-height: 1.4; }
+.invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:last-child > .erp-section a[href*="/installments"] {
+  border-color: rgba(165,243,252,.95) !important; background: linear-gradient(135deg,#ecfeff,#f0fdfa) !important; color: #0f766e !important;
+}
+.invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:last-child > .erp-section a[href*="/print"] {
+  border-color: rgba(199,210,254,.92) !important; background: linear-gradient(135deg,#eef2ff,#fff) !important; color: #4338ca !important;
+}
+.invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:last-child > .erp-section a[href*="wa.me"],
+.invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:last-child > .erp-section a[href*="whatsapp"] {
+  border-color: rgba(167,243,208,.94) !important; background: linear-gradient(135deg,#ecfdf5,#fff) !important; color: #047857 !important;
+}
+.invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:last-child > .erp-section button:disabled,
+.invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:last-child > form.erp-section button:disabled { opacity: .55; box-shadow: none !important; cursor: not-allowed; }
+
+.invoices-workspace .lg\:grid-cols-\[1fr_340px\] input:disabled,
+.invoices-workspace .lg\:grid-cols-\[1fr_340px\] select:disabled,
+.invoices-workspace .lg\:grid-cols-\[1fr_340px\] textarea:disabled { background: #f8fafc !important; color: #64748b !important; border-color: #e2e8f0 !important; }
+
+.invoices-workspace > div > section[class*="border-amber-200"] p,
+.invoices-workspace > div > section[class*="border-amber-200"] span { line-height: 1.6; }
+.invoices-workspace > div > section[class*="border-amber-200"] div[class*="text-[11px]"] { font-size: 12px !important; }
+
+@media (max-width: 767px) {
+  .invoices-workspace div[class*="rounded-3xl"]:has(h2[class*="font-numeric"]) { padding: 16px !important; border-radius: 20px !important; }
+  .invoices-workspace div[class*="rounded-3xl"]:has(h2[class*="font-numeric"]) > div { align-items: stretch !important; }
+  .invoices-workspace div[class*="rounded-3xl"]:has(h2[class*="font-numeric"]) > div > div:first-child { align-items: flex-start !important; }
+  .invoices-workspace div[class*="rounded-3xl"] h2[class*="font-numeric"] { font-size: 23px !important; overflow-wrap: anywhere; }
+  .invoices-workspace div[class*="rounded-3xl"]:has(h2[class*="font-numeric"]) > div > div:last-child { display: grid !important; grid-template-columns: 1fr !important; width: 100%; }
+  .invoices-workspace div[class*="rounded-3xl"]:has(h2[class*="font-numeric"]) > div > div:last-child a { width: 100%; min-height: 44px; }
+
+  .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:first-child > .erp-section:first-child { padding: 16px !important; }
+  .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:first-child > .erp-section:first-child > .grid > div { padding: 13px !important; }
+
+  .invoices-workspace table.erp-table.min-w-\[620px\] tbody tr { box-shadow: 0 12px 30px -26px rgba(5,150,105,.3); }
+  .invoices-workspace table.erp-table.min-w-\[620px\] tbody td:nth-child(6) {
+    grid-column: 1 / -1; border-top: 1px solid rgba(167,243,208,.55) !important; background: rgba(248,250,252,.66);
+  }
+
+  .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:last-child { gap: 14px !important; }
+  .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:last-child > form.erp-section,
+  .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:last-child > .erp-section { border-radius: 18px !important; }
+
+  .invoices-workspace > div > section[class*="border-amber-200"] { padding: 15px !important; }
+  .invoices-workspace > div > section[class*="border-amber-200"] form,
+  .invoices-workspace > div > section[class*="border-amber-200"] form > div { width: 100% !important; }
+  .invoices-workspace > div > section[class*="border-amber-200"] form button { width: 100%; min-height: 44px; }
+}
