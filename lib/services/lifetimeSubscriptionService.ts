@@ -158,8 +158,26 @@ export async function activateLifetimeSubscription(input: {
   if (!price) throw new Error("سعر مدى الحياة غير محدد لدولة هذا المتجر.");
 
   await prisma.$transaction(async (tx) => {
-    const subscription = await tx.subscription.findUnique({ where: { shopId: input.shopId }, select: { id: true } });
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`lifetime-subscription:${input.shopId}`}))`;
+
+    const subscription = await tx.subscription.findUnique({
+      where: { shopId: input.shopId },
+      select: { id: true, status: true, billingInterval: true },
+    });
     if (!subscription) throw new Error("لا يوجد سجل اشتراك لهذا المتجر.");
+
+    const activeRows = await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT l."id"
+      FROM "LifetimeSubscription" l
+      WHERE l."shopId" = ${input.shopId}::uuid
+        AND l."isActive" = TRUE
+        AND ${subscription.status}::text = 'ACTIVE'
+        AND ${subscription.billingInterval}::text IS NULL
+      LIMIT 1
+    `;
+    if (activeRows[0]) {
+      throw new Error("هذا المتجر مفعل بالفعل باشتراك مدى الحياة.");
+    }
 
     await tx.$executeRaw`
       INSERT INTO "LifetimeSubscription" (

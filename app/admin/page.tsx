@@ -12,27 +12,55 @@ import { AdminLifetimeActivation } from "./_admin-lifetime-activation";
 export const dynamic = "force-dynamic";
 
 export default async function SuperAdminDashboardPage() {
-  const [stats, shops, subscriptions, rawPrices, offer, lifetimeRows] = await Promise.all([
+  const [stats, shops, subscriptions, rawPrices, offer, lifetimeRows, lifetimePrices] = await Promise.all([
     adminService.getPlatformStats(),
     adminService.listAllShops(),
     subscriptionAdminService.listSubscriptionsForAdmin(),
     prisma.subscriptionPrice.findMany({ where: { plan: SubscriptionPlan.PROFESSIONAL }, orderBy: [{ countryCode: "asc" }, { billingInterval: "asc" }] }),
     subscriptionOfferService.getOfferSettings(),
     lifetimeSubscriptionService.listLifetimeSubscriptions(),
+    lifetimeSubscriptionService.listLifetimePrices(),
   ]);
 
-  const serializedPrices = rawPrices.map((p) => ({ id: p.id, countryCode: p.countryCode, plan: p.plan, billingInterval: p.billingInterval, currencyCode: p.currencyCode, amount: Number(p.amount) }));
+  const serializedPrices = [
+    ...rawPrices.map((p) => ({
+      id: p.id,
+      countryCode: p.countryCode,
+      plan: p.plan,
+      billingInterval: p.billingInterval,
+      currencyCode: p.currencyCode,
+      amount: Number(p.amount),
+    })),
+    ...lifetimePrices.map((p) => ({
+      id: p.id,
+      countryCode: p.countryCode,
+      plan: SubscriptionPlan.PROFESSIONAL,
+      billingInterval: "LIFETIME" as const,
+      currencyCode: p.currencyCode,
+      amount: Number(p.amount),
+    })),
+  ];
+
   const activeLifetimeShopIds = new Set(lifetimeRows.filter((row) => row.isActive).map((row) => row.shopId));
   const subscriptionsForAdmin = subscriptions.map((sub) =>
     activeLifetimeShopIds.has(sub.shopId) && sub.status === "ACTIVE" && sub.billingInterval === null
       ? { ...sub, effectiveStatus: sub.status }
       : sub,
   );
-  const lifetimeShops = subscriptions.map((sub) => ({ id: sub.shopId, name: sub.shop.name, countryCode: sub.shop.countryCode }));
+  const lifetimeShops = subscriptions
+    .filter((sub) => !activeLifetimeShopIds.has(sub.shopId))
+    .map((sub) => ({ id: sub.shopId, name: sub.shop.name, countryCode: sub.shop.countryCode }));
   const serializedLifetime = lifetimeRows.map((row) => ({
-    id: row.id, shopId: row.shopId, shopName: row.shopName, countryCode: row.countryCode,
-    activatedAt: row.activatedAt.toISOString(), pricePaid: row.pricePaid == null ? null : Number(row.pricePaid),
-    currencyCode: row.currencyCode, paymentMethod: row.paymentMethod, paymentReference: row.paymentReference, isActive: row.isActive,
+    id: row.id,
+    shopId: row.shopId,
+    shopName: row.shopName,
+    countryCode: row.countryCode,
+    activatedAt: row.activatedAt.toISOString(),
+    pricePaid: row.pricePaid == null ? null : Number(row.pricePaid),
+    currencyCode: row.currencyCode,
+    paymentMethod: row.paymentMethod,
+    paymentReference: row.paymentReference,
+    isActive: row.isActive,
   }));
 
   return <div className="space-y-8">
