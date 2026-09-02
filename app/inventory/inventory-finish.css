@@ -1,0 +1,152 @@
+/* Final inventory UX pass: mobile detail, movement cards, alerts and empty states. */
+.inventory-workspace [role="alert"],
+.inventory-workspace > div > div[class*="border-emerald-200"] {
+  border-radius: 16px !important;
+  font-size: 14px !important;
+  line-height: 1.65 !important;
+  box-shadow: 0 14px 34px -30px rgba(15,23,42,.24);
+}
+
+.inventory-workspace [role="alert"] {
+  border-color: rgba(254,205,211,.95) !important;
+  background: linear-gradient(145deg,#fff1f2,#fff) !important;
+}
+
+.inventory-workspace > div > div[class*="border-emerald-200"] {
+  border-color: rgba(167,243,208,.95) !important;
+  background: linear-gradient(145deg,#ecfdf5,#fff) !important;
+}
+
+.inventory-workspace [class*="border-dashed"] {
+  border-radius: 20px !important;
+  border-color: rgba(153,246,228,.9) !important;
+  background: linear-gradient(145deg,rgba(240,253,250,.8),#fff) !important;
+}
+
+.inventory-workspace details summary {
+  font-size: 13px !important;
+  line-height: 1.5;
+}
+
+.inventory-workspace details[open] {
+  background: rgba(255,255,255,.94);
+}
+
+.inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:first-child > .erp-section:first-child .grid > div p:first-child {
+  font-size: 12px !important;
+  color: #64748b !important;
+}
+
+.inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:first-child > .erp-section:first-child .grid > div > div {
+  font-size: 16px !important;
+}
+
+@media (max-width: 767px) {
+  /* Detail hero */
+  .inventory-workspace > div > div[class*="rounded-3xl"][class*="bg-white"] {
+    padding: 16px !important;
+    border-radius: 18px !important;
+  }
+
+  .inventory-workspace > div > div[class*="rounded-3xl"][class*="bg-white"] h2 {
+    font-size: 22px !important;
+    line-height: 1.35 !important;
+  }
+
+  .inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:first-child > .erp-section:first-child > .grid {
+    grid-template-columns: repeat(2,minmax(0,1fr)) !important;
+  }
+
+  .inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:first-child > .erp-section:first-child > .grid > div {
+    min-height: 92px;
+    padding: 13px !important;
+  }
+
+  /* Movement history needs its own labels; do not inherit product-table semantics. */
+  .inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:first-child > .erp-section:last-child .overflow-x-auto {
+    overflow: visible !important;
+  }
+
+  .inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:first-child > .erp-section:last-child table.erp-table {
+    display: block;
+    width: 100%;
+    min-width: 0 !important;
+  }
+
+  .inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:first-child > .erp-section:last-child table.erp-table thead {
+    display: none;
+  }
+
+  .inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:first-child > .erp-section:last-child table.erp-table tbody {
+    display: grid;
+    gap: 12px;
+    padding: 0;
+  }
+
+  .inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:first-child > .erp-section:last-child table.erp-table tbody tr {
+    display: grid;
+    grid-template-columns: repeat(2,minmax(0,1fr));
+    overflow: hidden;
+    border: 1px solid rgba(165,243,252,.9);
+    border-radius: 16px;
+    background: linear-gradient(145deg,#ecfeff,#fff) !important;
+    box-shadow: 0 14px 34px -30px rgba(6,182,212,.35);
+  }
+
+  .inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:first-child > .erp-section:last-child table.erp-table tbody tr[class*="rose"] {
+    border-color: rgba(254,205,211,.95);
+    background: linear-gradient(145deg,#fff1f2,#fff) !important;
+  }
+
+  .inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:first-child > .erp-section:last-child table.erp-table tbody td {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 4px;
+    padding: 11px 12px !important;
+    border: 0 !important;
+    text-align: right !important;
+    font-size: 14px !important;
+  }
+
+  .inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:first-child > .erp-section:last-child table.erp-table tbody td::before {
+    font-size: 11px;
+    font-weight: 900;
+    color: #94a3b8;
+  }
+
+  .inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:first-child > .erp-section:last-child table.erp-table tbody td:nth-child(1)::before { content: "نوع الحركة"; }
+  .inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:first-child > .erp-section:last-child table.erp-table tbody td:nth-child(2)::before { content: "التغير"; }
+  .inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:first-child > .erp-section:last-child table.erp-table tbody td:nth-child(3)::before { content: "الكمية بعد الحركة"; }
+  .inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:first-child > .erp-section:last-child table.erp-table tbody td:nth-child(4)::before { content: "المورد"; }
+  .inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:first-child > .erp-section:last-child table.erp-table tbody td:nth-child(5)::before { content: "الفاتورة"; }
+  .inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:first-child > .erp-section:last-child table.erp-table tbody td:nth-child(6)::before { content: "التكلفة الفعلية"; }
+  .inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:first-child > .erp-section:last-child table.erp-table tbody td:nth-child(7)::before { content: "الملاحظة"; }
+  .inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:first-child > .erp-section:last-child table.erp-table tbody td:nth-child(8)::before { content: "التاريخ"; }
+
+  .inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:first-child > .erp-section:last-child table.erp-table tbody td:nth-child(1),
+  .inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:first-child > .erp-section:last-child table.erp-table tbody td:nth-child(7),
+  .inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:first-child > .erp-section:last-child table.erp-table tbody td:nth-child(8) {
+    grid-column: 1 / -1;
+  }
+
+  .inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:first-child > .erp-section:last-child table.erp-table tbody td:nth-child(8) {
+    border-top: 1px solid rgba(207,250,254,.9) !important;
+    background: rgba(248,250,252,.72);
+  }
+
+  .inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:last-child > form,
+  .inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:last-child > div {
+    border-radius: 18px !important;
+  }
+
+  .inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:last-child button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 460px) {
+  .inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:first-child > .erp-section:first-child > .grid {
+    grid-template-columns: 1fr !important;
+  }
+}
