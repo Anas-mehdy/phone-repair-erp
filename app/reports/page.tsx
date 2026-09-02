@@ -1,6 +1,7 @@
 import { ExpenseCategory } from "@prisma/client";
 import {
   ArrowDownLeft,
+  ArrowLeftRight,
   ArrowUpRight,
   Banknote,
   Boxes,
@@ -20,6 +21,7 @@ import { can, requirePermission } from "@/lib/auth/context";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { getInventoryDamageReportSummary } from "@/lib/services/inventoryDamageReportService";
 import { reportService } from "@/lib/services/reportService";
+import { getTransferCommissionReportSummary } from "@/lib/services/transferCommissionReportService";
 import { createExpenseAction, deleteExpenseAction } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -99,21 +101,26 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   const params = await searchParams;
   const auth = await requirePermission("reports:read");
   const range = resolveRange(params);
-  const [report, damageSummary] = await Promise.all([
+  const [report, damageSummary, transferCommission] = await Promise.all([
     reportService.getFinancialReport(auth.shop.id, range),
     getInventoryDamageReportSummary(auth.shop.id, range.start, range.end),
+    getTransferCommissionReportSummary(auth.shop.id, range.start, range.end),
   ]);
   const currency = auth.shop.currency || "SAR";
   const canManageExpenses = can(auth, "expenses:manage");
   const maxMix = Math.max(...report.revenueMix.map((item) => item.value), 1);
   const maxSource = Math.max(...report.paymentSources.map((item) => item.value), 1);
+  const grossProfit = Math.round((report.metrics.grossProfit + transferCommission.totalProfit + Number.EPSILON) * 100) / 100;
+  const netProfit = Math.round((report.metrics.netProfit + transferCommission.totalProfit + Number.EPSILON) * 100) / 100;
+  const profitBase = report.metrics.netRevenueBeforeTax + transferCommission.totalProfit;
+  const profitMargin = profitBase > 0 ? Math.round(((netProfit / profitBase) * 100 + Number.EPSILON) * 100) / 100 : 0;
 
   return (
     <div className="space-y-7">
       <PageHeader
         eyebrow="المالية في صورة واضحة"
         title="التقارير والأرباح"
-        description="المبيعات والمقبوضات والمستحقات وتكلفة القطع والمصروفات، بدون احتساب الدفعة مرتين."
+        description="المبيعات والمقبوضات والمستحقات وتكلفة القطع والمصروفات وعمولات التحويلات، بدون احتساب المبلغ مرتين."
       />
 
       {(params.expenseSaved || params.expenseDeleted) && (
@@ -164,9 +171,10 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
         <MetricCard label="المتبقي عند العملاء" helper="فواتير وخطط هذه الفترة" value={formatCurrency(report.metrics.outstanding, currency)} icon={Wallet} tone="amber" />
         <MetricCard label="تكلفة القطع المستخدمة" helper="مخزون وقطع صيانة خارجية" value={formatCurrency(report.metrics.directCosts, currency)} icon={Boxes} tone="rose" />
         <MetricCard label="إجمالي التوالف" helper={`${damageSummary.movementCount} حركة تالف — لا تؤثر على الربح`} value={formatCurrency(damageSummary.totalValue, currency)} icon={Boxes} tone="rose" />
-        <MetricCard label="مجمل الربح" helper="قبل المصروفات والضريبة" value={formatCurrency(report.metrics.grossProfit, currency)} icon={TrendingUp} tone={report.metrics.grossProfit >= 0 ? "teal" : "rose"} />
+        <MetricCard label="ربح التحويلات" helper={`${transferCommission.operationCount} عملية بعمولة — دون أصل مبلغ التحويل`} value={formatCurrency(transferCommission.totalProfit, currency)} icon={ArrowLeftRight} tone="teal" />
+        <MetricCard label="مجمل الربح" helper="يشمل عمولات التحويلات وقبل المصروفات" value={formatCurrency(grossProfit, currency)} icon={TrendingUp} tone={grossProfit >= 0 ? "teal" : "rose"} />
         <MetricCard label="المصروفات" helper={`${report.counts.expenses} حركة مصروف`} value={formatCurrency(report.metrics.expenseTotal, currency)} icon={ArrowDownLeft} tone="orange" />
-        <MetricCard label="صافي الربح" helper={`هامش ${report.metrics.profitMargin.toFixed(1)}%`} value={formatCurrency(report.metrics.netProfit, currency)} icon={CircleDollarSign} tone={report.metrics.netProfit >= 0 ? "emerald" : "rose"} featured />
+        <MetricCard label="صافي الربح" helper={`هامش ${profitMargin.toFixed(1)}%`} value={formatCurrency(netProfit, currency)} icon={CircleDollarSign} tone={netProfit >= 0 ? "emerald" : "rose"} featured />
         <MetricCard label="قيمة المخزون الحالية" helper="بسعر التكلفة وليس البيع" value={formatCurrency(report.metrics.inventoryValue, currency)} icon={Landmark} tone="slate" />
       </section>
 
@@ -242,7 +250,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       </section>
 
       <div className="rounded-2xl border border-sky-200 bg-sky-50/70 p-4 text-[11px] font-bold leading-6 text-sky-900">
-        <strong>كيف نقرأ الأرقام؟</strong> المبيعات ليست هي المقبوضات. الربح يحسب من قيمة البيع قبل الضريبة ناقص تكلفة القطع، ثم تُطرح المصروفات للوصول إلى صافي الربح. مبيعات POS غير المفوترة تعتبر مقبوضة مباشرة، بينما الفواتير تعتمد على الدفعات المسجلة.
+        <strong>كيف نقرأ الأرقام؟</strong> المبيعات ليست هي المقبوضات. الربح يحسب من قيمة البيع قبل الضريبة ناقص تكلفة القطع، وتضاف إليه عمولات التحويلات كربح مستقل دون احتساب أصل مبلغ التحويل، ثم تُطرح المصروفات للوصول إلى صافي الربح. مبيعات POS غير المفوترة تعتبر مقبوضة مباشرة، بينما الفواتير تعتمد على الدفعات المسجلة.
       </div>
     </div>
   );
