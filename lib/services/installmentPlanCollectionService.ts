@@ -1,6 +1,5 @@
 import { randomBytes } from "node:crypto";
 import {
-  InstallmentFrequency,
   InstallmentPlanSource,
   InvoiceStatus,
   PaymentMethod,
@@ -179,6 +178,10 @@ export async function createPlan(
           reference: generatedPlanNumber,
           description: `دفعة أولى لخطة ${generatedPlanNumber} [INSTALLMENT-DOWN:${payment.id}]`,
           movementType: "INSTALLMENT_DOWN_PAYMENT",
+          sourceType: "INSTALLMENT_DOWN_PAYMENT",
+          sourceId: plan.id,
+          sourceReference: generatedPlanNumber,
+          customerId,
         },
       );
       if (trackedSourceName) {

@@ -124,6 +124,10 @@ export async function addPayment(
         description: `دفعة أقساط ${plan.planNumber} [INSTALLMENT-PAYMENT:${payment.id}]`,
         movementType: "INSTALLMENT_PAYMENT",
         occurredAt: actualPaidAt,
+        sourceType: "INSTALLMENT",
+        sourceId: plan.id,
+        sourceReference: plan.planNumber,
+        customerId: plan.customerId,
       },
     );
     const finalSourceName = trackedSourceName || paymentSourceName;

@@ -7,6 +7,16 @@ export type FinancialTransferType =
   | "WALLET_TOPUP"
   | "WALLET_WITHDRAWAL";
 export type CommissionMode = "DEDUCTED" | "ADDED" | "NONE";
+export type FinancialTransferSourceType =
+  | "CUSTOMER_TRANSFER"
+  | "MANUAL"
+  | "SALE"
+  | "SALE_CHANGE"
+  | "INVOICE"
+  | "INSTALLMENT"
+  | "INSTALLMENT_DOWN_PAYMENT"
+  | "DEBT"
+  | "CASH_DRAWER_TRANSFER";
 
 export type WalletRow = {
   id: string;
@@ -36,8 +46,16 @@ export type TransferRow = {
   debtEntryId: string | null;
   status: "ACTIVE" | "VOID";
   notes: string | null;
+  sourceType: FinancialTransferSourceType;
+  sourceId: string | null;
+  sourceReference: string | null;
   createdAt: Date;
   voidedAt: Date | null;
+};
+
+export type TransferDetailsRow = TransferRow & {
+  createdByName: string | null;
+  voidedByName: string | null;
 };
 
 export type TransferFilters = { walletId?: string; operationType?: FinancialTransferType; q?: string; from?: Date; to?: Date };
@@ -55,13 +73,32 @@ export type CreateTransferInput = {
   notes?: string;
 };
 
+type RawTransferRow = Omit<TransferRow, "sourceType"> & { sourceType: FinancialTransferSourceType | null };
+
 const TRANSFER_TYPES = new Set<FinancialTransferType>(["CUSTOMER_DEPOSIT", "CUSTOMER_WITHDRAWAL", "WALLET_TOPUP", "WALLET_WITHDRAWAL"]);
 const COMMISSION_MODES = new Set<CommissionMode>(["DEDUCTED", "ADDED", "NONE"]);
 let tablesReady: Promise<void> | null = null;
 
 function decimal(value: string | number | Prisma.Decimal | null | undefined) { return new Prisma.Decimal(String(value ?? 0).replace(",", ".")); }
-function nullableText(value?: string) { const text = value?.trim(); return text ? text : null; }
+function nullableText(value?: string | null) { const text = value?.trim(); return text ? text : null; }
 function normalizePhone(value?: string | null) { const text = value?.trim(); return text ? text.replace(/[^\d+]/g, "") : null; }
+
+export function inferTransferSourceType(operationType: FinancialTransferType, notes?: string | null): FinancialTransferSourceType {
+  const text = notes || "";
+  if (text.includes("إرجاع باقي للعميل من بيع")) return "SALE_CHANGE";
+  if (text.includes("تحصيل بيع")) return "SALE";
+  if (text.includes("تحصيل فاتورة")) return "INVOICE";
+  if (text.includes("دفعة أولى لخطة")) return "INSTALLMENT_DOWN_PAYMENT";
+  if (text.includes("دفعة أقساط")) return "INSTALLMENT";
+  if (text.includes("[DEBT-PAYMENT:")) return "DEBT";
+  if (text.includes("تحويل من الدرج النقدي") || text.includes("تحويل إلى الدرج النقدي")) return "CASH_DRAWER_TRANSFER";
+  if (operationType === "CUSTOMER_DEPOSIT" || operationType === "CUSTOMER_WITHDRAWAL") return "CUSTOMER_TRANSFER";
+  return "MANUAL";
+}
+
+function hydrateSource<T extends RawTransferRow>(row: T): Omit<T, "sourceType"> & { sourceType: FinancialTransferSourceType } {
+  return { ...row, sourceType: row.sourceType || inferTransferSourceType(row.operationType, row.notes) };
+}
 
 async function createTables() {
   try {
@@ -81,6 +118,7 @@ async function createTables() {
         "createdByUserId" UUID, "voidedByUserId" UUID, "operationType" TEXT NOT NULL, "amount" DECIMAL(14,2) NOT NULL,
         "walletAmount" DECIMAL(14,2), "commission" DECIMAL(14,2) NOT NULL DEFAULT 0, "commissionMode" TEXT NOT NULL DEFAULT 'ADDED',
         "isDeferred" BOOLEAN NOT NULL DEFAULT FALSE, "debtEntryId" UUID, "customerName" TEXT, "customerPhone" TEXT,
+        "sourceType" TEXT, "sourceId" TEXT, "sourceReference" TEXT,
         "status" TEXT NOT NULL DEFAULT 'ACTIVE', "notes" TEXT, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
         "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "voidedAt" TIMESTAMP(3), "deletedAt" TIMESTAMP(3)
       )`);
@@ -88,14 +126,30 @@ async function createTables() {
       await tx.$executeRawUnsafe(`ALTER TABLE "FinancialTransfer" ADD COLUMN IF NOT EXISTS "commissionMode" TEXT NOT NULL DEFAULT 'ADDED'`);
       await tx.$executeRawUnsafe(`ALTER TABLE "FinancialTransfer" ADD COLUMN IF NOT EXISTS "isDeferred" BOOLEAN NOT NULL DEFAULT FALSE`);
       await tx.$executeRawUnsafe(`ALTER TABLE "FinancialTransfer" ADD COLUMN IF NOT EXISTS "debtEntryId" UUID`);
+      await tx.$executeRawUnsafe(`ALTER TABLE "FinancialTransfer" ADD COLUMN IF NOT EXISTS "sourceType" TEXT`);
+      await tx.$executeRawUnsafe(`ALTER TABLE "FinancialTransfer" ADD COLUMN IF NOT EXISTS "sourceId" TEXT`);
+      await tx.$executeRawUnsafe(`ALTER TABLE "FinancialTransfer" ADD COLUMN IF NOT EXISTS "sourceReference" TEXT`);
       await tx.$executeRawUnsafe(`UPDATE "FinancialTransfer" SET "walletAmount" = "amount" WHERE "walletAmount" IS NULL`);
       await tx.$executeRawUnsafe(`ALTER TABLE "FinancialTransfer" ALTER COLUMN "walletAmount" SET NOT NULL`);
+
+      // Backfill movements created by the first cash-drawer rollout so existing preview data becomes traceable too.
+      await tx.$executeRawUnsafe(`UPDATE "FinancialTransfer" t SET "sourceType"='SALE', "sourceId"=s."id"::text, "sourceReference"=s."receiptNumber", "customerId"=COALESCE(t."customerId", s."customerId") FROM "Sale" s WHERE t."sourceType" IS NULL AND t."shopId"=s."shopId" AND t."notes" LIKE ('%تحصيل بيع ' || s."receiptNumber" || '%')`);
+      await tx.$executeRawUnsafe(`UPDATE "FinancialTransfer" t SET "sourceType"='SALE_CHANGE', "sourceId"=s."id"::text, "sourceReference"=s."receiptNumber", "customerId"=COALESCE(t."customerId", s."customerId") FROM "Sale" s WHERE t."sourceType" IS NULL AND t."shopId"=s."shopId" AND t."notes" LIKE ('%إرجاع باقي للعميل من بيع ' || s."receiptNumber" || '%')`);
+      await tx.$executeRawUnsafe(`UPDATE "FinancialTransfer" t SET "sourceType"='INVOICE', "sourceId"=i."id"::text, "sourceReference"=i."invoiceNumber", "customerId"=COALESCE(t."customerId", i."customerId") FROM "Invoice" i WHERE t."sourceType" IS NULL AND t."shopId"=i."shopId" AND t."notes" LIKE ('%تحصيل فاتورة ' || i."invoiceNumber" || '%')`);
+      await tx.$executeRawUnsafe(`UPDATE "FinancialTransfer" t SET "sourceType"='INSTALLMENT_DOWN_PAYMENT', "sourceId"=p."id"::text, "sourceReference"=p."planNumber", "customerId"=COALESCE(t."customerId", p."customerId") FROM "InstallmentPlan" p WHERE t."sourceType" IS NULL AND t."shopId"=p."shopId" AND t."notes" LIKE ('%دفعة أولى لخطة ' || p."planNumber" || '%')`);
+      await tx.$executeRawUnsafe(`UPDATE "FinancialTransfer" t SET "sourceType"='INSTALLMENT', "sourceId"=p."id"::text, "sourceReference"=p."planNumber", "customerId"=COALESCE(t."customerId", p."customerId") FROM "InstallmentPlan" p WHERE t."sourceType" IS NULL AND t."shopId"=p."shopId" AND t."notes" LIKE ('%دفعة أقساط ' || p."planNumber" || '%')`);
+      await tx.$executeRawUnsafe(`UPDATE "FinancialTransfer" t SET "sourceType"='DEBT', "sourceId"=e."id"::text, "sourceReference"=COALESCE(e."reference", 'دفتر الدين'), "customerId"=COALESCE(t."customerId", e."customerId") FROM "DebtLedgerEntry" e WHERE t."sourceType" IS NULL AND t."shopId"=e."shopId" AND t."notes" LIKE ('%[DEBT-PAYMENT:' || e."id"::text || ']%')`);
+      await tx.$executeRawUnsafe(`UPDATE "FinancialTransfer" SET "sourceType"='CASH_DRAWER_TRANSFER', "sourceReference"=COALESCE("sourceReference", "notes") WHERE "sourceType" IS NULL AND ("notes" LIKE '%تحويل من الدرج النقدي%' OR "notes" LIKE '%تحويل إلى الدرج النقدي%')`);
+      await tx.$executeRawUnsafe(`UPDATE "FinancialTransfer" SET "sourceType"='CUSTOMER_TRANSFER' WHERE "sourceType" IS NULL AND "operationType" IN ('CUSTOMER_DEPOSIT','CUSTOMER_WITHDRAWAL')`);
+      await tx.$executeRawUnsafe(`UPDATE "FinancialTransfer" SET "sourceType"='MANUAL' WHERE "sourceType" IS NULL`);
+
       await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "FinancialTransfer_shopId_createdAt_idx" ON "FinancialTransfer"("shopId", "createdAt")`);
       await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "FinancialTransfer_walletId_createdAt_idx" ON "FinancialTransfer"("walletId", "createdAt")`);
       await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "FinancialTransfer_shopId_status_idx" ON "FinancialTransfer"("shopId", "status")`);
+      await tx.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "FinancialTransfer_shopId_sourceType_idx" ON "FinancialTransfer"("shopId", "sourceType")`);
     }, { timeout: 10_000 });
   } catch {
-    throw new Error("تعذر تجهيز قسم التحويلات والمحافظ. يرجى تطبيق تحديث قاعدة البيانات ثم المحاولة مجدداً.");
+    throw new Error("تعذر تجهيز قسم التحويلات والمحافظ. يرجى المحاولة مجدداً.");
   }
 }
 
@@ -141,16 +195,35 @@ export async function listTransfers(shopId: string, filters: TransferFilters = {
   if (filters.to) conditions.push(Prisma.sql`t."createdAt" < ${filters.to}`);
   if (filters.q?.trim()) {
     const pattern = `%${filters.q.trim()}%`;
-    conditions.push(Prisma.sql`(COALESCE(t."customerName", '') ILIKE ${pattern} OR COALESCE(t."customerPhone", '') ILIKE ${pattern} OR t."id"::text ILIKE ${pattern} OR w."name" ILIKE ${pattern})`);
+    conditions.push(Prisma.sql`(COALESCE(t."customerName", '') ILIKE ${pattern} OR COALESCE(t."customerPhone", '') ILIKE ${pattern} OR COALESCE(t."sourceReference", '') ILIKE ${pattern} OR COALESCE(t."notes", '') ILIKE ${pattern} OR t."id"::text ILIKE ${pattern} OR w."name" ILIKE ${pattern})`);
   }
-  return prisma.$queryRaw<TransferRow[]>(Prisma.sql`
+  const rows = await prisma.$queryRaw<RawTransferRow[]>(Prisma.sql`
     SELECT t."id", t."walletId", w."name" AS "walletName", t."customerId", COALESCE(c."name", t."customerName") AS "customerName",
       COALESCE(c."phone", t."customerPhone") AS "customerPhone", t."operationType", t."amount", t."walletAmount", t."commission", t."commissionMode",
-      t."isDeferred", t."debtEntryId", t."status", t."notes", t."createdAt", t."voidedAt"
+      t."isDeferred", t."debtEntryId", t."status", t."notes", t."sourceType", t."sourceId", t."sourceReference", t."createdAt", t."voidedAt"
     FROM "FinancialTransfer" t JOIN "FinancialWallet" w ON w."id" = t."walletId"
     LEFT JOIN "Customer" c ON c."id" = t."customerId" AND c."deletedAt" IS NULL
     WHERE ${Prisma.join(conditions, " AND ")} ORDER BY t."createdAt" DESC LIMIT 200
   `);
+  return rows.map(hydrateSource);
+}
+
+export async function getTransferById(shopId: string, id: string) {
+  await ensureTables();
+  const rows = await prisma.$queryRaw<Array<RawTransferRow & { createdByName: string | null; voidedByName: string | null }>>`
+    SELECT t."id", t."walletId", w."name" AS "walletName", t."customerId", COALESCE(c."name", t."customerName") AS "customerName",
+      COALESCE(c."phone", t."customerPhone") AS "customerPhone", t."operationType", t."amount", t."walletAmount", t."commission", t."commissionMode",
+      t."isDeferred", t."debtEntryId", t."status", t."notes", t."sourceType", t."sourceId", t."sourceReference", t."createdAt", t."voidedAt",
+      creator."name" AS "createdByName", voider."name" AS "voidedByName"
+    FROM "FinancialTransfer" t
+    JOIN "FinancialWallet" w ON w."id" = t."walletId"
+    LEFT JOIN "Customer" c ON c."id" = t."customerId" AND c."deletedAt" IS NULL
+    LEFT JOIN "User" creator ON creator."id" = t."createdByUserId"
+    LEFT JOIN "User" voider ON voider."id" = t."voidedByUserId"
+    WHERE t."id" = ${id}::uuid AND t."shopId" = ${shopId}::uuid AND t."deletedAt" IS NULL
+    LIMIT 1
+  `;
+  return rows[0] ? hydrateSource(rows[0]) as TransferDetailsRow : null;
 }
 
 export async function createWallet(shopId: string, input: CreateWalletInput) {
@@ -236,9 +309,10 @@ export async function createTransfer(shopId: string, userId: string | null, inpu
     const newBalance = decimal(wallet.currentBalance).plus(balanceDelta(input.operationType, walletAmount));
     if (newBalance.lt(0)) throw new Error("رصيد المحفظة غير كافٍ لتنفيذ العملية.");
     await tx.$executeRaw`UPDATE "FinancialWallet" SET "currentBalance" = ${newBalance}, "updatedAt" = NOW() WHERE "id" = ${wallet.id}::uuid AND "shopId" = ${shopId}::uuid`;
+    const sourceType: FinancialTransferSourceType = isCustomerOperation ? "CUSTOMER_TRANSFER" : "MANUAL";
     const rows = await tx.$queryRaw<Array<{ id: string }>>`
-      INSERT INTO "FinancialTransfer" ("shopId", "walletId", "customerId", "createdByUserId", "operationType", "amount", "walletAmount", "commission", "commissionMode", "isDeferred", "customerName", "customerPhone", "notes")
-      VALUES (${shopId}::uuid, ${wallet.id}::uuid, ${customerId}::uuid, ${userId}::uuid, ${input.operationType}, ${amount}, ${walletAmount}, ${commission}, ${commissionMode}, ${Boolean(input.isDeferred)}, ${customerName}, ${customerPhone}, ${nullableText(input.notes)}) RETURNING "id"
+      INSERT INTO "FinancialTransfer" ("shopId", "walletId", "customerId", "createdByUserId", "operationType", "amount", "walletAmount", "commission", "commissionMode", "isDeferred", "customerName", "customerPhone", "notes", "sourceType")
+      VALUES (${shopId}::uuid, ${wallet.id}::uuid, ${customerId}::uuid, ${userId}::uuid, ${input.operationType}, ${amount}, ${walletAmount}, ${commission}, ${commissionMode}, ${Boolean(input.isDeferred)}, ${customerName}, ${customerPhone}, ${nullableText(input.notes)}, ${sourceType}) RETURNING "id"
     `;
     const transfer = rows[0];
     if (!transfer) throw new Error("تعذر تسجيل العملية.");
@@ -253,13 +327,17 @@ export async function createTransfer(shopId: string, userId: string | null, inpu
 export async function voidTransfer(shopId: string, id: string, userId: string | null) {
   await ensureTables();
   return prisma.$transaction(async (tx) => {
-    const rows = await tx.$queryRaw<Array<{ id: string; walletId: string; customerId: string | null; operationType: FinancialTransferType; walletAmount: Prisma.Decimal; status: "ACTIVE" | "VOID"; debtEntryId: string | null }>>`
-      SELECT "id", "walletId", "customerId", "operationType", "walletAmount", "status", "debtEntryId" FROM "FinancialTransfer"
+    const rows = await tx.$queryRaw<Array<{ id: string; walletId: string; customerId: string | null; operationType: FinancialTransferType; walletAmount: Prisma.Decimal; status: "ACTIVE" | "VOID"; debtEntryId: string | null; sourceType: FinancialTransferSourceType | null; notes: string | null }>>`
+      SELECT "id", "walletId", "customerId", "operationType", "walletAmount", "status", "debtEntryId", "sourceType", "notes" FROM "FinancialTransfer"
       WHERE "id" = ${id}::uuid AND "shopId" = ${shopId}::uuid AND "deletedAt" IS NULL FOR UPDATE
     `;
     const transfer = rows[0];
     if (!transfer) throw new Error("العملية غير موجودة.");
     if (transfer.status === "VOID") throw new Error("العملية ملغاة بالفعل.");
+    const sourceType = transfer.sourceType || inferTransferSourceType(transfer.operationType, transfer.notes);
+    if (sourceType !== "CUSTOMER_TRANSFER" && sourceType !== "MANUAL") {
+      throw new Error("هذه الحركة مرتبطة بعملية أصلية. افتح تفاصيل الحركة ثم اعكسها من المبيعة أو الفاتورة أو القسط أو الدرج المرتبط.");
+    }
     const walletRows = await tx.$queryRaw<Array<{ id: string; currentBalance: Prisma.Decimal }>>`
       SELECT "id", "currentBalance" FROM "FinancialWallet" WHERE "id" = ${transfer.walletId}::uuid AND "shopId" = ${shopId}::uuid AND "deletedAt" IS NULL FOR UPDATE
     `;
@@ -288,4 +366,4 @@ export async function voidTransfer(shopId: string, id: string, userId: string | 
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 10_000 });
 }
 
-export const financialTransferService = { listWallets, getStats, listTransfers, createWallet, createTransfer, voidTransfer };
+export const financialTransferService = { listWallets, getStats, listTransfers, getTransferById, createWallet, createTransfer, voidTransfer };

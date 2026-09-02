@@ -53,8 +53,9 @@ export async function createSale(shopId: string, createdByUserId: string | null,
       const saleItem = await tx.saleItem.create({ data: { shopId, saleId: sale.id, inventoryItemId, description, quantity: itemInput.quantity, unitPriceSnapshot, discountTotal: lineDiscount, lineTotal } });
       if (inventoryItem) { const quantityAfter = inventoryItem.quantity - itemInput.quantity; await tx.inventoryItem.update({ where: { id: inventoryItem.id }, data: { quantity: quantityAfter, version: { increment: 1 } } }); await tx.inventoryMovement.create({ data: { shopId, inventoryItemId: inventoryItem.id, saleId: sale.id, saleItemId: saleItem.id, createdByUserId, type: InventoryMovementType.SALE, quantityChange: -itemInput.quantity, quantityAfter, unitCostSnapshot: inventoryItem.unitCost, note: "بيع" } }); }
     }
-    await moneyAccountService.applyIncomingMoneyTx(tx, shopId, createdByUserId, { destination: paymentDestination, walletId: input.walletId, amount: amountReceived, reference: sale.receiptNumber, description: `تحصيل بيع ${sale.receiptNumber}`, drawerType: "SALE_CASH" });
-    if (changeAmount.gt(0)) await moneyAccountService.applyOutgoingMoneyTx(tx, shopId, createdByUserId, { destination: changeDestination, walletId: input.changeWalletId, amount: changeAmount, reference: sale.receiptNumber, description: `إرجاع باقي للعميل من بيع ${sale.receiptNumber}` });
+    const sourceBase = { sourceId: sale.id, sourceReference: sale.receiptNumber, customerId: customer?.id ?? null, customerName: customer?.name ?? null, customerPhone: customer?.phone ?? null };
+    await moneyAccountService.applyIncomingMoneyTx(tx, shopId, createdByUserId, { destination: paymentDestination, walletId: input.walletId, amount: amountReceived, reference: sale.receiptNumber, description: `تحصيل بيع ${sale.receiptNumber}`, drawerType: "SALE_CASH", source: { ...sourceBase, sourceType: "SALE" } });
+    if (changeAmount.gt(0)) await moneyAccountService.applyOutgoingMoneyTx(tx, shopId, createdByUserId, { destination: changeDestination, walletId: input.changeWalletId, amount: changeAmount, reference: sale.receiptNumber, description: `إرجاع باقي للعميل من بيع ${sale.receiptNumber}`, source: { ...sourceBase, sourceType: "SALE_CHANGE" } });
     return sale;
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 10_000 });
 }

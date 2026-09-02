@@ -68,6 +68,12 @@ export async function addPayment(shopId: string, invoiceId: string, createdByUse
       reference: input.reference,
       description: `تحصيل فاتورة ${invoice.invoiceNumber}`,
       drawerType: "INVOICE_PAYMENT",
+      source: {
+        sourceType: "INVOICE",
+        sourceId: invoice.id,
+        sourceReference: invoice.invoiceNumber,
+        customerId: invoice.customerId,
+      },
     });
     const sourceName = trackedSource || await resolvePaymentSource(tx, shopId, input);
 

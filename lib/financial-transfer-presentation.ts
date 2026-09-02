@@ -1,0 +1,46 @@
+import type {
+  FinancialTransferSourceType,
+  FinancialTransferType,
+  TransferRow,
+} from "@/lib/services/financialTransferService";
+
+export function transferSourceLabel(sourceType: FinancialTransferSourceType, operationType: FinancialTransferType) {
+  if (sourceType === "SALE") return "تحصيل مبيعة";
+  if (sourceType === "SALE_CHANGE") return "إرجاع باقي مبيعة";
+  if (sourceType === "INVOICE") return "تحصيل فاتورة";
+  if (sourceType === "INSTALLMENT") return "تحصيل قسط";
+  if (sourceType === "INSTALLMENT_DOWN_PAYMENT") return "دفعة أولى للأقساط";
+  if (sourceType === "DEBT") return "تحصيل دين";
+  if (sourceType === "CASH_DRAWER_TRANSFER") return operationType === "WALLET_TOPUP" ? "تحويل من الدرج" : "تحويل إلى الدرج";
+  if (sourceType === "CUSTOMER_TRANSFER") return operationType === "CUSTOMER_DEPOSIT" ? "إيداع للعميل" : "سحب للعميل";
+  return operationType === "WALLET_TOPUP" ? "شحن محفظة يدوي" : "سحب يدوي من المحفظة";
+}
+
+export function transferSourceHref(transfer: Pick<TransferRow, "sourceType" | "sourceId" | "customerId">) {
+  if (transfer.sourceType === "SALE" || transfer.sourceType === "SALE_CHANGE") return transfer.sourceId ? `/sales/${transfer.sourceId}` : null;
+  if (transfer.sourceType === "INVOICE") return transfer.sourceId ? `/invoices/${transfer.sourceId}` : null;
+  if (transfer.sourceType === "INSTALLMENT" || transfer.sourceType === "INSTALLMENT_DOWN_PAYMENT") return transfer.sourceId ? `/installments/${transfer.sourceId}` : null;
+  if (transfer.sourceType === "DEBT") return transfer.customerId ? `/debts/${transfer.customerId}` : null;
+  return null;
+}
+
+export function transferSourceLinkLabel(sourceType: FinancialTransferSourceType) {
+  if (sourceType === "SALE" || sourceType === "SALE_CHANGE") return "فتح المبيعة";
+  if (sourceType === "INVOICE") return "فتح الفاتورة";
+  if (sourceType === "INSTALLMENT" || sourceType === "INSTALLMENT_DOWN_PAYMENT") return "فتح خطة الأقساط";
+  if (sourceType === "DEBT") return "فتح دفتر الدين";
+  return "فتح المصدر";
+}
+
+export function transferCanVoid(sourceType: FinancialTransferSourceType) {
+  return sourceType === "CUSTOMER_TRANSFER" || sourceType === "MANUAL";
+}
+
+export function transferCustomerDisplayName(transfer: Pick<TransferRow, "customerName" | "notes" | "sourceType">) {
+  if (transfer.customerName) return transfer.customerName;
+  if (transfer.sourceType === "DEBT" && transfer.notes) {
+    const match = /تحصيل دين\s+(.+?)\s+\[DEBT-PAYMENT:/.exec(transfer.notes);
+    if (match?.[1]) return match[1].trim();
+  }
+  return "—";
+}

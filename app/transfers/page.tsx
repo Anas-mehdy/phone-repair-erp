@@ -1,10 +1,16 @@
-import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, CheckCircle2, Filter, Search, Sparkles, WalletCards } from "lucide-react";
+import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, CheckCircle2, Eye, Filter, Search, Sparkles, WalletCards } from "lucide-react";
+import Link from "next/link";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { Button } from "@/components/ui/button";
 import { getCurrentShopContext } from "@/lib/current-shop";
+import {
+  transferCanVoid,
+  transferCustomerDisplayName,
+  transferSourceLabel,
+} from "@/lib/financial-transfer-presentation";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
-import { financialTransferService, type FinancialTransferType } from "@/lib/services/financialTransferService";
+import { financialTransferService, type FinancialTransferSourceType, type FinancialTransferType } from "@/lib/services/financialTransferService";
 import { getTransferDailyData } from "@/lib/services/transferDailyStatsService";
 import { voidTransferAction } from "./actions";
 import { TransferStatsCards } from "./_transfer-stats-cards";
@@ -14,7 +20,7 @@ import { WalletsPanel } from "./_wallets-panel";
 export const dynamic = "force-dynamic";
 
 type SearchParams = { saved?: string; walletSaved?: string; walletUpdated?: string; voided?: string; error?: string; wallet?: string; type?: string; q?: string; from?: string; to?: string };
-const transferLabels: Record<FinancialTransferType, string> = { CUSTOMER_DEPOSIT: "إيداع للعميل", CUSTOMER_WITHDRAWAL: "سحب للعميل", WALLET_TOPUP: "شحن المحفظة", WALLET_WITHDRAWAL: "سحب من المحفظة" };
+const transferLabels: Record<FinancialTransferType, string> = { CUSTOMER_DEPOSIT: "إيداع للعميل", CUSTOMER_WITHDRAWAL: "سحب للعميل", WALLET_TOPUP: "زيادة رصيد المحفظة", WALLET_WITHDRAWAL: "نقص رصيد المحفظة" };
 const commissionLabels = { ADDED: "مضافة", DEDUCTED: "مخصومة", NONE: "بدون عمولة" } as const;
 function parseStartDate(value?: string) { if (!value) return undefined; const date = new Date(`${value}T00:00:00`); return Number.isNaN(date.getTime()) ? undefined : date; }
 function parseEndDate(value?: string) { if (!value) return undefined; const date = new Date(`${value}T00:00:00`); if (Number.isNaN(date.getTime())) return undefined; date.setDate(date.getDate() + 1); return date; }
@@ -46,7 +52,7 @@ export default async function TransfersPage({ searchParams }: { searchParams: Pr
           <div>
             <div className="flex flex-wrap items-center gap-2"><span className="rounded-full border border-teal-200 bg-white/80 px-2.5 py-1 text-[9px] font-black text-teal-700">المحافظ والأرصدة</span><span className="inline-flex items-center gap-1 text-[9px] font-bold text-slate-400"><Sparkles className="h-3 w-3 text-cyan-500" /> لوحة مالية موحدة</span></div>
             <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-950 sm:text-[28px]">التحويلات المالية</h1>
-            <p className="mt-1.5 max-w-2xl text-xs font-semibold leading-6 text-slate-500">تابع أرصدة محافظك، عمولات اليوم، إيداعات وسحوبات العملاء، وسجّل أي حركة مالية من مساحة واحدة مرتبة وواضحة.</p>
+            <p className="mt-1.5 max-w-2xl text-xs font-semibold leading-6 text-slate-500">تابع أرصدة محافظك ومصدر كل حركة، وافتح تفاصيلها أو العملية الأصلية المرتبطة بها عند الحاجة.</p>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-2 sm:flex lg:justify-end">
@@ -63,14 +69,14 @@ export default async function TransfersPage({ searchParams }: { searchParams: Pr
     <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
       <div className="min-w-0 overflow-hidden rounded-[22px] border border-slate-200/80 bg-white shadow-[0_18px_55px_-38px_rgba(15,23,42,0.28)]">
         <div className="flex flex-col gap-3 border-b border-slate-100 bg-gradient-to-l from-slate-50 via-white to-teal-50/40 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <div><h2 className="text-sm font-black text-slate-900">سجل التحويلات</h2><p className="mt-1 text-[10px] font-semibold text-slate-500">كل حركة محفوظة وقابلة للتتبع أو الإلغاء بعكس أثرها المالي.</p></div>
+          <div><h2 className="text-sm font-black text-slate-900">سجل التحويلات</h2><p className="mt-1 text-[10px] font-semibold text-slate-500">كل حركة مرتبطة بماهيتها الحقيقية ويمكن فتح تفاصيلها الكاملة.</p></div>
           <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[9px] font-black text-slate-500">{transfers.length} نتيجة</span>
         </div>
 
         <form method="get" className="border-b border-slate-100 bg-slate-50/45 p-4">
           <div className="mb-2 flex items-center gap-1.5 text-[9px] font-black text-slate-400"><Filter className="h-3.5 w-3.5 text-teal-600" /> تصفية السجل</div>
           <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-6">
-            <div className="relative md:col-span-2 xl:col-span-2"><Search className="absolute right-3 top-3.5 h-4 w-4 text-slate-400" /><input name="q" defaultValue={query.q} className={`${inputClass} pr-9`} placeholder="بحث بالعميل، الرقم أو المحفظة" /></div>
+            <div className="relative md:col-span-2 xl:col-span-2"><Search className="absolute right-3 top-3.5 h-4 w-4 text-slate-400" /><input name="q" defaultValue={query.q} className={`${inputClass} pr-9`} placeholder="بحث بالعميل، المرجع أو المحفظة" /></div>
             <select name="wallet" defaultValue={query.wallet ?? ""} className={inputClass}><option value="">كل المحافظ</option>{wallets.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select>
             <select name="type" defaultValue={query.type ?? ""} className={inputClass}><option value="">كل العمليات</option>{Object.entries(transferLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
             <input type="date" name="from" defaultValue={query.from} className={inputClass} />
@@ -79,17 +85,19 @@ export default async function TransfersPage({ searchParams }: { searchParams: Pr
           <div className="mt-2 flex justify-end"><Button type="submit" variant="outline" className="h-9 rounded-xl border-teal-200 bg-white px-4 text-[10px] font-black text-teal-700 hover:bg-teal-50">تطبيق الفلاتر</Button></div>
         </form>
 
-        {transfers.length === 0 ? <div className="flex min-h-52 flex-col items-center justify-center px-4 text-center"><span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-50 text-slate-400"><Search className="h-5 w-5" /></span><p className="mt-3 text-xs font-black text-slate-600">لا توجد عمليات ضمن النطاق الحالي</p><p className="mt-1 text-[10px] font-semibold text-slate-400">غيّر الفلاتر أو سجّل عملية جديدة.</p></div> : <div className="overflow-x-auto"><table className="min-w-[980px] w-full text-right text-xs"><thead className="bg-slate-50/80 text-[10px] font-black text-slate-500"><tr><th className="px-4 py-3">العملية</th><th className="px-4 py-3">المحفظة</th><th className="px-4 py-3">العميل</th><th className="px-4 py-3">المبلغ</th><th className="px-4 py-3">العمولة</th><th className="px-4 py-3">الدفع</th><th className="px-4 py-3">الحالة</th><th className="px-4 py-3">التاريخ</th><th className="px-4 py-3" /></tr></thead><tbody className="divide-y divide-slate-100">{transfers.map((transfer) => <tr key={transfer.id} className={`transition hover:bg-teal-50/25 ${transfer.status === "VOID" ? "opacity-50" : ""}`}>
-          <td className="px-4 py-3"><OperationBadge type={transfer.operationType} /></td>
+        {transfers.length === 0 ? <div className="flex min-h-52 flex-col items-center justify-center px-4 text-center"><span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-50 text-slate-400"><Search className="h-5 w-5" /></span><p className="mt-3 text-xs font-black text-slate-600">لا توجد عمليات ضمن النطاق الحالي</p><p className="mt-1 text-[10px] font-semibold text-slate-400">غيّر الفلاتر أو سجّل عملية جديدة.</p></div> : <div className="overflow-x-auto"><table className="min-w-[1120px] w-full text-right text-xs"><thead className="bg-slate-50/80 text-[10px] font-black text-slate-500"><tr><th className="px-4 py-3">ماهية الحركة</th><th className="px-4 py-3">المحفظة</th><th className="px-4 py-3">العميل</th><th className="px-4 py-3">المبلغ</th><th className="px-4 py-3">العمولة</th><th className="px-4 py-3">الدفع</th><th className="px-4 py-3">الحالة</th><th className="px-4 py-3">التاريخ</th><th className="px-4 py-3">الإجراءات</th></tr></thead><tbody className="divide-y divide-slate-100">{transfers.map((transfer) => {
+          const canVoid = transferCanVoid(transfer.sourceType);
+          return <tr key={transfer.id} className={`transition hover:bg-teal-50/25 ${transfer.status === "VOID" ? "opacity-50" : ""}`}>
+          <td className="px-4 py-3"><OperationBadge sourceType={transfer.sourceType} type={transfer.operationType} /><div className="mt-1 max-w-[190px] truncate font-numeric text-[9px] font-bold text-slate-400" title={transfer.sourceReference || transfer.notes || undefined}>{transfer.sourceReference || cleanMovementText(transfer.notes) || "—"}</div></td>
           <td className="px-4 py-3 font-bold text-slate-700">{transfer.walletName}</td>
-          <td className="px-4 py-3"><div className="font-bold text-slate-700">{transfer.customerName || "—"}</div><div className="font-numeric text-[9px] text-slate-400">{transfer.customerPhone || ""}</div></td>
+          <td className="px-4 py-3"><div className="font-bold text-slate-700">{transferCustomerDisplayName(transfer)}</div><div className="font-numeric text-[9px] text-slate-400">{transfer.customerPhone || ""}</div></td>
           <td className="px-4 py-3 font-numeric font-black text-slate-900">{formatCurrency(transfer.amount, currency)}</td>
           <td className="px-4 py-3"><div className="font-numeric font-black text-amber-700">{formatCurrency(transfer.commission, currency)}</div><div className="text-[9px] font-bold text-slate-400">{commissionLabels[transfer.commissionMode]}</div></td>
           <td className="px-4 py-3">{transfer.isDeferred ? <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-[9px] font-black text-amber-700">آجل — دفتر الديون</span> : <span className="text-[9px] font-bold text-slate-400">فوري</span>}</td>
           <td className="px-4 py-3">{transfer.status === "ACTIVE" ? <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[9px] font-black text-emerald-700"><CheckCircle2 className="h-3 w-3" /> فعالة</span> : <span className="rounded-full bg-rose-50 px-2 py-1 text-[9px] font-black text-rose-600">ملغاة</span>}</td>
           <td className="px-4 py-3 font-numeric text-[10px] font-bold text-slate-500">{formatDate(transfer.createdAt)}</td>
-          <td className="px-4 py-3">{transfer.status === "ACTIVE" ? <form action={voidTransferAction}><input type="hidden" name="id" value={transfer.id} /><ConfirmSubmitButton message="إلغاء العملية وعكس أثرها على الرصيد والدين المرتبط إن وجد؟" variant="ghost" size="sm" className="h-8 rounded-lg px-2 text-[9px] font-black text-rose-600 hover:bg-rose-50 hover:text-rose-700">إلغاء</ConfirmSubmitButton></form> : null}</td>
-        </tr>)}</tbody></table></div>}
+          <td className="px-4 py-3"><div className="flex items-center gap-1"><Button asChild variant="ghost" size="sm" className="h-8 rounded-lg px-2 text-[9px] font-black text-teal-700 hover:bg-teal-50"><Link href={`/transfers/${transfer.id}`}><Eye className="ml-1 h-3.5 w-3.5" />فتح التفاصيل</Link></Button>{transfer.status === "ACTIVE" && canVoid ? <form action={voidTransferAction}><input type="hidden" name="id" value={transfer.id} /><ConfirmSubmitButton message="إلغاء العملية وعكس أثرها على الرصيد والدين المرتبط إن وجد؟" variant="ghost" size="sm" className="h-8 rounded-lg px-2 text-[9px] font-black text-rose-600 hover:bg-rose-50 hover:text-rose-700">إلغاء</ConfirmSubmitButton></form> : null}</div></td>
+        </tr>})}</tbody></table></div>}
       </div>
 
       <aside className="h-fit overflow-hidden rounded-[22px] border border-teal-100 bg-white shadow-[0_20px_60px_-38px_rgba(13,148,136,0.38)] xl:sticky xl:top-24">
@@ -100,10 +108,16 @@ export default async function TransfersPage({ searchParams }: { searchParams: Pr
   </div>;
 }
 
-function OperationBadge({ type }: { type: FinancialTransferType }) {
-  const config = type === "CUSTOMER_DEPOSIT" ? { label: "إيداع للعميل", icon: ArrowDownLeft, cls: "border-cyan-100 bg-cyan-50 text-cyan-700" } : type === "CUSTOMER_WITHDRAWAL" ? { label: "سحب للعميل", icon: ArrowUpRight, cls: "border-indigo-100 bg-indigo-50 text-indigo-700" } : type === "WALLET_TOPUP" ? { label: "شحن المحفظة", icon: WalletCards, cls: "border-teal-100 bg-teal-50 text-teal-700" } : { label: "سحب من المحفظة", icon: ArrowLeftRight, cls: "border-slate-200 bg-slate-50 text-slate-600" };
+function OperationBadge({ sourceType, type }: { sourceType: FinancialTransferSourceType; type: FinancialTransferType }) {
+  const label = transferSourceLabel(sourceType, type);
+  const config = sourceType === "SALE" ? { icon: ArrowDownLeft, cls: "border-emerald-100 bg-emerald-50 text-emerald-700" } : sourceType === "SALE_CHANGE" ? { icon: ArrowUpRight, cls: "border-rose-100 bg-rose-50 text-rose-700" } : sourceType === "INVOICE" ? { icon: ArrowDownLeft, cls: "border-cyan-100 bg-cyan-50 text-cyan-700" } : sourceType === "INSTALLMENT" || sourceType === "INSTALLMENT_DOWN_PAYMENT" ? { icon: ArrowDownLeft, cls: "border-indigo-100 bg-indigo-50 text-indigo-700" } : sourceType === "DEBT" ? { icon: ArrowDownLeft, cls: "border-amber-100 bg-amber-50 text-amber-700" } : sourceType === "CASH_DRAWER_TRANSFER" ? { icon: ArrowLeftRight, cls: "border-violet-100 bg-violet-50 text-violet-700" } : type === "CUSTOMER_DEPOSIT" ? { icon: ArrowDownLeft, cls: "border-cyan-100 bg-cyan-50 text-cyan-700" } : type === "CUSTOMER_WITHDRAWAL" ? { icon: ArrowUpRight, cls: "border-indigo-100 bg-indigo-50 text-indigo-700" } : { icon: WalletCards, cls: "border-teal-100 bg-teal-50 text-teal-700" };
   const Icon = config.icon;
-  return <span className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-1.5 text-[9px] font-black ${config.cls}`}><Icon className="h-3 w-3" />{config.label}</span>;
+  return <span className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-1.5 text-[9px] font-black ${config.cls}`}><Icon className="h-3 w-3" />{label}</span>;
+}
+
+function cleanMovementText(notes: string | null) {
+  if (!notes) return "";
+  return notes.replace(/\s*\[(?:INSTALLMENT-PAYMENT|INSTALLMENT-DOWN|DEBT-PAYMENT):[0-9a-f-]+\]\s*/gi, "").trim();
 }
 
 function Feedback({ query }: { query: SearchParams }) {
