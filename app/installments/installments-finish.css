@@ -1,0 +1,173 @@
+/* Finishing layer for installment details/edit/mobile tables. */
+
+/* Edit page: supportive indigo surface, readable labels and locked notices. */
+.installments-workspace form.erp-section:has(input[name="planId"]):has(input[name="installmentCount"]) {
+  border-color: rgba(199,210,254,.94) !important;
+  background: radial-gradient(circle at 100% 0,rgba(6,182,212,.08),transparent 34%),linear-gradient(145deg,#eef2ff,#fff 52%,#f0fdfa) !important;
+  box-shadow: 0 20px 52px -40px rgba(79,70,229,.3) !important;
+}
+.installments-workspace form.erp-section:has(input[name="planId"]):has(input[name="installmentCount"]) label > span {
+  font-size: 14px !important;
+  line-height: 1.5;
+  font-weight: 900 !important;
+  color: #475569 !important;
+}
+.installments-workspace input[readonly],
+.installments-workspace select:disabled,
+.installments-workspace textarea:disabled {
+  background: #f8fafc !important;
+  color: #64748b !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Alerts use the same readable radius and hierarchy. */
+.installments-workspace [role="alert"],
+.installments-workspace div[class*="border-amber-200"][class*="bg-amber-50"],
+.installments-workspace div[class*="border-sky-200"][class*="bg-sky-50"],
+.installments-workspace div[class*="border-emerald-200"][class*="bg-emerald-50"] {
+  border-radius: 16px !important;
+  font-size: 14px !important;
+  line-height: 1.65 !important;
+  box-shadow: 0 14px 32px -28px rgba(15,23,42,.28);
+}
+
+/* Detail content surfaces: schedule cyan, payment history emerald. */
+.installments-workspace .xl\:grid-cols-\[1fr_340px\] > div:first-child > section:nth-child(1) {
+  border-color: rgba(165,243,252,.92) !important;
+  background: linear-gradient(145deg,#ecfeff,#fff 36%) !important;
+}
+.installments-workspace .xl\:grid-cols-\[1fr_340px\] > div:first-child > section:nth-child(2) {
+  border-color: rgba(167,243,208,.9) !important;
+  background: linear-gradient(145deg,#ecfdf5,#fff 38%) !important;
+}
+.installments-workspace .xl\:grid-cols-\[1fr_340px\] > div:first-child > section > div:first-child p {
+  font-size: 14px !important;
+  line-height: 1.6;
+}
+
+/* Keep overdue cue strong even though the fourth KPI has an indigo base. */
+.installments-workspace > div > .grid.gap-4.sm\:grid-cols-2.xl\:grid-cols-4 > div:nth-child(4):has(.bg-rose-50) {
+  border-color: rgba(254,205,211,.96) !important;
+  background: linear-gradient(145deg,#fff1f2,#fff) !important;
+  box-shadow: 0 18px 42px -34px rgba(225,29,72,.28) !important;
+}
+
+/* Agreement info rows become easier to scan. */
+.installments-workspace aside dl > div {
+  min-height: 42px;
+  align-items: center;
+  border-bottom-color: rgba(165,243,252,.52) !important;
+}
+.installments-workspace aside dl dt { font-size: 13px !important; }
+.installments-workspace aside dl dd { font-size: 14px !important; }
+
+/* QR/customer follow-up actions should feel like a calm support card. */
+.installments-workspace aside > section.erp-section:last-child img {
+  border: 1px solid rgba(199,210,254,.9) !important;
+  background: #fff;
+  box-shadow: 0 14px 30px -24px rgba(79,70,229,.35);
+}
+
+@media (max-width: 767px) {
+  /* Installment schedule table -> cards. */
+  .installments-workspace table.erp-table.min-w-\[650px\] {
+    display: block;
+    min-width: 0 !important;
+    width: 100%;
+  }
+  .installments-workspace table.erp-table.min-w-\[650px\] thead { display: none; }
+  .installments-workspace table.erp-table.min-w-\[650px\] tbody {
+    display: grid;
+    gap: 12px;
+    padding: 14px;
+  }
+  .installments-workspace table.erp-table.min-w-\[650px\] tbody tr {
+    display: grid;
+    grid-template-columns: repeat(2,minmax(0,1fr));
+    overflow: hidden;
+    border: 1px solid rgba(165,243,252,.9);
+    border-radius: 16px;
+    background: linear-gradient(145deg,#fff,#ecfeff) !important;
+    box-shadow: 0 12px 30px -26px rgba(6,182,212,.32);
+  }
+  .installments-workspace table.erp-table.min-w-\[650px\] tbody td {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 10px 12px !important;
+    border: 0 !important;
+    text-align: right !important;
+    white-space: normal !important;
+    font-size: 14px !important;
+  }
+  .installments-workspace table.erp-table.min-w-\[650px\] tbody td::before {
+    font-size: 11px;
+    font-weight: 900;
+    color: #94a3b8;
+  }
+  .installments-workspace table.erp-table.min-w-\[650px\] tbody td:nth-child(1) {
+    grid-column: 1 / -1;
+    background: rgba(236,254,255,.78);
+    font-size: 16px !important;
+  }
+  .installments-workspace table.erp-table.min-w-\[650px\] tbody td:nth-child(1)::before { content: "رقم القسط"; }
+  .installments-workspace table.erp-table.min-w-\[650px\] tbody td:nth-child(2)::before { content: "موعد الاستحقاق"; }
+  .installments-workspace table.erp-table.min-w-\[650px\] tbody td:nth-child(3)::before { content: "قيمة القسط"; }
+  .installments-workspace table.erp-table.min-w-\[650px\] tbody td:nth-child(4)::before { content: "المدفوع منه"; }
+  .installments-workspace table.erp-table.min-w-\[650px\] tbody td:nth-child(5)::before { content: "المتبقي"; }
+  .installments-workspace table.erp-table.min-w-\[650px\] tbody td:nth-child(6)::before { content: "الحالة"; }
+
+  /* Payment history table -> cards with its own labels. */
+  .installments-workspace table.erp-table.min-w-\[720px\] {
+    display: block;
+    min-width: 0 !important;
+    width: 100%;
+  }
+  .installments-workspace table.erp-table.min-w-\[720px\] thead { display: none; }
+  .installments-workspace table.erp-table.min-w-\[720px\] tbody {
+    display: grid;
+    gap: 12px;
+    padding: 14px;
+  }
+  .installments-workspace table.erp-table.min-w-\[720px\] tbody tr {
+    display: grid;
+    grid-template-columns: repeat(2,minmax(0,1fr));
+    overflow: hidden;
+    border: 1px solid rgba(167,243,208,.9);
+    border-radius: 16px;
+    background: linear-gradient(145deg,#fff,#ecfdf5) !important;
+    box-shadow: 0 12px 30px -26px rgba(5,150,105,.28);
+  }
+  .installments-workspace table.erp-table.min-w-\[720px\] tbody td {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 10px 12px !important;
+    border: 0 !important;
+    text-align: right !important;
+    white-space: normal !important;
+    font-size: 14px !important;
+  }
+  .installments-workspace table.erp-table.min-w-\[720px\] tbody td::before {
+    font-size: 11px;
+    font-weight: 900;
+    color: #94a3b8;
+  }
+  .installments-workspace table.erp-table.min-w-\[720px\] tbody td:nth-child(1) {
+    grid-column: 1 / -1;
+    background: rgba(236,253,245,.8);
+  }
+  .installments-workspace table.erp-table.min-w-\[720px\] tbody td:nth-child(1)::before { content: "تاريخ الدفع"; }
+  .installments-workspace table.erp-table.min-w-\[720px\] tbody td:nth-child(2)::before { content: "المبلغ"; }
+  .installments-workspace table.erp-table.min-w-\[720px\] tbody td:nth-child(3)::before { content: "الطريقة"; }
+  .installments-workspace table.erp-table.min-w-\[720px\] tbody td:nth-child(4)::before { content: "مصدر الدفع"; }
+  .installments-workspace table.erp-table.min-w-\[720px\] tbody td:nth-child(5)::before { content: "المرجع"; }
+  .installments-workspace table.erp-table.min-w-\[720px\] tbody td:nth-child(6)::before { content: "ملاحظات"; }
+
+  /* Details hero and rail become comfortable on narrow screens. */
+  .installments-workspace aside > section,
+  .installments-workspace aside > form { padding: 16px !important; }
+  .installments-workspace aside button,
+  .installments-workspace aside a { min-height: 42px; }
+  .installments-workspace form.erp-section:has(input[name="planId"]):has(input[name="installmentCount"]) { padding: 16px !important; }
+}
