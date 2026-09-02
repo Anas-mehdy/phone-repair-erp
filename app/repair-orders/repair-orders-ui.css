@@ -1,0 +1,106 @@
+/* Masar Repair Orders migration layer — visual only. */
+.masar-repair-orders {
+  --repair-brand: #0d9488;
+  --repair-brand-strong: #0f766e;
+  --repair-brand-soft: #f0fdfa;
+  --repair-cyan-soft: #ecfeff;
+  --repair-indigo-soft: #eef2ff;
+  --repair-amber-soft: #fffbeb;
+  --repair-danger-soft: #fff1f2;
+  --repair-ink: #0f172a;
+  --repair-text: #334155;
+  --repair-muted: #64748b;
+  --repair-border: #e2e8f0;
+}
+
+/* Approved Masar readable type scale. */
+.masar-repair-orders .text-\[10px\] { font-size: 14px !important; line-height: 1.5 !important; }
+.masar-repair-orders .text-\[11px\] { font-size: 15px !important; line-height: 1.55 !important; }
+.masar-repair-orders .text-xs { font-size: 16px !important; line-height: 1.6 !important; }
+.masar-repair-orders .text-sm { font-size: 18px !important; line-height: 1.55 !important; }
+
+/* Page header and filter surfaces inherit the Masar brand language. */
+.masar-repair-orders .erp-filter-card {
+  border-color: rgba(153, 246, 228, 0.78) !important;
+  background: linear-gradient(145deg, rgba(255,255,255,.98), rgba(240,253,250,.58)) !important;
+  box-shadow: 0 18px 55px -38px rgba(13,148,136,.38) !important;
+}
+
+.masar-repair-orders .erp-filter-card input,
+.masar-repair-orders .erp-filter-card select {
+  min-height: 48px;
+  border-radius: 12px;
+  font-size: 16px !important;
+  border-color: #e2e8f0 !important;
+  background: rgba(255,255,255,.95) !important;
+}
+
+.masar-repair-orders .erp-filter-card input:focus,
+.masar-repair-orders .erp-filter-card select:focus {
+  border-color: #5eead4 !important;
+  box-shadow: 0 0 0 4px rgba(204,251,241,.72) !important;
+}
+
+/* Primary actions use one branded visual language. */
+.masar-repair-orders a.bg-primary,
+.masar-repair-orders button.bg-primary {
+  background: linear-gradient(90deg, #0d9488, #06b6d4) !important;
+  color: white !important;
+  box-shadow: 0 12px 28px -16px rgba(13,148,136,.65) !important;
+}
+
+/* Repair list becomes a softer data surface. */
+.masar-repair-orders table.erp-table {
+  font-size: 15px !important;
+}
+
+.masar-repair-orders .erp-table thead {
+  background: linear-gradient(90deg, rgba(248,250,252,.98), rgba(240,253,250,.72)) !important;
+  border-bottom-color: rgba(153,246,228,.65) !important;
+}
+
+.masar-repair-orders .erp-table th {
+  font-size: 14px !important;
+  line-height: 1.5 !important;
+  color: #475569 !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  padding-top: 14px !important;
+  padding-bottom: 14px !important;
+}
+
+.masar-repair-orders .erp-table td {
+  font-size: 15px !important;
+  line-height: 1.55 !important;
+  padding-top: 14px !important;
+  padding-bottom: 14px !important;
+}
+
+.masar-repair-orders .erp-table tbody tr:hover {
+  background: rgba(240,253,250,.58) !important;
+}
+
+/* Replace decorative violet with the supporting indigo used by Masar. */
+.masar-repair-orders .bg-violet-50 { background-color: #eef2ff !important; }
+.masar-repair-orders .text-violet-700 { color: #4f46e5 !important; }
+
+/* Sticky action cell should blend with the table instead of looking detached. */
+.masar-repair-orders th.sticky,
+.masar-repair-orders td.sticky {
+  border-right: 1px solid rgba(226,232,240,.9);
+  background: rgba(248,250,252,.96) !important;
+}
+
+/* Status/role chips remain compact but readable. */
+.masar-repair-orders [class*="rounded-full"],
+.masar-repair-orders [class*="rounded-md"] {
+  line-height: 1.45;
+}
+
+/* Mobile: turn the page into a comfortable vertical workspace. */
+@media (max-width: 639px) {
+  .masar-repair-orders .text-xs { font-size: 15px !important; }
+  .masar-repair-orders .text-sm { font-size: 17px !important; }
+  .masar-repair-orders .erp-filter-card { padding: 16px !important; gap: 14px !important; }
+  .masar-repair-orders table.erp-table { font-size: 14px !important; }
+}
