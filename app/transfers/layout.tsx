@@ -7,10 +7,8 @@ import "./transfers-position.css";
 
 export default async function TransfersLayout({ children }: { children: ReactNode }) {
   const context = await getCurrentShopContext();
-  const [drawer, wallets] = await Promise.all([
-    cashDrawerService.getSnapshot(context.shopId),
-    financialTransferService.listWallets(context.shopId),
-  ]);
+  const wallets = await financialTransferService.listWallets(context.shopId);
+  const drawer = await cashDrawerService.getSnapshot(context.shopId);
 
   return (
     <div className="space-y-6">
