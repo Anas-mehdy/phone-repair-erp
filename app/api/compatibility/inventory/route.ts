@@ -2,9 +2,24 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { smartInventoryMatcherService } from "@/lib/services/compatibility/inventory-matcher.service";
 import { DeviceNotFoundError } from "@/lib/services/compatibility/compatibility.errors";
+import { entitlementService } from "@/lib/services/subscriptionEntitlementService";
 import { PartCategory } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
+
+function subscriptionExpiredResponse(message: string) {
+  return NextResponse.json(
+    {
+      success: false,
+      allowed: false,
+      code: "SUBSCRIPTION_EXPIRED",
+      message,
+      error: message,
+      upgradeUrl: "/subscription",
+    },
+    { status: 403 },
+  );
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,6 +29,11 @@ export async function GET(request: NextRequest) {
         { success: false, error: "يجب تسجيل الدخول لعرض توافقات المخزون." },
         { status: 401 }
       );
+    }
+
+    const entitlement = await entitlementService.checkCanPerformCompatibilitySearch(session.shopId);
+    if (!entitlement.allowed) {
+      return subscriptionExpiredResponse(entitlement.message);
     }
 
     const { searchParams } = new URL(request.url);

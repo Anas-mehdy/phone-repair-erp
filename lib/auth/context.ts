@@ -3,6 +3,8 @@ import { MembershipRole, MembershipStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
+import { entitlementService } from "@/lib/services/subscriptionEntitlementService";
 import {
   type AppPermission,
   getPermissionsForRole,
@@ -29,6 +31,18 @@ export class MembershipInactiveError extends AuthorizationError {
   constructor(message: string = "عضويتك في هذا المتجر غير نشطة أو تم تجميدها.") {
     super(message);
     this.name = "MembershipInactiveError";
+  }
+}
+
+export class SubscriptionReadOnlyError extends AuthorizationError {
+  readonly code = "SUBSCRIPTION_EXPIRED";
+  readonly upgradeUrl = "/subscription";
+
+  constructor(
+    message: string = "انتهت فترة استخدام المتجر. النظام متاح للعرض فقط حتى يتم تجديد الاشتراك.",
+  ) {
+    super(message);
+    this.name = "SubscriptionReadOnlyError";
   }
 }
 
@@ -199,6 +213,30 @@ const resolveAuthContextInternal = cache(async (): Promise<AuthContext | null> =
   };
 });
 
+const resolveOperationalSubscriptionInternal = cache(async (shopId: string) =>
+  entitlementService.checkCanCreateNewOperation(shopId),
+);
+
+/**
+ * Ensures the shop is allowed to perform mutations.
+ * Expired/canceled subscriptions are deliberately kept in read-only mode.
+ */
+export async function requireOperationalSubscription(shopId: string): Promise<void> {
+  const entitlement = await resolveOperationalSubscriptionInternal(shopId);
+  if (!entitlement.allowed) {
+    throw new SubscriptionReadOnlyError(entitlement.message);
+  }
+}
+
+async function isServerActionRequest(): Promise<boolean> {
+  try {
+    const requestHeaders = await headers();
+    return Boolean(requestHeaders.get("next-action"));
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Resolves the authenticated user, active shop, verified database membership, and permissions.
  * Safe for multiple calls per request without duplicate DB queries.
@@ -250,6 +288,10 @@ export function can(context: AuthContext, permission: AppPermission): boolean {
  * Server-side guard function to enforce permission requirements.
  * Throws AuthorizationError if the current user lacks the required permission.
  *
+ * Server Action mutations are also protected by the subscription lifecycle:
+ * once the trial/subscription expires, the shop remains readable but writes are rejected.
+ * subscription:manage stays available so the owner can renew/activate the shop.
+ *
  * Usage in Server Actions / Services:
  * ```typescript
  * const auth = await requirePermission("repairs:update");
@@ -266,6 +308,10 @@ export async function requirePermission(
     throw new AuthorizationError(
       `عفواً، لا تملك الصلاحية الكافية للقيام بهذا الإجراء (${permission}).`
     );
+  }
+
+  if (permission !== "subscription:manage" && (await isServerActionRequest())) {
+    await requireOperationalSubscription(context.shop.id);
   }
 
   return context;

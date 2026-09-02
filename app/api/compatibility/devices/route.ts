@@ -1,8 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { compatibilitySearchService } from "@/lib/services/compatibility/compatibility-search.service";
+import { entitlementService } from "@/lib/services/subscriptionEntitlementService";
 
 export const dynamic = "force-dynamic";
+
+function subscriptionExpiredResponse(message: string) {
+  return NextResponse.json(
+    {
+      success: false,
+      allowed: false,
+      code: "SUBSCRIPTION_EXPIRED",
+      message,
+      error: message,
+      upgradeUrl: "/subscription",
+    },
+    { status: 403 },
+  );
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,6 +36,11 @@ export async function GET(request: NextRequest) {
 
     if (query.length < 2) {
       return NextResponse.json({ success: true, query, results: [] });
+    }
+
+    const entitlement = await entitlementService.checkCanPerformCompatibilitySearch(session.shopId);
+    if (!entitlement.allowed) {
+      return subscriptionExpiredResponse(entitlement.message);
     }
 
     const results = await compatibilitySearchService.searchDevices(query, { limit });

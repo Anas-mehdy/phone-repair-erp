@@ -17,6 +17,7 @@ export function AppShell({
   canReports = false,
   canManageSubscription = false,
   canManageDebts = false,
+  subscriptionReadOnly = false,
   tutorialInitialShowBanner = false,
 }: {
   children: ReactNode;
@@ -24,6 +25,7 @@ export function AppShell({
   canReports?: boolean;
   canManageSubscription?: boolean;
   canManageDebts?: boolean;
+  subscriptionReadOnly?: boolean;
   tutorialInitialShowBanner?: boolean;
 }) {
   const pathname = usePathname();
@@ -68,9 +70,37 @@ export function AppShell({
 
   const navPermissions = { canSettings, canReports, canManageSubscription, canManageDebts };
   const currentPageLabel = navigationLabelForPath(pathname);
+  const readOnlyUiExempt =
+    pathname.startsWith("/subscription") ||
+    pathname.startsWith("/support") ||
+    pathname.startsWith("/account/security");
+  const enforceReadOnlyUi = subscriptionReadOnly && !readOnlyUiExempt;
 
   return (
-    <div className="min-h-screen bg-slate-50/50">
+    <div className={cn("min-h-screen bg-slate-50/50", enforceReadOnlyUi && "subscription-read-only")}>
+      {enforceReadOnlyUi ? (
+        <style>{`
+          .subscription-read-only main form[method="post"] input:not([type="hidden"]),
+          .subscription-read-only main form[method="post"] select,
+          .subscription-read-only main form[method="post"] textarea,
+          .subscription-read-only main form[method="post"] button[type="submit"],
+          .subscription-read-only main form[method="post"] input[type="submit"] {
+            pointer-events: none !important;
+            opacity: .52 !important;
+            cursor: not-allowed !important;
+          }
+          .subscription-read-only main a[href$="/new"],
+          .subscription-read-only main a[href*="/new?"],
+          .subscription-read-only main a[href$="/edit"],
+          .subscription-read-only main a[href*="/edit?"] {
+            pointer-events: none !important;
+            opacity: .45 !important;
+            cursor: not-allowed !important;
+            filter: grayscale(.2);
+          }
+        `}</style>
+      ) : null}
+
       <aside
         className={cn(
           "fixed inset-y-0 right-0 z-50 hidden overflow-visible border-l border-slate-200/80 bg-gradient-to-b from-white via-slate-50/85 to-teal-50/55 shadow-[0_0_60px_-38px_rgba(15,23,42,0.38)] backdrop-blur-xl transition-[width,padding] duration-300 ease-out lg:flex lg:flex-col",

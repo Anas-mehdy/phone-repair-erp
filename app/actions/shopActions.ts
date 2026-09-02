@@ -1,6 +1,6 @@
 "use server";
 
-import { getAuthContext, can } from "@/lib/auth/context";
+import { getAuthContext, can, requireOperationalSubscription } from "@/lib/auth/context";
 import { shopService, type UpdateShopInput } from "@/lib/services/shopService";
 import { combineCountryDialWithPhone } from "@/lib/countries";
 import { getSession, setSessionCookie } from "@/lib/auth";
@@ -14,6 +14,9 @@ export async function updateShopSettingsAction(formData: FormData): Promise<void
   if (!can(auth, "shop:settings")) {
     redirect("/dashboard?error=unauthorized");
   }
+
+  // Expired/canceled shops stay readable but cannot mutate shop settings.
+  await requireOperationalSubscription(auth.shop.id);
 
   const shopId = auth.shop.id;
 

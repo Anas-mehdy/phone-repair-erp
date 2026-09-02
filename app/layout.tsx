@@ -9,6 +9,7 @@ import { APP_URL } from "@/lib/app-url";
 import { prisma } from "@/lib/prisma";
 import { subscriptionOfferService } from "@/lib/services/subscriptionOfferService";
 import { lifetimeSubscriptionService } from "@/lib/services/lifetimeSubscriptionService";
+import { entitlementService } from "@/lib/services/subscriptionEntitlementService";
 import "./globals.css";
 import "./masar-ui.css";
 
@@ -19,6 +20,7 @@ export const metadata: Metadata = { metadataBase: new URL(APP_URL), title: "مس
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   let canSettings = false, canReports = false, canManageSubscription = false, canManageDebts = false, showTutorialBanner = false;
+  let subscriptionReadOnly = false;
   let lifetimeBanner: { remaining: number; total: number } | null = null;
 
   try {
@@ -26,6 +28,14 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     canSettings = can(auth, "shop:settings");
     canReports = can(auth, "reports:read");
     canManageDebts = can(auth, "debts:manage");
+
+    try {
+      const operationalAccess = await entitlementService.checkCanCreateNewOperation(auth.shop.id);
+      subscriptionReadOnly = !operationalAccess.allowed;
+    } catch (error) {
+      console.error("[SubscriptionReadOnly] Failed to resolve operational access", error);
+      subscriptionReadOnly = true;
+    }
 
     const tutorialRows = await prisma.$queryRaw<Array<{ tutorialBannerSeenAt: Date | null }>>`
       SELECT "tutorialBannerSeenAt"
@@ -64,6 +74,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     canManageSubscription = false;
     canManageDebts = false;
     showTutorialBanner = false;
+    subscriptionReadOnly = false;
     lifetimeBanner = null;
   }
 
@@ -72,7 +83,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       <DashboardKpiNavigation />
       <PwaInstallPrompt />
       {lifetimeBanner ? <LifetimeOfferBanner remaining={lifetimeBanner.remaining} total={lifetimeBanner.total} /> : null}
-      <AppShell canSettings={canSettings} canReports={canReports} canManageSubscription={canManageSubscription} canManageDebts={canManageDebts} tutorialInitialShowBanner={showTutorialBanner}>{children}</AppShell>
+      <AppShell canSettings={canSettings} canReports={canReports} canManageSubscription={canManageSubscription} canManageDebts={canManageDebts} subscriptionReadOnly={subscriptionReadOnly} tutorialInitialShowBanner={showTutorialBanner}>{children}</AppShell>
     </body>
   </html>;
 }
