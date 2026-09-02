@@ -32,6 +32,28 @@
   --masar-shadow-brand: 0 18px 55px -34px rgba(13, 148, 136, 0.4);
 }
 
+.dark {
+  --masar-brand-50: #042f2e;
+  --masar-brand-100: #134e4a;
+  --masar-brand-200: #115e59;
+  --masar-cyan-50: #083344;
+  --masar-cyan-100: #164e63;
+  --masar-indigo-50: #1e1b4b;
+  --masar-indigo-100: #312e81;
+  --masar-amber-50: #451a03;
+  --masar-amber-100: #78350f;
+  --masar-success-50: #022c22;
+  --masar-danger-50: #4c0519;
+  --masar-ink: #f8fafc;
+  --masar-text: #cbd5e1;
+  --masar-muted: #94a3b8;
+  --masar-border: #334155;
+  --masar-surface: #0f172a;
+  --masar-surface-soft: #111827;
+  --masar-shadow-card: 0 18px 48px -30px rgba(0, 0, 0, 0.78);
+  --masar-shadow-brand: 0 20px 58px -34px rgba(20, 184, 166, 0.28);
+}
+
 .masar-page { @apply space-y-6 pb-8; }
 .masar-page-title { @apply text-[30px] font-black tracking-tight text-slate-950 sm:text-[32px]; }
 .masar-page-description { @apply max-w-3xl text-[16px] font-semibold leading-7 text-slate-500; }
@@ -70,6 +92,40 @@
 .masar-dialog-header { @apply flex items-center justify-between border-b border-teal-100 bg-gradient-to-l from-teal-50 via-white to-cyan-50 px-5 py-4; }
 .masar-empty-state { @apply flex min-h-48 flex-col items-center justify-center rounded-2xl border border-dashed border-teal-200 bg-teal-50/30 p-8 text-center; }
 
+.dark .masar-page-title,
+.dark .masar-section-title { color: #f8fafc; }
+.dark .masar-page-description,
+.dark .masar-section-description,
+.dark .masar-label { color: #94a3b8; }
+.dark .masar-helper { color: #64748b; }
+.dark .masar-surface { border-color: rgba(51, 65, 85, .9); background: rgba(15, 23, 42, .92); }
+.dark .masar-surface-brand { border-color: rgba(19, 78, 74, .82); background: linear-gradient(135deg, rgba(15,23,42,.98), rgba(15,23,42,.96), rgba(4,47,46,.5)); }
+.dark .masar-section-header { border-color: rgba(19,78,74,.8); background: linear-gradient(270deg, rgba(4,47,46,.58), rgba(15,23,42,.96), rgba(8,51,68,.42)); }
+.dark .masar-input,
+.dark .masar-select,
+.dark .masar-textarea { border-color: rgba(71,85,105,.9); background: rgba(2,6,23,.72); color: #f1f5f9; }
+.dark .masar-input::placeholder,
+.dark .masar-textarea::placeholder { color: #64748b; }
+.dark .masar-input:focus,
+.dark .masar-select:focus,
+.dark .masar-textarea:focus { border-color: rgba(45,212,191,.72); background: rgba(2,6,23,.92); box-shadow: 0 0 0 4px rgba(20,184,166,.12); }
+.dark .masar-btn-secondary { border-color: rgba(19,78,74,.9); background: rgba(15,23,42,.9); color: #5eead4; }
+.dark .masar-btn-secondary:hover { background: rgba(4,47,46,.62); }
+.dark .masar-badge-brand { border-color: #134e4a; background: rgba(4,47,46,.65); color: #5eead4; }
+.dark .masar-badge-info { border-color: #164e63; background: rgba(8,51,68,.65); color: #67e8f9; }
+.dark .masar-badge-support { border-color: #312e81; background: rgba(30,27,75,.65); color: #a5b4fc; }
+.dark .masar-badge-warning { border-color: #78350f; background: rgba(69,26,3,.62); color: #fcd34d; }
+.dark .masar-badge-success { border-color: #065f46; background: rgba(2,44,34,.64); color: #6ee7b7; }
+.dark .masar-badge-danger { border-color: #881337; background: rgba(76,5,25,.62); color: #fda4af; }
+.dark .masar-table-wrap { border-color: rgba(51,65,85,.9); background: rgba(15,23,42,.92); }
+.dark .masar-table thead { background: rgba(30,41,59,.72); color: #94a3b8; }
+.dark .masar-table td { color: #cbd5e1; }
+.dark .masar-table tbody { border-color: rgba(51,65,85,.72); }
+.dark .masar-table tbody tr:hover { background: rgba(4,47,46,.32); }
+.dark .masar-dialog { border-color: rgba(19,78,74,.85); background: #0f172a; }
+.dark .masar-dialog-header { border-color: rgba(19,78,74,.75); background: linear-gradient(270deg, rgba(4,47,46,.58), rgba(15,23,42,.96), rgba(8,51,68,.4)); }
+.dark .masar-empty-state { border-color: #115e59; background: rgba(4,47,46,.28); }
+
 /* System-wide UI audit: normalize legacy ERP primitives without changing layout logic. */
 .erp-input,
 .erp-textarea {
@@ -104,9 +160,19 @@
   border-color: rgba(226, 232, 240, 0.9);
 }
 
+.dark .erp-section,
+.dark .erp-filter-card,
+.dark .erp-card {
+  border-color: rgba(51, 65, 85, 0.9);
+}
+
 :where(button, a, input, select, textarea):focus-visible {
   outline: 3px solid rgba(20, 184, 166, 0.22);
   outline-offset: 2px;
+}
+
+.dark :where(button, a, input, select, textarea):focus-visible {
+  outline-color: rgba(45, 212, 191, 0.28);
 }
 
 .font-numeric,

@@ -26,6 +26,28 @@
     --radius: 0.75rem;
   }
 
+  .dark {
+    --background: 222 47% 5%;
+    --foreground: 210 40% 96%;
+    --card: 222 38% 8%;
+    --card-foreground: 210 40% 96%;
+    --popover: 222 38% 8%;
+    --popover-foreground: 210 40% 96%;
+    --primary: 172 66% 48%;
+    --primary-foreground: 222 47% 8%;
+    --secondary: 217 28% 16%;
+    --secondary-foreground: 210 40% 94%;
+    --muted: 217 28% 15%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 35 92% 58%;
+    --accent-foreground: 222 47% 8%;
+    --destructive: 0 68% 52%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 217 28% 20%;
+    --input: 217 28% 22%;
+    --ring: 172 66% 48%;
+  }
+
   * {
     @apply border-border;
   }
@@ -36,6 +58,11 @@
     overflow-x: hidden;
     max-width: 100%;
     width: 100%;
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
   }
 
   body {
@@ -44,10 +71,19 @@
     max-width: 100%;
     width: 100%;
     @apply bg-background text-foreground antialiased;
-    background: 
+    background:
       radial-gradient(circle at 100% 0%, rgba(13, 148, 136, 0.04) 0%, transparent 40%),
       radial-gradient(circle at 0% 100%, rgba(245, 158, 11, 0.02) 0%, transparent 40%),
       linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    background-attachment: fixed;
+    transition: background-color 220ms ease, color 220ms ease;
+  }
+
+  .dark body {
+    background:
+      radial-gradient(circle at 100% 0%, rgba(20, 184, 166, 0.09) 0%, transparent 38%),
+      radial-gradient(circle at 0% 100%, rgba(99, 102, 241, 0.06) 0%, transparent 42%),
+      linear-gradient(180deg, #020617 0%, #0b1220 56%, #0f172a 100%);
     background-attachment: fixed;
   }
 }
@@ -107,6 +143,71 @@
   }
 }
 
+.dark .erp-card,
+.dark .erp-section,
+.dark .erp-filter-card {
+  border-color: rgba(51, 65, 85, 0.88);
+  background: rgba(15, 23, 42, 0.9);
+  box-shadow: 0 14px 34px -28px rgba(0, 0, 0, 0.78);
+}
+
+.dark .erp-table thead {
+  border-color: rgba(51, 65, 85, 0.95);
+  background: rgba(30, 41, 59, 0.72);
+  color: #cbd5e1;
+}
+
+.dark .erp-table th,
+.dark .erp-table td {
+  color: #cbd5e1;
+}
+
+.dark .erp-table tbody {
+  border-color: rgba(51, 65, 85, 0.72);
+}
+
+.dark .erp-table tbody tr:hover {
+  background: rgba(30, 41, 59, 0.58);
+}
+
+.dark .erp-input,
+.dark .erp-textarea {
+  border-color: rgba(71, 85, 105, 0.9);
+  background: rgba(2, 6, 23, 0.72);
+  color: #f1f5f9;
+}
+
+.dark .erp-input::placeholder,
+.dark .erp-textarea::placeholder {
+  color: #64748b;
+}
+
+.dark .erp-input:focus,
+.dark .erp-textarea:focus {
+  border-color: rgba(45, 212, 191, 0.72);
+  background: rgba(2, 6, 23, 0.92);
+}
+
+.dark .erp-input:disabled,
+.dark .erp-textarea:disabled {
+  background: rgba(30, 41, 59, 0.72);
+  color: #64748b;
+}
+
+/* Phase-one compatibility bridge for legacy light utility classes inside the authenticated workspace. */
+.dark .masar-shell [class~="bg-white"] { background-color: #0f172a !important; }
+.dark .masar-shell [class~="bg-slate-50"] { background-color: #0b1220 !important; }
+.dark .masar-shell [class~="bg-slate-100"] { background-color: #1e293b !important; }
+.dark .masar-shell [class~="text-slate-950"],
+.dark .masar-shell [class~="text-slate-900"],
+.dark .masar-shell [class~="text-slate-800"],
+.dark .masar-shell [class~="text-slate-700"] { color: #e2e8f0 !important; }
+.dark .masar-shell [class~="text-slate-600"],
+.dark .masar-shell [class~="text-slate-500"] { color: #94a3b8 !important; }
+.dark .masar-shell [class~="border-slate-200"],
+.dark .masar-shell [class~="border-slate-300"] { border-color: #334155 !important; }
+.dark .masar-shell [class~="divide-slate-100"] > :not([hidden]) ~ :not([hidden]) { border-color: rgba(51, 65, 85, 0.72) !important; }
+
 /* Custom Scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
@@ -121,6 +222,12 @@
 }
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 163, 184, 0.6);
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.5);
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.55);
 }
 
 @media print {
@@ -146,6 +253,10 @@
   overflow: hidden;
   border-radius: 9999px;
   background: linear-gradient(90deg, #e2e8f0, #ccfbf1, #e0e7ff, #e2e8f0);
+}
+
+.dark .masar-path-track {
+  background: linear-gradient(90deg, #1e293b, #134e4a, #312e81, #1e293b);
 }
 
 .masar-path-beam {
@@ -191,6 +302,13 @@
   animation: masar-stage-glow 7.2s ease-in-out infinite;
 }
 
+.dark .masar-stage-icon {
+  border-color: #0f172a;
+  color: #94a3b8;
+  background: #1e293b;
+  box-shadow: 0 0 0 1px #334155, 0 8px 22px rgba(0, 0, 0, 0.32);
+}
+
 .masar-stage-number {
   position: absolute;
   top: -0.45rem;
@@ -207,6 +325,11 @@
   font-size: 0.6rem;
   font-weight: 900;
   transition: background-color 200ms ease;
+}
+
+.dark .masar-stage-number {
+  border-color: #0f172a;
+  background: #475569;
 }
 
 .masar-stage:nth-child(2) .masar-stage-icon { animation-delay: 1.2s; }
@@ -234,6 +357,25 @@
     color: white;
     background: linear-gradient(135deg, #14b8a6, #4f46e5);
     box-shadow: 0 0 0 1px #99f6e4, 0 0 24px rgba(20, 184, 166, 0.45);
+  }
+}
+
+.dark .masar-stage-icon {
+  animation-name: masar-stage-glow-dark;
+}
+
+@keyframes masar-stage-glow-dark {
+  0%, 13%, 100% {
+    transform: translateY(0) scale(1);
+    color: #94a3b8;
+    background: #1e293b;
+    box-shadow: 0 0 0 1px #334155, 0 8px 22px rgba(0, 0, 0, 0.32);
+  }
+  4%, 9% {
+    transform: translateY(-4px) scale(1.06);
+    color: white;
+    background: linear-gradient(135deg, #0d9488, #4f46e5);
+    box-shadow: 0 0 0 1px #115e59, 0 0 28px rgba(20, 184, 166, 0.34);
   }
 }
 
@@ -308,6 +450,10 @@
   );
 }
 
+.dark .masar-dot-grid-container {
+  background: linear-gradient(145deg, rgba(2, 6, 23, 0.98) 0%, rgba(15, 23, 42, 0.96) 48%, rgba(15, 23, 42, 0.99) 100%);
+}
+
 /* 1. Ambient subtle corner glow */
 .masar-ambient-glow {
   position: absolute;
@@ -356,6 +502,10 @@
   pointer-events: none;
 }
 
+.dark .masar-dot-matrix {
+  background-image: radial-gradient(rgba(148, 163, 184, 0.14) 1.15px, transparent 1.15px);
+}
+
 /* 3. Luminous Shimmer Light Sweep (Periodic elegant diagonal gleam) */
 .masar-shimmer-sweep {
   position: absolute;
@@ -378,6 +528,10 @@
   animation: masar-shimmer-pass 10s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
+.dark .masar-shimmer-sweep {
+  background: linear-gradient(115deg, transparent 15%, rgba(255,255,255,0) 30%, rgba(20,184,166,.08) 46%, rgba(148,163,184,.16) 50%, rgba(99,102,241,.08) 54%, rgba(255,255,255,0) 70%, transparent 85%);
+}
+
 /* 4. Glass luster overlay to protect contrast & typography */
 .masar-luster-overlay {
   position: absolute;
@@ -389,6 +543,10 @@
     rgba(255, 255, 255, 0.3) 100%
   );
   pointer-events: none;
+}
+
+.dark .masar-luster-overlay {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.18) 0%, rgba(2, 6, 23, 0) 50%, rgba(2, 6, 23, 0.24) 100%);
 }
 
 @keyframes masar-shimmer-pass {
@@ -435,5 +593,3 @@
     transform: translate3d(-15px, -12px, 0) scale(1.06);
   }
 }
-
-

@@ -10,6 +10,7 @@ import { prisma } from "@/lib/prisma";
 import { subscriptionOfferService } from "@/lib/services/subscriptionOfferService";
 import { lifetimeSubscriptionService } from "@/lib/services/lifetimeSubscriptionService";
 import { entitlementService } from "@/lib/services/subscriptionEntitlementService";
+import { THEME_INIT_SCRIPT } from "@/lib/theme";
 import "./globals.css";
 import "./masar-ui.css";
 
@@ -78,7 +79,10 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     lifetimeBanner = null;
   }
 
-  return <html lang="ar" dir="rtl" className={`${cairo.variable} ${outfit.variable} overflow-x-hidden w-full max-w-full`}>
+  return <html lang="ar" dir="rtl" suppressHydrationWarning className={`${cairo.variable} ${outfit.variable} overflow-x-hidden w-full max-w-full`}>
+    <head>
+      <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+    </head>
     <body className="font-sans antialiased overflow-x-hidden min-h-screen w-full max-w-full">
       <DashboardKpiNavigation />
       <PwaInstallPrompt />
