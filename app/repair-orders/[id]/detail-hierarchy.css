@@ -1,0 +1,114 @@
+/* Masar Repair Order detail hierarchy v2. */
+
+/* Make the summary area read as four distinct domains instead of one flat grid. */
+.repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:first-child > .erp-section:first-child > .grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 14px !important;
+}
+
+.repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:first-child > .erp-section:first-child > .grid > div {
+  min-height: 96px;
+  border-radius: 16px !important;
+  padding: 15px 16px !important;
+  box-shadow: 0 12px 32px -28px rgba(15,23,42,.32);
+}
+
+/* Customer cards. */
+.repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:first-child > .erp-section:first-child > .grid > div:nth-child(1),
+.repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:first-child > .erp-section:first-child > .grid > div:nth-child(2) {
+  border-color: rgba(103,232,249,.46) !important;
+  background: linear-gradient(135deg, #ecfeff, #ffffff) !important;
+}
+
+/* Device cards. */
+.repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:first-child > .erp-section:first-child > .grid > div:nth-child(3),
+.repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:first-child > .erp-section:first-child > .grid > div:nth-child(4) {
+  border-color: rgba(199,210,254,.72) !important;
+  background: linear-gradient(135deg, #eef2ff, #ffffff) !important;
+}
+
+/* Financial cards should carry the strongest summary emphasis. */
+.repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:first-child > .erp-section:first-child > .grid > div:nth-child(5),
+.repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:first-child > .erp-section:first-child > .grid > div:nth-child(6) {
+  border-color: rgba(253,230,138,.78) !important;
+  background: linear-gradient(135deg, #fffbeb, #ffffff) !important;
+}
+
+.repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:first-child > .erp-section:first-child > .grid > div:nth-child(5) > div,
+.repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:first-child > .erp-section:first-child > .grid > div:nth-child(6) > div {
+  color: #92400e !important;
+  font-size: 20px !important;
+}
+
+/* Operational metadata is deliberately calmer than customer/device/finance. */
+.repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:first-child > .erp-section:first-child > .grid > div:nth-child(n+7) {
+  background: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Turn the side rail into a true action center: business actions first, assignment second, QR third. */
+.repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 18px !important;
+}
+
+.repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:last-child > .erp-section:nth-child(3) {
+  order: 1;
+  border-color: rgba(153,246,228,.9) !important;
+  background: linear-gradient(155deg, #f0fdfa, #ffffff 56%, #ecfeff) !important;
+  box-shadow: 0 20px 58px -36px rgba(13,148,136,.46) !important;
+}
+
+.repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:last-child > .erp-section:nth-child(1) {
+  order: 2;
+}
+
+.repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:last-child > .erp-section:nth-child(2) {
+  order: 3;
+}
+
+@media (min-width: 1024px) {
+  .repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:last-child {
+    position: sticky;
+    top: 96px;
+    align-self: start;
+  }
+}
+
+/* Faster scanning of quick actions. */
+.repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:last-child > .erp-section:nth-child(3) button,
+.repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:last-child > .erp-section:nth-child(3) a {
+  min-height: 48px;
+  font-size: 15px !important;
+}
+
+/* Status editor gets a stronger operational identity while the long edit form stays secondary. */
+.repair-order-detail .md\:grid-cols-\[minmax\(0\,280px\)_minmax\(0\,1fr\)\] > :first-child {
+  border-color: rgba(153,246,228,.9) !important;
+  background: linear-gradient(160deg, #f0fdfa, #ffffff) !important;
+}
+
+.repair-order-detail .md\:grid-cols-\[minmax\(0\,280px\)_minmax\(0\,1fr\)\] > form {
+  background: #ffffff !important;
+}
+
+/* Problem / diagnosis / resolution should read as narrative blocks. */
+.repair-order-detail .erp-section:first-child > .mt-6.grid > div {
+  min-height: 92px;
+  background: linear-gradient(145deg, #f8fafc, #ffffff) !important;
+}
+
+@media (max-width: 767px) {
+  .repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:first-child > .erp-section:first-child > .grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:first-child > .erp-section:first-child > .grid > div {
+    min-height: auto;
+  }
+
+  .repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:last-child {
+    gap: 14px !important;
+  }
+}
