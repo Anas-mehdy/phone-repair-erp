@@ -34,6 +34,7 @@ interface Entry {
 }
 
 type PaymentSourceOption = { id: string; name: string };
+type WalletOption = { id: string; name: string; currentBalance: number };
 
 function typeLabel(type: Entry["type"]) {
   if (type === "PAYMENT") return "تحصيل";
@@ -55,12 +56,14 @@ export function CustomerDebtLedger({
   customer,
   entries,
   paymentSources,
+  wallets,
   balance,
   currency,
 }: {
   customer: { id: string; name: string; phone: string | null; email: string | null };
   entries: Entry[];
   paymentSources: PaymentSourceOption[];
+  wallets: WalletOption[];
   balance: number;
   currency: string;
 }) {
@@ -74,6 +77,8 @@ export function CustomerDebtLedger({
   const [saveCustomSource, setSaveCustomSource] = useState(true);
   const [reference, setReference] = useState("");
   const [description, setDescription] = useState("");
+  const [moneyDestination, setMoneyDestination] = useState<"DRAWER" | "WALLET" | "OTHER">("DRAWER");
+  const [walletId, setWalletId] = useState("");
   const [message, setMessage] = useState<string | null>(null);
 
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
@@ -107,6 +112,10 @@ export function CustomerDebtLedger({
       setMessage("اكتب اسم مصدر الدفع الجديد.");
       return;
     }
+    if (moneyDestination === "WALLET" && !walletId) {
+      setMessage("اختر المحفظة التي استلمت التحصيل.");
+      return;
+    }
 
     startTransition(async () => {
       const result = await recordDebtPaymentAction({
@@ -115,6 +124,8 @@ export function CustomerDebtLedger({
         ...paymentSourcePayload(sourceChoice, customSourceName, saveCustomSource),
         reference: reference || null,
         description: description || null,
+        moneyDestination,
+        walletId: moneyDestination === "WALLET" ? walletId : undefined,
       });
       if (!result.success) {
         setMessage(result.error);
@@ -126,7 +137,9 @@ export function CustomerDebtLedger({
       setSaveCustomSource(true);
       setReference("");
       setDescription("");
-      setMessage("تم تسجيل التحصيل بنجاح.");
+      setMoneyDestination("DRAWER");
+      setWalletId("");
+      setMessage("تم تسجيل التحصيل وتحديث رصيد المال بنجاح.");
       router.refresh();
     });
   }
@@ -181,7 +194,7 @@ export function CustomerDebtLedger({
         return;
       }
       setEditingEntryId(null);
-      setMessage("تم تعديل حركة دفتر الدين بنجاح.");
+      setMessage("تم تعديل حركة دفتر الدين وتحديث أثرها المالي بنجاح.");
       router.refresh();
     });
   }
@@ -230,7 +243,7 @@ export function CustomerDebtLedger({
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex items-center gap-2"><Banknote className="h-5 w-5 text-emerald-600" /><h2 className="text-sm font-black text-slate-900">تسجيل تحصيل من العميل</h2></div>
-        <p className="mt-1 text-[11px] font-semibold text-slate-500">اختر مصدر دفع محفوظاً أو أضف مصدراً جديداً مثل Vodafone Cash أو InstaPay أو شام كاش واحفظه للاستخدام لاحقاً.</p>
+        <p className="mt-1 text-[11px] font-semibold text-slate-500">سجّل التحصيل وحدد أين وصلت الفلوس فعلياً: الدرج النقدي أو إحدى المحافظ.</p>
         <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <label className="space-y-1.5 text-xs font-bold text-slate-700"><span>المبلغ المدفوع</span><input type="number" min="0.01" step="0.01" max={balance || undefined} value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-emerald-400" placeholder={`0.00 ${currency}`} /></label>
           <label className="space-y-1.5 text-xs font-bold text-slate-700">
@@ -244,6 +257,26 @@ export function CustomerDebtLedger({
           <label className="space-y-1.5 text-xs font-bold text-slate-700"><span>مرجع (اختياري)</span><input value={reference} onChange={(e) => setReference(e.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-emerald-400" placeholder="رقم حوالة أو إيصال" /></label>
           <label className="space-y-1.5 text-xs font-bold text-slate-700"><span>ملاحظة</span><input value={description} onChange={(e) => setDescription(e.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 outline-none focus:border-emerald-400" placeholder="دفعة على الحساب" /></label>
         </div>
+
+        <div className="mt-4 grid gap-3 rounded-2xl border border-teal-100 bg-teal-50/50 p-4 md:grid-cols-2">
+          <label className="space-y-1.5 text-xs font-bold text-slate-700">
+            <span>مكان وصول المال</span>
+            <select value={moneyDestination} onChange={(e) => setMoneyDestination(e.target.value as "DRAWER" | "WALLET" | "OTHER")} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 outline-none focus:border-teal-400">
+              <option value="DRAWER">الدرج النقدي</option>
+              <option value="WALLET">محفظة إلكترونية</option>
+              <option value="OTHER">بدون تحديث رصيد</option>
+            </select>
+          </label>
+          <label className="space-y-1.5 text-xs font-bold text-slate-700">
+            <span>المحفظة</span>
+            <select value={walletId} onChange={(e) => setWalletId(e.target.value)} disabled={moneyDestination !== "WALLET"} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 outline-none disabled:bg-slate-100 disabled:text-slate-400 focus:border-teal-400">
+              <option value="">اختر المحفظة عند الحاجة</option>
+              {wallets.map((wallet) => <option key={wallet.id} value={wallet.id}>{wallet.name} — {money(wallet.currentBalance)}</option>)}
+            </select>
+          </label>
+          <p className="text-[11px] font-semibold leading-5 text-teal-700 md:col-span-2">التحصيل ينقص دين العميل مرة واحدة فقط، وهذا الاختيار يحدد مكان المال حتى يظهر صحيحاً في الدرج والمحافظ والتقارير.</p>
+        </div>
+
         {sourceChoice === "__CUSTOM__" ? (
           <div className="mt-4 grid gap-3 rounded-xl border border-emerald-100 bg-emerald-50/40 p-3 md:grid-cols-[1fr_auto] md:items-end">
             <label className="space-y-1.5 text-xs font-bold text-slate-700"><span>اسم مصدر الدفع الجديد</span><input value={customSourceName} onChange={(e) => setCustomSourceName(e.target.value)} maxLength={80} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 outline-none focus:border-emerald-400" placeholder="مثال: Vodafone Cash، InstaPay، شام كاش" /></label>
@@ -254,7 +287,7 @@ export function CustomerDebtLedger({
       </section>
 
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-100 p-4"><div className="flex items-center gap-2"><ReceiptText className="h-5 w-5 text-sky-600" /><h2 className="text-sm font-black text-slate-900">حركات كشف الحساب</h2></div><p className="mt-1 text-[11px] font-semibold text-slate-500">يمكن تعديل مبلغ أو تفاصيل أي حركة سابقة، وتظهر طريقة التحصيل المسجلة لكل دفعة بشكل مستقل.</p></div>
+        <div className="border-b border-slate-100 p-4"><div className="flex items-center gap-2"><ReceiptText className="h-5 w-5 text-sky-600" /><h2 className="text-sm font-black text-slate-900">حركات كشف الحساب</h2></div><p className="mt-1 text-[11px] font-semibold text-slate-500">يمكن تعديل مبلغ أو تفاصيل أي حركة سابقة، وإذا كانت دفعة مرتبطة بالدرج أو محفظة سيحدّث النظام أثرها المالي تلقائياً.</p></div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[980px] text-right text-xs">
             <thead className="bg-slate-50 text-slate-500"><tr><th className="p-3">التاريخ</th><th className="p-3">الحركة</th><th className="p-3">مدين</th><th className="p-3">دائن / تحصيل</th><th className="p-3">مصدر الدفع</th><th className="p-3">البيان</th><th className="p-3">المرجع</th><th className="p-3">المستخدم</th><th className="p-3"></th></tr></thead>

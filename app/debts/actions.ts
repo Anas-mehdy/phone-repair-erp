@@ -4,11 +4,8 @@ import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/auth/context";
 import { prisma } from "@/lib/prisma";
 import { customerService } from "@/lib/services/customerService";
-import {
-  createDebtEntry,
-  recordDebtPayment,
-  updateDebtLedgerEntry,
-} from "@/lib/services/debtLedgerService";
+import { debtCollectionService } from "@/lib/services/debtCollectionService";
+import { createDebtEntry } from "@/lib/services/debtLedgerService";
 
 export type DebtActionResult = { success: true } | { success: false; error: string };
 export type CreateDebtCustomerResult =
@@ -72,12 +69,16 @@ export async function recordDebtPaymentAction(input: {
   saveCustomSource?: boolean;
   description?: string | null;
   reference?: string | null;
+  moneyDestination: "DRAWER" | "WALLET" | "OTHER";
+  walletId?: string;
 }): Promise<DebtActionResult> {
   try {
-    await recordDebtPayment(input);
+    await debtCollectionService.recordPayment(input);
     revalidatePath("/debts");
     revalidatePath(`/debts/${input.customerId}`);
     revalidatePath(`/debts/${input.customerId}/print`);
+    revalidatePath("/transfers");
+    revalidatePath("/reports");
     return { success: true };
   } catch (error) {
     return { success: false, error: messageFromError(error) };
@@ -97,10 +98,12 @@ export async function updateDebtLedgerEntryAction(input: {
   reference?: string | null;
 }): Promise<DebtActionResult> {
   try {
-    await updateDebtLedgerEntry(input);
+    await debtCollectionService.updateEntry(input);
     revalidatePath("/debts");
     revalidatePath(`/debts/${input.customerId}`);
     revalidatePath(`/debts/${input.customerId}/print`);
+    revalidatePath("/transfers");
+    revalidatePath("/reports");
     return { success: true };
   } catch (error) {
     return { success: false, error: messageFromError(error) };
