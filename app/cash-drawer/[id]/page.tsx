@@ -18,7 +18,7 @@ import { formatCurrency } from "@/lib/format";
 import { cashDrawerMovementLabel, cashDrawerSourceHref, cashDrawerSourceLabel, cashDrawerSourceLinkLabel } from "@/lib/cash-drawer-presentation";
 import { cashDrawerService } from "@/lib/services/cashDrawerService";
 import { financialTransferService } from "@/lib/services/financialTransferService";
-import { timeZoneForCountry } from "@/lib/shop-timezone";
+import { getShopTimeZone } from "@/lib/shop-timezone";
 
 export const dynamic = "force-dynamic";
 type MovementDetailsPageProps = { params: Promise<{ id: string }> };
@@ -32,7 +32,7 @@ export default async function CashDrawerMovementDetailsPage({ params }: Movement
   const movement = await cashDrawerService.getMovementById(auth.shop.id, id);
   if (!movement) notFound();
   const currency = auth.shop.currency || "SAR";
-  const timeZone = timeZoneForCountry(auth.shop.countryCode);
+  const timeZone = await getShopTimeZone(auth.shop.id);
   const sourceHref = cashDrawerSourceHref(movement);
   const positive = movement.direction === "IN";
 
