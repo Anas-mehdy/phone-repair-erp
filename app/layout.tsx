@@ -10,6 +10,7 @@ import { prisma } from "@/lib/prisma";
 import { subscriptionOfferService } from "@/lib/services/subscriptionOfferService";
 import { lifetimeSubscriptionService } from "@/lib/services/lifetimeSubscriptionService";
 import "./globals.css";
+import "./masar-ui.css";
 
 const cairo = Cairo({ subsets: ["arabic"], weight: ["300","400","500","600","700","800","900"], variable: "--font-cairo", display: "swap" });
 const outfit = Outfit({ subsets: ["latin"], weight: ["300","400","500","600","700","800","900"], variable: "--font-outfit", display: "swap" });
@@ -45,14 +46,11 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       canManageSubscription = !rows[0]?.partnerId;
 
       if (canManageSubscription) {
-        // Lifetime marketing must never be able to break the main application shell.
         try {
           const activeLifetime = await lifetimeSubscriptionService.getActiveLifetimeForShop(auth.shop.id);
           if (!activeLifetime) {
             const offer = await subscriptionOfferService.getOfferSettings();
-            if (offer.isActive && offer.remainingEligible > 0) {
-              lifetimeBanner = { remaining: offer.remainingEligible, total: offer.totalEligible };
-            }
+            if (offer.isActive && offer.remainingEligible > 0) lifetimeBanner = { remaining: offer.remainingEligible, total: offer.totalEligible };
           }
         } catch (error) {
           console.error("[LifetimeBanner] Failed to resolve banner state", error);
