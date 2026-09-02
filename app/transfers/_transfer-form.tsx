@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Banknote, Check, Landmark, Sparkles } from "lucide-react";
+import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Banknote, Check, Landmark, Search, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createTransferAction } from "./actions";
 
@@ -25,12 +25,22 @@ export function TransferForm({ wallets, customers, currency }: { wallets: Wallet
   const [commissionMode, setCommissionMode] = useState<CommissionMode>("ADDED");
   const [isDeferred, setIsDeferred] = useState(false);
   const [customerId, setCustomerId] = useState("");
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [customerSearchOpen, setCustomerSearchOpen] = useState(false);
 
   const wallet = wallets.find((item) => item.id === walletId);
   const isCustomerOperation = operationType === "CUSTOMER_DEPOSIT" || operationType === "CUSTOMER_WITHDRAWAL";
   const amountValue = Math.max(0, Number(amount) || 0);
   const defaultRate = operationType === "CUSTOMER_DEPOSIT" ? wallet?.depositCommission ?? 0 : wallet?.withdrawalCommission ?? 0;
   const commissionValue = commissionMode === "NONE" || !isCustomerOperation ? 0 : commission.trim() !== "" ? Math.max(0, Number(commission) || 0) : amountValue * defaultRate / 100;
+
+  const filteredCustomers = useMemo(() => {
+    const term = customerSearch.trim().toLocaleLowerCase("ar");
+    if (!term) return [];
+    return customers
+      .filter((customer) => customer.name.toLocaleLowerCase("ar").includes(term) || (customer.phone ?? "").includes(term))
+      .slice(0, 10);
+  }, [customerSearch, customers]);
 
   const summary = useMemo(() => {
     let walletEffect = amountValue, customerNet = amountValue, customerCharge = amountValue;
@@ -41,6 +51,8 @@ export function TransferForm({ wallets, customers, currency }: { wallets: Wallet
 
   function selectOperation(value: OperationType) { setOperationType(value); if (value !== "CUSTOMER_DEPOSIT") setIsDeferred(false); if (value === "WALLET_TOPUP" || value === "WALLET_WITHDRAWAL") setCommissionMode("NONE"); else if (commissionMode === "NONE") setCommissionMode("ADDED"); }
   function money(value: number) { try { return new Intl.NumberFormat("ar", { style: "currency", currency, maximumFractionDigits: 2 }).format(value); } catch { return value.toFixed(2); } }
+  function selectCustomer(customer: CustomerOption) { setCustomerId(customer.id); setCustomerSearch(`${customer.name}${customer.phone ? ` — ${customer.phone}` : ""}`); setCustomerSearchOpen(false); }
+  function clearCustomer() { setCustomerId(""); setCustomerSearch(""); setCustomerSearchOpen(false); }
 
   return <form action={createTransferAction} className="space-y-5">
     <div><Label>نوع العملية</Label><input type="hidden" name="operationType" value={operationType} /><div className="grid grid-cols-2 gap-2">{operationOptions.map((option) => { const Icon = option.icon; const selected = operationType === option.value; return <button key={option.value} type="button" onClick={() => selectOperation(option.value)} className={`relative rounded-xl border p-3 text-right transition ${selected ? option.active : "border-slate-200 bg-white text-slate-600 hover:border-teal-200 hover:bg-teal-50/30"}`}><div className="flex items-start gap-2.5"><span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${selected ? option.iconClass : "bg-slate-100 text-slate-500"}`}><Icon className="h-4 w-4" /></span><div><div className="text-[10px] font-black">{option.label}</div><div className="mt-0.5 text-[9px] font-semibold opacity-65">{option.helper}</div></div></div>{selected ? <span className="absolute left-2 top-2 flex h-4 w-4 items-center justify-center rounded-full bg-white text-teal-700 shadow-sm"><Check className="h-2.5 w-2.5" /></span> : null}</button>; })}</div></div>
@@ -49,7 +61,25 @@ export function TransferForm({ wallets, customers, currency }: { wallets: Wallet
 
     {isCustomerOperation ? <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-3.5"><div className="grid gap-3 sm:grid-cols-2"><div><Label>العمولة</Label><input name="commission" type="number" min="0" step="0.01" className={`${inputClass} font-numeric`} placeholder={`تلقائي ${defaultRate}%`} value={commission} onChange={(event) => setCommission(event.target.value)} disabled={commissionMode === "NONE"} /></div><div><Label>طريقة احتساب العمولة</Label><div className="grid h-11 grid-cols-3 gap-1 rounded-xl border border-slate-200 bg-white p-1">{([["ADDED","مضافة"],["DEDUCTED","مخصومة"],["NONE","بدون"]] as Array<[CommissionMode,string]>).map(([value,label]) => <label key={value} className={`flex cursor-pointer items-center justify-center rounded-lg text-[9px] font-black transition ${commissionMode === value ? "bg-teal-600 text-white shadow-sm" : "text-slate-500 hover:bg-slate-50"}`}><input type="radio" name="commissionMode" value={value} checked={commissionMode === value} onChange={() => setCommissionMode(value)} className="sr-only" />{label}</label>)}</div></div></div><p className="mt-2 text-[9px] font-bold leading-4 text-slate-400">المضافة تُحصّل فوق المبلغ، والمخصومة تقلل صافي ما يستلمه العميل.</p></div> : <input type="hidden" name="commissionMode" value="NONE" />}
 
-    <div><Label>العميل</Label><select name="customerId" className={inputClass} value={customerId} onChange={(event) => setCustomerId(event.target.value)}><option value="">بدون ربط بعميل مسجل</option>{customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}{customer.phone ? ` — ${customer.phone}` : ""}</option>)}</select></div>
+    <div>
+      <Label>العميل</Label>
+      <input type="hidden" name="customerId" value={customerId} />
+      <div className="relative">
+        <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <input
+          value={customerSearch}
+          onChange={(event) => { setCustomerSearch(event.target.value); setCustomerId(""); setCustomerSearchOpen(true); }}
+          onFocus={() => customerSearch.trim() && setCustomerSearchOpen(true)}
+          className={`${inputClass} pr-9 ${customerSearch ? "pl-9" : ""}`}
+          placeholder="ابدأ بكتابة اسم العميل أو رقم الهاتف"
+          autoComplete="off"
+        />
+        {customerSearch ? <button type="button" onClick={clearCustomer} className="absolute left-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700" aria-label="مسح العميل"><X className="h-3.5 w-3.5" /></button> : null}
+        {customerSearchOpen && customerSearch.trim() ? <div className="absolute z-30 mt-1 max-h-60 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl shadow-slate-200/60">
+          {filteredCustomers.length > 0 ? filteredCustomers.map((customer) => <button key={customer.id} type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => selectCustomer(customer)} className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-right transition hover:bg-teal-50"><span className="min-w-0"><span className="block truncate text-xs font-black text-slate-800">{customer.name}</span>{customer.phone ? <span className="mt-0.5 block font-numeric text-[10px] font-bold text-slate-400">{customer.phone}</span> : null}</span>{customer.id === customerId ? <Check className="h-4 w-4 shrink-0 text-teal-600" /> : null}</button>) : <div className="px-3 py-3 text-center text-[10px] font-bold text-slate-400">لا يوجد عميل مطابق</div>}
+        </div> : null}
+      </div>
+    </div>
 
     {operationType === "CUSTOMER_DEPOSIT" ? <label className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition ${isDeferred ? "border-amber-200 bg-amber-50/80" : "border-slate-200 bg-white"}`}><input type="checkbox" name="isDeferred" checked={isDeferred} onChange={(event) => setIsDeferred(event.target.checked)} className="mt-0.5 h-4 w-4 rounded border-slate-300" /><span><span className="block text-[10px] font-black text-slate-700">تسجيلها كعملية آجلة</span><span className="mt-0.5 block text-[9px] font-semibold text-slate-400">يُضاف المبلغ تلقائياً إلى دفتر ديون العميل المسجل.</span></span></label> : null}
     {isDeferred && !customerId ? <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] font-black text-amber-800">اختر عميلاً مسجلاً حتى يمكن تسجيل العملية كدين.</div> : null}
