@@ -36,7 +36,17 @@ export default async function TransfersPage({ searchParams }: { searchParams: Pr
   const formWallets = wallets.map((wallet) => ({ id: wallet.id, name: wallet.name, balance: Number(wallet.currentBalance), depositCommission: Number(wallet.defaultDepositCommission), withdrawalCommission: Number(wallet.defaultWithdrawalCommission) }));
   const walletPanelItems = wallets.map((wallet) => ({ id: wallet.id, name: wallet.name, balance: Number(wallet.currentBalance), monthlyLimit: wallet.monthlyLimit == null ? null : Number(wallet.monthlyLimit), monthlyUsed: Number(wallet.monthlyUsed), depositCommission: Number(wallet.defaultDepositCommission), withdrawalCommission: Number(wallet.defaultWithdrawalCommission) }));
 
-  return <div className="space-y-6 pb-8">
+  return <div className="transfers-ui space-y-6 pb-8">
+    <style>{`
+      .transfers-ui .text-\\[9px\\] { font-size: 11px !important; line-height: 1.45 !important; }
+      .transfers-ui .text-\\[10px\\] { font-size: 12px !important; line-height: 1.5 !important; }
+      .transfers-ui .text-\\[11px\\] { font-size: 13px !important; line-height: 1.5 !important; }
+      .transfers-ui .text-xs { font-size: 13px !important; line-height: 1.55 !important; }
+      .transfers-ui .text-sm { font-size: 15px !important; line-height: 1.55 !important; }
+      .transfers-ui input.text-xs,
+      .transfers-ui select.text-xs,
+      .transfers-ui textarea.text-xs { font-size: 13px !important; }
+    `}</style>
     <section className="relative overflow-hidden rounded-[26px] border border-teal-100/80 bg-gradient-to-br from-teal-50 via-white to-cyan-50/70 px-5 py-5 shadow-[0_20px_70px_-46px_rgba(13,148,136,0.5)] sm:px-6 sm:py-6">
       <div className="absolute -left-20 -top-24 h-56 w-56 rounded-full bg-cyan-200/25 blur-3xl" />
       <div className="absolute -bottom-24 -right-20 h-56 w-56 rounded-full bg-teal-200/30 blur-3xl" />
