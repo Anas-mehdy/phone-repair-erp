@@ -19,25 +19,62 @@ export const metadata: Metadata = { metadataBase: new URL(APP_URL), title: "مس
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   let canSettings = false, canReports = false, canManageSubscription = false, canManageDebts = false, showTutorialBanner = false;
   let lifetimeBanner: { remaining: number; total: number } | null = null;
+
   try {
     const auth = await getAuthContext({ allowRedirect: false });
-    canSettings = can(auth, "shop:settings"); canReports = can(auth, "reports:read"); canManageDebts = can(auth, "debts:manage");
-    const tutorialRows = await prisma.$queryRaw<Array<{ tutorialBannerSeenAt: Date | null }>>`SELECT "tutorialBannerSeenAt" FROM "User" WHERE "id" = ${auth.user.id}::uuid AND "deletedAt" IS NULL LIMIT 1`;
+    canSettings = can(auth, "shop:settings");
+    canReports = can(auth, "reports:read");
+    canManageDebts = can(auth, "debts:manage");
+
+    const tutorialRows = await prisma.$queryRaw<Array<{ tutorialBannerSeenAt: Date | null }>>`
+      SELECT "tutorialBannerSeenAt"
+      FROM "User"
+      WHERE "id" = ${auth.user.id}::uuid AND "deletedAt" IS NULL
+      LIMIT 1
+    `;
     showTutorialBanner = tutorialRows[0]?.tutorialBannerSeenAt == null;
+
     const hasSubscriptionPermission = can(auth, "subscription:manage");
     if (hasSubscriptionPermission) {
-      const rows = await prisma.$queryRaw<Array<{ partnerId: string | null }>>`SELECT "partnerId" FROM "Shop" WHERE "id" = ${auth.shop.id}::uuid AND "deletedAt" IS NULL LIMIT 1`;
+      const rows = await prisma.$queryRaw<Array<{ partnerId: string | null }>>`
+        SELECT "partnerId"
+        FROM "Shop"
+        WHERE "id" = ${auth.shop.id}::uuid AND "deletedAt" IS NULL
+        LIMIT 1
+      `;
       canManageSubscription = !rows[0]?.partnerId;
+
       if (canManageSubscription) {
-        const activeLifetime = await lifetimeSubscriptionService.getActiveLifetimeForShop(auth.shop.id);
-        if (!activeLifetime) {
-          const offer = await subscriptionOfferService.getOfferSettings();
-          if (offer.isActive && offer.remainingEligible > 0) lifetimeBanner = { remaining: offer.remainingEligible, total: offer.totalEligible };
+        // Lifetime marketing must never be able to break the main application shell.
+        try {
+          const activeLifetime = await lifetimeSubscriptionService.getActiveLifetimeForShop(auth.shop.id);
+          if (!activeLifetime) {
+            const offer = await subscriptionOfferService.getOfferSettings();
+            if (offer.isActive && offer.remainingEligible > 0) {
+              lifetimeBanner = { remaining: offer.remainingEligible, total: offer.totalEligible };
+            }
+          }
+        } catch (error) {
+          console.error("[LifetimeBanner] Failed to resolve banner state", error);
+          lifetimeBanner = null;
         }
       }
     }
   } catch {
-    canSettings = false; canReports = false; canManageSubscription = false; canManageDebts = false; showTutorialBanner = false; lifetimeBanner = null;
+    canSettings = false;
+    canReports = false;
+    canManageSubscription = false;
+    canManageDebts = false;
+    showTutorialBanner = false;
+    lifetimeBanner = null;
   }
-  return <html lang="ar" dir="rtl" className={`${cairo.variable} ${outfit.variable} overflow-x-hidden w-full max-w-full`}><body className="font-sans antialiased overflow-x-hidden min-h-screen w-full max-w-full"><DashboardKpiNavigation /><PwaInstallPrompt />{lifetimeBanner ? <LifetimeOfferBanner remaining={lifetimeBanner.remaining} total={lifetimeBanner.total} /> : null}<AppShell canSettings={canSettings} canReports={canReports} canManageSubscription={canManageSubscription} canManageDebts={canManageDebts} tutorialInitialShowBanner={showTutorialBanner}>{children}</AppShell></body></html>;
+
+  return <html lang="ar" dir="rtl" className={`${cairo.variable} ${outfit.variable} overflow-x-hidden w-full max-w-full`}>
+    <body className="font-sans antialiased overflow-x-hidden min-h-screen w-full max-w-full">
+      <DashboardKpiNavigation />
+      <PwaInstallPrompt />
+      {lifetimeBanner ? <LifetimeOfferBanner remaining={lifetimeBanner.remaining} total={lifetimeBanner.total} /> : null}
+      <AppShell canSettings={canSettings} canReports={canReports} canManageSubscription={canManageSubscription} canManageDebts={canManageDebts} tutorialInitialShowBanner={showTutorialBanner}>{children}</AppShell>
+    </body>
+  </html>;
 }
