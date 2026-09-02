@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
 import { can, requirePermission } from "@/lib/auth/context";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { getInventoryDamageReportSummary } from "@/lib/services/inventoryDamageReportService";
 import { reportService } from "@/lib/services/reportService";
 import { createExpenseAction, deleteExpenseAction } from "./actions";
 
@@ -98,7 +99,10 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   const params = await searchParams;
   const auth = await requirePermission("reports:read");
   const range = resolveRange(params);
-  const report = await reportService.getFinancialReport(auth.shop.id, range);
+  const [report, damageSummary] = await Promise.all([
+    reportService.getFinancialReport(auth.shop.id, range),
+    getInventoryDamageReportSummary(auth.shop.id, range.start, range.end),
+  ]);
   const currency = auth.shop.currency || "SAR";
   const canManageExpenses = can(auth, "expenses:manage");
   const maxMix = Math.max(...report.revenueMix.map((item) => item.value), 1);
@@ -159,6 +163,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
         <MetricCard label="المقبوض فعلياً" helper="دخل الصندوق ووسائل الدفع" value={formatCurrency(report.metrics.collected, currency)} icon={Banknote} tone="emerald" />
         <MetricCard label="المتبقي عند العملاء" helper="فواتير وخطط هذه الفترة" value={formatCurrency(report.metrics.outstanding, currency)} icon={Wallet} tone="amber" />
         <MetricCard label="تكلفة القطع المستخدمة" helper="مخزون وقطع صيانة خارجية" value={formatCurrency(report.metrics.directCosts, currency)} icon={Boxes} tone="rose" />
+        <MetricCard label="إجمالي التوالف" helper={`${damageSummary.movementCount} حركة تالف — لا تؤثر على الربح`} value={formatCurrency(damageSummary.totalValue, currency)} icon={Boxes} tone="rose" />
         <MetricCard label="مجمل الربح" helper="قبل المصروفات والضريبة" value={formatCurrency(report.metrics.grossProfit, currency)} icon={TrendingUp} tone={report.metrics.grossProfit >= 0 ? "teal" : "rose"} />
         <MetricCard label="المصروفات" helper={`${report.counts.expenses} حركة مصروف`} value={formatCurrency(report.metrics.expenseTotal, currency)} icon={ArrowDownLeft} tone="orange" />
         <MetricCard label="صافي الربح" helper={`هامش ${report.metrics.profitMargin.toFixed(1)}%`} value={formatCurrency(report.metrics.netProfit, currency)} icon={CircleDollarSign} tone={report.metrics.netProfit >= 0 ? "emerald" : "rose"} featured />
