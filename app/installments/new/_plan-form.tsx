@@ -14,16 +14,19 @@ type InvoiceOption = {
   balanceDue: string;
   customer: { id: string; name: string; phone: string | null } | null;
 };
+type WalletOption = { id: string; name: string; currentBalance: number };
 
 export function InstallmentPlanForm({
   customers,
   invoices,
+  wallets,
   requestId,
   initialInvoiceId,
   currency,
 }: {
   customers: CustomerOption[];
   invoices: InvoiceOption[];
+  wallets: WalletOption[];
   requestId: string;
   initialInvoiceId?: string;
   currency: string;
@@ -33,6 +36,8 @@ export function InstallmentPlanForm({
   const [customerId, setCustomerId] = useState(customers[0]?.id || "NEW");
   const [total, setTotal] = useState("");
   const [down, setDown] = useState("0");
+  const [downDestination, setDownDestination] = useState<"DRAWER" | "WALLET" | "OTHER">("DRAWER");
+  const [downWalletId, setDownWalletId] = useState("");
   const [count, setCount] = useState(4);
   const [title, setTitle] = useState(() => {
     const invoice = invoices.find((item) => item.id === initialInvoiceId);
@@ -45,6 +50,7 @@ export function InstallmentPlanForm({
   const financed = Math.max(0, effectiveTotal - effectiveDown);
   const installment = count > 0 ? financed / count : 0;
   const validPreview = Number.isFinite(installment) && installment > 0;
+  const downLocationValid = effectiveDown <= 0 || downDestination !== "WALLET" || Boolean(downWalletId);
   const today = useMemo(() => {
     const value = new Date();
     value.setDate(value.getDate() + 30);
@@ -105,7 +111,11 @@ export function InstallmentPlanForm({
             </>}
             <label className="grid gap-2"><span className="text-xs font-extrabold text-slate-800">المبلغ الإجمالي</span><input name="totalAmount" className="erp-input" type="number" min="0.01" step="0.01" required value={total} onChange={(event) => setTotal(event.target.value)} /></label>
             <label className="grid gap-2"><span className="text-xs font-extrabold text-slate-800">الدفعة الأولى</span><input name="downPayment" className="erp-input" type="number" min="0" step="0.01" value={down} onChange={(event) => setDown(event.target.value)} /></label>
-            {effectiveDown > 0 && <label className="grid gap-2 md:col-span-2"><span className="text-xs font-extrabold text-slate-800">طريقة دفع الدفعة الأولى</span><select name="downPaymentMethod" className="erp-input" defaultValue={PaymentMethod.CASH}><option value="CASH">نقدي</option><option value="CARD">بطاقة</option><option value="BANK_TRANSFER">تحويل بنكي</option><option value="OTHER">أخرى</option></select></label>}
+            {effectiveDown > 0 && <>
+              <label className="grid gap-2"><span className="text-xs font-extrabold text-slate-800">طريقة دفع الدفعة الأولى</span><select name="downPaymentMethod" className="erp-input" defaultValue={PaymentMethod.CASH}><option value="CASH">نقدي</option><option value="CARD">بطاقة</option><option value="BANK_TRANSFER">تحويل بنكي</option><option value="OTHER">أخرى</option></select></label>
+              <label className="grid gap-2"><span className="text-xs font-extrabold text-slate-800">مكان وصول الدفعة الأولى</span><select name="downPaymentDestination" value={downDestination} onChange={(event) => setDownDestination(event.target.value as "DRAWER" | "WALLET" | "OTHER")} className="erp-input"><option value="DRAWER">الدرج النقدي</option><option value="WALLET">محفظة إلكترونية</option><option value="OTHER">بدون تحديث رصيد</option></select></label>
+              <label className="grid gap-2 md:col-span-2"><span className="text-xs font-extrabold text-slate-800">المحفظة</span><select name="downPaymentWalletId" value={downWalletId} onChange={(event) => setDownWalletId(event.target.value)} disabled={downDestination !== "WALLET"} className="erp-input disabled:bg-slate-100 disabled:text-slate-400"><option value="">اخترها فقط إذا وصلت الدفعة الأولى إلى محفظة</option>{wallets.map((wallet) => <option key={wallet.id} value={wallet.id}>{wallet.name} — {wallet.currentBalance.toFixed(2)} {currency}</option>)}</select><span className="text-[11px] font-semibold leading-5 text-teal-700">الدفعة الأولى تُحتسب مرة واحدة في الخطة؛ هذا الحقل يحدد فقط مكان وجود المال فعلياً.</span></label>
+            </>}
           </>
         )}
 
@@ -127,7 +137,7 @@ export function InstallmentPlanForm({
         <p className="mt-3 flex items-center gap-1 text-[11px] font-medium text-teal-700"><CalendarDays className="h-3.5 w-3.5" />يعالج النظام فرق التقريب تلقائياً في القسط الأخير.</p>
       </div>
 
-      <SubmitButton className="h-12 w-full rounded-xl font-black" loadingText="جاري إنشاء خطة الأقساط..." disabled={!validPreview || (mode === "INVOICE" && !invoiceId)}>إنشاء الخطة والجدول</SubmitButton>
+      <SubmitButton className="h-12 w-full rounded-xl font-black" loadingText="جاري إنشاء خطة الأقساط..." disabled={!validPreview || !downLocationValid || (mode === "INVOICE" && !invoiceId)}>إنشاء الخطة والجدول</SubmitButton>
     </form>
   );
 }

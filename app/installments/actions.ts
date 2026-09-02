@@ -7,6 +7,7 @@ import { z } from "zod";
 
 import { requirePermission } from "@/lib/auth/context";
 import { installmentCollectionService } from "@/lib/services/installmentCollectionService";
+import { installmentPlanCollectionService } from "@/lib/services/installmentPlanCollectionService";
 import { installmentService } from "@/lib/services/installmentService";
 import { entitlementService } from "@/lib/services/subscriptionEntitlementService";
 
@@ -31,6 +32,8 @@ const createSchema = z.object({
   totalAmount: z.string().trim().min(1, "المبلغ الإجمالي مطلوب"),
   downPayment: z.string().trim().optional(),
   downPaymentMethod: z.nativeEnum(PaymentMethod),
+  downPaymentDestination: z.enum(["DRAWER", "WALLET", "OTHER"]).default("DRAWER"),
+  downPaymentWalletId: z.string().uuid().optional().or(z.literal("")),
   installmentCount: z.coerce.number().int().min(1).max(120),
   frequency: z.nativeEnum(InstallmentFrequency),
   firstDueAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "تاريخ أول قسط مطلوب"),
@@ -76,6 +79,8 @@ export async function createInstallmentPlanAction(formData: FormData) {
       totalAmount: read(formData, "totalAmount"),
       downPayment: read(formData, "downPayment"),
       downPaymentMethod: read(formData, "downPaymentMethod") || PaymentMethod.CASH,
+      downPaymentDestination: read(formData, "downPaymentDestination") || "DRAWER",
+      downPaymentWalletId: read(formData, "downPaymentWalletId"),
       installmentCount: read(formData, "installmentCount"),
       frequency: read(formData, "frequency"),
       firstDueAt: read(formData, "firstDueAt"),
@@ -87,9 +92,15 @@ export async function createInstallmentPlanAction(formData: FormData) {
         "انتهت فترة استخدامك. بياناتك محفوظة بالكامل، اختر خطة لمتابعة إنشاء عمليات جديدة.",
       );
     }
-    const plan = await installmentService.createPlan(auth.shop.id, auth.user.id, input);
+    const plan = await installmentPlanCollectionService.createPlan(auth.shop.id, auth.user.id, {
+      ...input,
+      downPaymentWalletId: input.downPaymentWalletId || undefined,
+    });
+    if (!plan) throw new Error("تعذر إنشاء خطة الأقساط.");
     revalidatePath("/installments");
     revalidatePath("/invoices");
+    revalidatePath("/transfers");
+    revalidatePath("/reports");
     redirect(`/installments/${plan.id}?created=1`);
   } catch (error) {
     if (error && typeof error === "object" && "digest" in error) throw error;
