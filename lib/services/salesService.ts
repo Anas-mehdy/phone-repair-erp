@@ -6,10 +6,12 @@ import {
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { moneyAccountService, type MoneyAccountDestination } from "@/lib/services/moneyAccountService";
+import { sourceDebtService } from "@/lib/services/sourceDebtService";
 
 export type SaleFilters = { search?: string; status?: SaleStatus | "ALL" };
 export type CreateSaleLineItemInput = { inventoryItemId?: string | null; description: string; quantity: number; unitPrice: string; discountTotal?: string };
-export type CreateSaleInput = { customerId?: string; customerName?: string; customerPhone?: string; items: CreateSaleLineItemInput[]; paymentDestination?: Exclude<MoneyAccountDestination, "OTHER">; walletId?: string; amountReceived?: string; changeDestination?: Exclude<MoneyAccountDestination, "OTHER">; changeWalletId?: string };
+export type SalePaymentDestination = Exclude<MoneyAccountDestination, "OTHER"> | "DEBT";
+export type CreateSaleInput = { customerId?: string; customerName?: string; customerPhone?: string; items: CreateSaleLineItemInput[]; paymentDestination?: SalePaymentDestination; walletId?: string; amountReceived?: string; changeDestination?: Exclude<MoneyAccountDestination, "OTHER">; changeWalletId?: string };
 function emptyToNull(value?: string | null) { const trimmed = value?.trim(); return trimmed ? trimmed : null; }
 function decimal(value: string | number) { return new Prisma.Decimal(String(value).replace(",", ".")); }
 function normalizePhone(phone: string) { const trimmed = phone.trim(); if (!trimmed) return null; const hasPlus = trimmed.startsWith("+"); const digits = trimmed.replace(/\D/g, ""); if (!digits) return null; return hasPlus ? `+${digits}` : digits; }
@@ -39,11 +41,20 @@ export async function getSaleById(shopId: string, saleId: string) {
 export async function createSale(shopId: string, createdByUserId: string | null, input: CreateSaleInput) {
   if (input.items.length === 0) throw new Error("يجب إضافة بند واحد على الأقل.");
   const subtotal = input.items.reduce((sum, item) => sum.add(decimal(item.unitPrice).mul(item.quantity)), new Prisma.Decimal(0)); const discountTotal = input.items.reduce((sum, item) => sum.add(decimal(item.discountTotal ?? "0")), new Prisma.Decimal(0)); const taxTotal = new Prisma.Decimal(0); const total = subtotal.sub(discountTotal).add(taxTotal); if (total.lt(0)) throw new Error("إجمالي البيع غير صحيح.");
-  const paymentDestination = input.paymentDestination ?? "DRAWER"; const amountReceived = input.amountReceived?.trim() ? decimal(input.amountReceived) : total; if (amountReceived.lt(total)) throw new Error("المبلغ المستلم أقل من إجمالي البيع. استخدم فاتورة/دين إذا كان هناك مبلغ متبقٍ."); const changeAmount = amountReceived.sub(total); const changeDestination = input.changeDestination ?? "DRAWER";
-  await moneyAccountService.prepareMoneyAccounts(shopId, paymentDestination); if (changeAmount.gt(0)) await moneyAccountService.prepareMoneyAccounts(shopId, changeDestination); const receiptNumber = await generateReceiptNumber(shopId);
+  const paymentDestination = input.paymentDestination ?? "DRAWER";
+  const isDebtSale = paymentDestination === "DEBT";
+  const amountReceived = isDebtSale ? new Prisma.Decimal(0) : input.amountReceived?.trim() ? decimal(input.amountReceived) : total;
+  if (!isDebtSale && amountReceived.lt(total)) throw new Error("المبلغ المستلم أقل من إجمالي البيع. اختر «دفتر الديون» إذا كان المبلغ سيُدفع لاحقاً.");
+  const changeAmount = isDebtSale ? new Prisma.Decimal(0) : amountReceived.sub(total);
+  const changeDestination = input.changeDestination ?? "DRAWER";
+  if (!isDebtSale) await moneyAccountService.prepareMoneyAccounts(shopId, paymentDestination);
+  if (changeAmount.gt(0)) await moneyAccountService.prepareMoneyAccounts(shopId, changeDestination);
+  const receiptNumber = await generateReceiptNumber(shopId);
 
   return prisma.$transaction(async (tx) => {
     const customer = await resolveCustomerForSale(tx, shopId, input);
+    if (isDebtSale && !customer) throw new Error("ترحيل المبيعة إلى دفتر الديون يتطلب عميلاً مسجلاً.");
+
     const sale = await tx.sale.create({ data: { shopId, customerId: customer?.id, createdByUserId, receiptNumber, status: SaleStatus.COMPLETED, subtotal, discountTotal, taxTotal, total } });
     for (const itemInput of input.items) {
       const inventoryItemId = emptyToNull(itemInput.inventoryItemId); let description = itemInput.description.trim(); let inventoryItem: Awaited<ReturnType<typeof tx.inventoryItem.findFirst>> | null = null;
@@ -53,9 +64,25 @@ export async function createSale(shopId: string, createdByUserId: string | null,
       const saleItem = await tx.saleItem.create({ data: { shopId, saleId: sale.id, inventoryItemId, description, quantity: itemInput.quantity, unitPriceSnapshot, discountTotal: lineDiscount, lineTotal } });
       if (inventoryItem) { const quantityAfter = inventoryItem.quantity - itemInput.quantity; await tx.inventoryItem.update({ where: { id: inventoryItem.id }, data: { quantity: quantityAfter, version: { increment: 1 } } }); await tx.inventoryMovement.create({ data: { shopId, inventoryItemId: inventoryItem.id, saleId: sale.id, saleItemId: saleItem.id, createdByUserId, type: InventoryMovementType.SALE, quantityChange: -itemInput.quantity, quantityAfter, unitCostSnapshot: inventoryItem.unitCost, note: "بيع" } }); }
     }
+
     const sourceBase = { sourceId: sale.id, sourceReference: sale.receiptNumber, customerId: customer?.id ?? null, customerName: customer?.name ?? null, customerPhone: customer?.phone ?? null };
-    await moneyAccountService.applyIncomingMoneyTx(tx, shopId, createdByUserId, { destination: paymentDestination, walletId: input.walletId, amount: amountReceived, reference: sale.receiptNumber, description: `تحصيل بيع ${sale.receiptNumber}`, drawerType: "SALE_CASH", source: { ...sourceBase, sourceType: "SALE" } });
-    if (changeAmount.gt(0)) await moneyAccountService.applyOutgoingMoneyTx(tx, shopId, createdByUserId, { destination: changeDestination, walletId: input.changeWalletId, amount: changeAmount, reference: sale.receiptNumber, description: `إرجاع باقي للعميل من بيع ${sale.receiptNumber}`, source: { ...sourceBase, sourceType: "SALE_CHANGE" } });
+    if (isDebtSale) {
+      if (customer && total.gt(0)) {
+        await sourceDebtService.createSourceDebtTx(tx, {
+          shopId,
+          customerId: customer.id,
+          createdByUserId,
+          amount: total,
+          sourceType: "SALE",
+          sourceId: sale.id,
+          sourceReference: sale.receiptNumber,
+          description: `مبيعة آجلة ${sale.receiptNumber}`,
+        });
+      }
+    } else {
+      await moneyAccountService.applyIncomingMoneyTx(tx, shopId, createdByUserId, { destination: paymentDestination, walletId: input.walletId, amount: amountReceived, reference: sale.receiptNumber, description: `تحصيل بيع ${sale.receiptNumber}`, drawerType: "SALE_CASH", source: { ...sourceBase, sourceType: "SALE" } });
+      if (changeAmount.gt(0)) await moneyAccountService.applyOutgoingMoneyTx(tx, shopId, createdByUserId, { destination: changeDestination, walletId: input.changeWalletId, amount: changeAmount, reference: sale.receiptNumber, description: `إرجاع باقي للعميل من بيع ${sale.receiptNumber}`, source: { ...sourceBase, sourceType: "SALE_CHANGE" } });
+    }
     return sale;
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 10_000 });
 }
@@ -63,6 +90,7 @@ export async function createSale(shopId: string, createdByUserId: string | null,
 export async function cancelSale(shopId: string, saleId: string, createdByUserId: string | null) {
   return prisma.$transaction(async (tx) => {
     const sale = await tx.sale.findFirst({ where: { id: saleId, shopId, deletedAt: null }, include: { items: true } }); if (!sale) throw new Error("عملية البيع غير موجودة."); if (sale.status !== SaleStatus.COMPLETED) return sale;
+    await sourceDebtService.reverseSourceDebtTx(tx, { shopId, sourceType: "SALE", sourceId: sale.id });
     if (sale.receiptNumber) await moneyAccountService.reverseSaleMoneyTx(tx, shopId, sale.receiptNumber);
     for (const saleItem of sale.items) { if (!saleItem.inventoryItemId) continue; const inventoryItem = await tx.inventoryItem.findFirst({ where: { id: saleItem.inventoryItemId, shopId, deletedAt: null } }); if (!inventoryItem) throw new Error("لا يمكن إلغاء البيع لأن قطعة مخزون مرتبطة غير موجودة."); const quantityAfter = inventoryItem.quantity + saleItem.quantity; await tx.inventoryItem.update({ where: { id: inventoryItem.id }, data: { quantity: quantityAfter, version: { increment: 1 } } }); await tx.inventoryMovement.create({ data: { shopId, inventoryItemId: inventoryItem.id, saleId: sale.id, saleItemId: saleItem.id, createdByUserId, type: InventoryMovementType.RETURN, quantityChange: saleItem.quantity, quantityAfter, unitCostSnapshot: inventoryItem.unitCost, note: "إلغاء عملية بيع" } }); }
     return tx.sale.update({ where: { id: sale.id }, data: { status: SaleStatus.CANCELLED, version: { increment: 1 } }, include: { items: true } });

@@ -7,12 +7,18 @@ import {
   ArrowRight,
   Banknote,
   CalendarDays,
-  CreditCard,
+  ExternalLink,
   Pencil,
   Printer,
   ReceiptText,
   Trash2,
 } from "lucide-react";
+import {
+  parseSourceDebtReference,
+  sourceDebtHref,
+  sourceDebtKindLabel,
+  sourceDebtLinkLabel,
+} from "@/lib/debt-source-reference";
 import {
   deleteDebtLedgerAction,
   recordDebtPaymentAction,
@@ -50,6 +56,33 @@ function isDebit(type: Entry["type"]) {
 
 function dateInputValue(value: string | null) {
   return value ? new Date(value).toISOString().slice(0, 10) : "";
+}
+
+function linkedSource(entry: Entry) {
+  return entry.type === "DEBT" ? parseSourceDebtReference(entry.reference) : null;
+}
+
+function entryTypeLabel(entry: Entry) {
+  const source = linkedSource(entry);
+  return source ? sourceDebtKindLabel(source) : typeLabel(entry.type);
+}
+
+function DebtReference({ entry }: { entry: Entry }) {
+  const source = linkedSource(entry);
+  if (!source) return <>{entry.reference || "—"}</>;
+
+  return (
+    <div className="flex min-w-[150px] flex-col gap-1.5">
+      <span className="font-numeric font-bold text-slate-600">{source.displayReference || "مرجع العملية"}</span>
+      <Link
+        href={sourceDebtHref(source)}
+        className="inline-flex w-fit items-center gap-1 rounded-lg border border-sky-200 bg-sky-50 px-2 py-1 text-[10px] font-black text-sky-700 hover:bg-sky-100"
+      >
+        <ExternalLink className="h-3 w-3" />
+        {sourceDebtLinkLabel(source)}
+      </Link>
+    </div>
+  );
 }
 
 export function CustomerDebtLedger({
@@ -145,6 +178,10 @@ export function CustomerDebtLedger({
   }
 
   function beginEdit(entry: Entry) {
+    if (linkedSource(entry)) {
+      setMessage("هذه الحركة مرتبطة بعملية أصلية. افتح المبيعة أو خدمة السوفتوير لإدارتها.");
+      return;
+    }
     setMessage(null);
     setEditingEntryId(entry.id);
     setEditAmount(String(entry.amount));
@@ -287,23 +324,23 @@ export function CustomerDebtLedger({
       </section>
 
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-100 p-4"><div className="flex items-center gap-2"><ReceiptText className="h-5 w-5 text-sky-600" /><h2 className="text-sm font-black text-slate-900">حركات كشف الحساب</h2></div><p className="mt-1 text-[11px] font-semibold text-slate-500">يمكن تعديل مبلغ أو تفاصيل أي حركة سابقة، وإذا كانت دفعة مرتبطة بالدرج أو محفظة سيحدّث النظام أثرها المالي تلقائياً.</p></div>
+        <div className="border-b border-slate-100 p-4"><div className="flex items-center gap-2"><ReceiptText className="h-5 w-5 text-sky-600" /><h2 className="text-sm font-black text-slate-900">حركات كشف الحساب</h2></div><p className="mt-1 text-[11px] font-semibold text-slate-500">كل دين ناتج عن مبيعة أو خدمة يظهر كحركة مستقلة مع رابط لمصدره، ولا يمكن تعديل الحركة المرتبطة من دفتر الدين مباشرة.</p></div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] text-right text-xs">
-            <thead className="bg-slate-50 text-slate-500"><tr><th className="p-3">التاريخ</th><th className="p-3">الحركة</th><th className="p-3">مدين</th><th className="p-3">دائن / تحصيل</th><th className="p-3">مصدر الدفع</th><th className="p-3">البيان</th><th className="p-3">المرجع</th><th className="p-3">المستخدم</th><th className="p-3"></th></tr></thead>
+          <table className="w-full min-w-[1040px] text-right text-xs">
+            <thead className="bg-slate-50 text-slate-500"><tr><th className="p-3">التاريخ</th><th className="p-3">الحركة</th><th className="p-3">مدين</th><th className="p-3">دائن / تحصيل</th><th className="p-3">مصدر الدفع</th><th className="p-3">البيان</th><th className="p-3">المرجع / المصدر</th><th className="p-3">المستخدم</th><th className="p-3"></th></tr></thead>
             <tbody className="divide-y divide-slate-100">
               {entries.map((entry) => (
                 <Fragment key={entry.id}>
                   <tr className={entry.isReversed ? "opacity-40 line-through" : ""}>
                     <td className="p-3 text-slate-500"><span className="inline-flex items-center gap-1"><CalendarDays className="h-3.5 w-3.5" />{new Date(entry.occurredAt).toLocaleDateString("ar")}</span></td>
-                    <td className="p-3 font-black text-slate-800">{typeLabel(entry.type)}</td>
+                    <td className="p-3 font-black text-slate-800">{entryTypeLabel(entry)}</td>
                     <td className="p-3 font-black text-rose-600">{isDebit(entry.type) ? money(entry.amount) : "—"}</td>
                     <td className="p-3 font-black text-emerald-600">{!isDebit(entry.type) ? money(entry.amount) : "—"}</td>
                     <td className="p-3 font-bold text-indigo-700">{entry.type === "PAYMENT" ? (entry.sourceName || entry.paymentMethod || "—") : "—"}</td>
                     <td className="p-3 text-slate-600">{entry.description || "—"}</td>
-                    <td className="p-3 text-slate-500">{entry.reference || "—"}</td>
+                    <td className="p-3 text-slate-500"><DebtReference entry={entry} /></td>
                     <td className="p-3 text-slate-500">{entry.createdByName || "—"}</td>
-                    <td className="p-3">{!entry.isReversed ? <button type="button" onClick={() => beginEdit(entry)} className="inline-flex items-center gap-1 font-black text-sky-700 hover:underline"><Pencil className="h-3.5 w-3.5" /> تعديل</button> : null}</td>
+                    <td className="p-3">{!entry.isReversed && !linkedSource(entry) ? <button type="button" onClick={() => beginEdit(entry)} className="inline-flex items-center gap-1 font-black text-sky-700 hover:underline"><Pencil className="h-3.5 w-3.5" /> تعديل</button> : linkedSource(entry) ? <span className="text-[10px] font-bold text-slate-400">يُدار من المصدر</span> : null}</td>
                   </tr>
                   {editingEntryId === entry.id ? (
                     <tr className="bg-sky-50/40">

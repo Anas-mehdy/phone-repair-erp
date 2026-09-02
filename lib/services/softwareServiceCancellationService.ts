@@ -2,6 +2,7 @@ import { InvoiceStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { moneyAccountService } from "@/lib/services/moneyAccountService";
 import { softwareServiceService } from "@/lib/services/softwareServiceService";
+import { sourceDebtService } from "@/lib/services/sourceDebtService";
 
 export async function cancelSoftwareServiceSale(
   shopId: string,
@@ -46,6 +47,14 @@ export async function cancelSoftwareServiceSale(
       throw new Error("لا يمكن إلغاء خدمة مرتبطة بخطة أقساط. عالج أو ألغِ خطة الأقساط أولاً.");
     }
 
+    // If this service was deferred to the debt ledger, reverse that exact debt entry.
+    // If any part of the linked debt was already collected, reverseSourceDebtTx blocks cancellation.
+    await sourceDebtService.reverseSourceDebtTx(tx, {
+      shopId,
+      sourceType: "SOFTWARE_SERVICE",
+      sourceId: sale.id,
+    });
+
     const now = new Date();
     if (invoice.status !== InvoiceStatus.VOID) {
       await moneyAccountService.reverseInvoiceMoneyTx(tx, shopId, invoice.invoiceNumber);
@@ -74,7 +83,7 @@ export async function cancelSoftwareServiceSale(
     `;
 
     return { id: sale.id, invoiceId: invoice.id };
-  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 10_000 });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 15_000 });
 }
 
 export const softwareServiceCancellationService = { cancelSoftwareServiceSale };

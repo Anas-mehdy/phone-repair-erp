@@ -19,6 +19,7 @@ function getErrorMessage(error: unknown) {
 }
 
 const createSaleSchema = z.object({
+  customerMode: z.enum(["EXISTING", "NEW", "CASH"]),
   customerId: z.string().uuid().optional().or(z.literal("")),
   newCustomerName: z.string().trim().max(120).optional(),
   newCustomerPhone: z.string().trim().max(40).optional(),
@@ -31,36 +32,70 @@ const createSaleSchema = z.object({
   serviceCost: z.string().trim().optional(),
   notes: z.string().trim().max(1000).optional(),
   deviceKept: z.boolean().optional(),
+  paymentDestination: z.enum(["DRAWER", "WALLET", "DEBT"]).default("DRAWER"),
+  walletId: z.string().uuid().optional().or(z.literal("")),
+  amountReceived: z.string().trim().optional(),
+  changeDestination: z.enum(["DRAWER", "WALLET"]).default("DRAWER"),
+  changeWalletId: z.string().uuid().optional().or(z.literal("")),
+}).superRefine((data, ctx) => {
+  if (data.customerMode === "EXISTING" && !data.customerId) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "اختر عميلاً موجوداً من القائمة." });
+  if (data.customerMode === "NEW" && !data.newCustomerName?.trim()) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "اسم العميل الجديد مطلوب." });
+  if (data.paymentDestination === "WALLET" && !data.walletId) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "اختر محفظة استلام المبلغ." });
+  if (data.paymentDestination === "DEBT" && data.customerMode === "CASH") ctx.addIssue({ code: z.ZodIssueCode.custom, message: "ترحيل الخدمة إلى دفتر الديون يتطلب عميلاً مسجلاً." });
 });
 
 export async function createSoftwareServiceSaleAction(formData: FormData) {
-  const input = createSaleSchema.parse({
-    customerId: readString(formData, "customerId"),
-    newCustomerName: readString(formData, "newCustomerName"),
-    newCustomerPhone: readString(formData, "newCustomerPhone"),
-    catalogId: readString(formData, "catalogId"),
-    serviceName: readString(formData, "serviceName"),
-    deviceBrand: readString(formData, "deviceBrand"),
-    deviceModel: readString(formData, "deviceModel"),
-    deviceSerial: readString(formData, "deviceSerial"),
-    salePrice: readString(formData, "salePrice"),
-    serviceCost: readString(formData, "serviceCost"),
-    notes: readString(formData, "notes"),
-    deviceKept: readString(formData, "deviceKept") === "on",
-  });
-
   let redirectTo = "/software-services/new";
   try {
+    const input = createSaleSchema.parse({
+      customerMode: readString(formData, "customerMode") || "CASH",
+      customerId: readString(formData, "customerId"),
+      newCustomerName: readString(formData, "newCustomerName"),
+      newCustomerPhone: readString(formData, "newCustomerPhone"),
+      catalogId: readString(formData, "catalogId"),
+      serviceName: readString(formData, "serviceName"),
+      deviceBrand: readString(formData, "deviceBrand"),
+      deviceModel: readString(formData, "deviceModel"),
+      deviceSerial: readString(formData, "deviceSerial"),
+      salePrice: readString(formData, "salePrice"),
+      serviceCost: readString(formData, "serviceCost"),
+      notes: readString(formData, "notes"),
+      deviceKept: readString(formData, "deviceKept") === "on",
+      paymentDestination: readString(formData, "paymentDestination") || "DRAWER",
+      walletId: readString(formData, "walletId"),
+      amountReceived: readString(formData, "amountReceived"),
+      changeDestination: readString(formData, "changeDestination") || "DRAWER",
+      changeWalletId: readString(formData, "changeWalletId"),
+    });
+
     const auth = await requirePermission("sales:create");
     const sale = await softwareServiceService.createSale(auth.shop.id, auth.user.id, {
-      ...input,
-      customerId: input.customerId || undefined,
+      customerId: input.customerMode === "EXISTING" ? input.customerId || undefined : undefined,
+      newCustomerName: input.customerMode === "NEW" ? input.newCustomerName : undefined,
+      newCustomerPhone: input.customerMode === "NEW" ? input.newCustomerPhone : undefined,
       catalogId: input.catalogId || undefined,
+      serviceName: input.serviceName,
+      deviceBrand: input.deviceBrand,
+      deviceModel: input.deviceModel,
+      deviceSerial: input.deviceSerial,
+      salePrice: input.salePrice,
+      serviceCost: input.serviceCost,
+      notes: input.notes,
+      deviceKept: input.deviceKept,
+      paymentDestination: input.paymentDestination,
+      walletId: input.walletId || undefined,
+      amountReceived: input.amountReceived || undefined,
+      changeDestination: input.changeDestination,
+      changeWalletId: input.changeWalletId || undefined,
     });
     revalidatePath("/software-services");
+    revalidatePath("/customers");
     revalidatePath("/dashboard");
     revalidatePath("/invoices");
     revalidatePath("/reports");
+    revalidatePath("/debts");
+    revalidatePath("/cash-drawer");
+    revalidatePath("/transfers");
     redirectTo = `/software-services/${sale.id}?created=1`;
   } catch (error) {
     redirectTo = `/software-services/new?error=${encodeURIComponent(getErrorMessage(error))}`;
@@ -122,6 +157,7 @@ export async function cancelSoftwareServiceSaleAction(formData: FormData) {
     revalidatePath("/reports");
     revalidatePath("/cash-drawer");
     revalidatePath("/transfers");
+    revalidatePath("/debts");
     redirectTo = "/software-services?cancelled=1";
   } catch (error) {
     redirectTo = `/software-services/${id}?error=${encodeURIComponent(getErrorMessage(error))}`;

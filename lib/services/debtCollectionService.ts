@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 
 import { requirePermission } from "@/lib/auth/context";
+import { parseSourceDebtReference } from "@/lib/debt-source-reference";
 import { prisma } from "@/lib/prisma";
 import { cashDrawerService } from "@/lib/services/cashDrawerService";
 import {
@@ -9,6 +10,7 @@ import {
 } from "@/lib/services/collectionMoneyService";
 import { financialTransferService } from "@/lib/services/financialTransferService";
 import { resolvePaymentSource } from "@/lib/services/paymentSourceService";
+import { sourceDebtService } from "@/lib/services/sourceDebtService";
 
 export type DebtEntryType =
   | "DEBT"
@@ -288,6 +290,8 @@ export async function recordPayment(input: {
         WHERE "id" = ${entryId}::uuid
       `;
     }
+
+    await sourceDebtService.syncSoftwareDebtInvoicesTx(tx, auth.shop.id, input.customerId);
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 15_000 });
 }
 
@@ -321,8 +325,9 @@ export async function updateEntry(input: {
       isReversed: boolean;
       sourceName: string | null;
       paymentMethod: string | null;
+      reference: string | null;
     }>>`
-      SELECT "id", "type", "isReversed", "sourceName", "paymentMethod"
+      SELECT "id", "type", "isReversed", "sourceName", "paymentMethod", "reference"
       FROM "DebtLedgerEntry"
       WHERE "id" = ${input.entryId}::uuid
         AND "shopId" = ${auth.shop.id}::uuid
@@ -332,6 +337,9 @@ export async function updateEntry(input: {
     const entry = rows[0];
     if (!entry) throw new Error("حركة الدين غير موجودة.");
     if (entry.isReversed) throw new Error("لا يمكن تعديل حركة ملغاة.");
+    if (entry.type === "DEBT" && parseSourceDebtReference(entry.reference)) {
+      throw new Error("هذا الدين مرتبط بمبيعة أو خدمة سوفتوير، لذلك يُدار من العملية الأصلية ولا يمكن تعديله يدوياً.");
+    }
 
     const isCredit = entry.type === "PAYMENT" || entry.type === "ADJUSTMENT_CREDIT";
     if (isCredit) {
@@ -379,6 +387,8 @@ export async function updateEntry(input: {
         AND "shopId" = ${auth.shop.id}::uuid
         AND "customerId" = ${input.customerId}::uuid
     `;
+
+    await sourceDebtService.syncSoftwareDebtInvoicesTx(tx, auth.shop.id, input.customerId);
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 15_000 });
 }
 

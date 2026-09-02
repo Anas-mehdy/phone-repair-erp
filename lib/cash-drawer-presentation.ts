@@ -1,6 +1,6 @@
 import type { CashDrawerMovementRow, CashDrawerSourceType } from "@/lib/services/cashDrawerService";
 
-export function cashDrawerMovementLabel(movement: Pick<CashDrawerMovementRow, "type" | "direction">) {
+export function cashDrawerMovementLabel(movement: Pick<CashDrawerMovementRow, "type" | "direction" | "sourceType">) {
   switch (movement.type) {
     case "OPENING_BALANCE": return "الرصيد الافتتاحي";
     case "MANUAL_IN": return "إضافة نقد للدرج";
@@ -8,11 +8,11 @@ export function cashDrawerMovementLabel(movement: Pick<CashDrawerMovementRow, "t
     case "WALLET_TRANSFER_IN": return "تحويل من محفظة";
     case "WALLET_TRANSFER_OUT": return "تحويل إلى محفظة";
     case "SALE_CASH": return "تحصيل مبيعة";
-    case "INVOICE_PAYMENT": return "تحصيل فاتورة";
+    case "INVOICE_PAYMENT": return "تحصيل فاتورة / خدمة";
     case "INSTALLMENT_PAYMENT": return "تحصيل قسط";
     case "INSTALLMENT_DOWN_PAYMENT": return "دفعة أولى للأقساط";
     case "DEBT_PAYMENT": return "تحصيل دين";
-    case "CHANGE_RETURN": return "إرجاع باقي مبيعة";
+    case "CHANGE_RETURN": return movement.sourceType === "INVOICE" ? "إرجاع باقي فاتورة / خدمة" : "إرجاع باقي مبيعة";
     default: return movement.direction === "IN" ? "دخول نقد" : "خروج نقد";
   }
 }
@@ -38,7 +38,7 @@ export function cashDrawerSourceLinkLabel(sourceType: CashDrawerSourceType) {
 export function cashDrawerSourceLabel(sourceType: CashDrawerSourceType) {
   if (sourceType === "SALE") return "مبيعة";
   if (sourceType === "SALE_CHANGE") return "باقي مبيعة";
-  if (sourceType === "INVOICE") return "فاتورة";
+  if (sourceType === "INVOICE") return "فاتورة / خدمة";
   if (sourceType === "INSTALLMENT") return "خطة أقساط";
   if (sourceType === "INSTALLMENT_DOWN_PAYMENT") return "دفعة أولى";
   if (sourceType === "DEBT") return "دفتر دين";

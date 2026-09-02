@@ -7,7 +7,7 @@ import type {
 export function transferSourceLabel(sourceType: FinancialTransferSourceType, operationType: FinancialTransferType) {
   if (sourceType === "SALE") return "تحصيل مبيعة";
   if (sourceType === "SALE_CHANGE") return "إرجاع باقي مبيعة";
-  if (sourceType === "INVOICE") return "تحصيل فاتورة";
+  if (sourceType === "INVOICE") return operationType === "WALLET_WITHDRAWAL" ? "إرجاع باقي فاتورة / خدمة" : "تحصيل فاتورة / خدمة";
   if (sourceType === "INSTALLMENT") return "تحصيل قسط";
   if (sourceType === "INSTALLMENT_DOWN_PAYMENT") return "دفعة أولى للأقساط";
   if (sourceType === "DEBT") return "تحصيل دين";

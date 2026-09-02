@@ -164,7 +164,7 @@ export async function reverseSaleMoneyTx(tx: Prisma.TransactionClient, shopId: s
 }
 
 export async function reverseInvoiceMoneyTx(tx: Prisma.TransactionClient, shopId: string, invoiceNumber: string) {
-  await reverseTrackedMoneyTx(tx, shopId, { drawerTypes: ["INVOICE_PAYMENT"], descriptionLike: `%${invoiceNumber}%` });
+  await reverseTrackedMoneyTx(tx, shopId, { drawerTypes: ["INVOICE_PAYMENT", "CHANGE_RETURN"], descriptionLike: `%${invoiceNumber}%` });
 }
 
 export const moneyAccountService = { prepareMoneyAccounts, applyIncomingMoneyTx, applyOutgoingMoneyTx, reverseSaleMoneyTx, reverseInvoiceMoneyTx };

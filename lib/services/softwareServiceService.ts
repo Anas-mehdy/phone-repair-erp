@@ -1,6 +1,8 @@
-import { InvoiceStatus, InvoiceType, Prisma } from "@prisma/client";
+import { InvoiceStatus, InvoiceType, PaymentMethod, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { invoiceService } from "@/lib/services/invoiceService";
+import { moneyAccountService, type MoneyAccountDestination } from "@/lib/services/moneyAccountService";
+import { sourceDebtService } from "@/lib/services/sourceDebtService";
 
 type CatalogRow = {
   id: string;
@@ -34,6 +36,8 @@ type SaleRow = {
   soldAt: Date;
 };
 
+export type SoftwareServicePaymentDestination = Exclude<MoneyAccountDestination, "OTHER"> | "DEBT";
+
 export type CreateSoftwareServiceSaleInput = {
   customerId?: string;
   newCustomerName?: string;
@@ -47,6 +51,11 @@ export type CreateSoftwareServiceSaleInput = {
   serviceCost?: string;
   notes?: string;
   deviceKept?: boolean;
+  paymentDestination?: SoftwareServicePaymentDestination;
+  walletId?: string;
+  amountReceived?: string;
+  changeDestination?: Exclude<MoneyAccountDestination, "OTHER">;
+  changeWalletId?: string;
 };
 
 function decimal(value: string | number | Prisma.Decimal) {
@@ -69,8 +78,6 @@ let tablesReady: Promise<void> | null = null;
 async function createTables() {
   try {
     await prisma.$transaction(async (tx) => {
-      // PostgreSQL can race on concurrent CREATE TABLE IF NOT EXISTS calls because
-      // a table also creates a pg_type row. Serialize initialization across requests.
       await tx.$executeRawUnsafe("SELECT pg_advisory_xact_lock(68119723)");
 
       await tx.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "SoftwareServiceCatalog" (
@@ -231,30 +238,44 @@ export async function createSale(
     throw new Error("عند إبقاء الجهاز بالمحل، أدخل نوع الجهاز أو موديله لتمييزه.");
   }
 
+  const paymentDestination = input.paymentDestination ?? "DRAWER";
+  const isDebtSale = paymentDestination === "DEBT";
+  const amountReceived = isDebtSale ? new Prisma.Decimal(0) : input.amountReceived?.trim() ? decimal(input.amountReceived) : salePrice;
+  if (!isDebtSale && amountReceived.lt(salePrice)) throw new Error("المبلغ المستلم أقل من سعر الخدمة. اختر «دفتر الديون» إذا كان العميل سيدفع لاحقاً.");
+  const changeAmount = isDebtSale ? new Prisma.Decimal(0) : amountReceived.sub(salePrice);
+  const changeDestination = input.changeDestination ?? "DRAWER";
+
+  if (!isDebtSale) await moneyAccountService.prepareMoneyAccounts(shopId, paymentDestination);
+  if (changeAmount.gt(0)) await moneyAccountService.prepareMoneyAccounts(shopId, changeDestination);
+
   const invoiceNumber = await invoiceService.generateInvoiceNumber(shopId);
 
   return prisma.$transaction(async (tx) => {
     let customerId = input.customerId?.trim() || null;
     let catalogId = input.catalogId?.trim() || null;
+    let customer: { id: string; name: string; phone: string | null } | null = null;
 
     if (customerId) {
-      const customer = await tx.customer.findFirst({
+      customer = await tx.customer.findFirst({
         where: { id: customerId, shopId, deletedAt: null },
-        select: { id: true },
+        select: { id: true, name: true, phone: true },
       });
       if (!customer) throw new Error("العميل المحدد غير موجود.");
+      customerId = customer.id;
     } else if (input.newCustomerName?.trim()) {
-      const customer = await tx.customer.create({
+      customer = await tx.customer.create({
         data: {
           shopId,
           name: input.newCustomerName.trim(),
           phone: nullableText(input.newCustomerPhone),
           phoneNormalized: normalizePhone(input.newCustomerPhone),
         },
-        select: { id: true },
+        select: { id: true, name: true, phone: true },
       });
       customerId = customer.id;
     }
+
+    if (isDebtSale && !customer) throw new Error("ترحيل خدمة السوفتوير إلى دفتر الديون يتطلب عميلاً مسجلاً.");
 
     if (catalogId) {
       const catalogRows = await tx.$queryRaw<Array<{ id: string }>>`
@@ -300,9 +321,77 @@ export async function createSale(
       RETURNING "id"
     `;
 
-    if (!rows[0]) throw new Error("تعذر حفظ خدمة السوفتوير.");
-    return { id: rows[0].id, invoiceId: invoice.id };
-  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 10_000 });
+    const softwareSale = rows[0];
+    if (!softwareSale) throw new Error("تعذر حفظ خدمة السوفتوير.");
+
+    if (isDebtSale) {
+      if (customer) {
+        await sourceDebtService.createSourceDebtTx(tx, {
+          shopId,
+          customerId: customer.id,
+          createdByUserId,
+          amount: salePrice,
+          sourceType: "SOFTWARE_SERVICE",
+          sourceId: softwareSale.id,
+          sourceReference: invoice.invoiceNumber,
+          description: `خدمة سوفتوير آجلة: ${serviceName} — ${invoice.invoiceNumber}`,
+        });
+      }
+    } else {
+      const source = {
+        sourceType: "INVOICE" as const,
+        sourceId: invoice.id,
+        sourceReference: invoice.invoiceNumber,
+        customerId: customer?.id ?? null,
+        customerName: customer?.name ?? null,
+        customerPhone: customer?.phone ?? null,
+      };
+      const sourceName = await moneyAccountService.applyIncomingMoneyTx(tx, shopId, createdByUserId, {
+        destination: paymentDestination,
+        walletId: input.walletId,
+        amount: amountReceived,
+        reference: invoice.invoiceNumber,
+        description: `تحصيل خدمة سوفتوير ${serviceName} — فاتورة ${invoice.invoiceNumber}`,
+        drawerType: "INVOICE_PAYMENT",
+        source,
+      });
+      if (changeAmount.gt(0)) {
+        await moneyAccountService.applyOutgoingMoneyTx(tx, shopId, createdByUserId, {
+          destination: changeDestination,
+          walletId: input.changeWalletId,
+          amount: changeAmount,
+          reference: invoice.invoiceNumber,
+          description: `إرجاع باقي خدمة سوفتوير ${serviceName} — فاتورة ${invoice.invoiceNumber}`,
+          source,
+        });
+      }
+
+      await tx.payment.create({
+        data: {
+          shopId,
+          invoiceId: invoice.id,
+          createdByUserId,
+          method: paymentDestination === "DRAWER" ? PaymentMethod.CASH : PaymentMethod.OTHER,
+          sourceName: sourceName || (paymentDestination === "DRAWER" ? "الدرج النقدي" : "محفظة إلكترونية"),
+          amount: salePrice,
+          reference: invoice.invoiceNumber,
+          note: `تحصيل مباشر عند بيع خدمة سوفتوير: ${serviceName}`,
+        },
+      });
+      await tx.invoice.update({
+        where: { id: invoice.id },
+        data: {
+          status: InvoiceStatus.PAID,
+          amountPaid: salePrice,
+          balanceDue: new Prisma.Decimal(0),
+          paidAt: new Date(),
+          version: { increment: 1 },
+        },
+      });
+    }
+
+    return { id: softwareSale.id, invoiceId: invoice.id };
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 15_000 });
 }
 
 export async function markDeviceDelivered(shopId: string, id: string) {

@@ -78,7 +78,10 @@ export async function recordDebtPaymentAction(input: {
     revalidatePath(`/debts/${input.customerId}`);
     revalidatePath(`/debts/${input.customerId}/print`);
     revalidatePath("/transfers");
+    revalidatePath("/cash-drawer");
     revalidatePath("/reports");
+    revalidatePath("/invoices");
+    revalidatePath("/software-services");
     return { success: true };
   } catch (error) {
     return { success: false, error: messageFromError(error) };
@@ -103,7 +106,10 @@ export async function updateDebtLedgerEntryAction(input: {
     revalidatePath(`/debts/${input.customerId}`);
     revalidatePath(`/debts/${input.customerId}/print`);
     revalidatePath("/transfers");
+    revalidatePath("/cash-drawer");
     revalidatePath("/reports");
+    revalidatePath("/invoices");
+    revalidatePath("/software-services");
     return { success: true };
   } catch (error) {
     return { success: false, error: messageFromError(error) };
@@ -113,6 +119,23 @@ export async function updateDebtLedgerEntryAction(input: {
 export async function deleteDebtLedgerAction(customerId: string): Promise<DebtActionResult> {
   try {
     const auth = await requirePermission("debts:manage");
+
+    const linkedEntries = await prisma.$queryRaw<Array<{ id: string }>>`
+      SELECT "id"
+      FROM "DebtLedgerEntry"
+      WHERE "shopId" = ${auth.shop.id}::uuid
+        AND "customerId" = ${customerId}::uuid
+        AND "type" = 'DEBT'
+        AND "isReversed" = FALSE
+        AND "reference" LIKE '[SOURCE-DEBT:%'
+      LIMIT 1
+    `;
+    if (linkedEntries[0]) {
+      return {
+        success: false,
+        error: "لا يمكن حذف دفتر الدين لأنه يحتوي على مبيعة أو خدمة مرتبطة. ألغِ أو عالج العمليات الأصلية أولاً.",
+      };
+    }
 
     const deleted = await prisma.$queryRaw<Array<{ id: string }>>`
       DELETE FROM "DebtLedgerAccount"

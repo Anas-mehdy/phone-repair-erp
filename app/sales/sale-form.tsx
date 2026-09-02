@@ -59,7 +59,7 @@ export function SaleForm({ inventoryItems, wallets, currency = "SAR" }: { invent
 
         <section className="erp-section"><div className="border-b border-slate-100/60 pb-3 mb-4"><h3 className="font-bold text-slate-800 text-sm">الحسابات والملخص المالي</h3></div>
           <div className="space-y-3.5"><div className="flex justify-between text-xs text-slate-500 font-medium"><span>الإجمالي الفرعي:</span><span className="font-numeric font-bold">{formatCurrency(subtotal, currency)}</span></div><div className="flex justify-between text-xs text-slate-500 font-medium"><span>إجمالي الخصومات:</span><span className="font-numeric text-rose-600 font-bold">{discountTotal > 0 ? formatCurrency(-discountTotal, currency) : formatCurrency(0, currency)}</span></div><div className="flex justify-between text-sm font-bold text-slate-850 pt-3.5 border-t border-slate-200"><span>الإجمالي النهائي:</span><span className="font-numeric text-xl text-primary font-black">{formatCurrency(total, currency)}</span></div></div>
-          <SalePaymentFields total={Math.max(0, total)} wallets={wallets} currency={currency} />
+          <SalePaymentFields total={Math.max(0, total)} wallets={wallets} currency={currency} debtEligible={customerMode === "NEW" || (customerMode === "EXISTING" && Boolean(selectedCustomer))} />
           <div className="mt-6 pt-1"><Button type="submit" disabled={isPending} className="w-full font-bold shadow-md h-12 rounded-xl text-xs justify-center"><Save className="h-4.5 w-4.5 ml-1.5" />{isPending ? "جاري تسجيل عملية البيع..." : "إتمام وإصدار عملية البيع"}</Button></div>
         </section>
       </div>

@@ -10,6 +10,7 @@ import {
   SaleStatus,
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { debtReportService } from "@/lib/services/debtReportService";
 import { softwareServiceService } from "@/lib/services/softwareServiceService";
 
 export type FinancialRange = { start: Date; end: Date };
@@ -54,6 +55,7 @@ export async function getFinancialReport(shopId: string, range: FinancialRange) 
     expenses,
     inventoryItems,
     softwareRows,
+    debtSummary,
   ] = await Promise.all([
     prisma.sale.findMany({
       where: { shopId, deletedAt: null, status: SaleStatus.COMPLETED, soldAt: rangeWhere(range) },
@@ -174,6 +176,7 @@ export async function getFinancialReport(shopId: string, range: FinancialRange) 
       select: { quantity: true, unitCost: true },
     }),
     softwareServiceService.getFinancialRows(shopId, range.start, range.end).catch(() => []),
+    debtReportService.getDebtReportSummary(shopId, range.start, range.end).catch(() => ({ deferredSaleIds: [], saleOutstanding: 0, payments: [] })),
   ]);
 
   const salesGross = sales.reduce((sum, sale) => sum + decimalNumber(sale.total), 0);
@@ -196,14 +199,17 @@ export async function getFinancialReport(shopId: string, range: FinancialRange) 
     (sum, payment) => sum + decimalNumber(payment.amount),
     0,
   );
+  const deferredSaleIds = new Set(debtSummary.deferredSaleIds);
   const immediateSalesCollected = sales
-    .filter((sale) => sale.invoices.length === 0)
+    .filter((sale) => sale.invoices.length === 0 && !deferredSaleIds.has(sale.id))
     .reduce((sum, sale) => sum + decimalNumber(sale.total), 0);
-  const collected = money(invoiceCollected + manualInstallmentsCollected + immediateSalesCollected);
+  const debtCollected = debtSummary.payments.reduce((sum, payment) => sum + payment.amount, 0);
+  const collected = money(invoiceCollected + manualInstallmentsCollected + immediateSalesCollected + debtCollected);
 
   const outstanding = money(
     invoices.reduce((sum, invoice) => sum + decimalNumber(invoice.balanceDue), 0) +
-      manualPlans.reduce((sum, plan) => sum + decimalNumber(plan.balanceDue), 0),
+      manualPlans.reduce((sum, plan) => sum + decimalNumber(plan.balanceDue), 0) +
+      debtSummary.saleOutstanding,
   );
 
   const movementCost = inventoryMovements.reduce((sum, movement) => {
@@ -243,6 +249,9 @@ export async function getFinancialReport(shopId: string, range: FinancialRange) 
   }
   if (immediateSalesCollected > 0) {
     paymentSources.set("مبيعات POS مباشرة", (paymentSources.get("مبيعات POS مباشرة") ?? 0) + immediateSalesCollected);
+  }
+  for (const payment of debtSummary.payments) {
+    paymentSources.set(payment.sourceName, (paymentSources.get(payment.sourceName) ?? 0) + payment.amount);
   }
 
   const softwareInvoiceIds = new Set(softwareRows.map((row) => row.invoiceId));

@@ -25,7 +25,7 @@ const createSaleSchema = z.object({
   customerName: z.string().optional(),
   customerPhone: z.string().optional(),
   items: z.array(rawLineItemSchema).min(1, "يجب إضافة بند واحد على الأقل"),
-  paymentDestination: z.enum(["DRAWER", "WALLET"]).default("DRAWER"),
+  paymentDestination: z.enum(["DRAWER", "WALLET", "DEBT"]).default("DRAWER"),
   walletId: z.string().uuid().optional().or(z.literal("")),
   amountReceived: z.string().trim().optional(),
   changeDestination: z.enum(["DRAWER", "WALLET"]).default("DRAWER"),
@@ -34,6 +34,7 @@ const createSaleSchema = z.object({
   if (data.customerMode === "EXISTING" && !data.customerId) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "اختر عميلاً موجوداً من القائمة." });
   if (data.customerMode === "NEW" && !data.customerName?.trim()) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "اسم العميل الجديد مطلوب." });
   if (data.paymentDestination === "WALLET" && !data.walletId) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "اختر محفظة استلام المبلغ." });
+  if (data.paymentDestination === "DEBT" && data.customerMode === "CASH") ctx.addIssue({ code: z.ZodIssueCode.custom, message: "ترحيل المبلغ إلى دفتر الديون يتطلب عميلاً مسجلاً." });
 });
 
 const cancelSaleSchema = z.object({ saleId: z.string().uuid() });
@@ -95,6 +96,8 @@ export async function createSaleAction(_state: SaleActionState, formData: FormDa
   revalidatePath("/customers");
   revalidatePath("/inventory");
   revalidatePath("/transfers");
+  revalidatePath("/cash-drawer");
+  revalidatePath("/debts");
   revalidatePath("/reports");
   redirect(`/sales/${saleId}`);
 }
@@ -106,5 +109,7 @@ export async function cancelSaleAction(formData: FormData) {
   revalidatePath("/sales");
   revalidatePath(`/sales/${input.saleId}`);
   revalidatePath("/inventory");
+  revalidatePath("/debts");
+  revalidatePath("/reports");
   redirect(`/sales/${input.saleId}`);
 }

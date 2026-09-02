@@ -3,7 +3,7 @@ import { ArrowRight } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { getCurrentShopContext } from "@/lib/current-shop";
-import { prisma } from "@/lib/prisma";
+import { financialTransferService } from "@/lib/services/financialTransferService";
 import { softwareServiceService } from "@/lib/services/softwareServiceService";
 import { SoftwareServiceForm } from "../_software-service-form";
 
@@ -14,14 +14,9 @@ type Props = { searchParams: Promise<{ error?: string }> };
 export default async function NewSoftwareServicePage({ searchParams }: Props) {
   const query = await searchParams;
   const context = await getCurrentShopContext();
-  const [customers, catalog] = await Promise.all([
-    prisma.customer.findMany({
-      where: { shopId: context.shopId, deletedAt: null },
-      select: { id: true, name: true, phone: true },
-      orderBy: { name: "asc" },
-      take: 500,
-    }),
+  const [catalog, wallets] = await Promise.all([
     softwareServiceService.listCatalog(context.shopId),
+    financialTransferService.listWallets(context.shopId),
   ]);
 
   return (
@@ -30,7 +25,7 @@ export default async function NewSoftwareServicePage({ searchParams }: Props) {
         <PageHeader
           eyebrow="بيع خدمة غير مخزنية"
           title="إضافة خدمة سوفتوير"
-          description="سجّل الخدمة مباشرةً، وسيُنشئ مسار فاتورة مالية عادية مرتبطة بها بدون حالات صيانة أو QR."
+          description="سجّل الخدمة وسوِّ المبلغ مثل نقطة البيع: درج، محفظة إلكترونية أو دفتر ديون العميل."
         />
         <Button asChild variant="outline" className="shrink-0 rounded-xl">
           <Link href="/software-services"><ArrowRight className="ml-1 h-4 w-4" />رجوع</Link>
@@ -42,13 +37,14 @@ export default async function NewSoftwareServicePage({ searchParams }: Props) {
         </div>
       ) : null}
       <SoftwareServiceForm
-        customers={customers}
         catalog={catalog.map((item) => ({
           id: item.id,
           name: item.name,
           defaultPrice: item.defaultPrice?.toString() ?? null,
           defaultCost: item.defaultCost?.toString() ?? null,
         }))}
+        wallets={wallets.map((wallet) => ({ id: wallet.id, name: wallet.name, balance: Number(wallet.currentBalance) }))}
+        currency={context.currency || "SAR"}
       />
     </div>
   );
