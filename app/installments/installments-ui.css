@@ -1,0 +1,143 @@
+/* Masar Installments Workspace — financial UI language for plans, schedules and payments. */
+.installments-workspace {
+  --installment-teal: #0d9488;
+  --installment-cyan: #06b6d4;
+  --installment-indigo: #6366f1;
+  --installment-amber: #d97706;
+  --installment-emerald: #059669;
+  --installment-rose: #e11d48;
+}
+
+.installments-workspace > div { min-width: 0; }
+.installments-workspace h1 { letter-spacing: 0 !important; }
+.installments-workspace input,
+.installments-workspace select,
+.installments-workspace textarea { font-size: 16px !important; }
+.installments-workspace input,
+.installments-workspace select { min-height: 48px; }
+.installments-workspace textarea { min-height: 108px; line-height: 1.65; }
+
+.installments-workspace a.bg-primary,
+.installments-workspace button.bg-primary {
+  background: linear-gradient(90deg, #0d9488, #06b6d4) !important;
+  color: #fff !important;
+  box-shadow: 0 14px 32px -22px rgba(13,148,136,.56) !important;
+}
+
+/* Dashboard-style KPI strip on plans list. */
+.installments-workspace > div > .grid.sm\:grid-cols-2.xl\:grid-cols-4 > div {
+  min-height: 142px;
+  border-radius: 20px !important;
+  padding: 18px !important;
+  box-shadow: 0 16px 38px -30px rgba(15,23,42,.34);
+}
+.installments-workspace > div > .grid.sm\:grid-cols-2.xl\:grid-cols-4 > div:nth-child(1) { background: linear-gradient(145deg,#f0fdfa,#fff) !important; border-color: rgba(153,246,228,.9) !important; }
+.installments-workspace > div > .grid.sm\:grid-cols-2.xl\:grid-cols-4 > div:nth-child(2) { background: linear-gradient(145deg,#fff1f2,#fff) !important; border-color: rgba(254,205,211,.94) !important; }
+.installments-workspace > div > .grid.sm\:grid-cols-2.xl\:grid-cols-4 > div:nth-child(3) { background: linear-gradient(145deg,#fffbeb,#fff) !important; border-color: rgba(253,230,138,.94) !important; }
+.installments-workspace > div > .grid.sm\:grid-cols-2.xl\:grid-cols-4 > div:nth-child(4) { background: linear-gradient(145deg,#eef2ff,#fff) !important; border-color: rgba(199,210,254,.94) !important; color: #4f46e5 !important; }
+.installments-workspace > div > .grid.sm\:grid-cols-2.xl\:grid-cols-4 > div > div:nth-last-child(2) { font-size: 28px !important; line-height: 1.1; }
+.installments-workspace > div > .grid.sm\:grid-cols-2.xl\:grid-cols-4 > div > div:last-child { font-size: 14px !important; }
+
+/* Search/filter surface. */
+.installments-workspace .erp-filter-card {
+  border-color: rgba(165,243,252,.86) !important;
+  border-radius: 20px !important;
+  background: linear-gradient(135deg,rgba(236,254,255,.82),rgba(255,255,255,.98)) !important;
+  box-shadow: 0 18px 48px -38px rgba(6,182,212,.35) !important;
+}
+
+/* Core surfaces. */
+.installments-workspace .erp-section,
+.installments-workspace section[class*="rounded-2xl"][class*="bg-white"] {
+  border-radius: 22px !important;
+  border-color: rgba(226,232,240,.92) !important;
+  box-shadow: 0 18px 48px -38px rgba(15,23,42,.34) !important;
+}
+.installments-workspace .erp-section h2,
+.installments-workspace .erp-section h3,
+.installments-workspace section[class*="rounded-2xl"] h2 { font-size: 18px !important; line-height: 1.45; }
+
+/* Main list table. */
+.installments-workspace table { font-size: 15px !important; }
+.installments-workspace table thead { background: linear-gradient(90deg,#f8fafc,#f0fdfa) !important; font-size: 14px !important; color: #475569 !important; }
+.installments-workspace table th,
+.installments-workspace table td { padding-top: 14px !important; padding-bottom: 14px !important; }
+.installments-workspace table tbody tr:hover { background: rgba(240,253,250,.56) !important; }
+
+/* New plan mode cards. */
+.installments-workspace form[action] > .grid.sm\:grid-cols-2:first-of-type > button {
+  min-height: 132px;
+  border-radius: 20px !important;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+.installments-workspace form[action] > .grid.sm\:grid-cols-2:first-of-type > button:first-child { background: linear-gradient(145deg,#ecfeff,#fff) !important; border-color: rgba(165,243,252,.9) !important; }
+.installments-workspace form[action] > .grid.sm\:grid-cols-2:first-of-type > button:nth-child(2) { background: linear-gradient(145deg,#eef2ff,#fff) !important; border-color: rgba(199,210,254,.9) !important; }
+.installments-workspace form[action] > .grid.sm\:grid-cols-2:first-of-type > button:hover { transform: translateY(-2px); box-shadow: 0 18px 38px -32px rgba(15,23,42,.34); }
+
+/* Agreement form + automatic calculation. */
+.installments-workspace form[action] > section.erp-section {
+  border-color: rgba(199,210,254,.88) !important;
+  background: linear-gradient(145deg,#eef2ff,#fff 46%,#f8fafc) !important;
+}
+.installments-workspace form[action] > div[class*="border-teal-200"][class*="from-teal-50"] {
+  border-radius: 22px !important;
+  border-color: rgba(153,246,228,.94) !important;
+  background: radial-gradient(circle at 100% 0,rgba(6,182,212,.12),transparent 34%),linear-gradient(145deg,#f0fdfa,#fff 58%) !important;
+  box-shadow: 0 18px 46px -36px rgba(13,148,136,.34) !important;
+}
+.installments-workspace form[action] > div[class*="border-teal-200"] > .grid > div:nth-child(1) { border-color: rgba(165,243,252,.9) !important; background: #ecfeff !important; }
+.installments-workspace form[action] > div[class*="border-teal-200"] > .grid > div:nth-child(2) { border-color: rgba(167,243,208,.9) !important; background: #ecfdf5 !important; }
+.installments-workspace form[action] > div[class*="border-teal-200"] > .grid > div:nth-child(3) { border-color: rgba(253,230,138,.94) !important; background: #fffbeb !important; }
+.installments-workspace form[action] > div[class*="border-teal-200"] > .grid > div:nth-child(4) { border-color: rgba(199,210,254,.94) !important; background: #eef2ff !important; }
+
+/* Details KPI cards use semantic financial colors. */
+.installments-workspace > div > .grid.gap-4.sm\:grid-cols-2.xl\:grid-cols-4 > div {
+  min-height: 142px;
+  border-radius: 20px !important;
+}
+.installments-workspace > div > .grid.gap-4.sm\:grid-cols-2.xl\:grid-cols-4 > div:nth-child(1) { border-color: rgba(165,243,252,.9) !important; background: linear-gradient(145deg,#ecfeff,#fff) !important; }
+.installments-workspace > div > .grid.gap-4.sm\:grid-cols-2.xl\:grid-cols-4 > div:nth-child(2) { border-color: rgba(167,243,208,.92) !important; background: linear-gradient(145deg,#ecfdf5,#fff) !important; }
+.installments-workspace > div > .grid.gap-4.sm\:grid-cols-2.xl\:grid-cols-4 > div:nth-child(3) { border-color: rgba(253,230,138,.94) !important; background: linear-gradient(145deg,#fffbeb,#fff) !important; }
+.installments-workspace > div > .grid.gap-4.sm\:grid-cols-2.xl\:grid-cols-4 > div:nth-child(4) { border-color: rgba(199,210,254,.92) !important; background: linear-gradient(145deg,#eef2ff,#fff) !important; }
+
+/* Details action rail. */
+.installments-workspace aside { display: flex; flex-direction: column; gap: 18px !important; }
+.installments-workspace aside > section.erp-section:nth-of-type(1) { border-color: rgba(165,243,252,.9) !important; background: linear-gradient(145deg,#ecfeff,#fff 58%) !important; }
+.installments-workspace aside > form.erp-section { border-color: rgba(167,243,208,.94) !important; background: linear-gradient(145deg,#ecfdf5,#fff 58%) !important; box-shadow: 0 18px 44px -34px rgba(5,150,105,.32) !important; }
+.installments-workspace aside > section.erp-section:last-child { border-color: rgba(199,210,254,.94) !important; background: linear-gradient(145deg,#eef2ff,#fff 58%) !important; }
+.installments-workspace aside label > span { font-size: 14px !important; font-weight: 800 !important; color: #475569; }
+
+@media (min-width: 1280px) {
+  .installments-workspace aside { position: sticky; top: 96px; align-self: start; }
+}
+
+/* Mobile plans list becomes cards. Scope to 9-column list table only. */
+@media (max-width: 767px) {
+  .installments-workspace .erp-section,
+  .installments-workspace .erp-filter-card,
+  .installments-workspace section[class*="rounded-2xl"] { border-radius: 18px !important; }
+
+  .installments-workspace table.erp-table.min-w-\[1080px\] { display: block; min-width: 0 !important; width: 100%; }
+  .installments-workspace table.erp-table.min-w-\[1080px\] thead { display: none; }
+  .installments-workspace table.erp-table.min-w-\[1080px\] tbody { display: grid; gap: 14px; padding: 14px; }
+  .installments-workspace table.erp-table.min-w-\[1080px\] tbody tr { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); overflow: hidden; border: 1px solid rgba(204,251,241,.94); border-radius: 18px; background: linear-gradient(145deg,#fff,#f0fdfa) !important; box-shadow: 0 14px 36px -30px rgba(13,148,136,.36); }
+  .installments-workspace table.erp-table.min-w-\[1080px\] tbody td { display: flex; flex-direction: column; gap: 4px; padding: 11px 13px !important; border: 0 !important; text-align: right !important; font-size: 14px !important; white-space: normal !important; }
+  .installments-workspace table.erp-table.min-w-\[1080px\] tbody td::before { font-size: 11px; font-weight: 900; color: #94a3b8; }
+  .installments-workspace table.erp-table.min-w-\[1080px\] tbody td:nth-child(1) { grid-column: 1 / -1; background: rgba(240,253,250,.72); font-size: 17px !important; }
+  .installments-workspace table.erp-table.min-w-\[1080px\] tbody td:nth-child(1)::before { content: "رقم الخطة"; }
+  .installments-workspace table.erp-table.min-w-\[1080px\] tbody td:nth-child(2)::before { content: "العميل"; }
+  .installments-workspace table.erp-table.min-w-\[1080px\] tbody td:nth-child(3)::before { content: "الوصف"; }
+  .installments-workspace table.erp-table.min-w-\[1080px\] tbody td:nth-child(4)::before { content: "المصدر"; }
+  .installments-workspace table.erp-table.min-w-\[1080px\] tbody td:nth-child(5)::before { content: "المدفوع"; }
+  .installments-workspace table.erp-table.min-w-\[1080px\] tbody td:nth-child(6)::before { content: "المتبقي"; }
+  .installments-workspace table.erp-table.min-w-\[1080px\] tbody td:nth-child(7)::before { content: "القسط القادم"; }
+  .installments-workspace table.erp-table.min-w-\[1080px\] tbody td:nth-child(8)::before { content: "الحالة"; }
+  .installments-workspace table.erp-table.min-w-\[1080px\] tbody td:nth-child(9) { grid-column: 1 / -1; border-top: 1px solid rgba(226,232,240,.8) !important; background: #f8fafc; }
+  .installments-workspace table.erp-table.min-w-\[1080px\] tbody td:nth-child(9)::before { content: "الإجراءات"; margin-bottom: 4px; }
+  .installments-workspace table.erp-table.min-w-\[1080px\] tbody td:nth-child(9) > div { display: grid !important; grid-template-columns: repeat(3,minmax(0,1fr)); width: 100%; gap: 8px !important; }
+  .installments-workspace table.erp-table.min-w-\[1080px\] tbody td:nth-child(9) a,
+  .installments-workspace table.erp-table.min-w-\[1080px\] tbody td:nth-child(9) button { min-height: 42px; width: 100%; }
+
+  .installments-workspace form[action] > .grid.sm\:grid-cols-2:first-of-type > button:hover { transform: none; }
+  .installments-workspace aside { gap: 14px !important; }
+}
