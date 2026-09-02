@@ -155,6 +155,106 @@
 .inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:first-child > .erp-section:last-child > div:first-child span { font-size: 13px !important; }
 .inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:first-child > .erp-section:last-child td { line-height: 1.55; }
 
+/* Product list becomes scan-friendly cards on phones without duplicating JSX/data. */
+@media (max-width: 767px) {
+  .inventory-workspace .overflow-x-auto:has(> table.erp-table) {
+    overflow: visible !important;
+  }
+
+  .inventory-workspace table.erp-table {
+    display: block;
+    min-width: 0 !important;
+    width: 100%;
+    border-collapse: separate;
+  }
+
+  .inventory-workspace table.erp-table thead {
+    display: none;
+  }
+
+  .inventory-workspace table.erp-table tbody {
+    display: grid;
+    gap: 14px;
+    width: 100%;
+    padding: 14px;
+  }
+
+  .inventory-workspace table.erp-table tbody tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0,1fr));
+    gap: 0;
+    overflow: hidden;
+    border: 1px solid rgba(204,251,241,.95);
+    border-radius: 18px;
+    background: linear-gradient(145deg, #ffffff, #f0fdfa) !important;
+    box-shadow: 0 14px 38px -30px rgba(13,148,136,.38);
+  }
+
+  .inventory-workspace table.erp-table tbody tr[class*="rose"] {
+    border-color: rgba(254,205,211,.96);
+    background: linear-gradient(145deg, #fff1f2, #ffffff) !important;
+    box-shadow: 0 14px 38px -30px rgba(225,29,72,.3);
+  }
+
+  .inventory-workspace table.erp-table tbody td {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px 14px !important;
+    border: 0 !important;
+    text-align: right !important;
+    font-size: 14px !important;
+  }
+
+  .inventory-workspace table.erp-table tbody td::before {
+    font-size: 11px;
+    font-weight: 900;
+    color: #94a3b8;
+    line-height: 1.3;
+  }
+
+  .inventory-workspace table.erp-table tbody td:nth-child(1) {
+    grid-column: 1 / -1;
+    padding-top: 16px !important;
+    background: rgba(240,253,250,.7);
+    font-size: 17px !important;
+  }
+  .inventory-workspace table.erp-table tbody tr[class*="rose"] td:nth-child(1) { background: rgba(255,241,242,.72); }
+  .inventory-workspace table.erp-table tbody td:nth-child(1)::before { content: "القطعة"; }
+  .inventory-workspace table.erp-table tbody td:nth-child(2)::before { content: "التصنيف"; }
+  .inventory-workspace table.erp-table tbody td:nth-child(3)::before { content: "SKU"; }
+  .inventory-workspace table.erp-table tbody td:nth-child(4)::before { content: "الكمية"; }
+  .inventory-workspace table.erp-table tbody td:nth-child(5)::before { content: "حد الطلب"; }
+  .inventory-workspace table.erp-table tbody td:nth-child(6)::before { content: "تكلفة الشراء"; }
+  .inventory-workspace table.erp-table tbody td:nth-child(7)::before { content: "سعر البيع"; }
+  .inventory-workspace table.erp-table tbody td:nth-child(8)::before { content: "الحالة"; }
+  .inventory-workspace table.erp-table tbody td:nth-child(9)::before { content: "آخر تحديث"; }
+
+  .inventory-workspace table.erp-table tbody td:nth-child(10) {
+    grid-column: 1 / -1;
+    border-top: 1px solid rgba(226,232,240,.75) !important;
+    background: rgba(248,250,252,.76);
+  }
+  .inventory-workspace table.erp-table tbody td:nth-child(10)::before { content: "الإجراءات"; margin-bottom: 4px; }
+  .inventory-workspace table.erp-table tbody td:nth-child(10) > div {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0,1fr));
+    width: 100%;
+    gap: 8px !important;
+  }
+  .inventory-workspace table.erp-table tbody td:nth-child(10) a,
+  .inventory-workspace table.erp-table tbody td:nth-child(10) button {
+    min-height: 42px;
+    width: 100%;
+  }
+
+  .inventory-workspace table.erp-table tbody td:nth-child(4),
+  .inventory-workspace table.erp-table tbody td:nth-child(7) {
+    font-size: 16px !important;
+  }
+}
+
 @media (min-width: 1024px) {
   .inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:last-child { position: sticky; top: 96px; align-self: start; }
 }
@@ -164,6 +264,5 @@
   .inventory-workspace .erp-filter-card,
   .inventory-workspace section[class*="rounded-3xl"] { border-radius: 18px !important; padding: 16px !important; }
   .inventory-workspace section[class*="rounded-3xl"] .grid > div:hover { transform: none; }
-  .inventory-workspace table { min-width: 760px; }
   .inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:last-child { gap: 14px !important; }
 }
