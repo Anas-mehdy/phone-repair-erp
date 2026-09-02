@@ -1,0 +1,13 @@
+@media (min-width: 1280px) {
+  .space-y-6.pb-8 > section:last-of-type {
+    grid-template-columns: 420px minmax(0, 1fr);
+  }
+
+  .space-y-6.pb-8 > section:last-of-type > div:first-child {
+    order: 2;
+  }
+
+  .space-y-6.pb-8 > section:last-of-type > aside:last-child {
+    order: 1;
+  }
+}
