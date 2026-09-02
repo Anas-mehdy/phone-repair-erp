@@ -1,0 +1,362 @@
+.masar-reports {
+  --reports-teal: #0d9488;
+  --reports-cyan: #06b6d4;
+  --reports-indigo: #6366f1;
+  --reports-emerald: #059669;
+  --reports-amber: #d97706;
+  --reports-orange: #ea580c;
+  --reports-rose: #e11d48;
+  --reports-slate: #475569;
+}
+
+.masar-reports > div {
+  max-width: 1220px;
+  margin-inline: auto;
+}
+
+.masar-reports > div > div:first-child:has(header) {
+  position: relative;
+  overflow: hidden;
+  padding: 24px;
+  border: 1px solid #ccfbf1;
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 12% 15%, rgba(6,182,212,.12), transparent 32%),
+    radial-gradient(circle at 92% 0, rgba(99,102,241,.10), transparent 30%),
+    linear-gradient(135deg, #f0fdfa 0%, #ffffff 54%, #eef2ff 100%);
+  box-shadow: 0 20px 58px -42px rgba(13,148,136,.55);
+}
+
+.masar-reports > div > div:first-child:has(header) header {
+  border: 0;
+  padding: 0;
+}
+
+.masar-reports > div > div:first-child:has(header) header h2 {
+  font-size: clamp(28px, 3vw, 34px);
+  line-height: 1.2;
+  letter-spacing: -.02em;
+}
+
+.masar-reports > div > div:first-child:has(header) header p {
+  margin-top: 8px;
+  max-width: 760px;
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+.masar-reports .text-\[10px\] { font-size: 13px !important; line-height: 1.55; }
+.masar-reports .text-\[11px\] { font-size: 14px !important; line-height: 1.6; }
+.masar-reports .text-xs { font-size: 15px !important; line-height: 1.65; }
+.masar-reports .text-sm { font-size: 16px !important; line-height: 1.6; }
+
+/* Success notices */
+.masar-reports > div > .rounded-2xl.border-emerald-200 {
+  border-radius: 16px !important;
+  background: linear-gradient(135deg, #ecfdf5, #f0fdfa) !important;
+  box-shadow: 0 14px 34px -30px rgba(5,150,105,.45);
+}
+
+/* Range command bar */
+.masar-reports .erp-filter-card {
+  border-radius: 22px;
+  border-color: #bae6fd;
+  background: linear-gradient(145deg, #f0f9ff, #ffffff 42%, #f8fafc);
+  box-shadow: 0 18px 48px -38px rgba(14,165,233,.35);
+  padding: 20px;
+}
+
+.masar-reports .erp-filter-card > div:first-child p:first-child {
+  font-size: 16px !important;
+}
+
+.masar-reports .erp-filter-card a,
+.masar-reports .erp-filter-card button {
+  min-height: 42px;
+  border-radius: 12px !important;
+  font-size: 14px !important;
+}
+
+.masar-reports .erp-filter-card form {
+  border-top-color: #dbeafe !important;
+}
+
+.masar-reports .erp-input,
+.masar-reports .erp-textarea,
+.masar-reports select {
+  min-height: 48px;
+  border-radius: 12px !important;
+  font-size: 16px !important;
+}
+
+.masar-reports .erp-input:focus,
+.masar-reports .erp-textarea:focus,
+.masar-reports select:focus {
+  border-color: #2dd4bf !important;
+  box-shadow: 0 0 0 3px rgba(45,212,191,.12) !important;
+  outline: 0;
+}
+
+/* KPI command center */
+.masar-reports > div > section.grid.gap-4.sm\:grid-cols-2.xl\:grid-cols-4 > div {
+  position: relative;
+  overflow: hidden;
+  min-height: 144px;
+  border-radius: 20px !important;
+  padding: 20px !important;
+  box-shadow: 0 18px 44px -36px rgba(15,23,42,.34);
+}
+
+.masar-reports > div > section.grid.gap-4.sm\:grid-cols-2.xl\:grid-cols-4 > div::after {
+  content: "";
+  position: absolute;
+  inset-inline-end: -26px;
+  top: -32px;
+  width: 108px;
+  height: 108px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: .07;
+  pointer-events: none;
+}
+
+.masar-reports > div > section.grid.gap-4.sm\:grid-cols-2.xl\:grid-cols-4 > div p:nth-child(2) {
+  margin-top: 10px !important;
+  font-size: 24px !important;
+  line-height: 1.25;
+}
+
+.masar-reports > div > section.grid.gap-4.sm\:grid-cols-2.xl\:grid-cols-4 > div:nth-child(1) {
+  border-color: #c7d2fe !important;
+  background: linear-gradient(145deg, #eef2ff, #fff 74%) !important;
+}
+
+.masar-reports > div > section.grid.gap-4.sm\:grid-cols-2.xl\:grid-cols-4 > div:nth-child(2) {
+  border-color: #99f6e4 !important;
+  background: linear-gradient(145deg, #f0fdfa, #fff 74%) !important;
+}
+
+.masar-reports > div > section.grid.gap-4.sm\:grid-cols-2.xl\:grid-cols-4 > div:nth-child(3) {
+  border-color: #fde68a !important;
+  background: linear-gradient(145deg, #fffbeb, #fff 74%) !important;
+}
+
+.masar-reports > div > section.grid.gap-4.sm\:grid-cols-2.xl\:grid-cols-4 > div:nth-child(4),
+.masar-reports > div > section.grid.gap-4.sm\:grid-cols-2.xl\:grid-cols-4 > div:nth-child(6) {
+  border-color: #fecdd3 !important;
+  background: linear-gradient(145deg, #fff1f2, #fff 74%) !important;
+}
+
+.masar-reports > div > section.grid.gap-4.sm\:grid-cols-2.xl\:grid-cols-4 > div:nth-child(5) {
+  border-color: #a7f3d0 !important;
+  background: linear-gradient(145deg, #ecfdf5, #fff 74%) !important;
+}
+
+.masar-reports > div > section.grid.gap-4.sm\:grid-cols-2.xl\:grid-cols-4 > div:nth-child(7) {
+  border-color: #6ee7b7 !important;
+  background: linear-gradient(145deg, #d1fae5, #ffffff 72%) !important;
+  box-shadow: 0 20px 52px -34px rgba(5,150,105,.42);
+  transform: translateY(-1px);
+}
+
+.masar-reports > div > section.grid.gap-4.sm\:grid-cols-2.xl\:grid-cols-4 > div:nth-child(8) {
+  border-color: #cbd5e1 !important;
+  background: linear-gradient(145deg, #f8fafc, #fff 74%) !important;
+}
+
+/* Breakdown cards */
+.masar-reports > div > div.grid.gap-6.xl\:grid-cols-2 > .erp-section {
+  border-radius: 22px;
+  box-shadow: 0 18px 46px -38px rgba(15,23,42,.34);
+  padding: 22px;
+}
+
+.masar-reports > div > div.grid.gap-6.xl\:grid-cols-2 > .erp-section:first-child {
+  border-color: #c7d2fe;
+  background: linear-gradient(145deg, #eef2ff, #fff 35%);
+}
+
+.masar-reports > div > div.grid.gap-6.xl\:grid-cols-2 > .erp-section:last-child {
+  border-color: #99f6e4;
+  background: linear-gradient(145deg, #f0fdfa, #fff 35%);
+}
+
+.masar-reports > div > div.grid.gap-6.xl\:grid-cols-2 > .erp-section h3 {
+  font-size: 18px !important;
+}
+
+.masar-reports > div > div.grid.gap-6.xl\:grid-cols-2 > .erp-section .h-2 {
+  height: 9px !important;
+  background: rgba(226,232,240,.8) !important;
+}
+
+.masar-reports > div > div.grid.gap-6.xl\:grid-cols-2 > .erp-section:first-child .h-full {
+  background: linear-gradient(90deg, #6366f1, #06b6d4) !important;
+}
+
+.masar-reports > div > div.grid.gap-6.xl\:grid-cols-2 > .erp-section:last-child .h-full {
+  background: linear-gradient(90deg, #0d9488, #06b6d4) !important;
+}
+
+/* Expense workspace */
+.masar-reports > div > section.grid.gap-6.xl\:grid-cols-\[minmax\(0\,1fr\)_360px\] > div:first-child {
+  border-radius: 22px !important;
+  border-color: #fecdd3 !important;
+  background: linear-gradient(145deg, #fff 0%, #fff7f7 100%);
+  box-shadow: 0 18px 48px -38px rgba(225,29,72,.26) !important;
+}
+
+.masar-reports > div > section.grid.gap-6.xl\:grid-cols-\[minmax\(0\,1fr\)_360px\] > div:first-child > div:first-child {
+  background: linear-gradient(180deg, #fff, #fff8f8);
+}
+
+.masar-reports .erp-table {
+  font-size: 15px;
+}
+
+.masar-reports .erp-table th {
+  padding: 14px 16px;
+  font-size: 14px;
+  color: #64748b;
+  background: #f8fafc;
+}
+
+.masar-reports .erp-table td {
+  padding: 16px;
+  font-size: 15px !important;
+  line-height: 1.55;
+}
+
+.masar-reports .erp-table tbody tr:hover {
+  background: #fff7f7;
+}
+
+.masar-reports > div > section.grid.gap-6.xl\:grid-cols-\[minmax\(0\,1fr\)_360px\] > form.erp-section {
+  border-radius: 22px;
+  border-color: #fed7aa;
+  background: linear-gradient(145deg, #fff7ed, #fff 46%);
+  box-shadow: 0 18px 46px -38px rgba(234,88,12,.34);
+  padding: 20px;
+}
+
+.masar-reports > div > section.grid.gap-6.xl\:grid-cols-\[minmax\(0\,1fr\)_360px\] > form.erp-section h3 {
+  font-size: 18px !important;
+}
+
+.masar-reports > div > section.grid.gap-6.xl\:grid-cols-\[minmax\(0\,1fr\)_360px\] > form.erp-section button[type="submit"] {
+  min-height: 50px;
+  border: 0;
+  background: linear-gradient(135deg, #ea580c, #d97706);
+  color: white;
+  box-shadow: 0 14px 30px -20px rgba(234,88,12,.65);
+}
+
+/* Explanation card */
+.masar-reports > div > div.rounded-2xl.border-sky-200 {
+  border-radius: 18px !important;
+  border-color: #bae6fd !important;
+  background: linear-gradient(135deg, #f0f9ff, #ecfeff) !important;
+  padding: 18px !important;
+  font-size: 14px !important;
+  line-height: 1.9;
+  box-shadow: 0 16px 40px -34px rgba(14,165,233,.35);
+}
+
+@media (max-width: 767px) {
+  .masar-reports > div {
+    gap: 20px !important;
+  }
+
+  .masar-reports > div > div:first-child:has(header) {
+    padding: 19px;
+    border-radius: 20px;
+  }
+
+  .masar-reports .erp-filter-card {
+    padding: 16px;
+  }
+
+  .masar-reports .erp-filter-card > div:first-child > div:last-child {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .masar-reports .erp-filter-card > div:first-child > div:last-child a {
+    width: 100%;
+  }
+
+  .masar-reports > div > section.grid.gap-4.sm\:grid-cols-2.xl\:grid-cols-4 > div {
+    min-height: 132px;
+  }
+
+  .masar-reports > div > section.grid.gap-6.xl\:grid-cols-\[minmax\(0\,1fr\)_360px\] > div:first-child .overflow-x-auto {
+    overflow: visible;
+  }
+
+  .masar-reports .erp-table,
+  .masar-reports .erp-table tbody,
+  .masar-reports .erp-table tr,
+  .masar-reports .erp-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .masar-reports .erp-table {
+    min-width: 0 !important;
+  }
+
+  .masar-reports .erp-table thead {
+    display: none;
+  }
+
+  .masar-reports .erp-table tbody {
+    display: grid;
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .masar-reports .erp-table tbody tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 14px;
+    padding: 15px;
+    border: 1px solid #fecdd3;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 10px 28px -24px rgba(225,29,72,.25);
+  }
+
+  .masar-reports .erp-table td {
+    padding: 0 !important;
+    border: 0 !important;
+  }
+
+  .masar-reports .erp-table td:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .masar-reports .erp-table td:nth-child(1)::before { content: "المصروف"; }
+  .masar-reports .erp-table td:nth-child(2)::before { content: "الفئة"; }
+  .masar-reports .erp-table td:nth-child(3)::before { content: "التاريخ"; }
+  .masar-reports .erp-table td:nth-child(4)::before { content: "المبلغ"; }
+  .masar-reports .erp-table td:nth-child(5)::before { content: "أضيف بواسطة"; }
+  .masar-reports .erp-table td:nth-child(6)::before { content: "إجراء"; }
+
+  .masar-reports .erp-table td::before {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 12px;
+    font-weight: 900;
+    color: #94a3b8;
+  }
+
+  .masar-reports .erp-table td:last-child form button {
+    width: 100%;
+    min-height: 40px;
+  }
+
+  .masar-reports > div > section.grid.gap-6.xl\:grid-cols-\[minmax\(0\,1fr\)_360px\] > form.erp-section .grid.grid-cols-2 {
+    grid-template-columns: 1fr;
+  }
+}
