@@ -45,6 +45,7 @@ export interface AuthContext {
     id: string;
     name: string;
     currency: string;
+    countryCode: string | null;
   };
   membership: {
     id: string;
@@ -92,6 +93,7 @@ const resolveAuthContextInternal = cache(async (): Promise<AuthContext | null> =
           id: true,
           name: true,
           currency: true,
+          countryCode: true,
           deletedAt: true,
         },
       },
@@ -135,6 +137,7 @@ const resolveAuthContextInternal = cache(async (): Promise<AuthContext | null> =
         id: membership.shop.id,
         name: membership.shop.name,
         currency: membership.shop.currency || "SAR",
+        countryCode: membership.shop.countryCode,
       },
       membership: {
         id: membership.id,
@@ -185,6 +188,7 @@ const resolveAuthContextInternal = cache(async (): Promise<AuthContext | null> =
       id: legacyUser.shop.id,
       name: legacyUser.shop.name,
       currency: legacyUser.shop.currency || "SAR",
+      countryCode: legacyUser.shop.countryCode,
     },
     membership: {
       id: "legacy-virtual-membership",
