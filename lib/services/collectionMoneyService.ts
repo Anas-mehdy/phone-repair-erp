@@ -63,14 +63,36 @@ export async function applyCollectionIncomingTx(
   const wallet = walletRows[0]; if (!wallet) throw new Error("المحفظة المحددة غير موجودة.");
   const nextBalance = wallet.currentBalance.add(amount);
   await tx.$executeRaw`UPDATE "FinancialWallet" SET "currentBalance" = ${nextBalance}, "updatedAt" = NOW() WHERE "id" = ${wallet.id}::uuid`;
+
   const sourceType = input.sourceType ?? sourceTypeFromMovement(input.movementType);
+  let sourceId = input.sourceId ?? null;
+  let customerId = input.customerId ?? null;
+  let sourceReference = input.sourceReference ?? input.reference ?? null;
+
+  if (sourceType === "DEBT" && !sourceId) {
+    const token = /\[DEBT-PAYMENT:([0-9a-f-]+)\]/i.exec(input.description)?.[1];
+    if (token) {
+      const debtRows = await tx.$queryRaw<Array<{ id: string; customerId: string; reference: string | null }>>`
+        SELECT "id", "customerId", "reference"
+        FROM "DebtLedgerEntry"
+        WHERE "id" = ${token}::uuid AND "shopId" = ${shopId}::uuid
+        LIMIT 1
+      `;
+      if (debtRows[0]) {
+        sourceId = debtRows[0].id;
+        customerId = customerId || debtRows[0].customerId;
+        sourceReference = sourceReference || debtRows[0].reference || "دفتر الدين";
+      }
+    }
+  }
+
   await tx.$executeRaw`
     INSERT INTO "FinancialTransfer" (
       "shopId", "walletId", "customerId", "createdByUserId", "operationType", "amount", "walletAmount", "commission", "commissionMode", "isDeferred", "notes", "createdAt", "sourceType", "sourceId", "sourceReference"
     ) VALUES (
-      ${shopId}::uuid, ${wallet.id}::uuid, ${input.customerId ?? null}::uuid, ${userId}::uuid,
+      ${shopId}::uuid, ${wallet.id}::uuid, ${customerId}::uuid, ${userId}::uuid,
       'WALLET_TOPUP', ${amount}, ${amount}, 0, 'NONE', FALSE, ${input.description}, ${occurredAt},
-      ${sourceType}, ${input.sourceId ?? null}, ${input.sourceReference ?? input.reference ?? null}
+      ${sourceType}, ${sourceId}, ${sourceReference}
     )
   `;
   return wallet.name;
