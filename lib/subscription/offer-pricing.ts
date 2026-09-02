@@ -29,20 +29,17 @@ export interface EffectiveShopOffer {
   annualDiscountPercent: number;
 }
 
-export function calculateDiscountedPrice(
-  basePrice: number,
-  discountPercent: number,
-): number {
+export function calculateDiscountedPrice(basePrice: number, discountPercent: number): number {
   if (basePrice <= 0) return 0;
   if (!discountPercent || discountPercent <= 0) return basePrice;
   if (discountPercent >= 100) return 0;
-
   const discounted = basePrice * (1 - discountPercent / 100);
   return Math.round((discounted + Number.EPSILON) * 100) / 100;
 }
 
 /**
- * Resolves whether a shop gets a frozen discount, a global offer discount, or no discount.
+ * Resolves regular-plan discounts independently from the lifetime quota.
+ * The manual total/remaining counters are reserved for the Lifetime offer UI.
  */
 export function resolveEffectiveOffer(
   subscription: SubscriptionFoundersOfferSnapshot | null | undefined,
@@ -53,20 +50,18 @@ export function resolveEffectiveOffer(
     annualDiscountPercent: number;
   },
 ): EffectiveShopOffer {
-  // A. If shop has already been granted the founders offer (frozen):
   if (subscription?.foundersOfferEligible) {
     return {
       isEligible: true,
       isFrozen: true,
-      sixMonthsDiscountPercent:
-        subscription.foundersOfferSixMonthsDiscountPercent ?? 0,
-      annualDiscountPercent:
-        subscription.foundersOfferAnnualDiscountPercent ?? 0,
+      sixMonthsDiscountPercent: subscription.foundersOfferSixMonthsDiscountPercent ?? 0,
+      annualDiscountPercent: subscription.foundersOfferAnnualDiscountPercent ?? 0,
     };
   }
 
-  // B. If prospective global offer is active and remaining quota > 0:
-  if (globalOffer.isActive && globalOffer.remainingEligible > 0) {
+  // Global regular-plan discounts no longer depend on remainingEligible.
+  // This preserves existing pricing while freeing the manual quota for Lifetime only.
+  if (globalOffer.sixMonthsDiscountPercent > 0 || globalOffer.annualDiscountPercent > 0) {
     return {
       isEligible: true,
       isFrozen: false,
@@ -75,7 +70,6 @@ export function resolveEffectiveOffer(
     };
   }
 
-  // C. Otherwise, not eligible and no discount
   return {
     isEligible: false,
     isFrozen: false,

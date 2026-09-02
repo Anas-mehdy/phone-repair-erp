@@ -54,9 +54,18 @@ export default async function SubscriptionPage() {
   const annualPrice = annualRaw ? { amount: Number(annualRaw.amount), currencyCode: annualRaw.currencyCode } : null;
   const lifetimePrice = lifetimeRaw ? { amount: Number(lifetimeRaw.amount), currencyCode: lifetimeRaw.currencyCode } : null;
 
+  // Keep the regular plans exactly as they are, but do not expose the manual 50-slot quota there.
+  const regularPlansOffer = {
+    ...offer,
+    isActive: false,
+    totalEligible: 0,
+    remainingEligible: 0,
+    claimedEligible: 0,
+  };
+
   return <div className="py-6 px-4 sm:px-6 lg:px-8">
     {entitlement.subscription.effectiveStatus === "TRIALING" ? <div className="mx-auto max-w-6xl"><TrialCreditNote /></div> : null}
     <LifetimePlanCard shopName={auth.shop.name} price={lifetimePrice} totalEligible={offer.totalEligible} remainingEligible={offer.remainingEligible} isActive={offer.isActive} />
-    <SubscriptionView shop={{ name: auth.shop.name, countryCode, currency: auth.shop.currency }} entitlement={entitlement} offer={offer} foundersOfferSnapshot={subscriptionRow} sixMonthsPrice={sixMonthsPrice} annualPrice={annualPrice} />
+    <SubscriptionView shop={{ name: auth.shop.name, countryCode, currency: auth.shop.currency }} entitlement={entitlement} offer={regularPlansOffer} foundersOfferSnapshot={subscriptionRow} sixMonthsPrice={sixMonthsPrice} annualPrice={annualPrice} />
   </div>;
 }
