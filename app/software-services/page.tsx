@@ -1,16 +1,17 @@
 import Link from "next/link";
-import { Code2, Plus, Smartphone, WalletCards } from "lucide-react";
+import { Code2, Plus, Smartphone, Trash2, WalletCards } from "lucide-react";
+import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { getCurrentShopContext } from "@/lib/current-shop";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { softwareServiceService } from "@/lib/services/softwareServiceService";
-import { createSoftwareServiceCatalogAction } from "./actions";
+import { cancelSoftwareServiceSaleAction, createSoftwareServiceCatalogAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
 type Props = {
-  searchParams: Promise<{ catalogSaved?: string; catalogError?: string }>;
+  searchParams: Promise<{ catalogSaved?: string; catalogError?: string; cancelled?: string; cancelError?: string }>;
 };
 
 export default async function SoftwareServicesPage({ searchParams }: Props) {
@@ -40,7 +41,9 @@ export default async function SoftwareServicesPage({ searchParams }: Props) {
       </div>
 
       {query.catalogSaved ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-bold text-emerald-800">تم حفظ الخدمة في الكتالوج.</div> : null}
+      {query.cancelled ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-bold text-emerald-800">تم إلغاء خدمة السوفتوير وعكس أثرها المالي وإزالتها من التقارير.</div> : null}
       {query.catalogError ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-700">{query.catalogError}</div> : null}
+      {query.cancelError ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-700">{query.cancelError}</div> : null}
 
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div className="erp-card p-5">
@@ -85,8 +88,8 @@ export default async function SoftwareServicesPage({ searchParams }: Props) {
           <div className="py-10 text-center text-xs font-bold text-slate-400">لا توجد خدمات مسجلة بعد.</div>
         ) : (
           <div className="overflow-x-auto rounded-xl border border-slate-200/70">
-            <table className="erp-table min-w-[900px]">
-              <thead><tr><th>الخدمة</th><th>العميل</th><th>الجهاز</th><th>سعر الفاتورة</th><th>التكلفة</th><th>المتبقي</th><th>العهدة</th><th>التاريخ</th></tr></thead>
+            <table className="erp-table min-w-[1020px]">
+              <thead><tr><th>الخدمة</th><th>العميل</th><th>الجهاز</th><th>سعر الفاتورة</th><th>التكلفة</th><th>المتبقي</th><th>العهدة</th><th>التاريخ</th><th>إجراء</th></tr></thead>
               <tbody>
                 {sales.map((sale) => (
                   <tr key={sale.id}>
@@ -98,6 +101,20 @@ export default async function SoftwareServicesPage({ searchParams }: Props) {
                     <td className="font-numeric font-bold text-amber-700">{formatCurrency(sale.invoiceBalanceDue, currency)}</td>
                     <td className="text-xs font-bold">{sale.deviceKept ? (sale.deliveredAt ? "تم التسليم" : "بالمحل") : "-"}</td>
                     <td className="font-numeric text-xs text-slate-500">{formatDate(sale.soldAt)}</td>
+                    <td>
+                      <div className="flex items-center gap-2">
+                        <Button asChild size="sm" variant="outline" className="rounded-lg text-xs font-bold"><Link href={`/software-services/${sale.id}`}>فتح</Link></Button>
+                        <form action={cancelSoftwareServiceSaleAction}>
+                          <input type="hidden" name="id" value={sale.id} />
+                          <ConfirmSubmitButton
+                            className="h-9 rounded-lg border border-rose-200 bg-white px-3 text-xs font-black text-rose-700 hover:bg-rose-50"
+                            message={`إلغاء خدمة ${sale.serviceName}؟ سيتم إلغاء الفاتورة المرتبطة وعكس أي دفعات مسجلة وإزالة الخدمة من التقارير.`}
+                          >
+                            <Trash2 className="ml-1 h-3.5 w-3.5" />إلغاء
+                          </ConfirmSubmitButton>
+                        </form>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>

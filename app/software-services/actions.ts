@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requirePermission } from "@/lib/auth/context";
+import { softwareServiceCancellationService } from "@/lib/services/softwareServiceCancellationService";
 import { softwareServiceService } from "@/lib/services/softwareServiceService";
 
 function readString(formData: FormData, key: string) {
@@ -100,6 +101,28 @@ export async function markSoftwareDeviceDeliveredAction(formData: FormData) {
     revalidatePath("/software-services");
     revalidatePath(`/software-services/${id}`);
     redirectTo = `/software-services/${id}?delivered=1`;
+  } catch (error) {
+    redirectTo = `/software-services/${id}?error=${encodeURIComponent(getErrorMessage(error))}`;
+  }
+  redirect(redirectTo);
+}
+
+export async function cancelSoftwareServiceSaleAction(formData: FormData) {
+  const id = readString(formData, "id");
+  if (!id) redirect("/software-services?cancelError=" + encodeURIComponent("معرّف الخدمة غير موجود."));
+
+  let redirectTo = `/software-services/${id}`;
+  try {
+    const auth = await requirePermission("sales:create");
+    await softwareServiceCancellationService.cancelSoftwareServiceSale(auth.shop.id, id, auth.user.id);
+    revalidatePath("/software-services");
+    revalidatePath(`/software-services/${id}`);
+    revalidatePath("/dashboard");
+    revalidatePath("/invoices");
+    revalidatePath("/reports");
+    revalidatePath("/cash-drawer");
+    revalidatePath("/transfers");
+    redirectTo = "/software-services?cancelled=1";
   } catch (error) {
     redirectTo = `/software-services/${id}?error=${encodeURIComponent(getErrorMessage(error))}`;
   }
