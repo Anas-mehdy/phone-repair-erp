@@ -5,6 +5,7 @@ import {
   Banknote,
   ExternalLink,
   Landmark,
+  PencilLine,
   Plus,
   type LucideIcon,
 } from "lucide-react";
@@ -17,10 +18,10 @@ import { cashDrawerMovementLabel, cashDrawerSourceHref, cashDrawerSourceLinkLabe
 import { cashDrawerService, type CashDrawerMovementRow } from "@/lib/services/cashDrawerService";
 import { financialTransferService } from "@/lib/services/financialTransferService";
 import { timeZoneForCountry } from "@/lib/shop-timezone";
-import { addCashMovementAction, setOpeningBalanceAction, transferCashWalletAction } from "./actions";
+import { addCashMovementAction, setOpeningBalanceAction, transferCashWalletAction, updateOpeningBalanceAction } from "./actions";
 
 export const dynamic = "force-dynamic";
-type CashDrawerPageProps = { searchParams: Promise<{ error?: string; openingSaved?: string; movementSaved?: string; transferSaved?: string }> };
+type CashDrawerPageProps = { searchParams: Promise<{ error?: string; openingSaved?: string; openingUpdated?: string; movementSaved?: string; transferSaved?: string }> };
 
 function formatMovementTime(date: Date, timeZone: string) {
   return new Intl.DateTimeFormat("ar", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", timeZone }).format(date);
@@ -37,7 +38,7 @@ export default async function CashDrawerPage({ searchParams }: CashDrawerPagePro
   const drawer = await cashDrawerService.getAuditSnapshot(auth.shop.id, 150);
   const currency = auth.shop.currency || "SAR";
   const timeZone = timeZoneForCountry(auth.shop.countryCode);
-  const successText = params.openingSaved ? "تم تسجيل الرصيد الافتتاحي للدرج." : params.movementSaved ? "تم تسجيل حركة الدرج وتحديث الرصيد." : params.transferSaved ? "تم التحويل بين الدرج والمحفظة بنجاح." : null;
+  const successText = params.openingUpdated ? "تم تعديل الرصيد الافتتاحي وتحديث رصيد الدرج بمقدار الفرق." : params.openingSaved ? "تم تسجيل الرصيد الافتتاحي للدرج." : params.movementSaved ? "تم تسجيل حركة الدرج وتحديث الرصيد." : params.transferSaved ? "تم التحويل بين الدرج والمحفظة بنجاح." : null;
 
   return <div className="space-y-6">
     <PageHeader eyebrow="المالية • السيولة النقدية" title="الدرج النقدي" description="رصيد الكاش الفعلي وسجل كامل لكل مبلغ دخل إلى الدرج أو خرج منه، مع ربط الحركة بمصدرها الأصلي." />
@@ -52,6 +53,8 @@ export default async function CashDrawerPage({ searchParams }: CashDrawerPagePro
     </section>
 
     {!drawer.openingBalanceSetAt && <section className="overflow-hidden rounded-[22px] border border-amber-200 bg-gradient-to-l from-amber-50 via-white to-orange-50 shadow-sm"><div className="border-b border-amber-100 px-5 py-4"><h2 className="text-base font-black text-slate-900">ابدأ برصيد الدرج الحالي</h2><p className="mt-1 text-sm font-semibold text-slate-500">سجّل الكاش الموجود فعلياً قبل بدء استخدام الدرج. هذه القيمة لا تدخل في الأرباح.</p></div><form action={setOpeningBalanceAction} className="grid gap-3 p-5 md:grid-cols-[220px_minmax(0,1fr)_auto] md:items-end"><label className="grid gap-1.5 text-sm font-bold text-slate-700">الرصيد الافتتاحي<input name="amount" type="number" min="0" step="0.01" required className="erp-input font-numeric" placeholder="0.00" /></label><label className="grid gap-1.5 text-sm font-bold text-slate-700">ملاحظة<input name="notes" className="erp-input" placeholder="مثال: كاش موجود قبل استخدام مسار" /></label><Button type="submit" className="h-12 rounded-xl px-6 font-black">تسجيل الرصيد</Button></form></section>}
+
+    {drawer.openingBalanceSetAt && <section className="overflow-hidden rounded-[22px] border border-indigo-100 bg-gradient-to-l from-indigo-50/80 via-white to-cyan-50/50 shadow-sm"><div className="flex flex-wrap items-center justify-between gap-3 border-b border-indigo-100/80 px-5 py-4"><div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700"><PencilLine className="h-5 w-5" /></span><div><h2 className="text-base font-black text-slate-900">تعديل الرصيد الافتتاحي</h2><p className="mt-1 text-sm font-semibold text-slate-500">صحّح الرقم إذا تم إدخاله بالخطأ. لا يُسجل التعديل كدخل أو ربح.</p></div></div><span className="rounded-full border border-indigo-100 bg-white px-3 py-1.5 text-xs font-black text-indigo-700">الحالي: {formatCurrency(drawer.openingBalance, currency)}</span></div><form action={updateOpeningBalanceAction} className="grid gap-3 p-5 md:grid-cols-[220px_minmax(0,1fr)_auto] md:items-end"><label className="grid gap-1.5 text-sm font-bold text-slate-700">الرصيد الافتتاحي الجديد<input name="amount" type="number" min="0" step="0.01" required defaultValue={drawer.openingBalance.toFixed(2)} className="erp-input font-numeric" /></label><label className="grid gap-1.5 text-sm font-bold text-slate-700">سبب التعديل <span className="font-semibold text-slate-400">(اختياري)</span><input name="notes" className="erp-input" placeholder="مثال: تصحيح الرصيد الذي تم إدخاله أول مرة" /></label><Button type="submit" className="h-12 rounded-xl bg-indigo-700 px-6 font-black hover:bg-indigo-800">حفظ التعديل</Button></form><div className="border-t border-indigo-100/80 bg-white/60 px-5 py-3 text-xs font-semibold leading-6 text-slate-500">يتم تعديل الرصيد الحالي بمقدار الفرق فقط. مثال: تغيير الافتتاحي من 5,000 إلى 5,500 يزيد رصيد الدرج الحالي 500 فقط.</div></section>}
 
     <section className="grid gap-5 xl:grid-cols-2">
       <form action={addCashMovementAction} className="rounded-[22px] border border-slate-200 bg-white p-5 shadow-sm"><div className="mb-5 flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-50 text-teal-700"><Plus className="h-5 w-5" /></span><div><h2 className="text-base font-black text-slate-900">حركة نقدية يدوية</h2><p className="mt-0.5 text-sm font-semibold text-slate-400">إضافة أو سحب كاش لسبب خارج عمليات البيع والتحصيل الآلية.</p></div></div><div className="grid gap-3 sm:grid-cols-2"><label className="grid gap-1.5 text-sm font-bold text-slate-700">نوع الحركة<select name="direction" className="erp-input" defaultValue="IN"><option value="IN">إضافة إلى الدرج</option><option value="OUT">سحب من الدرج</option></select></label><label className="grid gap-1.5 text-sm font-bold text-slate-700">المبلغ<input name="amount" type="number" min="0.01" step="0.01" required className="erp-input font-numeric" /></label><label className="grid gap-1.5 text-sm font-bold text-slate-700 sm:col-span-2">سبب الحركة<input name="description" required className="erp-input" placeholder="مثال: سحب المالك أو إضافة تمويل نقدي" /></label><label className="grid gap-1.5 text-sm font-bold text-slate-700 sm:col-span-2">مرجع اختياري<input name="reference" className="erp-input" placeholder="رقم إيصال أو ملاحظة مرجعية" /></label></div><Button type="submit" className="mt-4 h-11 w-full rounded-xl font-black">حفظ الحركة</Button></form>

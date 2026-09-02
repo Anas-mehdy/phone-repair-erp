@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requirePermission } from "@/lib/auth/context";
 import { cashDrawerService } from "@/lib/services/cashDrawerService";
+import { openingBalanceAdjustmentService } from "@/lib/services/openingBalanceAdjustmentService";
 
 const moneySchema = z.string().trim().min(1, "المبلغ مطلوب").refine((value) => {
   const number = Number(value.replace(",", "."));
@@ -41,6 +42,24 @@ export async function setOpeningBalanceAction(formData: FormData) {
   }
   refreshCashViews();
   redirect("/cash-drawer?openingSaved=1");
+}
+
+export async function updateOpeningBalanceAction(formData: FormData) {
+  const amount = moneySchema.safeParse(readString(formData, "amount"));
+  if (!amount.success) redirect(`/cash-drawer?error=${encodeURIComponent(errorMessage(amount.error))}`);
+  const auth = await requirePermission("sales:create");
+  try {
+    await openingBalanceAdjustmentService.updateOpeningBalance(
+      auth.shop.id,
+      auth.user.id,
+      amount.data,
+      readString(formData, "notes"),
+    );
+  } catch (error) {
+    redirect(`/cash-drawer?error=${encodeURIComponent(errorMessage(error))}`);
+  }
+  refreshCashViews();
+  redirect("/cash-drawer?openingUpdated=1");
 }
 
 export async function addCashMovementAction(formData: FormData) {
