@@ -9,23 +9,12 @@ import { invoiceService } from "@/lib/services/invoiceService";
 import { paymentService } from "@/lib/services/paymentService";
 import { entitlementService } from "@/lib/services/subscriptionEntitlementService";
 
-const createFromRepairSchema = z.object({
-  repairOrderId: z.string().uuid(),
-});
-
-const createFromSaleSchema = z.object({
-  saleId: z.string().uuid(),
-});
+const createFromRepairSchema = z.object({ repairOrderId: z.string().uuid() });
+const createFromSaleSchema = z.object({ saleId: z.string().uuid() });
 
 const addPaymentSchema = z.object({
   invoiceId: z.string().uuid(),
-  amount: z
-    .string()
-    .trim()
-    .min(1, "قيمة الدفعة مطلوبة")
-    .refine((value) => Number(value.replace(",", ".")) > 0, {
-      message: "قيمة الدفعة يجب أن تكون أكبر من صفر",
-    }),
+  amount: z.string().trim().min(1, "قيمة الدفعة مطلوبة").refine((value) => Number(value.replace(",", ".")) > 0, { message: "قيمة الدفعة يجب أن تكون أكبر من صفر" }),
   method: z.nativeEnum(PaymentMethod),
   sourceOptionId: z.string().uuid().optional().or(z.literal("")),
   customSourceName: z.string().trim().max(80).optional(),
@@ -33,11 +22,11 @@ const addPaymentSchema = z.object({
   reference: z.string().optional(),
   note: z.string().optional(),
   paidAt: z.string().optional(),
+  moneyDestination: z.enum(["DRAWER", "WALLET", "OTHER"]).default("OTHER"),
+  walletId: z.string().uuid().optional().or(z.literal("")),
 });
 
-const voidInvoiceSchema = z.object({
-  invoiceId: z.string().uuid(),
-});
+const voidInvoiceSchema = z.object({ invoiceId: z.string().uuid() });
 
 function readString(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -45,75 +34,45 @@ function readString(formData: FormData, key: string) {
 }
 
 function getErrorMessage(error: unknown) {
-  if (error instanceof z.ZodError) {
-    return error.issues[0]?.message ?? "البيانات غير صحيحة.";
-  }
-
-  if (error instanceof Error) {
-    return error.message;
-  }
-
+  if (error instanceof z.ZodError) return error.issues[0]?.message ?? "البيانات غير صحيحة.";
+  if (error instanceof Error) return error.message;
   return "حدث خطأ غير متوقع.";
 }
 
 async function assertCanCreateNewInvoice(shopId: string) {
   const entitlement = await entitlementService.getEntitlementContext(shopId);
-  if (!entitlement.isOperationallyActive) {
-    throw new Error(
-      "انتهت فترة استخدامك. بياناتك محفوظة بالكامل، اختر خطة لمتابعة إنشاء عمليات جديدة.",
-    );
-  }
+  if (!entitlement.isOperationallyActive) throw new Error("انتهت فترة استخدامك. بياناتك محفوظة بالكامل، اختر خطة لمتابعة إنشاء عمليات جديدة.");
 }
 
 export async function createInvoiceFromRepairOrderAction(formData: FormData) {
-  const input = createFromRepairSchema.parse({
-    repairOrderId: readString(formData, "repairOrderId"),
-  });
+  const input = createFromRepairSchema.parse({ repairOrderId: readString(formData, "repairOrderId") });
   let redirectTo = `/repair-orders/${input.repairOrderId}`;
-
   try {
     const auth = await requirePermission("repairs:update");
     await assertCanCreateNewInvoice(auth.shop.id);
-    const invoice = await invoiceService.createInvoiceFromRepairOrder(
-      auth.shop.id,
-      input.repairOrderId,
-      auth.user.id,
-    );
+    const invoice = await invoiceService.createInvoiceFromRepairOrder(auth.shop.id, input.repairOrderId, auth.user.id);
     redirectTo = `/invoices/${invoice.id}`;
     revalidatePath("/invoices");
     revalidatePath(`/repair-orders/${input.repairOrderId}`);
   } catch (error) {
-    redirectTo = `/repair-orders/${input.repairOrderId}?invoiceError=${encodeURIComponent(
-      getErrorMessage(error),
-    )}`;
+    redirectTo = `/repair-orders/${input.repairOrderId}?invoiceError=${encodeURIComponent(getErrorMessage(error))}`;
   }
-
   redirect(redirectTo);
 }
 
 export async function createInvoiceFromSaleAction(formData: FormData) {
-  const input = createFromSaleSchema.parse({
-    saleId: readString(formData, "saleId"),
-  });
+  const input = createFromSaleSchema.parse({ saleId: readString(formData, "saleId") });
   let redirectTo = `/sales/${input.saleId}`;
-
   try {
     const auth = await requirePermission("sales:create");
     await assertCanCreateNewInvoice(auth.shop.id);
-    const invoice = await invoiceService.createInvoiceFromSale(
-      auth.shop.id,
-      input.saleId,
-      auth.user.id,
-    );
+    const invoice = await invoiceService.createInvoiceFromSale(auth.shop.id, input.saleId, auth.user.id);
     redirectTo = `/invoices/${invoice.id}`;
     revalidatePath("/invoices");
     revalidatePath(`/sales/${input.saleId}`);
   } catch (error) {
-    redirectTo = `/sales/${input.saleId}?invoiceError=${encodeURIComponent(
-      getErrorMessage(error),
-    )}`;
+    redirectTo = `/sales/${input.saleId}?invoiceError=${encodeURIComponent(getErrorMessage(error))}`;
   }
-
   redirect(redirectTo);
 }
 
@@ -128,6 +87,8 @@ export async function addPaymentAction(formData: FormData) {
     reference: readString(formData, "reference"),
     note: readString(formData, "note"),
     paidAt: readString(formData, "paidAt"),
+    moneyDestination: readString(formData, "moneyDestination") || "OTHER",
+    walletId: readString(formData, "walletId"),
   });
 
   try {
@@ -141,23 +102,22 @@ export async function addPaymentAction(formData: FormData) {
       reference: input.reference,
       note: input.note,
       paidAt: input.paidAt,
+      moneyDestination: input.moneyDestination,
+      walletId: input.walletId || undefined,
     });
     revalidatePath("/invoices");
     revalidatePath(`/invoices/${input.invoiceId}`);
     revalidatePath("/dashboard");
     revalidatePath("/customers");
+    revalidatePath("/transfers");
+    revalidatePath("/reports");
   } catch (error) {
-    redirect(`/invoices/${input.invoiceId}?paymentError=${encodeURIComponent(
-      getErrorMessage(error),
-    )}`);
+    redirect(`/invoices/${input.invoiceId}?paymentError=${encodeURIComponent(getErrorMessage(error))}`);
   }
 }
 
 export async function voidInvoiceAction(formData: FormData) {
-  const input = voidInvoiceSchema.parse({
-    invoiceId: readString(formData, "invoiceId"),
-  });
-
+  const input = voidInvoiceSchema.parse({ invoiceId: readString(formData, "invoiceId") });
   try {
     const auth = await requirePermission("invoices:void");
     await invoiceService.voidInvoice(auth.shop.id, input.invoiceId, auth.user.id);
@@ -165,8 +125,6 @@ export async function voidInvoiceAction(formData: FormData) {
     revalidatePath(`/invoices/${input.invoiceId}`);
     revalidatePath("/dashboard");
   } catch (error) {
-    redirect(`/invoices/${input.invoiceId}?invoiceError=${encodeURIComponent(
-      getErrorMessage(error),
-    )}`);
+    redirect(`/invoices/${input.invoiceId}?invoiceError=${encodeURIComponent(getErrorMessage(error))}`);
   }
 }
