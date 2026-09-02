@@ -104,9 +104,13 @@ export async function getActiveLifetimeForShop(shopId: string) {
     pricePaid: Prisma.Decimal | null;
     currencyCode: string | null;
   }>>`
-    SELECT "id", "shopId", "activatedAt", "pricePaid", "currencyCode"
-    FROM "LifetimeSubscription"
-    WHERE "shopId" = ${shopId}::uuid AND "isActive" = TRUE
+    SELECT l."id", l."shopId", l."activatedAt", l."pricePaid", l."currencyCode"
+    FROM "LifetimeSubscription" l
+    JOIN "Subscription" s ON s."shopId" = l."shopId"
+    WHERE l."shopId" = ${shopId}::uuid
+      AND l."isActive" = TRUE
+      AND s."status" = 'ACTIVE'
+      AND s."billingInterval" IS NULL
     LIMIT 1
   `;
   return rows[0] ?? null;
@@ -116,13 +120,15 @@ export async function listLifetimeSubscriptions() {
   await requireSuperAdmin();
   await ensureTables();
   return prisma.$queryRaw<LifetimeSubscriptionRow[]>`
-    SELECT l."id", l."shopId", s."name" AS "shopName", s."countryCode",
+    SELECT l."id", l."shopId", sh."name" AS "shopName", sh."countryCode",
       l."activatedAt", l."activatedById", l."pricePaid", l."currencyCode",
-      l."paymentMethod", l."paymentReference", l."adminNotes", l."isActive",
+      l."paymentMethod", l."paymentReference", l."adminNotes",
+      CASE WHEN l."isActive" = TRUE AND s."status" = 'ACTIVE' AND s."billingInterval" IS NULL THEN TRUE ELSE FALSE END AS "isActive",
       l."createdAt", l."updatedAt"
     FROM "LifetimeSubscription" l
-    JOIN "Shop" s ON s."id" = l."shopId"
-    WHERE s."deletedAt" IS NULL
+    JOIN "Shop" sh ON sh."id" = l."shopId"
+    LEFT JOIN "Subscription" s ON s."shopId" = l."shopId"
+    WHERE sh."deletedAt" IS NULL
     ORDER BY l."activatedAt" DESC
   `;
 }
@@ -146,9 +152,7 @@ export async function activateLifetimeSubscription(input: {
     prisma.subscriptionOfferSettings.findUnique({ where: { id: "FOUNDERS_OFFER" } }),
   ]);
   if (!shop) throw new Error("المتجر غير موجود.");
-  if (!offer?.isActive || offer.remainingEligible <= 0) {
-    throw new Error("عرض مدى الحياة متوقف حالياً أو اكتمل العدد المخصص.");
-  }
+  if (!offer?.isActive || offer.remainingEligible <= 0) throw new Error("عرض مدى الحياة متوقف حالياً أو اكتمل العدد المخصص.");
 
   const price = await getLifetimePriceForCountry(shop.countryCode);
   if (!price) throw new Error("سعر مدى الحياة غير محدد لدولة هذا المتجر.");
