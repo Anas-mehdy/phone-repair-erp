@@ -45,7 +45,7 @@ export interface AuthContext {
     id: string;
     name: string;
     currency: string;
-    countryCode: string | null;
+    countryCode?: string | null;
   };
   membership: {
     id: string;
