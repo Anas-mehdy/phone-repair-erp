@@ -1,4 +1,4 @@
-import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, CheckCircle2, Eye, Filter, Search, Sparkles, WalletCards } from "lucide-react";
+import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, CheckCircle2, Eye, ExternalLink, Filter, Search, Sparkles, WalletCards } from "lucide-react";
 import Link from "next/link";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,9 @@ import { getCurrentShopContext } from "@/lib/current-shop";
 import {
   transferCanVoid,
   transferCustomerDisplayName,
+  transferSourceHref,
   transferSourceLabel,
+  transferSourceLinkLabel,
 } from "@/lib/financial-transfer-presentation";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
@@ -85,8 +87,9 @@ export default async function TransfersPage({ searchParams }: { searchParams: Pr
           <div className="mt-2 flex justify-end"><Button type="submit" variant="outline" className="h-9 rounded-xl border-teal-200 bg-white px-4 text-[10px] font-black text-teal-700 hover:bg-teal-50">تطبيق الفلاتر</Button></div>
         </form>
 
-        {transfers.length === 0 ? <div className="flex min-h-52 flex-col items-center justify-center px-4 text-center"><span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-50 text-slate-400"><Search className="h-5 w-5" /></span><p className="mt-3 text-xs font-black text-slate-600">لا توجد عمليات ضمن النطاق الحالي</p><p className="mt-1 text-[10px] font-semibold text-slate-400">غيّر الفلاتر أو سجّل عملية جديدة.</p></div> : <div className="overflow-x-auto"><table className="min-w-[1120px] w-full text-right text-xs"><thead className="bg-slate-50/80 text-[10px] font-black text-slate-500"><tr><th className="px-4 py-3">ماهية الحركة</th><th className="px-4 py-3">المحفظة</th><th className="px-4 py-3">العميل</th><th className="px-4 py-3">المبلغ</th><th className="px-4 py-3">العمولة</th><th className="px-4 py-3">الدفع</th><th className="px-4 py-3">الحالة</th><th className="px-4 py-3">التاريخ</th><th className="px-4 py-3">الإجراءات</th></tr></thead><tbody className="divide-y divide-slate-100">{transfers.map((transfer) => {
+        {transfers.length === 0 ? <div className="flex min-h-52 flex-col items-center justify-center px-4 text-center"><span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-50 text-slate-400"><Search className="h-5 w-5" /></span><p className="mt-3 text-xs font-black text-slate-600">لا توجد عمليات ضمن النطاق الحالي</p><p className="mt-1 text-[10px] font-semibold text-slate-400">غيّر الفلاتر أو سجّل عملية جديدة.</p></div> : <div className="overflow-x-auto"><table className="min-w-[1180px] w-full text-right text-xs"><thead className="bg-slate-50/80 text-[10px] font-black text-slate-500"><tr><th className="px-4 py-3">ماهية الحركة</th><th className="px-4 py-3">المحفظة</th><th className="px-4 py-3">العميل</th><th className="px-4 py-3">المبلغ</th><th className="px-4 py-3">العمولة</th><th className="px-4 py-3">الدفع</th><th className="px-4 py-3">الحالة</th><th className="px-4 py-3">التاريخ</th><th className="px-4 py-3">الإجراءات</th></tr></thead><tbody className="divide-y divide-slate-100">{transfers.map((transfer) => {
           const canVoid = transferCanVoid(transfer.sourceType);
+          const sourceHref = transferSourceHref(transfer);
           return <tr key={transfer.id} className={`transition hover:bg-teal-50/25 ${transfer.status === "VOID" ? "opacity-50" : ""}`}>
           <td className="px-4 py-3"><OperationBadge sourceType={transfer.sourceType} type={transfer.operationType} /><div className="mt-1 max-w-[190px] truncate font-numeric text-[9px] font-bold text-slate-400" title={transfer.sourceReference || transfer.notes || undefined}>{transfer.sourceReference || cleanMovementText(transfer.notes) || "—"}</div></td>
           <td className="px-4 py-3 font-bold text-slate-700">{transfer.walletName}</td>
@@ -96,7 +99,7 @@ export default async function TransfersPage({ searchParams }: { searchParams: Pr
           <td className="px-4 py-3">{transfer.isDeferred ? <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-[9px] font-black text-amber-700">آجل — دفتر الديون</span> : <span className="text-[9px] font-bold text-slate-400">فوري</span>}</td>
           <td className="px-4 py-3">{transfer.status === "ACTIVE" ? <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[9px] font-black text-emerald-700"><CheckCircle2 className="h-3 w-3" /> فعالة</span> : <span className="rounded-full bg-rose-50 px-2 py-1 text-[9px] font-black text-rose-600">ملغاة</span>}</td>
           <td className="px-4 py-3 font-numeric text-[10px] font-bold text-slate-500">{formatDate(transfer.createdAt)}</td>
-          <td className="px-4 py-3"><div className="flex items-center gap-1"><Button asChild variant="ghost" size="sm" className="h-8 rounded-lg px-2 text-[9px] font-black text-teal-700 hover:bg-teal-50"><Link href={`/transfers/${transfer.id}`}><Eye className="ml-1 h-3.5 w-3.5" />فتح التفاصيل</Link></Button>{transfer.status === "ACTIVE" && canVoid ? <form action={voidTransferAction}><input type="hidden" name="id" value={transfer.id} /><ConfirmSubmitButton message="إلغاء العملية وعكس أثرها على الرصيد والدين المرتبط إن وجد؟" variant="ghost" size="sm" className="h-8 rounded-lg px-2 text-[9px] font-black text-rose-600 hover:bg-rose-50 hover:text-rose-700">إلغاء</ConfirmSubmitButton></form> : null}</div></td>
+          <td className="px-4 py-3"><div className="flex items-center gap-1"><Button asChild variant="ghost" size="sm" className="h-8 rounded-lg px-2 text-[9px] font-black text-teal-700 hover:bg-teal-50"><Link href={`/transfers/${transfer.id}`}><Eye className="ml-1 h-3.5 w-3.5" />فتح التفاصيل</Link></Button>{sourceHref ? <Button asChild variant="ghost" size="sm" className="h-8 rounded-lg px-2 text-[9px] font-black text-indigo-700 hover:bg-indigo-50"><Link href={sourceHref}><ExternalLink className="ml-1 h-3.5 w-3.5" />{transferSourceLinkLabel(transfer.sourceType)}</Link></Button> : null}{transfer.status === "ACTIVE" && canVoid ? <form action={voidTransferAction}><input type="hidden" name="id" value={transfer.id} /><ConfirmSubmitButton message="إلغاء العملية وعكس أثرها على الرصيد والدين المرتبط إن وجد؟" variant="ghost" size="sm" className="h-8 rounded-lg px-2 text-[9px] font-black text-rose-600 hover:bg-rose-50 hover:text-rose-700">إلغاء</ConfirmSubmitButton></form> : null}</div></td>
         </tr>})}</tbody></table></div>}
       </div>
 
