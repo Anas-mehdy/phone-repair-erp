@@ -1,0 +1,155 @@
+/* Masar Repair Order detail workspace — visual hierarchy only. */
+.repair-order-detail {
+  --detail-brand: #0d9488;
+  --detail-brand-strong: #0f766e;
+  --detail-brand-soft: #f0fdfa;
+  --detail-cyan-soft: #ecfeff;
+  --detail-indigo-soft: #eef2ff;
+  --detail-amber-soft: #fffbeb;
+  --detail-danger-soft: #fff1f2;
+}
+
+/* Hero: make the ticket itself the visual anchor. */
+.repair-order-detail > div > div.rounded-3xl:first-of-type {
+  position: relative;
+  border-color: rgba(153, 246, 228, .82) !important;
+  background:
+    radial-gradient(circle at 0 0, rgba(103, 232, 249, .18), transparent 34%),
+    linear-gradient(135deg, rgba(240,253,250,.96), rgba(255,255,255,.99) 50%, rgba(236,254,255,.82)) !important;
+  box-shadow: 0 22px 68px -44px rgba(13,148,136,.55) !important;
+}
+
+.repair-order-detail > div > div.rounded-3xl:first-of-type h2 {
+  font-size: 30px !important;
+  line-height: 1.2 !important;
+}
+
+.repair-order-detail > div > div.rounded-3xl:first-of-type p,
+.repair-order-detail > div > div.rounded-3xl:first-of-type span {
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+/* Main information cards use one calm Masar surface. */
+.repair-order-detail .erp-section {
+  border-color: rgba(226,232,240,.9) !important;
+  background: linear-gradient(145deg, rgba(255,255,255,.99), rgba(248,250,252,.9)) !important;
+  box-shadow: 0 18px 52px -40px rgba(15,23,42,.34) !important;
+}
+
+.repair-order-detail .erp-section:hover {
+  border-color: rgba(153,246,228,.75) !important;
+}
+
+.repair-order-detail .erp-section h3 {
+  font-size: 18px !important;
+  line-height: 1.5 !important;
+  font-weight: 900 !important;
+  color: #0f172a !important;
+}
+
+.repair-order-detail .erp-section > div:first-child[class*="border-b"] {
+  border-color: rgba(204,251,241,.9) !important;
+}
+
+/* Inputs/forms follow the approved readable scale. */
+.repair-order-detail input,
+.repair-order-detail select,
+.repair-order-detail textarea {
+  font-size: 16px !important;
+}
+
+.repair-order-detail input,
+.repair-order-detail select {
+  min-height: 48px;
+}
+
+.repair-order-detail textarea {
+  min-height: 112px;
+  line-height: 1.65;
+}
+
+/* Supplier/parts is a financial sub-surface. */
+.repair-order-detail [class*="border-teal-200"][class*="bg-teal-50"] {
+  border-color: rgba(153,246,228,.85) !important;
+  background: linear-gradient(135deg, rgba(240,253,250,.92), rgba(255,255,255,.96)) !important;
+}
+
+.repair-order-detail table {
+  font-size: 15px !important;
+}
+
+.repair-order-detail table th {
+  font-size: 14px !important;
+  color: #475569 !important;
+}
+
+/* Side rail becomes a coherent action center. */
+.repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:last-child > .erp-section {
+  border-color: rgba(153,246,228,.76) !important;
+  background: linear-gradient(155deg, rgba(255,255,255,.98), rgba(240,253,250,.62)) !important;
+  box-shadow: 0 18px 55px -38px rgba(13,148,136,.36) !important;
+}
+
+/* Supporting indigo replaces older violet decoration. */
+.repair-order-detail .bg-violet-50 { background-color: #eef2ff !important; }
+.repair-order-detail .text-violet-700,
+.repair-order-detail .text-violet-900 { color: #4f46e5 !important; }
+.repair-order-detail .border-violet-100 { border-color: #e0e7ff !important; }
+
+/* Primary actions keep the Masar brand treatment. */
+.repair-order-detail a.bg-primary,
+.repair-order-detail button.bg-primary {
+  background: linear-gradient(90deg, #0d9488, #06b6d4) !important;
+  color: white !important;
+  box-shadow: 0 12px 28px -17px rgba(13,148,136,.66) !important;
+}
+
+/* Timeline reads like a history stream rather than another form. */
+.repair-order-detail ol[class*="border-r"] {
+  border-color: rgba(153,246,228,.9) !important;
+}
+
+.repair-order-detail ol[class*="border-r"] > li > span:first-child {
+  background: #0d9488 !important;
+  box-shadow: 0 0 0 5px rgba(204,251,241,.72);
+}
+
+/* QR remains a focal utility. */
+.repair-order-detail img[alt^="QR "] {
+  padding: 4px;
+  background: white;
+}
+
+@media (max-width: 767px) {
+  .repair-order-detail > div {
+    gap: 18px !important;
+  }
+
+  .repair-order-detail > div > div.rounded-3xl:first-of-type {
+    padding: 18px !important;
+    border-radius: 22px !important;
+  }
+
+  .repair-order-detail > div > div.rounded-3xl:first-of-type h2 {
+    font-size: 26px !important;
+  }
+
+  .repair-order-detail .erp-section {
+    padding: 16px !important;
+    border-radius: 18px !important;
+  }
+
+  .repair-order-detail .erp-section h3 {
+    font-size: 17px !important;
+  }
+
+  .repair-order-detail .erp-section table {
+    min-width: 560px;
+  }
+
+  .repair-order-detail .erp-section form button,
+  .repair-order-detail .erp-section form a {
+    min-height: 44px;
+  }
+}
