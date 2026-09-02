@@ -3,6 +3,7 @@ import { SubscriptionPlan } from "@prisma/client";
 import { adminService } from "@/lib/services/adminService";
 import { subscriptionAdminService } from "@/lib/services/subscriptionAdminService";
 import { subscriptionOfferService } from "@/lib/services/subscriptionOfferService";
+import { lifetimeSubscriptionService } from "@/lib/services/lifetimeSubscriptionService";
 import { prisma } from "@/lib/prisma";
 import { AdminOnlineUsers } from "./_admin-online-users";
 import { AdminTabsView } from "./_admin-tabs-view";
@@ -10,7 +11,7 @@ import { AdminTabsView } from "./_admin-tabs-view";
 export const dynamic = "force-dynamic";
 
 export default async function SuperAdminDashboardPage() {
-  const [stats, shops, subscriptions, rawPrices, offer] = await Promise.all([
+  const [stats, shops, subscriptions, rawPrices, lifetimePrices, offer] = await Promise.all([
     adminService.getPlatformStats(),
     adminService.listAllShops(),
     subscriptionAdminService.listSubscriptionsForAdmin(),
@@ -18,17 +19,28 @@ export default async function SuperAdminDashboardPage() {
       where: { plan: SubscriptionPlan.PROFESSIONAL },
       orderBy: [{ countryCode: "asc" }, { billingInterval: "asc" }],
     }),
+    lifetimeSubscriptionService.listLifetimePrices(),
     subscriptionOfferService.getOfferSettings(),
   ]);
 
-  const serializedPrices = rawPrices.map((p) => ({
-    id: p.id,
-    countryCode: p.countryCode,
-    plan: p.plan,
-    billingInterval: p.billingInterval,
-    currencyCode: p.currencyCode,
-    amount: Number(p.amount),
-  }));
+  const serializedPrices = [
+    ...rawPrices.map((p) => ({
+      id: p.id,
+      countryCode: p.countryCode,
+      plan: p.plan,
+      billingInterval: p.billingInterval,
+      currencyCode: p.currencyCode,
+      amount: Number(p.amount),
+    })),
+    ...lifetimePrices.map((p) => ({
+      id: p.id,
+      countryCode: p.countryCode,
+      plan: SubscriptionPlan.PROFESSIONAL,
+      billingInterval: "LIFETIME" as const,
+      currencyCode: p.currencyCode,
+      amount: Number(p.amount),
+    })),
+  ];
 
   return (
     <div className="space-y-8">
