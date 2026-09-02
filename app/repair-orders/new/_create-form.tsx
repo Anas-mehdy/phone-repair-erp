@@ -46,21 +46,21 @@ export function CreateRepairOrderForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <section className="erp-section">
-        <div className="flex items-center gap-2 border-b border-slate-100/60 pb-3 mb-4">
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-teal-50 text-teal-800">
+    <form onSubmit={handleSubmit} className="repair-new-form space-y-6">
+      <section className="erp-section repair-new-card repair-new-card-customer border-cyan-200/80 bg-gradient-to-br from-cyan-50/70 via-white to-white shadow-sm shadow-cyan-100/50">
+        <div className="flex items-center gap-2 border-b border-cyan-100/80 pb-3 mb-4">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-100 text-cyan-800 ring-1 ring-cyan-200/70">
             <User className="h-4 w-4" />
           </div>
           <div>
-            <h3 className="font-bold text-slate-800 text-sm">بيانات العميل</h3>
-            <p className="text-xs text-slate-400 font-medium mt-0.5">
+            <h3 className="font-bold text-cyan-950 text-sm">بيانات العميل</h3>
+            <p className="text-xs text-cyan-700/70 font-medium mt-0.5">
               ابحث عن عميل موجود أو أدخل بيانات عميل جديد.
             </p>
           </div>
         </div>
 
-        <div className="mb-4 rounded-xl border border-teal-100 bg-teal-50/30 p-3">
+        <div className="mb-4 rounded-xl border border-cyan-200/80 bg-white/70 p-3 shadow-xs shadow-cyan-100/40">
           <Field label="البحث عن عميل موجود">
             <RepairCustomerSearch
               value={selectedCustomer?.id ?? ""}
@@ -117,14 +117,14 @@ export function CreateRepairOrderForm({
         </div>
       </section>
 
-      <section className="erp-section">
-        <div className="flex items-center gap-2 border-b border-slate-100/60 pb-3 mb-4">
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/5 text-primary">
+      <section className="erp-section repair-new-card repair-new-card-device border-indigo-200/80 bg-gradient-to-br from-indigo-50/70 via-white to-white shadow-sm shadow-indigo-100/50">
+        <div className="flex items-center gap-2 border-b border-indigo-100/80 pb-3 mb-4">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700 ring-1 ring-indigo-200/70">
             <Smartphone className="h-4 w-4" />
           </div>
           <div>
-            <h3 className="font-bold text-slate-800 text-sm">بيانات الجهاز والصيانة</h3>
-            <p className="text-xs text-slate-400 font-medium mt-0.5">
+            <h3 className="font-bold text-indigo-950 text-sm">بيانات الجهاز والصيانة</h3>
+            <p className="text-xs text-indigo-700/70 font-medium mt-0.5">
               وصف تفاصيل الجهاز والمشكلة لتسهيل التتبع والتشخيص داخل الورشة.
             </p>
           </div>
@@ -159,14 +159,14 @@ export function CreateRepairOrderForm({
       </section>
 
       {technicians.length > 0 ? (
-        <section className="erp-section">
-          <div className="flex items-center gap-2 border-b border-slate-100/60 pb-3 mb-4">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-50 text-violet-700">
+        <section className="erp-section repair-new-card repair-new-card-technician border-emerald-200/80 bg-gradient-to-br from-emerald-50/70 via-white to-white shadow-sm shadow-emerald-100/50">
+          <div className="flex items-center gap-2 border-b border-emerald-100/80 pb-3 mb-4">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200/70">
               <UserRoundCheck className="h-4 w-4" />
             </div>
             <div>
-              <h3 className="font-bold text-slate-800 text-sm">الفني المسؤول</h3>
-              <p className="text-xs text-slate-400 font-medium mt-0.5">
+              <h3 className="font-bold text-emerald-950 text-sm">الفني المسؤول</h3>
+              <p className="text-xs text-emerald-700/70 font-medium mt-0.5">
                 يمكنك إسناد التذكرة الآن أو تركها غير مسندة واختيار الفني لاحقاً.
               </p>
             </div>
@@ -182,7 +182,9 @@ export function CreateRepairOrderForm({
         </section>
       ) : null}
 
-      <SupplierFields suppliers={suppliers} inventoryItems={inventoryItems} currency={currency} />
+      <div className="repair-new-supplier">
+        <SupplierFields suppliers={suppliers} inventoryItems={inventoryItems} currency={currency} />
+      </div>
 
       <div className="flex items-center justify-between gap-3 pt-2">
         <Button asChild variant="outline" type="button" disabled={isPending} className="rounded-xl h-12 px-5 font-bold border-slate-300">
