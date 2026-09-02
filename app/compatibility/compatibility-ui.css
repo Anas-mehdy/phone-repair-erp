@@ -1,0 +1,253 @@
+.masar-compatibility {
+  --compat-primary: #0f766e;
+  --compat-primary-2: #06b6d4;
+  --compat-support: #6366f1;
+  --compat-success: #059669;
+  --compat-warning: #d97706;
+  --compat-border: #dbe5ea;
+  --compat-muted: #64748b;
+  --compat-ink: #0f172a;
+}
+
+.masar-compatibility > div {
+  max-width: 1180px;
+}
+
+.masar-compatibility h1 {
+  font-size: clamp(28px, 3vw, 34px);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.masar-compatibility .text-xs { font-size: 15px; line-height: 1.65; }
+.masar-compatibility .text-\[10px\] { font-size: 13px; line-height: 1.5; }
+.masar-compatibility .text-\[11px\] { font-size: 14px; line-height: 1.55; }
+.masar-compatibility .text-sm { font-size: 16px; line-height: 1.6; }
+.masar-compatibility .text-base { font-size: 18px; line-height: 1.5; }
+
+.masar-compatibility section,
+.masar-compatibility > div > div.flex.items-start.gap-3.rounded-2xl {
+  border-radius: 22px !important;
+  box-shadow: 0 18px 52px -38px rgba(15, 23, 42, .28);
+}
+
+.masar-compatibility > div > div.flex.items-start.gap-3.rounded-2xl {
+  border-color: #fde68a !important;
+  background: linear-gradient(135deg, #fffbeb, #fff7ed) !important;
+  padding: 16px 18px !important;
+}
+
+.masar-compatibility section:first-of-type {
+  position: relative;
+  overflow: hidden;
+  border-color: #ccfbf1 !important;
+  background: linear-gradient(135deg, #ffffff 0%, #f0fdfa 52%, #ecfeff 100%) !important;
+  padding: 20px !important;
+}
+
+.masar-compatibility section:first-of-type::after {
+  content: "";
+  position: absolute;
+  left: -40px;
+  top: -60px;
+  width: 180px;
+  height: 180px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(6,182,212,.13), transparent 68%);
+  pointer-events: none;
+}
+
+.masar-compatibility section:first-of-type button {
+  min-height: 108px;
+  border-radius: 16px !important;
+  padding: 14px !important;
+}
+
+.masar-compatibility section:first-of-type button:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px -22px rgba(13,148,136,.45);
+}
+
+.masar-compatibility .border-violet-400,
+.masar-compatibility .border-violet-500 {
+  border-color: #14b8a6 !important;
+}
+
+.masar-compatibility .border-violet-200,
+.masar-compatibility .border-violet-300 {
+  border-color: #99f6e4 !important;
+}
+
+.masar-compatibility .bg-violet-50,
+.masar-compatibility .bg-violet-50\/40,
+.masar-compatibility .bg-violet-50\/80 {
+  background-color: #f0fdfa !important;
+}
+
+.masar-compatibility .bg-violet-100 {
+  background-color: #ccfbf1 !important;
+}
+
+.masar-compatibility .bg-violet-600 {
+  background-color: #0d9488 !important;
+}
+
+.masar-compatibility .text-violet-600,
+.masar-compatibility .text-violet-700,
+.masar-compatibility .text-violet-800 {
+  color: #0f766e !important;
+}
+
+.masar-compatibility .text-fuchsia-500,
+.masar-compatibility .text-fuchsia-600 {
+  color: #6366f1 !important;
+}
+
+.masar-compatibility .from-violet-600 {
+  --tw-gradient-from: #0d9488 var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgb(13 148 136 / 0) var(--tw-gradient-to-position) !important;
+}
+
+.masar-compatibility .to-fuchsia-500,
+.masar-compatibility .to-fuchsia-600 {
+  --tw-gradient-to: #06b6d4 var(--tw-gradient-to-position) !important;
+}
+
+.masar-compatibility .from-violet-50,
+.masar-compatibility .from-violet-100 {
+  --tw-gradient-from: #f0fdfa var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgb(240 253 250 / 0) var(--tw-gradient-to-position) !important;
+}
+
+.masar-compatibility .to-fuchsia-50\/40,
+.masar-compatibility .to-fuchsia-50\/60,
+.masar-compatibility .to-fuchsia-100 {
+  --tw-gradient-to: #ecfeff var(--tw-gradient-to-position) !important;
+}
+
+.masar-compatibility .ring-violet-100,
+.masar-compatibility .focus\:ring-violet-100:focus {
+  --tw-ring-color: #ccfbf1 !important;
+}
+
+.masar-compatibility .focus\:border-violet-500:focus {
+  border-color: #14b8a6 !important;
+}
+
+.masar-compatibility input#compatibility-search {
+  min-height: 56px;
+  border-radius: 16px !important;
+  border-color: #cbd5e1 !important;
+  background: #fff !important;
+  font-size: 17px !important;
+  box-shadow: inset 0 0 0 1px rgba(15,118,110,.02);
+}
+
+.masar-compatibility input#compatibility-search:focus {
+  border-color: #14b8a6 !important;
+  box-shadow: 0 0 0 4px rgba(20,184,166,.1) !important;
+}
+
+.masar-compatibility section:nth-of-type(2) {
+  border-color: #dbe5ea !important;
+  box-shadow: 0 20px 58px -38px rgba(15,23,42,.3);
+}
+
+.masar-compatibility section:nth-of-type(2) > div:first-child {
+  background: linear-gradient(180deg, #fff, #f8fafc);
+}
+
+.masar-compatibility aside {
+  background: linear-gradient(180deg, #f8fafc, #f0fdfa) !important;
+}
+
+.masar-compatibility aside button {
+  border-radius: 16px !important;
+  min-height: 92px;
+}
+
+.masar-compatibility aside button:hover {
+  border-color: #5eead4 !important;
+}
+
+.masar-compatibility main {
+  background: #fff;
+}
+
+.masar-compatibility main h3 {
+  font-size: clamp(24px, 2.5vw, 30px) !important;
+  letter-spacing: -0.02em;
+}
+
+.masar-compatibility main .grid.gap-2.sm\:grid-cols-2.xl\:grid-cols-3 > div {
+  min-height: 58px !important;
+  border-radius: 14px !important;
+  border-color: #a7f3d0 !important;
+  background: linear-gradient(135deg, #ecfdf5, #f0fdfa) !important;
+}
+
+.masar-compatibility main .border-emerald-200 {
+  border-color: #a7f3d0 !important;
+}
+
+.masar-compatibility main .bg-emerald-50\/70 {
+  background: linear-gradient(135deg, #ecfdf5, #f0fdfa) !important;
+}
+
+.masar-compatibility main .border-dashed {
+  border-color: #c7d2fe !important;
+  background: linear-gradient(135deg, #eef2ff, #f8fafc) !important;
+}
+
+.masar-compatibility main .border-dashed a {
+  background: linear-gradient(90deg, #0d9488, #06b6d4) !important;
+}
+
+.masar-compatibility main .bg-slate-50.px-4.py-3 {
+  border: 1px solid #fde68a;
+  background: linear-gradient(135deg, #fffbeb, #fff7ed) !important;
+  color: #92400e !important;
+  border-radius: 14px !important;
+}
+
+@media (max-width: 1023px) {
+  .masar-compatibility .grid.min-h-\[420px\] {
+    min-height: auto !important;
+  }
+
+  .masar-compatibility aside .max-h-\[520px\] {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(240px, 78vw);
+    overflow-x: auto;
+    overflow-y: hidden;
+    max-height: none !important;
+    padding-bottom: 6px;
+  }
+}
+
+@media (max-width: 639px) {
+  .masar-compatibility > div {
+    padding-bottom: 28px !important;
+  }
+
+  .masar-compatibility section:first-of-type {
+    padding: 15px !important;
+  }
+
+  .masar-compatibility section:first-of-type button {
+    min-height: 96px;
+  }
+
+  .masar-compatibility main {
+    padding: 18px !important;
+  }
+
+  .masar-compatibility main > div > div:first-child {
+    gap: 12px !important;
+  }
+
+  .masar-compatibility main h3 {
+    font-size: 24px !important;
+  }
+}
