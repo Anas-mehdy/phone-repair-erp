@@ -64,7 +64,10 @@ export function AdminPricingManagement({ initialPrices }: { initialPrices: Subsc
       const res = editing.billingInterval === "LIFETIME"
         ? await adminUpsertLifetimePriceAction(formData)
         : await adminUpdateSubscriptionPriceAction(formData);
-      if (!res.success || !res.price) return setFeedback(res.error || "تعذر حفظ السعر.");
+      if (!res.success || !res.price) {
+        const error = "error" in res ? res.error : null;
+        return setFeedback(error || "تعذر حفظ السعر.");
+      }
       const saved = { ...(res.price as SubscriptionPriceRecord), plan: SubscriptionPlan.PROFESSIONAL, billingInterval: editing.billingInterval };
       setPrices((prev) => {
         const exists = prev.some((p) => p.countryCode === saved.countryCode && p.billingInterval === saved.billingInterval);
