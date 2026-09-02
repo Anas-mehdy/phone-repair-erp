@@ -1,10 +1,10 @@
 "use client";
 
-import { LogOut, Menu, X, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { ChevronsLeft, ChevronsRight, LogOut } from "lucide-react";
 import Image from "next/image";
-import { useState, useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
-import { AppNav } from "@/components/app-nav";
+import { AppNav, MobileBottomNav, navigationLabelForPath } from "@/components/app-nav";
 import { logoutAction } from "@/app/actions/authActions";
 import { cn } from "@/lib/utils";
 import { UserPresenceHeartbeat } from "@/components/user-presence-heartbeat";
@@ -27,7 +27,6 @@ export function AppShell({
   tutorialInitialShowBanner?: boolean;
 }) {
   const pathname = usePathname();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(true);
 
   useEffect(() => {
@@ -40,28 +39,16 @@ export function AppShell({
   }, []);
 
   const toggleSidebar = () => {
-    setIsCollapsed((prev) => {
-      const next = !prev;
+    setIsCollapsed((previous) => {
+      const next = !previous;
       try {
         localStorage.setItem("phone_repair_sidebar_collapsed", String(next));
       } catch {
-        // ignore
+        // ignore storage access errors
       }
       return next;
     });
   };
-
-  useEffect(() => {
-    setMobileMenuOpen(false);
-  }, [pathname]);
-
-  useEffect(() => {
-    if (mobileMenuOpen) document.body.style.overflow = "hidden";
-    else document.body.style.overflow = "";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [mobileMenuOpen]);
 
   const isPublicPage =
     pathname === "/" ||
@@ -79,147 +66,113 @@ export function AppShell({
 
   if (isPublicPage) return <>{children}</>;
 
-  const nav = (compact: boolean, onNavigate?: () => void) => (
-    <AppNav
-      canSettings={canSettings}
-      canReports={canReports}
-      canManageSubscription={canManageSubscription}
-      canManageDebts={canManageDebts}
-      onNavigate={onNavigate}
-      compact={compact}
-    />
-  );
+  const navPermissions = { canSettings, canReports, canManageSubscription, canManageDebts };
+  const currentPageLabel = navigationLabelForPath(pathname);
 
   return (
-    <div className="min-h-screen bg-slate-50/20">
+    <div className="min-h-screen bg-slate-50/30">
       <aside
         className={cn(
-          "fixed inset-y-0 right-0 z-30 hidden border-l border-slate-200/60 bg-white/80 backdrop-blur-xl shadow-sm shadow-slate-100/30 transition-all duration-300 ease-in-out lg:flex lg:flex-col lg:justify-between",
-          isCollapsed ? "w-20 px-3 py-5" : "w-64 px-5 py-6"
+          "fixed inset-y-0 right-0 z-50 hidden border-l border-slate-200/70 bg-white/95 shadow-[0_0_50px_-38px_rgba(15,23,42,0.35)] backdrop-blur-xl transition-[width,padding] duration-300 ease-out lg:flex lg:flex-col",
+          isCollapsed ? "w-[84px] px-3 py-4" : "w-[280px] px-4 py-5",
         )}
+        aria-label="القائمة الرئيسية"
       >
-        <div className="flex flex-col h-full overflow-y-auto overflow-x-hidden">
+        <div className={cn("flex min-h-0 flex-1 flex-col", isCollapsed ? "overflow-visible" : "overflow-y-auto overflow-x-hidden")}>
           {isCollapsed ? (
             <div className="flex flex-col items-center gap-3">
               <button
                 type="button"
                 onClick={toggleSidebar}
-                title="توسيع القائمة الجانبية"
+                title="توسيع القائمة"
                 aria-label="توسيع القائمة الجانبية"
-                className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 border border-slate-200/80 hover:border-emerald-200 transition-all duration-200 active:scale-95 cursor-pointer shadow-2xs"
+                className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-500 shadow-sm transition hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 active:scale-95"
               >
-                <ChevronsLeft className="h-4.5 w-4.5" />
+                <ChevronsLeft className="h-4 w-4" />
               </button>
-              <div
-                title="مسار - منظومة إدارة الصيانة"
+              <button
+                type="button"
                 onClick={toggleSidebar}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white p-2 border border-slate-200/80 shadow-md shadow-slate-200/50 cursor-pointer transition hover:scale-105 hover:border-teal-300"
+                title="مسار - منظومة إدارة الصيانة"
+                className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white p-2 shadow-sm transition hover:border-teal-200 hover:shadow-md"
               >
                 <Image src="/masar-icon.png" alt="مسار" width={28} height={28} className="h-7 w-7 object-contain" />
-              </div>
+              </button>
             </div>
           ) : (
-            <div className="flex items-center justify-between gap-2 rounded-2xl border border-slate-200/60 bg-slate-50/50 p-3 transition-all duration-300 hover:border-teal-200/60">
-              <div className="flex items-center gap-3 overflow-hidden">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white p-2 border border-slate-200/80 shadow-xs">
+            <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-gradient-to-l from-slate-50 to-white p-3 shadow-sm">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
                   <Image src="/masar-icon.png" alt="مسار" width={28} height={28} className="h-7 w-7 object-contain" />
                 </div>
-                <div className="overflow-hidden">
-                  <h1 className="text-base font-black tracking-tight text-slate-900 truncate">مسار</h1>
-                  <p className="mt-0.5 text-[10px] font-bold text-teal-700 uppercase tracking-wide truncate">منظومة إدارة الصيانة</p>
+                <div className="min-w-0">
+                  <h1 className="truncate text-[16px] font-black tracking-tight text-slate-900">مسار</h1>
+                  <p className="mt-0.5 truncate text-[10px] font-bold text-teal-700">إدارة الصيانة والأعمال</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={toggleSidebar}
-                title="طي القائمة الجانبية"
+                title="طي القائمة"
                 aria-label="طي القائمة الجانبية"
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-200/70 hover:text-slate-700 transition active:scale-95 cursor-pointer"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 active:scale-95"
               >
-                <ChevronsRight className="h-4.5 w-4.5" />
+                <ChevronsRight className="h-4 w-4" />
               </button>
             </div>
           )}
 
-          <div className="mt-4 flex-1">{nav(isCollapsed)}</div>
-
-          <div className={cn("pt-4 border-t border-slate-200/60 mt-auto", isCollapsed ? "flex justify-center" : "")}>
-            <form action={logoutAction} className="w-full">
-              {isCollapsed ? (
-                <button type="submit" title="تسجيل الخروج" aria-label="تسجيل الخروج" className="flex h-10 w-10 mx-auto items-center justify-center rounded-xl text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition active:scale-95 cursor-pointer">
-                  <LogOut className="h-4.5 w-4.5" />
-                </button>
-              ) : (
-                <button type="submit" className="w-full flex items-center justify-between gap-2.5 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-500 hover:bg-rose-50 hover:text-rose-600 transition">
-                  <div className="flex items-center gap-2"><LogOut className="h-4 w-4" /><span>تسجيل الخروج</span></div>
-                </button>
-              )}
-            </form>
+          <div className={cn("flex-1", isCollapsed ? "overflow-visible" : "min-h-0")}>
+            <AppNav {...navPermissions} compact={isCollapsed} />
           </div>
-        </div>
-      </aside>
 
-      <div className={cn("fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs transition-opacity duration-300 lg:hidden", mobileMenuOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none")} onClick={() => setMobileMenuOpen(false)} aria-hidden="true" />
-
-      <aside
-        className={cn(
-          "fixed inset-y-0 right-0 z-50 w-72 max-w-[85vw] bg-white shadow-2xl border-l border-slate-200 transition-transform duration-300 ease-out flex flex-col justify-between lg:hidden",
-          mobileMenuOpen ? "translate-x-0" : "translate-x-full"
-        )}
-        aria-label="قائمة التنقل الجانبية"
-      >
-        <div className="flex flex-col h-full overflow-y-auto p-5">
-          <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white p-2 border border-slate-200 shadow-xs">
-                <Image src="/masar-icon.png" alt="مسار" width={24} height={24} className="h-6 w-6 object-contain" />
-              </div>
-              <div><h2 className="text-sm font-extrabold text-slate-800">مسار</h2><p className="text-[9px] font-bold text-teal-700 uppercase">منظومة إدارة الصيانة</p></div>
-            </div>
-            <button type="button" onClick={() => setMobileMenuOpen(false)} className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition cursor-pointer" aria-label="إغلاق القائمة">
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-          <div className="mt-4 flex-1">{nav(false, () => setMobileMenuOpen(false))}</div>
-          <div className="pt-4 mt-6 border-t border-slate-100">
-            <form action={logoutAction}>
-              <button type="submit" className="w-full flex items-center justify-center gap-2 rounded-xl bg-rose-50 border border-rose-100 py-3 text-xs font-bold text-rose-600 hover:bg-rose-100 transition cursor-pointer">
-                <LogOut className="h-4 w-4" /><span>تسجيل الخروج</span>
+          <div className={cn("mt-auto border-t border-slate-200/70 pt-3", isCollapsed && "flex justify-center")}>
+            <form action={logoutAction} className={cn(!isCollapsed && "w-full")}>
+              <button
+                type="submit"
+                title="تسجيل الخروج"
+                className={cn(
+                  "flex items-center rounded-xl font-bold text-slate-500 transition hover:bg-rose-50 hover:text-rose-600 active:scale-[0.98]",
+                  isCollapsed ? "h-10 w-10 justify-center" : "min-h-10 w-full gap-2.5 px-3 text-[12px]",
+                )}
+              >
+                <LogOut className="h-4 w-4" />
+                {!isCollapsed && <span>تسجيل الخروج</span>}
               </button>
             </form>
           </div>
         </div>
       </aside>
 
-      <div className={cn("transition-all duration-300 ease-in-out", isCollapsed ? "lg:pr-20" : "lg:pr-64")}>
-        <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl px-4 py-3 shadow-xs lg:hidden">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <button type="button" onClick={() => setMobileMenuOpen(true)} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-xs hover:bg-slate-50 hover:text-primary active:scale-95 transition cursor-pointer" aria-label="فتح القائمة الجانبية">
-                <Menu className="h-5 w-5" />
-              </button>
-              <div className="flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white p-1.5 border border-slate-200 shadow-2xs">
-                  <Image src="/masar-icon.png" alt="مسار" width={22} height={22} className="h-5 w-5 object-contain" />
-                </div>
-                <div><h1 className="font-extrabold text-slate-800 text-sm leading-tight">مسار</h1><p className="text-[9px] font-bold text-slate-400">إدارة صيانة الأجهزة والـ POS</p></div>
+      <div className={cn("transition-[padding] duration-300 ease-out", isCollapsed ? "lg:pr-[84px]" : "lg:pr-[280px]")}>
+        <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/95 px-4 py-2.5 shadow-sm backdrop-blur-xl lg:hidden">
+          <div className="flex min-h-11 items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm">
+                <Image src="/masar-icon.png" alt="مسار" width={22} height={22} className="h-5 w-5 object-contain" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5"><span className="text-[13px] font-black text-slate-900">مسار</span><span className="h-1 w-1 rounded-full bg-teal-400" /></div>
+                <p className="truncate text-[11px] font-bold text-slate-500">{currentPageLabel}</p>
               </div>
             </div>
             <form action={logoutAction}>
-              <button type="submit" className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-rose-600 bg-slate-50 hover:bg-rose-50 px-3 py-2 rounded-xl border border-slate-200 hover:border-rose-200 transition cursor-pointer">
-                <LogOut className="h-3.5 w-3.5" /><span>خروج</span>
+              <button type="submit" title="تسجيل الخروج" aria-label="تسجيل الخروج" className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-500 transition active:bg-rose-50 active:text-rose-600">
+                <LogOut className="h-4 w-4" />
               </button>
             </form>
           </div>
         </header>
 
-        <main className="mx-auto min-h-screen max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
+        <main className="mx-auto min-h-screen max-w-[1600px] px-4 pb-28 pt-5 sm:px-6 sm:pt-6 lg:px-8 lg:pb-8">
           <UserPresenceHeartbeat />
           <GlobalSubscriptionBanner />
           <TutorialOnboarding initialShowBanner={tutorialInitialShowBanner} />
           {children}
         </main>
       </div>
+
+      <MobileBottomNav {...navPermissions} />
     </div>
   );
 }
