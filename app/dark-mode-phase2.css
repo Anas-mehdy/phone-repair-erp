@@ -1,0 +1,185 @@
+/* Dark mode phase 2 — authenticated workspace overrides only.
+   Every rule is scoped under html.dark so the existing light theme remains untouched. */
+
+/* Dashboard */
+.dark .masar-dashboard {
+  --dash-brand-soft: #0f2f2d;
+  --dash-cyan-soft: #0c2f3a;
+  --dash-indigo-soft: #1e2448;
+  --dash-amber-soft: #3a2a0d;
+  --dash-danger-soft: #3b1521;
+  --dash-ink: #f8fafc;
+  --dash-text: #cbd5e1;
+  --dash-muted: #94a3b8;
+  --dash-border: #334155;
+}
+.dark .masar-dashboard .erp-card,
+.dark .masar-dashboard .erp-section {
+  border-color: rgba(51,65,85,.9) !important;
+  background: linear-gradient(145deg, rgba(15,23,42,.96), rgba(15,42,45,.74)) !important;
+  box-shadow: 0 18px 55px -38px rgba(0,0,0,.88) !important;
+}
+.dark .masar-dashboard .erp-card:hover {
+  border-color: rgba(45,212,191,.42) !important;
+  box-shadow: 0 20px 50px -32px rgba(0,0,0,.9) !important;
+}
+.dark .masar-dashboard section.rounded-3xl {
+  border-color: rgba(51,65,85,.9) !important;
+  background: linear-gradient(135deg, rgba(15,23,42,.98), rgba(17,43,45,.9) 48%, rgba(8,47,73,.55)) !important;
+  box-shadow: 0 22px 70px -46px rgba(0,0,0,.9) !important;
+}
+.dark .masar-dashboard .erp-section a.rounded-xl {
+  border-color: #334155 !important;
+  background: rgba(15,23,42,.82) !important;
+}
+.dark .masar-dashboard .erp-section a.rounded-xl:hover {
+  border-color: rgba(45,212,191,.42) !important;
+  background: rgba(19,78,74,.3) !important;
+}
+.dark .masar-dashboard .bg-violet-50,
+.dark .masar-dashboard .bg-sky-50,
+.dark .masar-dashboard .bg-indigo-50 { background-color: #20284c !important; }
+.dark .masar-dashboard .text-violet-600,
+.dark .masar-dashboard .text-sky-600,
+.dark .masar-dashboard .text-indigo-600 { color: #a5b4fc !important; }
+.dark .masar-dashboard .border-violet-100,
+.dark .masar-dashboard .border-sky-100,
+.dark .masar-dashboard .border-indigo-100 { border-color: #373f68 !important; }
+.dark .masar-dashboard .bg-orange-50 { background-color: #3a2a0d !important; }
+.dark .masar-dashboard .text-orange-600 { color: #fbbf24 !important; }
+.dark .masar-dashboard .border-orange-100,
+.dark .masar-dashboard .border-orange-200,
+.dark .masar-dashboard .border-orange-300 { border-color: #78551b !important; }
+.dark .masar-dashboard .bg-red-50 { background-color: #3b1521 !important; }
+.dark .masar-dashboard .text-red-600 { color: #fb7185 !important; }
+.dark .masar-dashboard .border-red-100 { border-color: #6f2639 !important; }
+
+/* Repair orders */
+.dark .masar-repair-orders .erp-filter-card {
+  border-color: rgba(51,65,85,.9) !important;
+  background: linear-gradient(145deg, rgba(15,23,42,.97), rgba(15,42,45,.72)) !important;
+  box-shadow: 0 18px 55px -38px rgba(0,0,0,.88) !important;
+}
+.dark .masar-repair-orders .erp-filter-card input,
+.dark .masar-repair-orders .erp-filter-card select {
+  border-color: #475569 !important;
+  background: rgba(2,6,23,.72) !important;
+  color: #f1f5f9 !important;
+}
+.dark .masar-repair-orders .erp-filter-card input:focus,
+.dark .masar-repair-orders .erp-filter-card select:focus {
+  border-color: #2dd4bf !important;
+  box-shadow: 0 0 0 4px rgba(20,184,166,.16) !important;
+}
+.dark .masar-repair-orders .erp-table thead {
+  background: linear-gradient(90deg, rgba(30,41,59,.96), rgba(19,78,74,.34)) !important;
+  border-bottom-color: #334155 !important;
+}
+.dark .masar-repair-orders .erp-table th { color: #cbd5e1 !important; }
+.dark .masar-repair-orders .erp-table tbody tr:hover { background: rgba(30,41,59,.62) !important; }
+.dark .masar-repair-orders .bg-violet-50 { background-color: #20284c !important; }
+.dark .masar-repair-orders .text-violet-700 { color: #c7d2fe !important; }
+.dark .masar-repair-orders th.sticky,
+.dark .masar-repair-orders td.sticky {
+  border-right-color: #334155 !important;
+  background: rgba(15,23,42,.97) !important;
+}
+
+/* Inventory */
+.dark .inventory-workspace .erp-section,
+.dark .inventory-workspace .erp-filter-card {
+  border-color: rgba(51,65,85,.9) !important;
+  background: linear-gradient(145deg, rgba(15,23,42,.97), rgba(17,24,39,.94)) !important;
+  box-shadow: 0 18px 52px -40px rgba(0,0,0,.9) !important;
+}
+.dark .inventory-workspace .erp-section h3,
+.dark .inventory-workspace .erp-filter-card h3 { color: #f1f5f9 !important; }
+.dark .inventory-workspace > div > div[class*="border-indigo-200"] {
+  border-color: rgba(45,212,191,.32) !important;
+  background: linear-gradient(135deg, rgba(19,78,74,.34), rgba(15,23,42,.96) 55%, rgba(8,47,73,.35)) !important;
+  color: #ccfbf1 !important;
+}
+.dark .inventory-workspace > div > div[class*="border-indigo-200"] svg,
+.dark .inventory-workspace > div > div[class*="border-indigo-200"] span[class*="text-indigo"] { color: #5eead4 !important; }
+.dark .inventory-workspace section[class*="rounded-3xl"][class*="bg-white"] {
+  border-color: #334155 !important;
+  background: linear-gradient(145deg, #0f172a, #111827) !important;
+  box-shadow: 0 22px 60px -44px rgba(0,0,0,.92) !important;
+}
+.dark .inventory-workspace section[class*="rounded-3xl"] .grid > div:nth-child(6n+1),
+.dark .inventory-workspace section[class*="rounded-3xl"] .grid > div:nth-child(6n+2),
+.dark .inventory-workspace section[class*="rounded-3xl"] .grid > div:nth-child(6n+3),
+.dark .inventory-workspace section[class*="rounded-3xl"] .grid > div:nth-child(6n+4),
+.dark .inventory-workspace section[class*="rounded-3xl"] .grid > div:nth-child(6n+5),
+.dark .inventory-workspace section[class*="rounded-3xl"] .grid > div:nth-child(6n+6) {
+  border-color: #334155 !important;
+  background: linear-gradient(145deg, #111827, #0f172a) !important;
+}
+.dark .inventory-workspace .erp-filter-card {
+  border-color: rgba(45,212,191,.3) !important;
+  background: linear-gradient(135deg, rgba(8,47,73,.34), rgba(15,23,42,.98)) !important;
+}
+.dark .inventory-workspace table thead {
+  background: linear-gradient(90deg, #1e293b, rgba(19,78,74,.34)) !important;
+  color: #cbd5e1 !important;
+}
+.dark .inventory-workspace table tbody tr:not([class*="rose"]):hover { background: rgba(30,41,59,.58) !important; }
+.dark .inventory-workspace form.erp-section:has(input[name="name"]):has(input[name="unitPrice"]) {
+  border-color: rgba(45,212,191,.32) !important;
+  background: radial-gradient(circle at 100% 0, rgba(99,102,241,.12), transparent 34%), linear-gradient(145deg, rgba(19,78,74,.24), #0f172a 42%, rgba(8,47,73,.25)) !important;
+}
+.dark .inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:first-child > .erp-section:first-child > .grid > div:nth-child(4n+1),
+.dark .inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:first-child > .erp-section:first-child > .grid > div:nth-child(4n+2),
+.dark .inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:first-child > .erp-section:first-child > .grid > div:nth-child(4n+3),
+.dark .inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:first-child > .erp-section:first-child > .grid > div:nth-child(4n+4) {
+  border-color: #334155 !important;
+  background: linear-gradient(145deg, #111827, #0f172a) !important;
+}
+.dark .inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:first-child > form.erp-section,
+.dark .inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:first-child > .erp-section:last-child {
+  border-color: #334155 !important;
+  background: linear-gradient(145deg, #111827, #0f172a 40%) !important;
+}
+.dark .inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:last-child > form.erp-section:nth-of-type(1) {
+  border-color: rgba(52,211,153,.32) !important;
+  background: linear-gradient(150deg, rgba(6,78,59,.34), #0f172a 58%) !important;
+}
+.dark .inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:last-child > form:nth-of-type(2),
+.dark .inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:last-child > div[class*="border-rose-200"] {
+  border-color: rgba(251,113,133,.3) !important;
+  background: linear-gradient(150deg, rgba(76,5,25,.46), #0f172a 58%) !important;
+}
+.dark .inventory-workspace .lg\:grid-cols-\[1fr_320px\] > div:last-child > form.erp-section:nth-of-type(3) {
+  border-color: rgba(251,191,36,.3) !important;
+  background: linear-gradient(150deg, rgba(69,26,3,.5), #0f172a 58%) !important;
+}
+
+@media (max-width: 767px) {
+  .dark .masar-repair-orders .overflow-x-auto:has(> table.erp-table) {
+    background: linear-gradient(180deg, #0b1220 0%, #0f172a 100%);
+  }
+  .dark .masar-repair-orders .erp-table tbody tr {
+    border-color: #334155;
+    background: rgba(15,23,42,.98);
+    box-shadow: 0 14px 36px -30px rgba(0,0,0,.9);
+  }
+  .dark .masar-repair-orders .erp-table tbody tr:hover { background: #0f172a !important; }
+  .dark .masar-repair-orders .erp-table td { border-bottom-color: #1e293b; }
+  .dark .masar-repair-orders .erp-table td::before { color: #94a3b8; }
+  .dark .masar-repair-orders .erp-table td:first-child {
+    background: linear-gradient(90deg, rgba(19,78,74,.42), rgba(8,47,73,.34)) !important;
+  }
+  .dark .masar-repair-orders .erp-table td:nth-child(12) { background: #111827 !important; }
+
+  .dark .inventory-workspace table.erp-table tbody tr {
+    border-color: #334155;
+    background: linear-gradient(145deg, #0f172a, #111827) !important;
+    box-shadow: 0 14px 38px -30px rgba(0,0,0,.9);
+  }
+  .dark .inventory-workspace table.erp-table tbody tr[class*="rose"] {
+    border-color: rgba(251,113,133,.3);
+    background: linear-gradient(145deg, rgba(76,5,25,.46), #0f172a) !important;
+  }
+  .dark .inventory-workspace table.erp-table tbody td:nth-child(1) { background: rgba(19,78,74,.3); }
+  .dark .inventory-workspace table.erp-table tbody tr[class*="rose"] td:nth-child(1) { background: rgba(76,5,25,.42); }
+}

@@ -13,6 +13,7 @@ import { entitlementService } from "@/lib/services/subscriptionEntitlementServic
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
 import "./globals.css";
 import "./masar-ui.css";
+import "./dark-mode-phase2.css";
 
 const cairo = Cairo({ subsets: ["arabic"], weight: ["300","400","500","600","700","800","900"], variable: "--font-cairo", display: "swap" });
 const outfit = Outfit({ subsets: ["latin"], weight: ["300","400","500","600","700","800","900"], variable: "--font-outfit", display: "swap" });
