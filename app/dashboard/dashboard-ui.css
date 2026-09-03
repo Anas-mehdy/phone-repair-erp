@@ -100,19 +100,35 @@
   background: rgba(240,253,250,.72) !important;
 }
 
-/* Dashboard logo: keep the current light asset untouched and swap only in dark mode. */
+/* Dashboard logo: light image stays untouched; dark mode draws its dedicated asset in the same slot. */
 .dark .masar-dashboard div:has(> img[alt="مسار"]) {
-  background-image: url("/masar-logo-dark.png");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: contain;
+  position: relative;
+  min-height: 112px;
 }
 
 .dark .masar-dashboard div:has(> img[alt="مسار"]) > img[alt="مسار"] {
-  opacity: 0 !important;
+  display: none !important;
+}
+
+.dark .masar-dashboard div:has(> img[alt="مسار"])::before {
+  content: "";
+  display: block;
+  width: 150px;
+  height: 112px;
+  background: url("/masar-logo-dark.png") center / contain no-repeat;
+  filter: drop-shadow(0 4px 12px rgba(34, 211, 238, 0.12));
 }
 
 @media (max-width: 639px) {
   .masar-dashboard .text-xs { font-size: 15px !important; }
   .masar-dashboard .text-sm { font-size: 17px !important; }
+
+  .dark .masar-dashboard div:has(> img[alt="مسار"]) {
+    min-height: 96px;
+  }
+
+  .dark .masar-dashboard div:has(> img[alt="مسار"])::before {
+    width: 132px;
+    height: 96px;
+  }
 }
