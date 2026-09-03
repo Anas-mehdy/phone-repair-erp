@@ -4,15 +4,26 @@ import { adminService } from "@/lib/services/adminService";
 import { subscriptionAdminService } from "@/lib/services/subscriptionAdminService";
 import { subscriptionOfferService } from "@/lib/services/subscriptionOfferService";
 import { lifetimeSubscriptionService } from "@/lib/services/lifetimeSubscriptionService";
+import { platformBrandingService } from "@/lib/services/platformBrandingService";
 import { prisma } from "@/lib/prisma";
 import { AdminOnlineUsers } from "./_admin-online-users";
 import { AdminTabsView } from "./_admin-tabs-view";
 import { AdminLifetimeActivation } from "./_admin-lifetime-activation";
+import { AdminBrandingManagement } from "./_admin-branding-management";
 
 export const dynamic = "force-dynamic";
 
 export default async function SuperAdminDashboardPage() {
-  const [stats, shops, subscriptions, rawPrices, offer, lifetimeRows, lifetimePrices] = await Promise.all([
+  const [
+    stats,
+    shops,
+    subscriptions,
+    rawPrices,
+    offer,
+    lifetimeRows,
+    lifetimePrices,
+    branding,
+  ] = await Promise.all([
     adminService.getPlatformStats(),
     adminService.listAllShops(),
     subscriptionAdminService.listSubscriptionsForAdmin(),
@@ -20,6 +31,7 @@ export default async function SuperAdminDashboardPage() {
     subscriptionOfferService.getOfferSettings(),
     lifetimeSubscriptionService.listLifetimeSubscriptions(),
     lifetimeSubscriptionService.listLifetimePrices(),
+    platformBrandingService.getSettings(),
   ]);
 
   const serializedPrices = [
@@ -67,6 +79,10 @@ export default async function SuperAdminDashboardPage() {
     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><div className="flex items-center gap-2"><h1 className="text-2xl font-black text-white">إحصائيات ولوحة تحكم النظام</h1><span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" /></div><p className="mt-1 text-xs text-slate-400">مراقبة المنصة، المتاجر، المستخدمين، الاشتراكات المباشرة، وإعدادات النظام.</p></div><div className="flex items-center gap-2 rounded-2xl border border-slate-800 bg-slate-900 px-3.5 py-2 text-xs font-bold text-slate-300"><ShieldCheck className="h-4 w-4 text-emerald-400" /><span>حالة النظام: متصل وتعمل جميع الخدمات بكفاءة</span></div></div>
     <AdminOnlineUsers initialOnlineCount={stats.onlineUsersCount} initialActiveShopsCount={stats.activeOnlineShopsCount} />
     <AdminLifetimeActivation shops={lifetimeShops} initialLifetime={serializedLifetime} />
+    <AdminBrandingManagement
+      hasCustomDarkLogo={branding.hasDarkModeLogo}
+      initialLogoUpdatedAt={branding.darkModeLogoUpdatedAt?.toISOString() ?? null}
+    />
     <AdminTabsView stats={stats} shops={shops} subscriptions={subscriptionsForAdmin} prices={serializedPrices} offer={offer} />
   </div>;
 }
