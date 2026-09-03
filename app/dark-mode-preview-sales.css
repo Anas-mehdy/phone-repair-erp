@@ -1,0 +1,273 @@
+/* Preview dark-mode fixes — sales list and new sale flow.
+   Dark-only, screen-only. Light mode remains untouched. */
+
+@media screen {
+  /* Page headers */
+  .dark .sales-workspace > div > header {
+    border-bottom-color: #334155 !important;
+  }
+
+  .dark .sales-workspace > div > header h2 {
+    color: #f8fafc !important;
+  }
+
+  .dark .sales-workspace > div > header p {
+    color: #94a3b8 !important;
+  }
+
+  /* Sales summary strip + badge */
+  .dark .sales-workspace > div > div[class*="border-amber-200"][class*="bg-amber-50"] {
+    border-color: rgba(251, 191, 36, .30) !important;
+    background: linear-gradient(135deg, rgba(69, 26, 3, .50), #0f172a 58%, rgba(67, 20, 7, .26)) !important;
+    color: #fde68a !important;
+  }
+
+  .dark .sales-workspace > div > div[class*="border-amber-200"] .text-amber-600 {
+    color: #fbbf24 !important;
+  }
+
+  .dark .sales-workspace > div > div[class*="border-amber-200"] .text-amber-800,
+  .dark .sales-workspace > div > div[class*="border-amber-200"] .text-amber-900 {
+    color: #fde68a !important;
+  }
+
+  .dark .sales-workspace > div > div[class*="border-amber-200"] span[class*="bg-amber-50/80"] {
+    border-color: rgba(251, 191, 36, .34) !important;
+    background: rgba(120, 53, 15, .54) !important;
+    color: #fcd34d !important;
+  }
+
+  /* Filter contrast */
+  .dark .sales-workspace .erp-filter-card > div {
+    color: #e2e8f0 !important;
+  }
+
+  .dark .sales-workspace .erp-filter-card input::placeholder {
+    color: #8091a8 !important;
+    opacity: 1;
+  }
+
+  /* Sales table secondary text and actions */
+  .dark .sales-workspace table td.text-slate-600,
+  .dark .sales-workspace table td .text-slate-600 {
+    color: #aebed0 !important;
+  }
+
+  .dark .sales-workspace table td.text-slate-800,
+  .dark .sales-workspace table td.text-slate-900,
+  .dark .sales-workspace table td .text-slate-800,
+  .dark .sales-workspace table td .text-slate-900 {
+    color: #f1f5f9 !important;
+  }
+
+  .dark .sales-workspace table a[class*="border-slate-300"] {
+    border-color: #475569 !important;
+    background: #0b1220 !important;
+    color: #e2e8f0 !important;
+    box-shadow: none !important;
+  }
+
+  .dark .sales-workspace table a[class*="border-slate-300"]:hover {
+    border-color: rgba(45, 212, 191, .44) !important;
+    background: rgba(19, 78, 74, .30) !important;
+    color: #99f6e4 !important;
+  }
+
+  /* Sale status badges */
+  .dark .sales-workspace table span.rounded-full.border[class*="bg-slate-100"] {
+    border-color: #475569 !important;
+    background: #1e293b !important;
+    color: #cbd5e1 !important;
+  }
+
+  .dark .sales-workspace table span.rounded-full.border[class*="bg-teal-50"] {
+    border-color: #0f766e !important;
+    background: rgba(19, 78, 74, .62) !important;
+    color: #99f6e4 !important;
+  }
+
+  .dark .sales-workspace table span.rounded-full.border[class*="bg-orange-50"] {
+    border-color: #9a3412 !important;
+    background: rgba(124, 45, 18, .48) !important;
+    color: #fed7aa !important;
+  }
+
+  .dark .sales-workspace table span.rounded-full.border[class*="bg-rose-50"] {
+    border-color: #9f1239 !important;
+    background: rgba(76, 5, 25, .58) !important;
+    color: #fecdd3 !important;
+  }
+
+  /* New-sale section headings and separators */
+  .dark .sales-workspace form[action] .erp-section h3 {
+    color: #f1f5f9 !important;
+  }
+
+  .dark .sales-workspace form[action] .erp-section [class*="border-slate-100"],
+  .dark .sales-workspace form[action] .erp-section [class*="border-slate-200"] {
+    border-color: #334155 !important;
+  }
+
+  .dark .sales-workspace form[action] .erp-section .text-slate-400 {
+    color: #94a3b8 !important;
+  }
+
+  .dark .sales-workspace form[action] .erp-section .text-slate-500 {
+    color: #a7b4c5 !important;
+  }
+
+  .dark .sales-workspace form[action] .erp-section .text-slate-700,
+  .dark .sales-workspace form[action] .erp-section .text-slate-800,
+  .dark .sales-workspace form[action] .erp-section .text-slate-850 {
+    color: #e2e8f0 !important;
+  }
+
+  /* Line-item badges */
+  .dark .sales-workspace form[action] span[class*="bg-teal-50"][class*="text-teal-600"] {
+    border-color: rgba(45, 212, 191, .32) !important;
+    background: rgba(19, 78, 74, .52) !important;
+    color: #99f6e4 !important;
+  }
+
+  .dark .sales-workspace form[action] span[class*="bg-slate-100"][class*="text-slate-600"] {
+    border-color: #475569 !important;
+    background: #1e293b !important;
+    color: #cbd5e1 !important;
+  }
+
+  .dark .sales-workspace form[action] button[class*="hover:bg-rose-50"]:hover {
+    background: rgba(76, 5, 25, .46) !important;
+    color: #fda4af !important;
+  }
+
+  /* Customer-mode selector: active states stay dark. */
+  .dark .sales-workspace form[action] button[class*="border-primary"][class*="bg-primary/5"] {
+    border-color: rgba(45, 212, 191, .62) !important;
+    background: rgba(19, 78, 74, .34) !important;
+    color: #99f6e4 !important;
+    box-shadow: inset 0 0 0 1px rgba(45, 212, 191, .10) !important;
+  }
+
+  .dark .sales-workspace form[action] button[class*="border-slate-200"][class*="text-slate-500"] {
+    border-color: #334155 !important;
+    background: #0b1220 !important;
+    color: #94a3b8 !important;
+  }
+
+  .dark .sales-workspace form[action] button[class*="border-slate-200"][class*="text-slate-500"]:hover {
+    border-color: #475569 !important;
+    background: #172033 !important;
+    color: #e2e8f0 !important;
+  }
+
+  /* Existing-customer confirmation */
+  .dark .sales-workspace [class*="border-emerald-200"][class*="bg-emerald-50"] {
+    border-color: rgba(52, 211, 153, .32) !important;
+    background: rgba(6, 78, 59, .40) !important;
+  }
+
+  .dark .sales-workspace [class*="border-emerald-200"][class*="bg-emerald-50"] .text-emerald-800 {
+    color: #a7f3d0 !important;
+  }
+
+  .dark .sales-workspace [class*="border-emerald-200"][class*="bg-emerald-50"] .text-emerald-600 {
+    color: #6ee7b7 !important;
+  }
+
+  /* Payment destination — selected options must never turn light. */
+  .dark .sales-workspace label[class*="border-teal-300"][class*="bg-teal-50"] {
+    border-color: rgba(45, 212, 191, .66) !important;
+    background: linear-gradient(145deg, rgba(19, 78, 74, .66), #0f2f2d) !important;
+    color: #ccfbf1 !important;
+    box-shadow: inset 0 0 0 1px rgba(45, 212, 191, .10) !important;
+  }
+
+  .dark .sales-workspace label[class*="border-indigo-300"][class*="bg-indigo-50"] {
+    border-color: rgba(129, 140, 248, .62) !important;
+    background: linear-gradient(145deg, #312e81, #1e2448) !important;
+    color: #e0e7ff !important;
+  }
+
+  .dark .sales-workspace label[class*="border-amber-300"][class*="bg-amber-50"] {
+    border-color: rgba(251, 191, 36, .58) !important;
+    background: linear-gradient(145deg, rgba(120, 53, 15, .70), #3a2a0d) !important;
+    color: #fef3c7 !important;
+  }
+
+  .dark .sales-workspace label[class*="border-slate-200"][class*="text-slate-500"] {
+    border-color: #334155 !important;
+    background: #0b1220 !important;
+    color: #94a3b8 !important;
+  }
+
+  .dark .sales-workspace label[class*="cursor-not-allowed"][class*="bg-slate-50"] {
+    border-color: #1e293b !important;
+    background: #0b1220 !important;
+    color: #475569 !important;
+    opacity: .86;
+  }
+
+  /* Debt settlement summary */
+  .dark .sales-workspace div[class*="border-amber-200"][class*="from-amber-50"] {
+    border-color: rgba(251, 191, 36, .34) !important;
+    background: linear-gradient(145deg, rgba(120, 53, 15, .42), #111827) !important;
+  }
+
+  .dark .sales-workspace div[class*="border-amber-200"][class*="from-amber-50"] span[class*="bg-white"] {
+    background: #3a2a0d !important;
+    color: #fcd34d !important;
+  }
+
+  .dark .sales-workspace div[class*="border-amber-200"][class*="from-amber-50"] .text-amber-900,
+  .dark .sales-workspace div[class*="border-amber-200"][class*="from-amber-50"] .text-amber-800,
+  .dark .sales-workspace div[class*="border-amber-200"][class*="from-amber-50"] .text-amber-700 {
+    color: #fde68a !important;
+  }
+
+  /* Change / amount-received cards */
+  .dark .sales-workspace div[class*="border-slate-200"][class*="bg-slate-50/70"] {
+    border-color: #334155 !important;
+    background: #0b1220 !important;
+  }
+
+  .dark .sales-workspace div[class*="border-amber-200"][class*="bg-amber-50/60"] {
+    border-color: rgba(251, 191, 36, .32) !important;
+    background: rgba(69, 26, 3, .34) !important;
+  }
+
+  .dark .sales-workspace div[class*="border-amber-200"][class*="bg-amber-50/60"] .text-amber-900,
+  .dark .sales-workspace div[class*="border-amber-200"][class*="bg-amber-50/60"] .text-amber-800,
+  .dark .sales-workspace div[class*="border-amber-200"][class*="bg-amber-50/60"] .text-amber-600 {
+    color: #fde68a !important;
+  }
+
+  .dark .sales-workspace label[class*="border-amber-300"][class*="bg-white"] {
+    border-color: rgba(251, 191, 36, .54) !important;
+    background: #3a2a0d !important;
+    color: #fde68a !important;
+  }
+
+  .dark .sales-workspace label[class*="border-indigo-300"][class*="bg-white"] {
+    border-color: rgba(129, 140, 248, .54) !important;
+    background: #1e2448 !important;
+    color: #c7d2fe !important;
+  }
+
+  /* Error state */
+  .dark .sales-workspace form[action] > div[class*="border-rose"][class*="bg-rose-50"] {
+    border-color: rgba(251, 113, 133, .32) !important;
+    background: rgba(76, 5, 25, .46) !important;
+    color: #fecdd3 !important;
+  }
+
+  @media (max-width: 767px) {
+    .dark .sales-workspace form[action] .erp-section {
+      box-shadow: none !important;
+    }
+
+    .dark .sales-workspace table tbody tr {
+      border-color: #334155 !important;
+      background: #0f172a !important;
+    }
+  }
+}
