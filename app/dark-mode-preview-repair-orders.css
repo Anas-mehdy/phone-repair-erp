@@ -1,0 +1,306 @@
+/* Preview dark-mode fix — repair orders list.
+   Dark-only and screen-only. Light mode remains untouched. */
+
+@media screen {
+  /* Page header */
+  .dark .masar-repair-orders > .space-y-6 > header {
+    border-bottom-color: #334155 !important;
+  }
+
+  .dark .masar-repair-orders > .space-y-6 > header h2 {
+    color: #f8fafc !important;
+  }
+
+  .dark .masar-repair-orders > .space-y-6 > header p {
+    color: #94a3b8 !important;
+  }
+
+  /* Access / assignment notices */
+  .dark .masar-repair-orders div[class*="border-cyan-100"][class*="bg-cyan-50/70"] {
+    border-color: rgba(34, 211, 238, .28) !important;
+    background: linear-gradient(135deg, rgba(8, 51, 68, .62), rgba(15, 23, 42, .96)) !important;
+    color: #bae6fd !important;
+    box-shadow: 0 16px 42px -36px rgba(0, 0, 0, .9) !important;
+  }
+
+  .dark .masar-repair-orders div[class*="border-amber-200"][class*="bg-amber-50"] {
+    border-color: rgba(251, 191, 36, .30) !important;
+    background: linear-gradient(135deg, rgba(69, 26, 3, .58), rgba(15, 23, 42, .96)) !important;
+    color: #fde68a !important;
+  }
+
+  .dark .masar-repair-orders div[class*="border-amber-200"][class*="bg-amber-50"] .text-amber-600,
+  .dark .masar-repair-orders div[class*="border-amber-200"][class*="bg-amber-50"] .text-amber-900,
+  .dark .masar-repair-orders div[class*="border-amber-200"][class*="bg-amber-50"] .text-amber-950 {
+    color: #fcd34d !important;
+  }
+
+  .dark .masar-repair-orders div[class*="border-amber-200"][class*="bg-amber-50"] a[class*="bg-white"] {
+    border-color: rgba(251, 191, 36, .34) !important;
+    background: #1c1917 !important;
+    color: #fde68a !important;
+  }
+
+  /* Live summary strip */
+  .dark .masar-repair-orders div[class*="border-teal-200/50"][class*="bg-teal-50/15"] {
+    border-color: rgba(45, 212, 191, .30) !important;
+    background: linear-gradient(135deg, rgba(19, 78, 74, .30), #111827) !important;
+    color: #cbd5e1 !important;
+    box-shadow: 0 16px 42px -36px rgba(0, 0, 0, .9) !important;
+  }
+
+  .dark .masar-repair-orders div[class*="border-teal-200/50"][class*="bg-teal-50/15"] .text-teal-600 {
+    color: #5eead4 !important;
+  }
+
+  .dark .masar-repair-orders div[class*="border-teal-200/50"][class*="bg-teal-50/15"] .text-teal-800 {
+    color: #99f6e4 !important;
+  }
+
+  .dark .masar-repair-orders div[class*="border-teal-200/50"][class*="bg-teal-50/15"] span[class*="bg-teal-50/80"] {
+    border-color: rgba(45, 212, 191, .32) !important;
+    background: rgba(19, 78, 74, .55) !important;
+    color: #99f6e4 !important;
+  }
+
+  /* Filter card */
+  .dark .masar-repair-orders .erp-filter-card {
+    border-color: rgba(45, 212, 191, .28) !important;
+    background: linear-gradient(135deg, rgba(8, 47, 73, .34), rgba(15, 23, 42, .98)) !important;
+  }
+
+  .dark .masar-repair-orders .erp-filter-card > div {
+    color: #e2e8f0 !important;
+  }
+
+  .dark .masar-repair-orders .erp-filter-card input,
+  .dark .masar-repair-orders .erp-filter-card select {
+    border-color: #475569 !important;
+    background: #020617 !important;
+    color: #f8fafc !important;
+  }
+
+  .dark .masar-repair-orders .erp-filter-card input::placeholder {
+    color: #718096 !important;
+  }
+
+  /* Table shell */
+  .dark .masar-repair-orders div[class*="overflow-hidden"][class*="bg-white"]:has(> div.overflow-x-auto > table.erp-table) {
+    border-color: #334155 !important;
+    background: #0f172a !important;
+    box-shadow: 0 18px 52px -40px rgba(0, 0, 0, .94) !important;
+  }
+
+  .dark .masar-repair-orders .overflow-x-auto:has(> table.erp-table) {
+    background: #0f172a !important;
+    scrollbar-width: thin;
+    scrollbar-color: #475569 #0b1220;
+  }
+
+  .dark .masar-repair-orders .overflow-x-auto:has(> table.erp-table)::-webkit-scrollbar {
+    height: 8px;
+  }
+
+  .dark .masar-repair-orders .overflow-x-auto:has(> table.erp-table)::-webkit-scrollbar-track {
+    background: #0b1220;
+  }
+
+  .dark .masar-repair-orders .overflow-x-auto:has(> table.erp-table)::-webkit-scrollbar-thumb {
+    border: 2px solid #0b1220;
+    border-radius: 999px;
+    background: #475569;
+  }
+
+  .dark .masar-repair-orders .overflow-x-auto:has(> table.erp-table)::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+  }
+
+  .dark .masar-repair-orders table.erp-table {
+    background: #0f172a !important;
+  }
+
+  /* Uniform table header */
+  .dark .masar-repair-orders .erp-table thead {
+    border-bottom-color: #334155 !important;
+    background: linear-gradient(90deg, #172033, #102b34) !important;
+  }
+
+  .dark .masar-repair-orders .erp-table th {
+    border-color: #334155 !important;
+    background: transparent !important;
+    color: #dbe5f0 !important;
+  }
+
+  .dark .masar-repair-orders .erp-table th.sticky {
+    border-right-color: #334155 !important;
+    background: #172033 !important;
+    color: #e2e8f0 !important;
+    box-shadow: -8px 0 18px -14px rgba(0, 0, 0, .95) !important;
+  }
+
+  /* Rows and separators */
+  .dark .masar-repair-orders .erp-table tbody {
+    border-color: #334155 !important;
+  }
+
+  .dark .masar-repair-orders .erp-table tbody tr {
+    background: #0f172a !important;
+  }
+
+  .dark .masar-repair-orders .erp-table tbody tr:hover {
+    background: #152033 !important;
+  }
+
+  .dark .masar-repair-orders .erp-table tbody td {
+    border-color: #263449 !important;
+    color: #cbd5e1 !important;
+  }
+
+  /* Main / secondary data contrast */
+  .dark .masar-repair-orders .erp-table td.text-slate-900,
+  .dark .masar-repair-orders .erp-table td.text-slate-800,
+  .dark .masar-repair-orders .erp-table td .text-slate-900 {
+    color: #f1f5f9 !important;
+  }
+
+  .dark .masar-repair-orders .erp-table td.text-slate-600,
+  .dark .masar-repair-orders .erp-table td .text-slate-600 {
+    color: #aebed0 !important;
+  }
+
+  .dark .masar-repair-orders .erp-table td .text-slate-400 {
+    color: #94a3b8 !important;
+  }
+
+  /* Supplier / role chips */
+  .dark .masar-repair-orders .erp-table [class*="bg-teal-50"][class*="text-teal-800"] {
+    border-color: rgba(45, 212, 191, .30) !important;
+    background: rgba(19, 78, 74, .58) !important;
+    color: #99f6e4 !important;
+  }
+
+  .dark .masar-repair-orders .erp-table [class*="bg-teal-50"] .text-teal-600 {
+    color: #5eead4 !important;
+  }
+
+  /* Assigned technician icon */
+  .dark .masar-repair-orders .erp-table .bg-violet-50 {
+    background: #252755 !important;
+    color: #c7d2fe !important;
+  }
+
+  .dark .masar-repair-orders .erp-table .text-violet-700 {
+    color: #c7d2fe !important;
+  }
+
+  /* Status badges */
+  .dark .masar-repair-orders .erp-table span.rounded-full.border.bg-slate-100\/80,
+  .dark .masar-repair-orders .erp-table span.rounded-full.border[class*="bg-slate-100"] {
+    border-color: #475569 !important;
+    background: #1e293b !important;
+    color: #cbd5e1 !important;
+  }
+
+  .dark .masar-repair-orders .erp-table span.rounded-full.border[class*="bg-blue-50"] {
+    border-color: #1d4ed8 !important;
+    background: rgba(30, 64, 175, .34) !important;
+    color: #bfdbfe !important;
+  }
+
+  .dark .masar-repair-orders .erp-table span.rounded-full.border[class*="bg-amber-50"] {
+    border-color: #92400e !important;
+    background: rgba(120, 53, 15, .46) !important;
+    color: #fde68a !important;
+  }
+
+  .dark .masar-repair-orders .erp-table span.rounded-full.border[class*="bg-orange-50"] {
+    border-color: #9a3412 !important;
+    background: rgba(124, 45, 18, .46) !important;
+    color: #fed7aa !important;
+  }
+
+  .dark .masar-repair-orders .erp-table span.rounded-full.border[class*="bg-teal-50"] {
+    border-color: #0f766e !important;
+    background: rgba(19, 78, 74, .58) !important;
+    color: #99f6e4 !important;
+  }
+
+  .dark .masar-repair-orders .erp-table span.rounded-full.border[class*="bg-emerald-50"] {
+    border-color: #047857 !important;
+    background: rgba(6, 78, 59, .58) !important;
+    color: #a7f3d0 !important;
+  }
+
+  .dark .masar-repair-orders .erp-table span.rounded-full.border[class*="bg-rose-50"] {
+    border-color: #9f1239 !important;
+    background: rgba(76, 5, 25, .58) !important;
+    color: #fecdd3 !important;
+  }
+
+  /* New assignment + unassigned chips */
+  .dark .masar-repair-orders .erp-table span[class*="border-amber-200"][class*="bg-amber-50"] {
+    border-color: #92400e !important;
+    background: rgba(120, 53, 15, .46) !important;
+    color: #fde68a !important;
+  }
+
+  .dark .masar-repair-orders .erp-table span[class*="border-slate-200"][class*="bg-slate-50"] {
+    border-color: #475569 !important;
+    background: #1e293b !important;
+    color: #cbd5e1 !important;
+  }
+
+  /* Sticky action column must belong to the table, not look like a light panel. */
+  .dark .masar-repair-orders .erp-table td.sticky {
+    border-right-color: #334155 !important;
+    background: #0f172a !important;
+    box-shadow: -8px 0 18px -14px rgba(0, 0, 0, .95) !important;
+  }
+
+  .dark .masar-repair-orders .erp-table tbody tr:hover td.sticky {
+    background: #152033 !important;
+  }
+
+  .dark .masar-repair-orders .erp-table td.sticky a,
+  .dark .masar-repair-orders .erp-table td.sticky button {
+    border-color: #475569 !important;
+    background: #0b1220 !important;
+    color: #e2e8f0 !important;
+    box-shadow: none !important;
+  }
+
+  .dark .masar-repair-orders .erp-table td.sticky a:hover,
+  .dark .masar-repair-orders .erp-table td.sticky button:hover {
+    border-color: rgba(45, 212, 191, .45) !important;
+    background: rgba(19, 78, 74, .30) !important;
+    color: #99f6e4 !important;
+  }
+
+  @media (max-width: 767px) {
+    .dark .masar-repair-orders .overflow-x-auto:has(> table.erp-table) {
+      background: #0b1220 !important;
+    }
+
+    .dark .masar-repair-orders .erp-table tbody tr {
+      border-color: #334155 !important;
+      background: linear-gradient(145deg, #0f172a, #111827) !important;
+    }
+
+    .dark .masar-repair-orders .erp-table tbody td {
+      border-bottom-color: #263449 !important;
+    }
+
+    .dark .masar-repair-orders .erp-table td::before {
+      color: #94a3b8 !important;
+    }
+
+    .dark .masar-repair-orders .erp-table td:first-child {
+      background: linear-gradient(90deg, rgba(19, 78, 74, .40), rgba(8, 47, 73, .28)) !important;
+    }
+
+    .dark .masar-repair-orders .erp-table td:nth-child(12),
+    .dark .masar-repair-orders .erp-table tbody tr:hover td:nth-child(12) {
+      background: #111827 !important;
+    }
+  }
+}
