@@ -1,0 +1,238 @@
+/* Preview dark-mode fixes — dashboard and desktop sidebar.
+   Dark-only, screen-only. Light mode remains untouched. */
+
+@media screen {
+  /* ========================================
+     Dashboard: stat / attention cards
+     ======================================== */
+  .dark .masar-dashboard :is(a, article)[class*="bg-gradient-to-br"][class*="to-white"] {
+    box-shadow: 0 18px 46px -36px rgba(0, 0, 0, .92) !important;
+  }
+
+  .dark .masar-dashboard :is(a, article)[class*="border-teal-100"][class*="from-teal-50"] {
+    border-color: rgba(45, 212, 191, .30) !important;
+    background: linear-gradient(145deg, #0f2f2d, #0f172a 72%) !important;
+  }
+  .dark .masar-dashboard :is(a, article)[class*="border-cyan-100"][class*="from-cyan-50"] {
+    border-color: rgba(34, 211, 238, .28) !important;
+    background: linear-gradient(145deg, #0c2f3a, #0f172a 72%) !important;
+  }
+  .dark .masar-dashboard :is(a, article)[class*="border-indigo-100"][class*="from-indigo-50"] {
+    border-color: rgba(129, 140, 248, .30) !important;
+    background: linear-gradient(145deg, #1e2448, #0f172a 72%) !important;
+  }
+  .dark .masar-dashboard :is(a, article)[class*="border-amber-100"][class*="from-amber-50"] {
+    border-color: rgba(251, 191, 36, .28) !important;
+    background: linear-gradient(145deg, #3a2a0d, #0f172a 72%) !important;
+  }
+  .dark .masar-dashboard :is(a, article)[class*="border-emerald-100"][class*="from-emerald-50"] {
+    border-color: rgba(52, 211, 153, .28) !important;
+    background: linear-gradient(145deg, #0d3328, #0f172a 72%) !important;
+  }
+  .dark .masar-dashboard :is(a, article)[class*="border-rose-100"][class*="from-rose-50"] {
+    border-color: rgba(251, 113, 133, .28) !important;
+    background: linear-gradient(145deg, #3b1521, #0f172a 72%) !important;
+  }
+  .dark .masar-dashboard :is(a, article)[class*="border-slate-200"][class*="from-slate-50"] {
+    border-color: #334155 !important;
+    background: linear-gradient(145deg, #1e293b, #0f172a 72%) !important;
+  }
+
+  .dark .masar-dashboard :is(a, article)[class*="to-white"]:hover {
+    border-color: rgba(45, 212, 191, .42) !important;
+    box-shadow: 0 20px 50px -34px rgba(0, 0, 0, .94) !important;
+  }
+
+  .dark .masar-dashboard .text-teal-950 { color: #99f6e4 !important; }
+  .dark .masar-dashboard .text-cyan-950 { color: #a5f3fc !important; }
+  .dark .masar-dashboard .text-indigo-950 { color: #c7d2fe !important; }
+  .dark .masar-dashboard .text-amber-950 { color: #fde68a !important; }
+  .dark .masar-dashboard .text-emerald-950 { color: #a7f3d0 !important; }
+  .dark .masar-dashboard .text-rose-950 { color: #fecdd3 !important; }
+  .dark .masar-dashboard .text-slate-950 { color: #f8fafc !important; }
+
+  .dark .masar-dashboard :is(a, article)[class*="to-white"] .bg-teal-50,
+  .dark .masar-dashboard :is(a, article)[class*="to-white"] .bg-teal-100 {
+    background-color: #134e4a !important;
+    color: #5eead4 !important;
+    border-color: #115e59 !important;
+  }
+  .dark .masar-dashboard :is(a, article)[class*="to-white"] .bg-cyan-50,
+  .dark .masar-dashboard :is(a, article)[class*="to-white"] .bg-cyan-100 {
+    background-color: #164e63 !important;
+    color: #67e8f9 !important;
+    border-color: #155e75 !important;
+  }
+  .dark .masar-dashboard :is(a, article)[class*="to-white"] .bg-indigo-50,
+  .dark .masar-dashboard :is(a, article)[class*="to-white"] .bg-indigo-100 {
+    background-color: #312e81 !important;
+    color: #c7d2fe !important;
+    border-color: #3730a3 !important;
+  }
+  .dark .masar-dashboard :is(a, article)[class*="to-white"] .bg-amber-50,
+  .dark .masar-dashboard :is(a, article)[class*="to-white"] .bg-amber-100 {
+    background-color: #78350f !important;
+    color: #fde68a !important;
+    border-color: #92400e !important;
+  }
+  .dark .masar-dashboard :is(a, article)[class*="to-white"] .bg-emerald-50,
+  .dark .masar-dashboard :is(a, article)[class*="to-white"] .bg-emerald-100 {
+    background-color: #065f46 !important;
+    color: #a7f3d0 !important;
+    border-color: #047857 !important;
+  }
+  .dark .masar-dashboard :is(a, article)[class*="to-white"] .bg-rose-50,
+  .dark .masar-dashboard :is(a, article)[class*="to-white"] .bg-rose-100 {
+    background-color: #881337 !important;
+    color: #fecdd3 !important;
+    border-color: #9f1239 !important;
+  }
+
+  /* Activity cards: remove the light header and pale activity rows. */
+  .dark .masar-dashboard .masar-surface > div[class*="from-teal-50"][class*="via-white"] {
+    border-bottom-color: rgba(19, 78, 74, .72) !important;
+    background: linear-gradient(270deg, rgba(4, 47, 46, .58), #0f172a 48%, rgba(8, 51, 68, .42)) !important;
+  }
+  .dark .masar-dashboard .masar-surface > div[class*="from-teal-50"][class*="via-white"] .bg-teal-50 {
+    background: #134e4a !important;
+    color: #5eead4 !important;
+  }
+  .dark .masar-dashboard .masar-surface a[class*="bg-slate-50/55"] {
+    border-color: #334155 !important;
+    background: #111827 !important;
+    box-shadow: none !important;
+  }
+  .dark .masar-dashboard .masar-surface a[class*="bg-slate-50/55"]:hover {
+    border-color: rgba(45, 212, 191, .36) !important;
+    background: rgba(19, 78, 74, .24) !important;
+  }
+
+  /* Quick actions use bg-white/85, which the old bridge did not catch. */
+  .dark .masar-dashboard .masar-surface a[class*="bg-white/85"] {
+    border-color: #334155 !important;
+    background: #111827 !important;
+  }
+  .dark .masar-dashboard .masar-surface a[class*="bg-white/85"]:hover {
+    border-color: rgba(45, 212, 191, .38) !important;
+    background: rgba(19, 78, 74, .24) !important;
+  }
+
+  /* ========================================
+     Desktop sidebar navigation
+     ======================================== */
+  .dark nav[aria-label="التنقل الرئيسي"] > a,
+  .dark nav[aria-label="التنقل الرئيسي"] > div > button {
+    border-color: #334155 !important;
+    background: #111827 !important;
+    color: #cbd5e1 !important;
+    box-shadow: none !important;
+  }
+
+  .dark nav[aria-label="التنقل الرئيسي"] > a:hover,
+  .dark nav[aria-label="التنقل الرئيسي"] > div > button:hover {
+    border-color: #475569 !important;
+    background: #172033 !important;
+    color: #f1f5f9 !important;
+  }
+
+  /* Active top-level sections keep a subtle tone instead of a light gradient. */
+  .dark nav[aria-label="التنقل الرئيسي"] [class*="from-teal-100"] {
+    border-color: rgba(45, 212, 191, .38) !important;
+    background: linear-gradient(270deg, rgba(19, 78, 74, .72), #111827) !important;
+    color: #ccfbf1 !important;
+  }
+  .dark nav[aria-label="التنقل الرئيسي"] [class*="from-cyan-100"] {
+    border-color: rgba(34, 211, 238, .34) !important;
+    background: linear-gradient(270deg, rgba(8, 51, 68, .78), #111827) !important;
+    color: #cffafe !important;
+  }
+  .dark nav[aria-label="التنقل الرئيسي"] [class*="from-indigo-100"] {
+    border-color: rgba(129, 140, 248, .34) !important;
+    background: linear-gradient(270deg, rgba(49, 46, 129, .58), #111827) !important;
+    color: #e0e7ff !important;
+  }
+  .dark nav[aria-label="التنقل الرئيسي"] [class*="from-amber-100"] {
+    border-color: rgba(251, 191, 36, .32) !important;
+    background: linear-gradient(270deg, rgba(120, 53, 15, .58), #111827) !important;
+    color: #fef3c7 !important;
+  }
+  .dark nav[aria-label="التنقل الرئيسي"] [class*="from-sky-100"] {
+    border-color: rgba(56, 189, 248, .32) !important;
+    background: linear-gradient(270deg, rgba(12, 74, 110, .62), #111827) !important;
+    color: #e0f2fe !important;
+  }
+  .dark nav[aria-label="التنقل الرئيسي"] [class*="from-emerald-100"] {
+    border-color: rgba(52, 211, 153, .32) !important;
+    background: linear-gradient(270deg, rgba(6, 78, 59, .62), #111827) !important;
+    color: #d1fae5 !important;
+  }
+  .dark nav[aria-label="التنقل الرئيسي"] [class*="from-slate-200"] {
+    border-color: #475569 !important;
+    background: linear-gradient(270deg, #1e293b, #111827) !important;
+    color: #f1f5f9 !important;
+  }
+
+  /* Parent and child icon wells were bg-white/90 or bg-white/80. */
+  .dark nav[aria-label="التنقل الرئيسي"] span[class*="bg-white/90"],
+  .dark nav[aria-label="التنقل الرئيسي"] span[class*="bg-white/80"],
+  .dark nav[aria-label="التنقل الرئيسي"] span[class*="bg-white/75"] {
+    background: #0b1220 !important;
+    box-shadow: none !important;
+    --tw-ring-color: #334155 !important;
+  }
+
+  .dark nav[aria-label="التنقل الرئيسي"] .text-teal-700,
+  .dark nav[aria-label="التنقل الرئيسي"] .text-teal-900 { color: #5eead4 !important; }
+  .dark nav[aria-label="التنقل الرئيسي"] .text-cyan-700,
+  .dark nav[aria-label="التنقل الرئيسي"] .text-cyan-900 { color: #67e8f9 !important; }
+  .dark nav[aria-label="التنقل الرئيسي"] .text-indigo-700,
+  .dark nav[aria-label="التنقل الرئيسي"] .text-indigo-900 { color: #a5b4fc !important; }
+  .dark nav[aria-label="التنقل الرئيسي"] .text-amber-700,
+  .dark nav[aria-label="التنقل الرئيسي"] .text-amber-900 { color: #fcd34d !important; }
+  .dark nav[aria-label="التنقل الرئيسي"] .text-sky-700,
+  .dark nav[aria-label="التنقل الرئيسي"] .text-sky-900 { color: #7dd3fc !important; }
+  .dark nav[aria-label="التنقل الرئيسي"] .text-emerald-700,
+  .dark nav[aria-label="التنقل الرئيسي"] .text-emerald-900 { color: #6ee7b7 !important; }
+  .dark nav[aria-label="التنقل الرئيسي"] .text-slate-900 { color: #e2e8f0 !important; }
+
+  /* Expanded desktop trays. */
+  .dark nav[aria-label="التنقل الرئيسي"] > div > div[class*="rounded-[16px]"] {
+    border-color: #334155 !important;
+    background: #0b1220 !important;
+    box-shadow: inset 0 1px 0 rgba(148, 163, 184, .06) !important;
+  }
+  .dark nav[aria-label="التنقل الرئيسي"] > div > div[class*="rounded-[16px]"] a {
+    color: #94a3b8 !important;
+  }
+  .dark nav[aria-label="التنقل الرئيسي"] > div > div[class*="rounded-[16px]"] a[class*="bg-white"] {
+    border-color: rgba(45, 212, 191, .30) !important;
+    background: #111827 !important;
+    color: #f1f5f9 !important;
+  }
+  .dark nav[aria-label="التنقل الرئيسي"] a[class*="bg-white/45"] {
+    background: transparent !important;
+    color: #94a3b8 !important;
+  }
+  .dark nav[aria-label="التنقل الرئيسي"] a[class*="bg-white/45"]:hover {
+    border-color: #334155 !important;
+    background: #172033 !important;
+    color: #f1f5f9 !important;
+  }
+
+  /* Compact-sidebar flyouts. */
+  .dark nav[aria-label="التنقل الرئيسي"] div[class*="bg-white/95"] {
+    border-color: #334155 !important;
+    background: rgba(11, 18, 32, .98) !important;
+    box-shadow: 0 24px 70px -24px rgba(0, 0, 0, .88) !important;
+  }
+  .dark nav[aria-label="التنقل الرئيسي"] div[class*="bg-white/95"] > div:first-child {
+    border-color: #334155 !important;
+    background: #111827 !important;
+  }
+
+  .dark nav[aria-label="التنقل الرئيسي"] .bg-orange-50 {
+    border-color: #92400e !important;
+    background: #451a03 !important;
+    color: #fdba74 !important;
+  }
+}
