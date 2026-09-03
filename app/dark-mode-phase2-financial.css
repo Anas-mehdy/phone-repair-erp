@@ -1,0 +1,325 @@
+/* Dark mode phase 2 — financial workspaces.
+   Screen-only: invoice/ledger printing stays on the existing light print design.
+   Every visual override is scoped under .dark so the approved light theme is untouched. */
+
+@media screen {
+  /* =========================
+     Invoices
+     ========================= */
+  .dark .invoices-workspace > div > div[class*="border-indigo-200"] {
+    border-color: rgba(45,212,191,.34) !important;
+    background:
+      radial-gradient(circle at 10% 20%,rgba(99,102,241,.16),transparent 34%),
+      linear-gradient(135deg,#082f49 0%,#0f2f2d 45%,#1e2448 100%) !important;
+    box-shadow: 0 20px 48px -38px rgba(0,0,0,.92) !important;
+  }
+  .dark .invoices-workspace > div > div[class*="border-indigo-200"] span[class*="font-numeric"] {
+    color: #5eead4 !important;
+  }
+  .dark .invoices-workspace > div > div[class*="border-indigo-200"] > span:last-child {
+    border-color: #373f68 !important;
+    background: rgba(15,23,42,.76) !important;
+    color: #c7d2fe !important;
+  }
+
+  .dark .invoices-workspace .erp-filter-card {
+    border-color: #334155 !important;
+    background:
+      radial-gradient(circle at 100% 0,rgba(6,182,212,.11),transparent 34%),
+      linear-gradient(145deg,#0f172a,#111827) !important;
+    box-shadow: 0 18px 42px -36px rgba(0,0,0,.9) !important;
+  }
+
+  .dark .invoices-workspace table.erp-table.min-w-\[920px\] thead,
+  .dark .invoices-workspace table.erp-table.min-w-\[620px\] thead {
+    background: linear-gradient(90deg,#1e293b,#0f2f2d,#1e2448) !important;
+  }
+  .dark .invoices-workspace table.erp-table.min-w-\[920px\] th,
+  .dark .invoices-workspace table.erp-table.min-w-\[620px\] th {
+    color: #cbd5e1 !important;
+  }
+  .dark .invoices-workspace table.erp-table.min-w-\[920px\] tbody tr:hover {
+    background: linear-gradient(90deg,rgba(19,78,74,.26),rgba(30,41,59,.78),rgba(49,46,129,.18)) !important;
+  }
+  .dark .invoices-workspace table.erp-table.min-w-\[920px\] td:nth-child(1) { color: #5eead4 !important; }
+  .dark .invoices-workspace table.erp-table.min-w-\[920px\] td:nth-child(4) { color: #a5b4fc !important; }
+  .dark .invoices-workspace table.erp-table.min-w-\[920px\] td:nth-child(5),
+  .dark .invoices-workspace table.erp-table.min-w-\[620px\] td:first-child { color: #6ee7b7 !important; }
+
+  .dark .invoices-workspace div[class*="rounded-3xl"][class*="bg-white"]:has(h2[class*="font-numeric"]) {
+    border-color: rgba(45,212,191,.32) !important;
+    background:
+      radial-gradient(circle at 8% 16%,rgba(99,102,241,.16),transparent 30%),
+      linear-gradient(135deg,#0f2f2d,#0f172a 52%,#082f49) !important;
+    box-shadow: 0 24px 58px -42px rgba(0,0,0,.92) !important;
+  }
+  .dark .invoices-workspace div[class*="rounded-3xl"] h2[class*="font-numeric"] { color: #f8fafc !important; }
+
+  .dark .invoices-workspace > div > section[class*="border-amber-200"] {
+    border-color: rgba(251,191,36,.32) !important;
+    background: linear-gradient(135deg,rgba(69,26,3,.62),#0f172a 55%,rgba(67,20,7,.38)) !important;
+    box-shadow: 0 18px 42px -36px rgba(0,0,0,.9) !important;
+  }
+
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:first-child > .erp-section:first-child {
+    border-color: #373f68 !important;
+    background: linear-gradient(145deg,#1e2448,#0f172a 38%,#111827) !important;
+    box-shadow: 0 20px 50px -40px rgba(0,0,0,.9) !important;
+  }
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:first-child > .erp-section:first-child > .grid > div {
+    border-color: #334155 !important;
+    background: #111827 !important;
+    box-shadow: 0 12px 28px -26px rgba(0,0,0,.92) !important;
+  }
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:first-child > .erp-section:first-child > .grid > div:nth-child(1),
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:first-child > .erp-section:first-child > .grid > div:nth-child(2),
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:first-child > .erp-section:first-child > .grid > div:nth-child(3) {
+    border-color: rgba(34,211,238,.28) !important;
+    background: linear-gradient(145deg,rgba(8,47,73,.56),#0f172a) !important;
+  }
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:first-child > .erp-section:first-child > .grid > div:nth-child(4),
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:first-child > .erp-section:first-child > .grid > div:nth-child(5),
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:first-child > .erp-section:first-child > .grid > div:nth-child(6) {
+    border-color: rgba(251,146,60,.3) !important;
+    background: linear-gradient(145deg,rgba(67,20,7,.5),#0f172a) !important;
+  }
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:first-child > .erp-section:first-child > .grid > div:nth-child(7) {
+    border-color: rgba(129,140,248,.32) !important;
+    background: linear-gradient(145deg,#1e2448,#0f172a) !important;
+  }
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:first-child > .erp-section:first-child > .grid > div:nth-child(8) {
+    border-color: rgba(52,211,153,.3) !important;
+    background: linear-gradient(145deg,rgba(6,78,59,.42),#0f172a) !important;
+  }
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:first-child > .erp-section:first-child > .grid > div:nth-child(9) {
+    border-color: rgba(251,191,36,.3) !important;
+    background: linear-gradient(145deg,rgba(69,26,3,.5),#0f172a) !important;
+  }
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:first-child > .erp-section:first-child > .grid > div:nth-child(n+10) {
+    border-color: #334155 !important;
+    background: #111827 !important;
+  }
+
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:first-child > .erp-section:nth-child(2) {
+    border-color: rgba(52,211,153,.28) !important;
+    background: linear-gradient(145deg,rgba(6,78,59,.36),#0f172a 30%) !important;
+  }
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:last-child > form.erp-section {
+    border-color: rgba(52,211,153,.3) !important;
+    background: linear-gradient(155deg,rgba(6,78,59,.42),#0f172a 52%,#0f2f2d) !important;
+    box-shadow: 0 20px 50px -38px rgba(0,0,0,.9) !important;
+  }
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:last-child > .erp-section {
+    border-color: #373f68 !important;
+    background: linear-gradient(155deg,#1e2448,#0f172a 55%,#082f49) !important;
+  }
+
+  /* =========================
+     Debts
+     ========================= */
+  .dark .debts-workspace header.rounded-3xl {
+    border-color: rgba(45,212,191,.32) !important;
+    background: radial-gradient(circle at 8% 12%,rgba(79,70,229,.16),transparent 28%),linear-gradient(135deg,#0f2f2d,#0f172a 52%,#082f49) !important;
+    box-shadow: 0 24px 56px -42px rgba(0,0,0,.92) !important;
+  }
+  .dark .debts-workspace header.rounded-3xl .text-sky-700 { color: #5eead4 !important; }
+
+  .dark .debts-workspace section.rounded-3xl:has(input[type="number"]):has(input[type="date"]) {
+    border-color: rgba(34,211,238,.3) !important;
+    background: radial-gradient(circle at 100% 0,rgba(99,102,241,.13),transparent 32%),linear-gradient(145deg,#082f49,#0f172a 50%,#1e2448) !important;
+    box-shadow: 0 20px 48px -38px rgba(0,0,0,.9) !important;
+  }
+  .dark .debts-workspace section.rounded-3xl:has(input[type="number"]):has(input[type="date"]) div.bg-slate-50\/70 {
+    border-color: #373f68 !important;
+    background: linear-gradient(145deg,#1e2448,#0f172a) !important;
+  }
+
+  .dark .debts-workspace section.grid.md\:grid-cols-3 > div,
+  .dark .debts-workspace div.grid:has(> div > .text-\[11px\]) > div {
+    box-shadow: 0 18px 44px -36px rgba(0,0,0,.9) !important;
+  }
+  .dark .debts-workspace section.grid.md\:grid-cols-3 > div:nth-child(1),
+  .dark .debts-workspace div.grid:has(> div > .text-\[11px\]) > div:nth-child(4) {
+    border-color: rgba(251,113,133,.3) !important;
+    background: linear-gradient(145deg,rgba(76,5,25,.5),#0f172a) !important;
+  }
+  .dark .debts-workspace section.grid.md\:grid-cols-3 > div:nth-child(2) {
+    border-color: rgba(129,140,248,.32) !important;
+    background: linear-gradient(145deg,#1e2448,#0f172a) !important;
+  }
+  .dark .debts-workspace section.grid.md\:grid-cols-3 > div:nth-child(3) {
+    border-color: rgba(52,211,153,.3) !important;
+    background: linear-gradient(145deg,rgba(6,78,59,.42),#0f172a) !important;
+  }
+  .dark .debts-workspace div.grid:has(> div > .text-\[11px\]) > div:nth-child(1) {
+    border-color: rgba(34,211,238,.28) !important;
+    background: linear-gradient(145deg,rgba(8,47,73,.56),#0f172a) !important;
+  }
+  .dark .debts-workspace div.grid:has(> div > .text-\[11px\]) > div:nth-child(2) {
+    border-color: rgba(251,191,36,.3) !important;
+    background: linear-gradient(145deg,rgba(69,26,3,.52),#0f172a) !important;
+  }
+  .dark .debts-workspace div.grid:has(> div > .text-\[11px\]) > div:nth-child(3) {
+    border-color: rgba(251,146,60,.3) !important;
+    background: linear-gradient(145deg,rgba(67,20,7,.52),#0f172a) !important;
+  }
+
+  .dark .debts-workspace > div > div.flex.flex-col.gap-4.sm\:flex-row {
+    border-color: #373f68 !important;
+    background: radial-gradient(circle at 100% 0,rgba(6,182,212,.12),transparent 30%),linear-gradient(145deg,#1e2448,#0f172a 52%,#0f2f2d) !important;
+    box-shadow: 0 22px 52px -42px rgba(0,0,0,.92) !important;
+  }
+  .dark .debts-workspace > div > div.flex.flex-col.gap-4.sm\:flex-row > div:last-child {
+    border-color: rgba(251,113,133,.3) !important;
+    background: linear-gradient(145deg,rgba(76,5,25,.5),#0f172a) !important;
+    box-shadow: 0 14px 30px -26px rgba(0,0,0,.9) !important;
+  }
+
+  .dark .debts-workspace section:has(button.bg-emerald-600):has(input[type="number"]) {
+    border-color: rgba(52,211,153,.3) !important;
+    background: radial-gradient(circle at 100% 0,rgba(6,182,212,.1),transparent 30%),linear-gradient(145deg,rgba(6,78,59,.42),#0f172a 50%,#0f2f2d) !important;
+    box-shadow: 0 20px 48px -38px rgba(0,0,0,.9) !important;
+  }
+
+  .dark .debts-workspace section.overflow-hidden:has(table) {
+    border-color: #373f68 !important;
+    background: linear-gradient(145deg,#1e2448,#0f172a 26%) !important;
+    box-shadow: 0 18px 44px -38px rgba(0,0,0,.9) !important;
+  }
+  .dark .debts-workspace section.overflow-hidden:has(table) > div:first-child,
+  .dark .debts-workspace table thead {
+    background: linear-gradient(90deg,#1e2448,#082f49,#0f2f2d) !important;
+  }
+  .dark .debts-workspace table th { color: #cbd5e1 !important; }
+  .dark .debts-workspace table tbody tr:hover { background: rgba(30,41,59,.62) !important; }
+  .dark .debts-workspace div.border-sky-200.bg-sky-50 {
+    border-color: rgba(34,211,238,.3) !important;
+    background: linear-gradient(145deg,rgba(8,47,73,.54),#0f172a) !important;
+  }
+
+  /* =========================
+     Installments
+     ========================= */
+  .dark .installments-workspace > div > .grid.sm\:grid-cols-2.xl\:grid-cols-4 > div,
+  .dark .installments-workspace > div > .grid.gap-4.sm\:grid-cols-2.xl\:grid-cols-4 > div {
+    box-shadow: 0 16px 38px -30px rgba(0,0,0,.9) !important;
+  }
+  .dark .installments-workspace > div > .grid.sm\:grid-cols-2.xl\:grid-cols-4 > div:nth-child(1),
+  .dark .installments-workspace > div > .grid.gap-4.sm\:grid-cols-2.xl\:grid-cols-4 > div:nth-child(1) {
+    background: linear-gradient(145deg,#0f2f2d,#0f172a) !important;
+    border-color: rgba(45,212,191,.3) !important;
+  }
+  .dark .installments-workspace > div > .grid.sm\:grid-cols-2.xl\:grid-cols-4 > div:nth-child(2),
+  .dark .installments-workspace > div > .grid.gap-4.sm\:grid-cols-2.xl\:grid-cols-4 > div:nth-child(2) {
+    background: linear-gradient(145deg,rgba(76,5,25,.5),#0f172a) !important;
+    border-color: rgba(251,113,133,.3) !important;
+  }
+  .dark .installments-workspace > div > .grid.sm\:grid-cols-2.xl\:grid-cols-4 > div:nth-child(3),
+  .dark .installments-workspace > div > .grid.gap-4.sm\:grid-cols-2.xl\:grid-cols-4 > div:nth-child(3) {
+    background: linear-gradient(145deg,rgba(69,26,3,.52),#0f172a) !important;
+    border-color: rgba(251,191,36,.3) !important;
+  }
+  .dark .installments-workspace > div > .grid.sm\:grid-cols-2.xl\:grid-cols-4 > div:nth-child(4),
+  .dark .installments-workspace > div > .grid.gap-4.sm\:grid-cols-2.xl\:grid-cols-4 > div:nth-child(4) {
+    background: linear-gradient(145deg,#1e2448,#0f172a) !important;
+    border-color: rgba(129,140,248,.32) !important;
+    color: #c7d2fe !important;
+  }
+
+  .dark .installments-workspace .erp-filter-card {
+    border-color: rgba(34,211,238,.28) !important;
+    background: linear-gradient(135deg,rgba(8,47,73,.46),rgba(15,23,42,.98)) !important;
+    box-shadow: 0 18px 48px -38px rgba(0,0,0,.9) !important;
+  }
+  .dark .installments-workspace .erp-section,
+  .dark .installments-workspace section[class*="rounded-2xl"][class*="bg-white"] {
+    border-color: #334155 !important;
+    background-color: #0f172a !important;
+    box-shadow: 0 18px 48px -38px rgba(0,0,0,.9) !important;
+  }
+  .dark .installments-workspace table thead {
+    background: linear-gradient(90deg,#1e293b,#0f2f2d) !important;
+    color: #cbd5e1 !important;
+  }
+  .dark .installments-workspace table tbody tr:hover { background: rgba(30,41,59,.58) !important; }
+
+  .dark .installments-workspace form[action] > .grid.sm\:grid-cols-2:first-of-type > button:first-child {
+    background: linear-gradient(145deg,#082f49,#0f172a) !important;
+    border-color: rgba(34,211,238,.3) !important;
+  }
+  .dark .installments-workspace form[action] > .grid.sm\:grid-cols-2:first-of-type > button:nth-child(2) {
+    background: linear-gradient(145deg,#1e2448,#0f172a) !important;
+    border-color: rgba(129,140,248,.3) !important;
+  }
+  .dark .installments-workspace form[action] > section.erp-section {
+    border-color: #373f68 !important;
+    background: linear-gradient(145deg,#1e2448,#0f172a 46%,#111827) !important;
+  }
+  .dark .installments-workspace form[action] > div[class*="border-teal-200"][class*="from-teal-50"] {
+    border-color: rgba(45,212,191,.32) !important;
+    background: radial-gradient(circle at 100% 0,rgba(6,182,212,.14),transparent 34%),linear-gradient(145deg,#0f2f2d,#0f172a 58%) !important;
+    box-shadow: 0 18px 46px -36px rgba(0,0,0,.9) !important;
+  }
+  .dark .installments-workspace form[action] > div[class*="border-teal-200"] > .grid > div:nth-child(1) {
+    border-color: rgba(34,211,238,.28) !important;
+    background: #082f49 !important;
+  }
+  .dark .installments-workspace form[action] > div[class*="border-teal-200"] > .grid > div:nth-child(2) {
+    border-color: rgba(52,211,153,.28) !important;
+    background: #064e3b !important;
+  }
+  .dark .installments-workspace form[action] > div[class*="border-teal-200"] > .grid > div:nth-child(3) {
+    border-color: rgba(251,191,36,.28) !important;
+    background: #451a03 !important;
+  }
+  .dark .installments-workspace form[action] > div[class*="border-teal-200"] > .grid > div:nth-child(4) {
+    border-color: rgba(129,140,248,.3) !important;
+    background: #1e2448 !important;
+  }
+
+  .dark .installments-workspace aside > section.erp-section:nth-of-type(1) {
+    border-color: rgba(34,211,238,.28) !important;
+    background: linear-gradient(145deg,#082f49,#0f172a 58%) !important;
+  }
+  .dark .installments-workspace aside > form.erp-section {
+    border-color: rgba(52,211,153,.3) !important;
+    background: linear-gradient(145deg,rgba(6,78,59,.42),#0f172a 58%) !important;
+    box-shadow: 0 18px 44px -34px rgba(0,0,0,.9) !important;
+  }
+  .dark .installments-workspace aside > section.erp-section:last-child {
+    border-color: rgba(129,140,248,.3) !important;
+    background: linear-gradient(145deg,#1e2448,#0f172a 58%) !important;
+  }
+  .dark .installments-workspace aside label > span { color: #cbd5e1 !important; }
+
+  @media (max-width: 767px) {
+    .dark .invoices-workspace table.erp-table.min-w-\[920px\] tbody tr {
+      border-color: #334155 !important;
+      background: linear-gradient(145deg,#0f172a,#111827) !important;
+      box-shadow: 0 14px 36px -30px rgba(0,0,0,.9) !important;
+    }
+    .dark .invoices-workspace table.erp-table.min-w-\[920px\] tbody td:first-child {
+      background: rgba(19,78,74,.3) !important;
+    }
+
+    .dark .debts-workspace table tbody tr {
+      border-color: #334155 !important;
+      background: linear-gradient(145deg,#0f172a,#111827 62%,#1e2448) !important;
+      box-shadow: 0 12px 30px -26px rgba(0,0,0,.9) !important;
+    }
+    .dark .debts-workspace table tbody td:nth-child(1) { background: rgba(8,47,73,.5) !important; }
+
+    .dark .installments-workspace table.erp-table.min-w-\[1080px\] tbody tr {
+      border-color: #334155 !important;
+      background: linear-gradient(145deg,#0f172a,#111827) !important;
+      box-shadow: 0 14px 36px -30px rgba(0,0,0,.9) !important;
+    }
+    .dark .installments-workspace table.erp-table.min-w-\[1080px\] tbody td:nth-child(1) {
+      background: rgba(19,78,74,.3) !important;
+    }
+    .dark .installments-workspace table.erp-table.min-w-\[1080px\] tbody td:nth-child(9) {
+      border-top-color: #334155 !important;
+      background: #111827 !important;
+    }
+  }
+}
