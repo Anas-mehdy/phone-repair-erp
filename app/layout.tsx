@@ -4,6 +4,7 @@ import { AppShell } from "@/components/app-shell";
 import { DashboardKpiNavigation } from "@/components/dashboard/dashboard-kpi-navigation";
 import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
 import { LifetimeOfferBanner } from "@/components/lifetime-offer-banner";
+import { QuickOperationsLauncher } from "@/components/quick-operations";
 import { ThemeRouteSync } from "@/components/theme-route-sync";
 import { getAuthContext, can } from "@/lib/auth/context";
 import { APP_URL } from "@/lib/app-url";
@@ -104,6 +105,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       <PwaInstallPrompt />
       {lifetimeBanner ? <LifetimeOfferBanner remaining={lifetimeBanner.remaining} total={lifetimeBanner.total} /> : null}
       <AppShell canSettings={canSettings} canReports={canReports} canManageSubscription={canManageSubscription} canManageDebts={canManageDebts} subscriptionReadOnly={subscriptionReadOnly} tutorialInitialShowBanner={showTutorialBanner}>{children}</AppShell>
+      <QuickOperationsLauncher canManageDebts={canManageDebts} readOnly={subscriptionReadOnly} />
     </body>
   </html>;
 }
