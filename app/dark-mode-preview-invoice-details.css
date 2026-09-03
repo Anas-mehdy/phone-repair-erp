@@ -1,0 +1,322 @@
+/* Preview dark-mode fixes — invoice details page.
+   Dark-only, screen-only. Light mode remains untouched. */
+
+@media screen {
+  /* Detail hero */
+  .dark .invoices-workspace > div > div[class*="rounded-3xl"][class*="bg-white/95"] {
+    border-color: rgba(45, 212, 191, .34) !important;
+    background:
+      radial-gradient(circle at 8% 16%, rgba(99, 102, 241, .16), transparent 30%),
+      linear-gradient(135deg, #0f2f2d, #0f172a 52%, #082f49) !important;
+    box-shadow: 0 24px 58px -42px rgba(0, 0, 0, .92) !important;
+  }
+
+  .dark .invoices-workspace > div > div[class*="rounded-3xl"][class*="bg-white/95"] h2 {
+    color: #f8fafc !important;
+  }
+
+  .dark .invoices-workspace > div > div[class*="rounded-3xl"][class*="bg-white/95"] p,
+  .dark .invoices-workspace > div > div[class*="rounded-3xl"][class*="bg-white/95"] span[class*="text-slate-400"] {
+    color: #94a3b8 !important;
+  }
+
+  .dark .invoices-workspace > div > div[class*="rounded-3xl"][class*="bg-white/95"] span[class*="text-slate-700"] {
+    color: #dbe4ef !important;
+  }
+
+  .dark .invoices-workspace > div > div[class*="rounded-3xl"][class*="bg-white/95"] span[class*="bg-indigo-50"] {
+    border-color: rgba(129, 140, 248, .38) !important;
+    background: #1e2448 !important;
+    color: #c7d2fe !important;
+  }
+
+  .dark .invoices-workspace > div > div[class*="rounded-3xl"][class*="bg-white/95"] a[class*="border-slate-200"] {
+    border-color: #475569 !important;
+    background: #0b1220 !important;
+    color: #e2e8f0 !important;
+    box-shadow: none !important;
+  }
+
+  .dark .invoices-workspace > div > div[class*="rounded-3xl"][class*="bg-white/95"] a[class*="border-slate-200"]:hover {
+    border-color: rgba(45, 212, 191, .42) !important;
+    background: rgba(19, 78, 74, .28) !important;
+    color: #99f6e4 !important;
+  }
+
+  .dark .invoices-workspace > div > div[class*="rounded-3xl"][class*="bg-white/95"] a svg {
+    color: currentColor !important;
+  }
+
+  /* Discount block */
+  .dark .invoices-workspace > div > section[class*="border-amber-200"] {
+    border-color: rgba(251, 191, 36, .34) !important;
+    background: linear-gradient(135deg, rgba(69, 26, 3, .62), #0f172a 55%, rgba(67, 20, 7, .38)) !important;
+  }
+
+  .dark .invoices-workspace > div > section[class*="border-amber-200"] h2,
+  .dark .invoices-workspace > div > section[class*="border-amber-200"] h3,
+  .dark .invoices-workspace > div > section[class*="border-amber-200"] label {
+    color: #fef3c7 !important;
+  }
+
+  .dark .invoices-workspace > div > section[class*="border-amber-200"] p,
+  .dark .invoices-workspace > div > section[class*="border-amber-200"] span {
+    color: #d6c7a4 !important;
+  }
+
+  .dark .invoices-workspace > div > section[class*="border-amber-200"] input {
+    border-color: rgba(251, 191, 36, .36) !important;
+    background: #020617 !important;
+    color: #f8fafc !important;
+  }
+
+  /* Detail sections and separators */
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] .erp-section {
+    border-color: #334155 !important;
+    background: linear-gradient(145deg, #0f172a, #111827) !important;
+    box-shadow: 0 18px 48px -40px rgba(0, 0, 0, .9) !important;
+  }
+
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] .erp-section > div[class*="border-b"] {
+    border-bottom-color: #334155 !important;
+  }
+
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] .erp-section h3 {
+    color: #f8fafc !important;
+  }
+
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] .erp-section label,
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] .erp-section span[class*="text-slate-700"],
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] .erp-section span[class*="text-slate-800"] {
+    color: #e2e8f0 !important;
+  }
+
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] .erp-section span[class*="text-slate-400"],
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] .erp-section span[class*="text-slate-500"],
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] .erp-section p[class*="text-slate-400"],
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] .erp-section p[class*="text-slate-500"] {
+    color: #94a3b8 !important;
+  }
+
+  /* Financial summary cards */
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:first-child > .erp-section:first-child > .grid > div {
+    border-color: #334155 !important;
+    background: #111827 !important;
+    box-shadow: inset 0 0 0 1px rgba(148, 163, 184, .03) !important;
+  }
+
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:first-child > .erp-section:first-child > .grid > div:nth-child(1),
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:first-child > .erp-section:first-child > .grid > div:nth-child(2),
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:first-child > .erp-section:first-child > .grid > div:nth-child(3) {
+    border-color: rgba(34, 211, 238, .26) !important;
+    background: linear-gradient(145deg, rgba(8, 47, 73, .56), #0f172a) !important;
+  }
+
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:first-child > .erp-section:first-child > .grid > div:nth-child(4),
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:first-child > .erp-section:first-child > .grid > div:nth-child(5),
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:first-child > .erp-section:first-child > .grid > div:nth-child(6) {
+    border-color: rgba(251, 146, 60, .28) !important;
+    background: linear-gradient(145deg, rgba(67, 20, 7, .46), #0f172a) !important;
+  }
+
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:first-child > .erp-section:first-child > .grid > div:nth-child(7) {
+    border-color: rgba(129, 140, 248, .30) !important;
+    background: linear-gradient(145deg, #1e2448, #0f172a) !important;
+  }
+
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:first-child > .erp-section:first-child > .grid > div:nth-child(8) {
+    border-color: rgba(52, 211, 153, .30) !important;
+    background: linear-gradient(145deg, rgba(6, 78, 59, .42), #0f172a) !important;
+  }
+
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:first-child > .erp-section:first-child > .grid > div:nth-child(9) {
+    border-color: rgba(251, 191, 36, .30) !important;
+    background: linear-gradient(145deg, rgba(69, 26, 3, .48), #0f172a) !important;
+  }
+
+  /* Status badges anywhere on invoice details */
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] span[class*="bg-orange-50"] {
+    border-color: rgba(251, 146, 60, .42) !important;
+    background: rgba(124, 45, 18, .46) !important;
+    color: #fed7aa !important;
+  }
+
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] span[class*="bg-amber-50"] {
+    border-color: rgba(251, 191, 36, .42) !important;
+    background: rgba(120, 53, 15, .48) !important;
+    color: #fde68a !important;
+  }
+
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] span[class*="bg-teal-50"] {
+    border-color: rgba(45, 212, 191, .42) !important;
+    background: rgba(19, 78, 74, .56) !important;
+    color: #99f6e4 !important;
+  }
+
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] span[class*="bg-slate-100"] {
+    border-color: #475569 !important;
+    background: #1e293b !important;
+    color: #cbd5e1 !important;
+  }
+
+  /* Payment history — remove light empty state */
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:first-child > .erp-section:nth-child(2) {
+    border-color: rgba(45, 212, 191, .26) !important;
+    background: linear-gradient(145deg, rgba(6, 78, 59, .22), #0f172a 34%, #111827) !important;
+  }
+
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:first-child > .erp-section:nth-child(2) > p {
+    border: 1px solid #334155 !important;
+    border-radius: 14px !important;
+    background: #0b1220 !important;
+    color: #94a3b8 !important;
+    padding: 22px 16px !important;
+  }
+
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] table.erp-table thead {
+    background: linear-gradient(90deg, #1e293b, rgba(19, 78, 74, .28)) !important;
+  }
+
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] table.erp-table th {
+    color: #cbd5e1 !important;
+  }
+
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] table.erp-table td {
+    color: #b8c6d8 !important;
+  }
+
+  /* Add payment form */
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:last-child > form.erp-section {
+    border-color: rgba(52, 211, 153, .32) !important;
+    background: linear-gradient(155deg, rgba(6, 78, 59, .38), #0f172a 52%, #0f2f2d) !important;
+  }
+
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] input,
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] select,
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] textarea {
+    border-color: #475569 !important;
+    background: #020617 !important;
+    color: #f8fafc !important;
+  }
+
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] input::placeholder,
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] textarea::placeholder {
+    color: #7f8ea3 !important;
+    opacity: 1;
+  }
+
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] input:focus,
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] select:focus,
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] textarea:focus {
+    border-color: rgba(45, 212, 191, .72) !important;
+    box-shadow: 0 0 0 4px rgba(20, 184, 166, .12) !important;
+  }
+
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] input:disabled,
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] select:disabled,
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] textarea:disabled {
+    border-color: #263244 !important;
+    background: #0b1220 !important;
+    color: #64748b !important;
+    opacity: .82 !important;
+  }
+
+  /* Money destination card — major light leak in screenshot */
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] form.erp-section div[class*="border-teal-100"][class*="bg-teal-50"] {
+    border-color: rgba(45, 212, 191, .32) !important;
+    background: linear-gradient(145deg, rgba(19, 78, 74, .34), #0b1220) !important;
+    color: #ccfbf1 !important;
+  }
+
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] form.erp-section div[class*="border-teal-100"][class*="bg-teal-50"] p {
+    color: #5eead4 !important;
+  }
+
+  /* PaymentSourceField — second major light leak */
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] form.erp-section div[class*="border-slate-200"][class*="bg-slate-50/50"] {
+    border-color: #334155 !important;
+    background: #0b1220 !important;
+  }
+
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] form.erp-section div[class*="border-slate-200"][class*="bg-slate-50/50"] label,
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] form.erp-section div[class*="border-slate-200"][class*="bg-slate-50/50"] span {
+    color: #cbd5e1 !important;
+  }
+
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] form.erp-section input[type="checkbox"] {
+    accent-color: #14b8a6;
+    color-scheme: dark;
+  }
+
+  /* Invoice actions */
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:last-child > .erp-section {
+    border-color: #373f68 !important;
+    background: linear-gradient(155deg, #1e2448, #0f172a 55%, #082f49) !important;
+  }
+
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:last-child > .erp-section a[class*="border-teal-300"] {
+    border-color: rgba(45, 212, 191, .42) !important;
+    background: rgba(19, 78, 74, .34) !important;
+    color: #99f6e4 !important;
+  }
+
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:last-child > .erp-section a[class*="border-teal-300"]:hover {
+    background: rgba(19, 78, 74, .56) !important;
+    color: #ccfbf1 !important;
+  }
+
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:last-child > .erp-section a[class*="border-slate-200"] {
+    border-color: #475569 !important;
+    background: #0b1220 !important;
+    color: #e2e8f0 !important;
+    box-shadow: none !important;
+  }
+
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:last-child > .erp-section a[class*="border-slate-200"]:hover {
+    border-color: rgba(45, 212, 191, .38) !important;
+    background: rgba(19, 78, 74, .28) !important;
+    color: #99f6e4 !important;
+  }
+
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:last-child > .erp-section div[class*="border-slate-100"][class*="bg-slate-50"] {
+    border-color: #334155 !important;
+    background: #0b1220 !important;
+    color: #94a3b8 !important;
+  }
+
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:last-child > .erp-section a svg {
+    color: currentColor !important;
+  }
+
+  /* Keep dangerous void action strong but integrated */
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:last-child > .erp-section button[class*="rose"],
+  .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:last-child > .erp-section button[class*="red"] {
+    border-color: rgba(251, 113, 133, .55) !important;
+  }
+
+  /* Mobile */
+  @media (max-width: 1023px) {
+    .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] {
+      gap: 18px !important;
+    }
+
+    .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] .erp-section {
+      box-shadow: none !important;
+    }
+  }
+
+  @media (max-width: 767px) {
+    .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] > div:first-child > .erp-section:first-child > .grid > div {
+      background: #111827 !important;
+    }
+
+    .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] table.erp-table tbody tr {
+      border-color: #334155 !important;
+      background: linear-gradient(145deg, #0f172a, #111827) !important;
+    }
+
+    .dark .invoices-workspace .lg\:grid-cols-\[1fr_340px\] table.erp-table td::before {
+      color: #94a3b8 !important;
+    }
+  }
+}
