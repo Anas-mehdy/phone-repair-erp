@@ -4,6 +4,7 @@ import { cashDrawerService } from "@/lib/services/cashDrawerService";
 import { financialTransferService } from "@/lib/services/financialTransferService";
 import { CashDrawerPanel } from "./_cash-drawer-panel";
 import "./transfers-position.css";
+import "./dark-mode-preview-transfers.css";
 
 export default async function TransfersLayout({ children }: { children: ReactNode }) {
   const context = await getCurrentShopContext();
