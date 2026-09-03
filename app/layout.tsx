@@ -4,6 +4,7 @@ import { AppShell } from "@/components/app-shell";
 import { DashboardKpiNavigation } from "@/components/dashboard/dashboard-kpi-navigation";
 import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
 import { LifetimeOfferBanner } from "@/components/lifetime-offer-banner";
+import { ThemeRouteSync } from "@/components/theme-route-sync";
 import { getAuthContext, can } from "@/lib/auth/context";
 import { APP_URL } from "@/lib/app-url";
 import { prisma } from "@/lib/prisma";
@@ -90,6 +91,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
     </head>
     <body className="font-sans antialiased overflow-x-hidden min-h-screen w-full max-w-full">
+      <ThemeRouteSync />
       <DashboardKpiNavigation />
       <PwaInstallPrompt />
       {lifetimeBanner ? <LifetimeOfferBanner remaining={lifetimeBanner.remaining} total={lifetimeBanner.total} /> : null}

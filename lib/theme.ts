@@ -2,6 +2,23 @@ export type ThemePreference = "light" | "dark" | "system";
 
 export const THEME_STORAGE_KEY = "massar_theme";
 
+export function shouldForceLightTheme(path: string) {
+  return (
+    path === "/" ||
+    path === "/login" ||
+    path === "/register" ||
+    path === "/forgot-password" ||
+    path === "/reset-password" ||
+    path.startsWith("/partners") ||
+    path.startsWith("/partner-invite/") ||
+    path.startsWith("/register/partner/") ||
+    path.includes("/print") ||
+    path.includes("/sticker") ||
+    path.startsWith("/track") ||
+    path.startsWith("/installment-track")
+  );
+}
+
 export const THEME_INIT_SCRIPT = `(() => {
   try {
     const path = window.location.pathname;
