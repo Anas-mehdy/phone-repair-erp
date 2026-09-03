@@ -1,0 +1,352 @@
+/* Dark mode phase 2 — customers, reports and settings.
+   Screen-only and fully scoped below .dark workspace classes.
+   Existing light-mode rules remain untouched. */
+
+@media screen {
+  /* =========================
+     Shared management inputs
+     ========================= */
+  .dark .customers-workspace input,
+  .dark .customers-workspace select,
+  .dark .customers-workspace textarea,
+  .dark .settings-workspace input,
+  .dark .settings-workspace select,
+  .dark .settings-workspace textarea,
+  .dark .masar-reports input,
+  .dark .masar-reports select,
+  .dark .masar-reports textarea {
+    border-color: #334155 !important;
+    background-color: rgba(2,6,23,.7) !important;
+    color: #f8fafc !important;
+  }
+
+  .dark .customers-workspace input::placeholder,
+  .dark .customers-workspace textarea::placeholder,
+  .dark .settings-workspace input::placeholder,
+  .dark .settings-workspace textarea::placeholder,
+  .dark .masar-reports input::placeholder,
+  .dark .masar-reports textarea::placeholder {
+    color: #64748b !important;
+  }
+
+  .dark .customers-workspace input:focus,
+  .dark .customers-workspace select:focus,
+  .dark .customers-workspace textarea:focus,
+  .dark .settings-workspace input:focus,
+  .dark .settings-workspace select:focus,
+  .dark .settings-workspace textarea:focus,
+  .dark .masar-reports input:focus,
+  .dark .masar-reports select:focus,
+  .dark .masar-reports textarea:focus {
+    border-color: #2dd4bf !important;
+    box-shadow: 0 0 0 4px rgba(20,184,166,.14) !important;
+  }
+
+  /* =========================
+     Customers
+     ========================= */
+  .dark .customers-workspace .erp-section,
+  .dark .customers-workspace .erp-card,
+  .dark .customers-workspace .erp-filter-card {
+    border-color: #334155 !important;
+    background: linear-gradient(145deg, rgba(15,23,42,.98), rgba(17,24,39,.94)) !important;
+    box-shadow: 0 18px 48px -38px rgba(0,0,0,.9) !important;
+  }
+
+  .dark .customers-workspace > div > div[class*="border-indigo-200"][class*="bg-indigo-50"] {
+    border-color: rgba(129,140,248,.32) !important;
+    background: linear-gradient(135deg,#1e2448,#0f172a 58%,#082f49) !important;
+    color: #c7d2fe !important;
+  }
+
+  .dark .customers-workspace > div > div[class*="border-indigo-200"] [class*="text-indigo"] {
+    color: #a5b4fc !important;
+  }
+
+  .dark .customers-workspace div[class*="overflow-hidden"][class*="rounded-2xl"][class*="bg-white"],
+  .dark .customers-workspace section[class*="rounded-3xl"][class*="bg-white"],
+  .dark .customers-workspace div[class*="rounded-3xl"][class*="bg-white"] {
+    border-color: #334155 !important;
+    background: linear-gradient(145deg,#0f172a,#111827) !important;
+    box-shadow: 0 18px 50px -40px rgba(0,0,0,.9) !important;
+  }
+
+  .dark .customers-workspace table thead {
+    background: linear-gradient(90deg,#1e293b,rgba(49,46,129,.24),rgba(19,78,74,.22)) !important;
+  }
+  .dark .customers-workspace table th { color: #cbd5e1 !important; }
+  .dark .customers-workspace table tbody tr:hover { background: rgba(30,41,59,.58) !important; }
+
+  .dark .customers-workspace [class*="border-b"][class*="border-slate-100"] { border-color: #1e293b !important; }
+  .dark .customers-workspace [class*="border-t"][class*="border-slate-100"] { border-color: #1e293b !important; }
+
+  .dark .customers-workspace .bg-indigo-50 { background-color: #20284c !important; }
+  .dark .customers-workspace .bg-sky-50 { background-color: #0c2f3a !important; }
+  .dark .customers-workspace .bg-amber-50 { background-color: #3a2a0d !important; }
+  .dark .customers-workspace .bg-violet-50 { background-color: #27204c !important; }
+  .dark .customers-workspace .bg-teal-50 { background-color: #0f2f2d !important; }
+  .dark .customers-workspace .bg-emerald-50 { background-color: #0d3328 !important; }
+  .dark .customers-workspace .bg-rose-50 { background-color: #3b1521 !important; }
+  .dark .customers-workspace .bg-slate-50,
+  .dark .customers-workspace .bg-slate-100 { background-color: #1e293b !important; }
+
+  .dark .customers-workspace .border-indigo-200 { border-color: #373f68 !important; }
+  .dark .customers-workspace .border-sky-200 { border-color: #164e63 !important; }
+  .dark .customers-workspace .border-amber-200 { border-color: #78551b !important; }
+  .dark .customers-workspace .border-teal-200 { border-color: #245e59 !important; }
+  .dark .customers-workspace .border-emerald-200 { border-color: #246b50 !important; }
+  .dark .customers-workspace .border-rose-200 { border-color: #6f2639 !important; }
+
+  .dark .customers-workspace .text-indigo-700,
+  .dark .customers-workspace .text-indigo-800 { color: #a5b4fc !important; }
+  .dark .customers-workspace .text-teal-700,
+  .dark .customers-workspace .text-teal-800 { color: #5eead4 !important; }
+  .dark .customers-workspace .text-emerald-700,
+  .dark .customers-workspace .text-emerald-800 { color: #6ee7b7 !important; }
+  .dark .customers-workspace .text-amber-700,
+  .dark .customers-workspace .text-amber-800 { color: #fbbf24 !important; }
+  .dark .customers-workspace .text-rose-700,
+  .dark .customers-workspace .text-rose-800 { color: #fb7185 !important; }
+
+  .dark .customers-workspace .erp-section a[class*="rounded-xl"][class*="bg-white"],
+  .dark .customers-workspace a[class*="rounded-xl"][class*="border-slate-100"] {
+    border-color: #334155 !important;
+    background: #111827 !important;
+  }
+  .dark .customers-workspace .erp-section a[class*="rounded-xl"]:hover,
+  .dark .customers-workspace a[class*="rounded-xl"][class*="border-slate-100"]:hover {
+    border-color: rgba(45,212,191,.34) !important;
+    background: rgba(19,78,74,.24) !important;
+  }
+
+  .dark .customers-workspace .erp-section[class*="border-rose-200"] {
+    border-color: rgba(251,113,133,.32) !important;
+    background: linear-gradient(145deg,rgba(76,5,25,.46),#0f172a) !important;
+  }
+
+  /* =========================
+     Reports
+     ========================= */
+  .dark .masar-reports > div > div:first-child:has(header) {
+    border-color: rgba(45,212,191,.32) !important;
+    background:
+      radial-gradient(circle at 12% 15%,rgba(6,182,212,.13),transparent 32%),
+      radial-gradient(circle at 92% 0,rgba(99,102,241,.14),transparent 30%),
+      linear-gradient(135deg,#0f2f2d 0%,#0f172a 54%,#1e2448 100%) !important;
+    box-shadow: 0 22px 62px -42px rgba(0,0,0,.92) !important;
+  }
+
+  .dark .masar-reports > div > .rounded-2xl.border-emerald-200 {
+    border-color: rgba(52,211,153,.32) !important;
+    background: linear-gradient(135deg,rgba(6,78,59,.42),#0f172a) !important;
+    color: #6ee7b7 !important;
+    box-shadow: 0 14px 34px -30px rgba(0,0,0,.9) !important;
+  }
+
+  .dark .masar-reports .erp-filter-card {
+    border-color: rgba(34,211,238,.28) !important;
+    background: linear-gradient(145deg,#082f49,#0f172a 42%,#111827) !important;
+    box-shadow: 0 18px 48px -38px rgba(0,0,0,.9) !important;
+  }
+  .dark .masar-reports .erp-filter-card form { border-top-color: #1e293b !important; }
+
+  .dark .masar-reports > div > section.grid.gap-4.sm\:grid-cols-2.xl\:grid-cols-4 > div {
+    border-color: #334155 !important;
+    background: linear-gradient(145deg,#111827,#0f172a) !important;
+    box-shadow: 0 18px 44px -36px rgba(0,0,0,.9) !important;
+  }
+  .dark .masar-reports > div > section.grid.gap-4.sm\:grid-cols-2.xl\:grid-cols-4 > div:nth-child(1) {
+    border-color: rgba(129,140,248,.32) !important;
+    background: linear-gradient(145deg,#1e2448,#0f172a 74%) !important;
+  }
+  .dark .masar-reports > div > section.grid.gap-4.sm\:grid-cols-2.xl\:grid-cols-4 > div:nth-child(2),
+  .dark .masar-reports > div > section.grid.gap-4.sm\:grid-cols-2.xl\:grid-cols-4 > div:nth-child(6),
+  .dark .masar-reports > div > section.grid.gap-4.sm\:grid-cols-2.xl\:grid-cols-4 > div:nth-child(7) {
+    border-color: rgba(45,212,191,.32) !important;
+    background: linear-gradient(145deg,rgba(19,78,74,.42),#0f172a 74%) !important;
+  }
+  .dark .masar-reports > div > section.grid.gap-4.sm\:grid-cols-2.xl\:grid-cols-4 > div:nth-child(3) {
+    border-color: rgba(251,191,36,.3) !important;
+    background: linear-gradient(145deg,rgba(69,26,3,.52),#0f172a 74%) !important;
+  }
+  .dark .masar-reports > div > section.grid.gap-4.sm\:grid-cols-2.xl\:grid-cols-4 > div:nth-child(4),
+  .dark .masar-reports > div > section.grid.gap-4.sm\:grid-cols-2.xl\:grid-cols-4 > div:nth-child(5),
+  .dark .masar-reports > div > section.grid.gap-4.sm\:grid-cols-2.xl\:grid-cols-4 > div:nth-child(9) {
+    border-color: rgba(251,113,133,.3) !important;
+    background: linear-gradient(145deg,rgba(76,5,25,.48),#0f172a 74%) !important;
+  }
+  .dark .masar-reports > div > section.grid.gap-4.sm\:grid-cols-2.xl\:grid-cols-4 > div:nth-child(8) {
+    border-color: rgba(251,146,60,.3) !important;
+    background: linear-gradient(145deg,rgba(67,20,7,.5),#0f172a 74%) !important;
+  }
+  .dark .masar-reports > div > section.grid.gap-4.sm\:grid-cols-2.xl\:grid-cols-4 > div:nth-child(10) {
+    border-color: #475569 !important;
+    background: linear-gradient(145deg,#1e293b,#0f172a 74%) !important;
+  }
+
+  .dark .masar-reports > div > div.grid.gap-6.xl\:grid-cols-2 > .erp-section:first-child {
+    border-color: rgba(129,140,248,.3) !important;
+    background: linear-gradient(145deg,#1e2448,#0f172a 35%) !important;
+  }
+  .dark .masar-reports > div > div.grid.gap-6.xl\:grid-cols-2 > .erp-section:last-child {
+    border-color: rgba(45,212,191,.3) !important;
+    background: linear-gradient(145deg,#0f2f2d,#0f172a 35%) !important;
+  }
+  .dark .masar-reports > div > div.grid.gap-6.xl\:grid-cols-2 > .erp-section .h-2 {
+    background: #334155 !important;
+  }
+
+  .dark .masar-reports > div > section.grid.gap-6.xl\:grid-cols-\[minmax\(0\,1fr\)_360px\] > div:first-child {
+    border-color: rgba(251,113,133,.28) !important;
+    background: linear-gradient(145deg,#0f172a 0%,rgba(76,5,25,.24) 100%) !important;
+    box-shadow: 0 18px 48px -38px rgba(0,0,0,.9) !important;
+  }
+  .dark .masar-reports > div > section.grid.gap-6.xl\:grid-cols-\[minmax\(0\,1fr\)_360px\] > div:first-child > div:first-child {
+    border-bottom-color: #334155 !important;
+    background: linear-gradient(180deg,#111827,#0f172a) !important;
+  }
+  .dark .masar-reports .erp-table th {
+    color: #cbd5e1 !important;
+    background: #1e293b !important;
+  }
+  .dark .masar-reports .erp-table tbody tr:hover { background: rgba(76,5,25,.24) !important; }
+
+  .dark .masar-reports > div > section.grid.gap-6.xl\:grid-cols-\[minmax\(0\,1fr\)_360px\] > form.erp-section {
+    border-color: rgba(251,146,60,.3) !important;
+    background: linear-gradient(145deg,rgba(67,20,7,.46),#0f172a 46%) !important;
+    box-shadow: 0 18px 46px -38px rgba(0,0,0,.9) !important;
+  }
+
+  .dark .masar-reports > div > div.rounded-2xl.border-sky-200 {
+    border-color: rgba(34,211,238,.28) !important;
+    background: linear-gradient(135deg,#082f49,#0f2f2d) !important;
+    color: #bae6fd !important;
+    box-shadow: 0 16px 40px -34px rgba(0,0,0,.9) !important;
+  }
+
+  .dark .masar-reports > section.mt-7,
+  .dark .masar-reports section.mt-7[class*="border-emerald-100"] {
+    border-color: rgba(52,211,153,.28) !important;
+    background: linear-gradient(145deg,#0f172a,#0d3328) !important;
+    box-shadow: 0 18px 50px -38px rgba(0,0,0,.9) !important;
+  }
+  .dark .masar-reports section.mt-7 > div:first-child {
+    border-bottom-color: #245e59 !important;
+    background: linear-gradient(90deg,#0d3328,#0f172a,#0f2f2d) !important;
+  }
+  .dark .masar-reports section.mt-7 > div:last-child > div {
+    border-color: #334155 !important;
+    background: #111827 !important;
+  }
+  .dark .masar-reports section.mt-7 .bg-emerald-50 { background-color: #0d3328 !important; }
+  .dark .masar-reports section.mt-7 .bg-indigo-50 { background-color: #20284c !important; }
+  .dark .masar-reports section.mt-7 .bg-teal-50 { background-color: #0f2f2d !important; }
+  .dark .masar-reports section.mt-7 .bg-cyan-50 { background-color: #0c2f3a !important; }
+  .dark .masar-reports section.mt-7 .bg-rose-50 { background-color: #3b1521 !important; }
+  .dark .masar-reports section.mt-7 .bg-amber-50 { background-color: #3a2a0d !important; }
+  .dark .masar-reports section.mt-7 .text-slate-950 { color: #f8fafc !important; }
+
+  /* =========================
+     Settings + team management
+     ========================= */
+  .dark .settings-workspace .erp-card,
+  .dark .settings-workspace .erp-section {
+    border-color: #334155 !important;
+    background: linear-gradient(145deg,#0f172a,#111827) !important;
+    box-shadow: 0 18px 50px -40px rgba(0,0,0,.9) !important;
+  }
+
+  .dark .settings-workspace [class*="border-b"][class*="border-slate-100"],
+  .dark .settings-workspace [class*="border-t"][class*="border-slate-100"] {
+    border-color: #1e293b !important;
+  }
+
+  .dark .settings-workspace table thead tr,
+  .dark .settings-workspace table thead {
+    border-color: #334155 !important;
+    background: #1e293b !important;
+    color: #cbd5e1 !important;
+  }
+  .dark .settings-workspace table tbody {
+    background: #0f172a !important;
+  }
+  .dark .settings-workspace table tbody tr {
+    border-color: #1e293b !important;
+  }
+  .dark .settings-workspace table tbody tr:hover {
+    background: rgba(30,41,59,.58) !important;
+  }
+
+  .dark .settings-workspace .bg-slate-50,
+  .dark .settings-workspace .bg-slate-100,
+  .dark .settings-workspace .from-slate-100,
+  .dark .settings-workspace .to-slate-200 { background-color: #1e293b !important; }
+  .dark .settings-workspace .bg-purple-50 { background-color: #2b1f49 !important; }
+  .dark .settings-workspace .bg-blue-50 { background-color: #102b4c !important; }
+  .dark .settings-workspace .bg-teal-50 { background-color: #0f2f2d !important; }
+  .dark .settings-workspace .bg-amber-50 { background-color: #3a2a0d !important; }
+  .dark .settings-workspace .bg-rose-50 { background-color: #3b1521 !important; }
+  .dark .settings-workspace .bg-emerald-50 { background-color: #0d3328 !important; }
+
+  .dark .settings-workspace .text-purple-800 { color: #c4b5fd !important; }
+  .dark .settings-workspace .text-blue-800 { color: #93c5fd !important; }
+  .dark .settings-workspace .text-teal-700,
+  .dark .settings-workspace .text-teal-800,
+  .dark .settings-workspace .text-teal-900,
+  .dark .settings-workspace .text-teal-950 { color: #5eead4 !important; }
+  .dark .settings-workspace .text-amber-700,
+  .dark .settings-workspace .text-amber-800,
+  .dark .settings-workspace .text-amber-900 { color: #fbbf24 !important; }
+  .dark .settings-workspace .text-rose-600,
+  .dark .settings-workspace .text-rose-700 { color: #fb7185 !important; }
+  .dark .settings-workspace .text-emerald-600,
+  .dark .settings-workspace .text-emerald-700 { color: #6ee7b7 !important; }
+
+  .dark .settings-workspace .border-purple-200 { border-color: #54427c !important; }
+  .dark .settings-workspace .border-blue-200 { border-color: #1e4f75 !important; }
+  .dark .settings-workspace .border-teal-200 { border-color: #245e59 !important; }
+  .dark .settings-workspace .border-amber-200,
+  .dark .settings-workspace .border-amber-300 { border-color: #78551b !important; }
+  .dark .settings-workspace .border-rose-200 { border-color: #6f2639 !important; }
+
+  .dark .settings-workspace div[class*="overflow-x-auto"][class*="border-slate-100"] {
+    border-color: #334155 !important;
+    background: #0f172a !important;
+  }
+  .dark .settings-workspace div[class*="overflow-x-auto"][class*="border-amber-200"] {
+    border-color: rgba(251,191,36,.3) !important;
+    background: rgba(69,26,3,.28) !important;
+  }
+
+  .dark .settings-workspace .fixed.inset-0 > div[class*="bg-white"] {
+    border-color: #334155 !important;
+    background: #0f172a !important;
+    box-shadow: 0 24px 70px -22px rgba(0,0,0,.95) !important;
+  }
+  .dark .settings-workspace .fixed.inset-0 > div[class*="bg-white"] [class*="border-slate-100"] {
+    border-color: #1e293b !important;
+  }
+  .dark .settings-workspace .fixed.inset-0 > div[class*="bg-white"] input[readonly] {
+    border-color: #334155 !important;
+    background: #111827 !important;
+  }
+  .dark .settings-workspace .fixed.inset-0 > div[class*="bg-white"] [class*="bg-teal-50"] {
+    border-color: #245e59 !important;
+    background: rgba(19,78,74,.36) !important;
+  }
+
+  @media (max-width: 767px) {
+    .dark .customers-workspace .erp-table tbody tr,
+    .dark .masar-reports .erp-table tbody tr {
+      border-color: #334155 !important;
+      background: linear-gradient(145deg,#0f172a,#111827) !important;
+      box-shadow: 0 12px 30px -26px rgba(0,0,0,.9) !important;
+    }
+    .dark .customers-workspace .erp-table td::before,
+    .dark .masar-reports .erp-table td::before { color: #94a3b8 !important; }
+
+    .dark .settings-workspace table tbody tr {
+      background: #0f172a !important;
+    }
+  }
+}
