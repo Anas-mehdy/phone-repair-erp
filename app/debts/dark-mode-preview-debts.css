@@ -1,0 +1,332 @@
+/* Preview dark-mode fixes — debts dashboard and customer debt ledger.
+   Dark-only and local to the debts workspace. Light mode remains untouched. */
+
+@media screen {
+  /* Shared typography and fields */
+  .dark .debts-workspace h1,
+  .dark .debts-workspace h2,
+  .dark .debts-workspace h3 {
+    color:#f8fafc!important;
+  }
+  .dark .debts-workspace .text-slate-400 { color:#94a3b8!important; }
+  .dark .debts-workspace .text-slate-500 { color:#a7b4c5!important; }
+  .dark .debts-workspace .text-slate-600,
+  .dark .debts-workspace .text-slate-700,
+  .dark .debts-workspace .text-slate-800,
+  .dark .debts-workspace .text-slate-900 { color:#e2e8f0!important; }
+
+  .dark .debts-workspace input,
+  .dark .debts-workspace select,
+  .dark .debts-workspace textarea {
+    border-color:#475569!important;
+    background:#020617!important;
+    color:#f8fafc!important;
+  }
+  .dark .debts-workspace input::placeholder,
+  .dark .debts-workspace textarea::placeholder {
+    color:#7f8ea3!important;
+    opacity:1;
+  }
+  .dark .debts-workspace input:focus,
+  .dark .debts-workspace select:focus,
+  .dark .debts-workspace textarea:focus {
+    border-color:rgba(45,212,191,.72)!important;
+    box-shadow:0 0 0 4px rgba(20,184,166,.12)!important;
+  }
+  .dark .debts-workspace input:disabled,
+  .dark .debts-workspace select:disabled,
+  .dark .debts-workspace textarea:disabled {
+    border-color:#263244!important;
+    background:#111827!important;
+    color:#64748b!important;
+    opacity:1!important;
+  }
+
+  /* Dashboard hero and notices */
+  .dark .debts-workspace header.rounded-3xl {
+    border-color:rgba(45,212,191,.34)!important;
+    background:radial-gradient(circle at 8% 12%,rgba(99,102,241,.14),transparent 28%),linear-gradient(135deg,#0f2f2d,#0f172a 52%,#082f49)!important;
+    box-shadow:0 24px 56px -42px rgba(0,0,0,.92)!important;
+  }
+  .dark .debts-workspace header.rounded-3xl .text-sky-700 { color:#5eead4!important; }
+  .dark .debts-workspace header.rounded-3xl p { color:#94a3b8!important; }
+  .dark .debts-workspace div.border-sky-200.bg-sky-50 {
+    border-color:rgba(34,211,238,.34)!important;
+    background:linear-gradient(145deg,rgba(8,47,73,.56),#0f172a)!important;
+    color:#bae6fd!important;
+  }
+
+  /* New debt form, including nested new-customer block */
+  .dark .debts-workspace section.rounded-3xl:has(input[type="number"]):has(input[type="date"]) {
+    border-color:rgba(34,211,238,.30)!important;
+    background:radial-gradient(circle at 100% 0,rgba(99,102,241,.12),transparent 32%),linear-gradient(145deg,#082f49,#0f172a 50%,#1e2448)!important;
+    box-shadow:0 20px 48px -38px rgba(0,0,0,.9)!important;
+  }
+  .dark .debts-workspace section.rounded-3xl:has(input[type="number"]):has(input[type="date"]) div.bg-slate-50\/70 {
+    border-color:#373f68!important;
+    background:linear-gradient(145deg,#1e2448,#0f172a)!important;
+  }
+  .dark .debts-workspace section.rounded-3xl:has(input[type="number"]):has(input[type="date"]) .border-t {
+    border-color:#334155!important;
+  }
+  .dark .debts-workspace section.rounded-3xl:has(input[type="number"]):has(input[type="date"]) button[class*="bg-sky-50"] {
+    border-color:rgba(34,211,238,.38)!important;
+    background:rgba(8,47,73,.62)!important;
+    color:#67e8f9!important;
+  }
+  .dark .debts-workspace section.rounded-3xl:has(input[type="number"]):has(input[type="date"]) button[class*="bg-white"] {
+    border-color:#475569!important;
+    background:#0b1220!important;
+    color:#cbd5e1!important;
+  }
+
+  /* Dashboard KPIs */
+  .dark .debts-workspace section.grid.md\:grid-cols-3 > div {
+    box-shadow:0 18px 44px -36px rgba(0,0,0,.92)!important;
+  }
+  .dark .debts-workspace section.grid.md\:grid-cols-3 > div:nth-child(1) {
+    border-color:rgba(251,113,133,.34)!important;
+    background:linear-gradient(145deg,rgba(76,5,25,.52),#0f172a 76%)!important;
+  }
+  .dark .debts-workspace section.grid.md\:grid-cols-3 > div:nth-child(2) {
+    border-color:rgba(129,140,248,.34)!important;
+    background:linear-gradient(145deg,rgba(49,46,129,.56),#0f172a 76%)!important;
+  }
+  .dark .debts-workspace section.grid.md\:grid-cols-3 > div:nth-child(3) {
+    border-color:rgba(52,211,153,.34)!important;
+    background:linear-gradient(145deg,rgba(6,78,59,.52),#0f172a 76%)!important;
+  }
+  .dark .debts-workspace section.grid.md\:grid-cols-3 > div:nth-child(1) .text-2xl { color:#fda4af!important; }
+  .dark .debts-workspace section.grid.md\:grid-cols-3 > div:nth-child(2) .text-2xl { color:#c7d2fe!important; }
+  .dark .debts-workspace section.grid.md\:grid-cols-3 > div:nth-child(3) .text-2xl { color:#6ee7b7!important; }
+  .dark .debts-workspace section.grid.md\:grid-cols-3 > div .text-xs { color:#a7b4c5!important; }
+  .dark .debts-workspace section.grid.md\:grid-cols-3 > div > div:first-child {
+    background:#111827!important;
+    box-shadow:inset 0 0 0 1px rgba(148,163,184,.06)!important;
+  }
+
+  /* Aging section and buckets */
+  .dark .debts-workspace section.rounded-3xl:has(.text-\[11px\]):not(:has(table)) {
+    border-color:#334155!important;
+    background:linear-gradient(145deg,#0f172a,#111827)!important;
+  }
+  .dark .debts-workspace section.rounded-3xl:has(.text-\[11px\]):not(:has(table)) > div:first-child > div:first-child {
+    background:#2b1f14!important;
+    color:#fbbf24!important;
+  }
+  .dark .debts-workspace div.grid:has(> div > .text-\[11px\]) > div:nth-child(1) {
+    border-color:rgba(34,211,238,.30)!important;
+    background:linear-gradient(145deg,rgba(8,47,73,.56),#0f172a)!important;
+  }
+  .dark .debts-workspace div.grid:has(> div > .text-\[11px\]) > div:nth-child(2) {
+    border-color:rgba(251,191,36,.30)!important;
+    background:linear-gradient(145deg,rgba(69,26,3,.50),#0f172a)!important;
+  }
+  .dark .debts-workspace div.grid:has(> div > .text-\[11px\]) > div:nth-child(3) {
+    border-color:rgba(251,146,60,.30)!important;
+    background:linear-gradient(145deg,rgba(67,20,7,.50),#0f172a)!important;
+  }
+  .dark .debts-workspace div.grid:has(> div > .text-\[11px\]) > div:nth-child(4) {
+    border-color:rgba(251,113,133,.30)!important;
+    background:linear-gradient(145deg,rgba(76,5,25,.50),#0f172a)!important;
+  }
+  .dark .debts-workspace div.grid:has(> div > .text-\[11px\]) > div .text-slate-900 { color:#f8fafc!important; }
+  .dark .debts-workspace div.grid:has(> div > .text-\[11px\]) > div .text-slate-500,
+  .dark .debts-workspace div.grid:has(> div > .text-\[11px\]) > div .text-slate-400 { color:#a7b4c5!important; }
+
+  /* Customer ledgers directory shell */
+  .dark .debts-workspace section.rounded-3xl:has(table.min-w-\[960px\]) {
+    border-color:#334155!important;
+    background:linear-gradient(145deg,#171d35,#0f172a 34%,#0f2f2d)!important;
+    box-shadow:0 18px 44px -38px rgba(0,0,0,.92)!important;
+  }
+  .dark .debts-workspace section.rounded-3xl:has(table.min-w-\[960px\]) > div:first-child {
+    border-bottom-color:#334155!important;
+    background:linear-gradient(90deg,rgba(49,46,129,.30),rgba(8,47,73,.30),rgba(19,78,74,.28))!important;
+  }
+
+  /* Directory filter — main light leak */
+  .dark .debts-workspace section.rounded-3xl:has(table.min-w-\[960px\]) > div:first-child > div.rounded-2xl {
+    border-color:rgba(34,211,238,.32)!important;
+    background:linear-gradient(145deg,rgba(8,47,73,.50),#0f172a 56%,#111827)!important;
+    box-shadow:inset 0 0 0 1px rgba(34,211,238,.04)!important;
+  }
+  .dark .debts-workspace section.rounded-3xl:has(table.min-w-\[960px\]) > div:first-child > div.rounded-2xl svg {
+    color:#2dd4bf!important;
+  }
+  .dark .debts-workspace section.rounded-3xl:has(table.min-w-\[960px\]) > div:first-child > div.rounded-2xl button:hover {
+    background:#1e293b!important;
+    color:#e2e8f0!important;
+  }
+
+  /* Dashboard ledger table */
+  .dark .debts-workspace table.min-w-\[960px\] thead {
+    background:linear-gradient(90deg,#1e2448,#082f49,#0f2f2d)!important;
+    color:#cbd5e1!important;
+  }
+  .dark .debts-workspace table.min-w-\[960px\] th { color:#cbd5e1!important; }
+  .dark .debts-workspace table.min-w-\[960px\] tbody { background:#0f172a!important; }
+  .dark .debts-workspace table.min-w-\[960px\] tbody tr,
+  .dark .debts-workspace table.min-w-\[960px\] tbody tr:has(.text-rose-600),
+  .dark .debts-workspace table.min-w-\[960px\] tbody tr:has(.text-emerald-700) {
+    border-color:#334155!important;
+    background:#0f172a!important;
+  }
+  .dark .debts-workspace table.min-w-\[960px\] tbody tr:hover {
+    background:rgba(30,41,59,.62)!important;
+  }
+  .dark .debts-workspace table.min-w-\[960px\] td {
+    border-bottom-color:#334155!important;
+    color:#b8c6d8!important;
+  }
+  .dark .debts-workspace table.min-w-\[960px\] td:first-child { color:#f1f5f9!important; }
+  .dark .debts-workspace table.min-w-\[960px\] td:nth-child(4) { color:#fda4af!important; }
+  .dark .debts-workspace table.min-w-\[960px\] span[class*="bg-amber-50"] {
+    border:1px solid rgba(251,191,36,.38)!important;
+    background:rgba(120,53,15,.52)!important;
+    color:#fde68a!important;
+  }
+  .dark .debts-workspace table.min-w-\[960px\] span[class*="bg-emerald-50"] {
+    border:1px solid rgba(52,211,153,.36)!important;
+    background:rgba(6,78,59,.52)!important;
+    color:#a7f3d0!important;
+  }
+  .dark .debts-workspace table.min-w-\[960px\] td:last-child a {
+    border-color:rgba(34,211,238,.38)!important;
+    background:rgba(8,47,73,.56)!important;
+    color:#67e8f9!important;
+  }
+  .dark .debts-workspace table.min-w-\[960px\] td:last-child a:hover {
+    background:rgba(14,116,144,.32)!important;
+    color:#cffafe!important;
+  }
+
+  /* Customer ledger header */
+  .dark .debts-workspace > div > div.flex.flex-col.gap-4.sm\:flex-row {
+    border-color:#373f68!important;
+    background:radial-gradient(circle at 100% 0,rgba(6,182,212,.12),transparent 30%),linear-gradient(145deg,#1e2448,#0f172a 52%,#0f2f2d)!important;
+    box-shadow:0 22px 52px -42px rgba(0,0,0,.92)!important;
+  }
+  .dark .debts-workspace > div > div.flex.flex-col.gap-4.sm\:flex-row a[href$="/print"] {
+    border-color:#475569!important;
+    background:#0b1220!important;
+    color:#c7d2fe!important;
+  }
+  .dark .debts-workspace > div > div.flex.flex-col.gap-4.sm\:flex-row button[class*="border-rose-200"] {
+    border-color:rgba(251,113,133,.38)!important;
+    background:rgba(76,5,25,.38)!important;
+    color:#fda4af!important;
+  }
+  .dark .debts-workspace > div > div.flex.flex-col.gap-4.sm\:flex-row > div:last-child {
+    border-color:rgba(251,113,133,.34)!important;
+    background:linear-gradient(145deg,rgba(76,5,25,.52),#0f172a)!important;
+  }
+  .dark .debts-workspace > div > div.flex.flex-col.gap-4.sm\:flex-row > div:last-child .text-rose-600,
+  .dark .debts-workspace > div > div.flex.flex-col.gap-4.sm\:flex-row > div:last-child .text-rose-700 {
+    color:#fb7185!important;
+  }
+
+  /* Collection form */
+  .dark .debts-workspace section:has(button.bg-emerald-600):has(input[type="number"]) {
+    border-color:rgba(52,211,153,.32)!important;
+    background:radial-gradient(circle at 100% 0,rgba(6,182,212,.10),transparent 30%),linear-gradient(145deg,rgba(6,78,59,.42),#0f172a 50%,#0f2f2d)!important;
+    box-shadow:0 20px 48px -38px rgba(0,0,0,.9)!important;
+  }
+  .dark .debts-workspace section:has(button.bg-emerald-600):has(input[type="number"]) > div[class*="bg-teal-50"] {
+    border-color:rgba(45,212,191,.34)!important;
+    background:linear-gradient(145deg,rgba(19,78,74,.42),#0f172a)!important;
+  }
+  .dark .debts-workspace section:has(button.bg-emerald-600):has(input[type="number"]) > div[class*="bg-teal-50"] p {
+    color:#99f6e4!important;
+  }
+  .dark .debts-workspace section:has(button.bg-emerald-600):has(input[type="number"]) > div[class*="bg-emerald-50"] {
+    border-color:rgba(52,211,153,.30)!important;
+    background:rgba(6,78,59,.30)!important;
+  }
+  .dark .debts-workspace section:has(button.bg-emerald-600):has(input[type="number"]) label { color:#e2e8f0!important; }
+
+  /* Ledger movements */
+  .dark .debts-workspace section.overflow-hidden:has(table) {
+    border-color:#373f68!important;
+    background:linear-gradient(145deg,#1e2448,#0f172a 26%)!important;
+    box-shadow:0 18px 44px -38px rgba(0,0,0,.9)!important;
+  }
+  .dark .debts-workspace section.overflow-hidden:has(table) > div:first-child {
+    border-bottom-color:#334155!important;
+    background:linear-gradient(90deg,#1e2448,#082f49,#0f2f2d)!important;
+  }
+  .dark .debts-workspace section.overflow-hidden:has(table) table thead {
+    background:linear-gradient(90deg,#1e293b,#082f49,#0f2f2d)!important;
+  }
+  .dark .debts-workspace section.overflow-hidden:has(table) table th { color:#cbd5e1!important; }
+  .dark .debts-workspace section.overflow-hidden:has(table) table tbody tr {
+    border-color:#334155!important;
+    background:#0f172a!important;
+  }
+  .dark .debts-workspace section.overflow-hidden:has(table) table tbody tr:hover {
+    background:rgba(30,41,59,.62)!important;
+  }
+  .dark .debts-workspace section.overflow-hidden:has(table) table td { color:#b8c6d8!important; }
+  .dark .debts-workspace section.overflow-hidden:has(table) table td.text-rose-600 { color:#fb7185!important; }
+  .dark .debts-workspace section.overflow-hidden:has(table) table td.text-emerald-600 { color:#6ee7b7!important; }
+  .dark .debts-workspace section.overflow-hidden:has(table) table td.text-indigo-700 { color:#c7d2fe!important; }
+  .dark .debts-workspace section.overflow-hidden:has(table) a[class*="bg-sky-50"] {
+    border-color:rgba(34,211,238,.36)!important;
+    background:rgba(8,47,73,.52)!important;
+    color:#67e8f9!important;
+  }
+  .dark .debts-workspace section.overflow-hidden:has(table) button.text-sky-700 { color:#67e8f9!important; }
+
+  /* Ledger edit row */
+  .dark .debts-workspace table tr.bg-sky-50\/40,
+  .dark .debts-workspace table.min-w-\[980px\] tr.bg-sky-50\/40,
+  .dark .debts-workspace table.min-w-\[1040px\] tr.bg-sky-50\/40 {
+    background:#111827!important;
+  }
+  .dark .debts-workspace table tr.bg-sky-50\/40 > td,
+  .dark .debts-workspace table.min-w-\[980px\] tr.bg-sky-50\/40 > td,
+  .dark .debts-workspace table.min-w-\[1040px\] tr.bg-sky-50\/40 > td {
+    border-color:#373f68!important;
+    background:linear-gradient(145deg,#1e2448,#0f172a 50%,#082f49)!important;
+  }
+  .dark .debts-workspace table tr.opacity-40 {
+    background:#111827!important;
+    filter:saturate(.55) brightness(.88)!important;
+  }
+
+  /* Print action override from debts-finish.css */
+  .dark .debts-workspace a[href$="/print"] {
+    border-color:#475569!important;
+    background:#0b1220!important;
+    color:#c7d2fe!important;
+  }
+
+  /* Empty states */
+  .dark .debts-workspace table tbody tr:has(td[colspan]) {
+    border-color:#334155!important;
+    background:#0b1220!important;
+  }
+  .dark .debts-workspace table tbody td[colspan] { color:#94a3b8!important; }
+
+  @media (max-width:767px) {
+    .dark .debts-workspace table.min-w-\[960px\] tbody tr,
+    .dark .debts-workspace table.min-w-\[980px\] tbody tr:not(.bg-sky-50\/40),
+    .dark .debts-workspace table.min-w-\[1040px\] tbody tr:not(.bg-sky-50\/40) {
+      border-color:#334155!important;
+      background:linear-gradient(145deg,#0f172a,#111827 62%,#1e2448)!important;
+      box-shadow:0 12px 30px -26px rgba(0,0,0,.9)!important;
+    }
+    .dark .debts-workspace table tbody td:nth-child(1) {
+      background:rgba(8,47,73,.42)!important;
+    }
+    .dark .debts-workspace table tbody td::before { color:#94a3b8!important; }
+    .dark .debts-workspace table tr.bg-sky-50\/40 > td {
+      border-color:#373f68!important;
+      background:linear-gradient(145deg,#1e2448,#0f172a 52%,#082f49)!important;
+    }
+    .dark .debts-workspace table tbody tr:has(td[colspan]) {
+      border-style:dashed!important;
+      background:#0b1220!important;
+    }
+  }
+}
