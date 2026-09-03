@@ -23,6 +23,7 @@ import "./dark-mode-phase2-final-audit.css";
 import "./dark-mode-preview-fixes.css";
 import "./dark-mode-preview-repair-orders.css";
 import "./dark-mode-preview-sales.css";
+import "./dark-mode-preview-software-services.css";
 
 const cairo = Cairo({ subsets: ["arabic"], weight: ["300","400","500","600","700","800","900"], variable: "--font-cairo", display: "swap" });
 const outfit = Outfit({ subsets: ["latin"], weight: ["300","400","500","600","700","800","900"], variable: "--font-outfit", display: "swap" });
