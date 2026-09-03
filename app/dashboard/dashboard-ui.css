@@ -100,6 +100,18 @@
   background: rgba(240,253,250,.72) !important;
 }
 
+/* Dashboard logo: keep the current light asset untouched and swap only in dark mode. */
+.dark .masar-dashboard div:has(> img[alt="مسار"]) {
+  background-image: url("/masar-logo-dark.png");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
+.dark .masar-dashboard div:has(> img[alt="مسار"]) > img[alt="مسار"] {
+  opacity: 0 !important;
+}
+
 @media (max-width: 639px) {
   .masar-dashboard .text-xs { font-size: 15px !important; }
   .masar-dashboard .text-sm { font-size: 17px !important; }
