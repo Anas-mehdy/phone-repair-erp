@@ -11,7 +11,7 @@ export default async function TransfersLayout({ children }: { children: ReactNod
   const drawer = await cashDrawerService.getSnapshot(context.shopId);
 
   return (
-    <div className="space-y-6">
+    <div className="transfers-workspace space-y-6">
       {children}
       <CashDrawerPanel
         drawer={drawer}

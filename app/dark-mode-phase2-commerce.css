@@ -1,0 +1,380 @@
+/* Dark mode phase 2 — sales, suppliers and transfers.
+   Screen-only so printable receipts/details keep the existing light print design.
+   All visual rules are scoped below .dark workspace classes; light mode remains unchanged. */
+
+@media screen {
+  /* =========================
+     Shared commerce surfaces
+     ========================= */
+  .dark .sales-workspace,
+  .dark .suppliers-workspace,
+  .dark .transfers-workspace {
+    color: #e2e8f0;
+  }
+
+  .dark .sales-workspace input,
+  .dark .sales-workspace select,
+  .dark .sales-workspace textarea,
+  .dark .suppliers-workspace input,
+  .dark .suppliers-workspace select,
+  .dark .suppliers-workspace textarea,
+  .dark .transfers-workspace input,
+  .dark .transfers-workspace select,
+  .dark .transfers-workspace textarea {
+    border-color: #334155 !important;
+    background-color: rgba(2, 6, 23, .68) !important;
+    color: #f8fafc !important;
+  }
+
+  .dark .sales-workspace input::placeholder,
+  .dark .sales-workspace textarea::placeholder,
+  .dark .suppliers-workspace input::placeholder,
+  .dark .suppliers-workspace textarea::placeholder,
+  .dark .transfers-workspace input::placeholder,
+  .dark .transfers-workspace textarea::placeholder {
+    color: #64748b !important;
+  }
+
+  .dark .sales-workspace input:focus,
+  .dark .sales-workspace select:focus,
+  .dark .sales-workspace textarea:focus,
+  .dark .suppliers-workspace input:focus,
+  .dark .suppliers-workspace select:focus,
+  .dark .suppliers-workspace textarea:focus,
+  .dark .transfers-workspace input:focus,
+  .dark .transfers-workspace select:focus,
+  .dark .transfers-workspace textarea:focus {
+    border-color: #2dd4bf !important;
+    box-shadow: 0 0 0 4px rgba(20, 184, 166, .14) !important;
+  }
+
+  /* =========================
+     Sales
+     ========================= */
+  .dark .sales-workspace .erp-section,
+  .dark .sales-workspace .erp-filter-card {
+    border-color: #334155 !important;
+    background: linear-gradient(145deg, rgba(15,23,42,.98), rgba(17,24,39,.94)) !important;
+    box-shadow: 0 18px 48px -38px rgba(0,0,0,.9) !important;
+  }
+
+  .dark .sales-workspace > div > div[class*="border-amber-200"][class*="bg-amber-50"] {
+    border-color: rgba(251,191,36,.3) !important;
+    background: linear-gradient(135deg, rgba(69,26,3,.52), #0f172a 58%, rgba(67,20,7,.28)) !important;
+    color: #fde68a !important;
+  }
+
+  .dark .sales-workspace > div > div[class*="border-amber-200"] [class*="text-amber-8"],
+  .dark .sales-workspace > div > div[class*="border-amber-200"] [class*="text-amber-9"] {
+    color: #fde68a !important;
+  }
+
+  .dark .sales-workspace div[class*="overflow-hidden"][class*="rounded-2xl"][class*="bg-white"] {
+    border-color: #334155 !important;
+    background: #0f172a !important;
+    box-shadow: 0 16px 42px -34px rgba(0,0,0,.9) !important;
+  }
+
+  .dark .sales-workspace table thead {
+    background: linear-gradient(90deg, #1e293b, rgba(19,78,74,.28)) !important;
+  }
+
+  .dark .sales-workspace table th {
+    color: #cbd5e1 !important;
+  }
+
+  .dark .sales-workspace table tbody tr:hover {
+    background: rgba(30,41,59,.58) !important;
+  }
+
+  .dark .sales-workspace form[action] .erp-section > div[class*="border-b"],
+  .dark .sales-workspace .erp-section > div[class*="border-b"] {
+    border-color: #1e293b !important;
+  }
+
+  .dark .sales-workspace form[action] .erp-section div[class*="rounded-2xl"][class*="bg-slate-50"] {
+    border-color: #334155 !important;
+    background: linear-gradient(145deg, #111827, #0f172a) !important;
+  }
+
+  .dark .sales-workspace form[action] .erp-section div[class*="rounded-2xl"][class*="bg-slate-50"]:hover {
+    border-color: rgba(45,212,191,.34) !important;
+    background: linear-gradient(145deg, #111827, rgba(19,78,74,.18)) !important;
+  }
+
+  .dark .sales-workspace [class*="border-emerald-200"][class*="bg-emerald-50"] {
+    border-color: rgba(52,211,153,.3) !important;
+    background: rgba(6,78,59,.36) !important;
+  }
+
+  .dark .sales-workspace [class*="border-slate-200"][class*="bg-slate-50"] {
+    border-color: #334155 !important;
+    background: #111827 !important;
+  }
+
+  .dark .sales-workspace .absolute[class*="z-50"][class*="bg-white"],
+  .dark .sales-workspace .absolute[class*="z-40"][class*="bg-white"] {
+    border-color: #334155 !important;
+    background: #0f172a !important;
+    box-shadow: 0 20px 45px -20px rgba(0,0,0,.92) !important;
+  }
+
+  .dark .sales-workspace .absolute[class*="z-50"] button:hover,
+  .dark .sales-workspace .absolute[class*="z-40"] button:hover {
+    background: rgba(19,78,74,.28) !important;
+  }
+
+  .dark .sales-workspace button[class*="border-slate-200"]:not([class*="bg-primary"]):hover {
+    border-color: rgba(45,212,191,.34) !important;
+    background: rgba(19,78,74,.22) !important;
+  }
+
+  /* =========================
+     Suppliers
+     ========================= */
+  .dark .suppliers-workspace .erp-section,
+  .dark .suppliers-workspace .erp-filter-card {
+    border-color: #334155 !important;
+    background: linear-gradient(145deg, rgba(15,23,42,.98), rgba(17,24,39,.94)) !important;
+    box-shadow: 0 18px 48px -38px rgba(0,0,0,.9) !important;
+  }
+
+  .dark .suppliers-workspace > div > div[class*="border-teal-200"][class*="bg-teal-50"] {
+    border-color: rgba(45,212,191,.32) !important;
+    background: linear-gradient(135deg, rgba(19,78,74,.42), #0f172a 58%, rgba(8,47,73,.28)) !important;
+    color: #ccfbf1 !important;
+  }
+
+  .dark .suppliers-workspace div[class*="overflow-hidden"][class*="rounded-2xl"][class*="bg-white"] {
+    border-color: #334155 !important;
+    background: #0f172a !important;
+    box-shadow: 0 16px 42px -34px rgba(0,0,0,.9) !important;
+  }
+
+  .dark .suppliers-workspace table thead {
+    background: linear-gradient(90deg, #1e293b, rgba(19,78,74,.26)) !important;
+  }
+
+  .dark .suppliers-workspace table th {
+    color: #cbd5e1 !important;
+  }
+
+  .dark .suppliers-workspace table tbody tr:hover {
+    background: rgba(30,41,59,.56) !important;
+  }
+
+  .dark .suppliers-workspace .erp-section [class*="bg-teal-50"],
+  .dark .suppliers-workspace [class*="bg-teal-50"][class*="ring-teal"] {
+    background: rgba(19,78,74,.42) !important;
+    color: #5eead4 !important;
+    --tw-ring-color: rgba(45,212,191,.28) !important;
+  }
+
+  .dark .suppliers-workspace .erp-section [class*="bg-indigo-50"],
+  .dark .suppliers-workspace [class*="bg-indigo-50"][class*="ring-indigo"] {
+    background: #1e2448 !important;
+    color: #a5b4fc !important;
+    --tw-ring-color: rgba(129,140,248,.28) !important;
+  }
+
+  .dark .suppliers-workspace .erp-section [class*="bg-amber-50"],
+  .dark .suppliers-workspace [class*="bg-amber-50"][class*="ring-amber"] {
+    background: rgba(69,26,3,.5) !important;
+    color: #fbbf24 !important;
+    --tw-ring-color: rgba(251,191,36,.26) !important;
+  }
+
+  .dark .suppliers-workspace .erp-section [class*="bg-slate-50"],
+  .dark .suppliers-workspace [class*="bg-slate-50"][class*="ring-slate"] {
+    background: #111827 !important;
+    color: #cbd5e1 !important;
+    --tw-ring-color: #334155 !important;
+  }
+
+  .dark .suppliers-workspace [class*="border-slate-200"][class*="bg-slate-50"] {
+    border-color: #334155 !important;
+    background: #111827 !important;
+  }
+
+  .dark .suppliers-workspace button[class*="text-rose-600"][class*="border-rose-200"] {
+    border-color: rgba(251,113,133,.3) !important;
+    background: rgba(76,5,25,.18) !important;
+    color: #fb7185 !important;
+  }
+
+  .dark .suppliers-workspace button[class*="text-rose-600"][class*="border-rose-200"]:hover {
+    background: rgba(76,5,25,.4) !important;
+  }
+
+  /* =========================
+     Transfers
+     ========================= */
+  .dark .transfers-workspace > section:first-child {
+    border-color: rgba(45,212,191,.28) !important;
+    background: radial-gradient(circle at 12% 18%, rgba(34,211,238,.12), transparent 34%), linear-gradient(135deg, #0f2f2d, #0f172a 52%, #082f49) !important;
+    box-shadow: 0 22px 70px -46px rgba(0,0,0,.94) !important;
+  }
+
+  .dark .transfers-workspace > section:first-child [class*="bg-white/"] {
+    border-color: #334155 !important;
+    background: rgba(15,23,42,.74) !important;
+  }
+
+  .dark .transfers-workspace section[class*="from-white"],
+  .dark .transfers-workspace section[class*="via-white"],
+  .dark .transfers-workspace article[class*="to-white"] {
+    border-color: #334155 !important;
+    background: linear-gradient(145deg, #0f172a, #111827 58%, rgba(19,78,74,.18)) !important;
+    box-shadow: 0 18px 55px -34px rgba(0,0,0,.92) !important;
+  }
+
+  .dark .transfers-workspace section[class*="from-teal-50"],
+  .dark .transfers-workspace div[class*="from-teal-50"][class*="via-white"] {
+    border-color: rgba(45,212,191,.3) !important;
+    background: linear-gradient(135deg, rgba(19,78,74,.45), #0f172a 55%, rgba(8,47,73,.34)) !important;
+  }
+
+  .dark .transfers-workspace div[class*="bg-white"],
+  .dark .transfers-workspace button[class*="bg-white"],
+  .dark .transfers-workspace details[class*="bg-white"] {
+    background-color: #0f172a !important;
+  }
+
+  .dark .transfers-workspace [class*="bg-white/"] {
+    background-color: rgba(15,23,42,.78) !important;
+  }
+
+  .dark .transfers-workspace [class*="border-white/"] {
+    border-color: #334155 !important;
+  }
+
+  .dark .transfers-workspace [class*="bg-slate-50"] {
+    background-color: #111827 !important;
+  }
+
+  .dark .transfers-workspace [class*="border-slate-100"],
+  .dark .transfers-workspace [class*="border-slate-200"],
+  .dark .transfers-workspace [class*="divide-slate-100"] {
+    border-color: #334155 !important;
+  }
+
+  .dark .transfers-workspace table thead,
+  .dark .transfers-workspace thead[class*="bg-slate-50"] {
+    background: linear-gradient(90deg, #1e293b, rgba(19,78,74,.3)) !important;
+    color: #cbd5e1 !important;
+  }
+
+  .dark .transfers-workspace tbody tr:hover {
+    background: rgba(19,78,74,.24) !important;
+  }
+
+  .dark .transfers-workspace [class*="border-teal-100"][class*="bg-teal-50"],
+  .dark .transfers-workspace [class*="border-teal-200"][class*="bg-teal-50"] {
+    border-color: rgba(45,212,191,.3) !important;
+    background: rgba(19,78,74,.38) !important;
+    color: #99f6e4 !important;
+  }
+
+  .dark .transfers-workspace [class*="border-cyan-100"][class*="bg-cyan-50"],
+  .dark .transfers-workspace [class*="border-cyan-300"][class*="bg-cyan-50"] {
+    border-color: rgba(34,211,238,.3) !important;
+    background: rgba(8,47,73,.55) !important;
+    color: #a5f3fc !important;
+  }
+
+  .dark .transfers-workspace [class*="border-indigo-100"][class*="bg-indigo-50"],
+  .dark .transfers-workspace [class*="border-indigo-300"][class*="bg-indigo-50"] {
+    border-color: rgba(129,140,248,.3) !important;
+    background: #1e2448 !important;
+    color: #c7d2fe !important;
+  }
+
+  .dark .transfers-workspace [class*="border-emerald-100"][class*="bg-emerald-50"],
+  .dark .transfers-workspace [class*="bg-emerald-50"] {
+    border-color: rgba(52,211,153,.28) !important;
+    background: rgba(6,78,59,.38) !important;
+    color: #a7f3d0 !important;
+  }
+
+  .dark .transfers-workspace [class*="border-amber-100"][class*="bg-amber-50"],
+  .dark .transfers-workspace [class*="border-amber-200"][class*="bg-amber-50"],
+  .dark .transfers-workspace [class*="bg-amber-50"] {
+    border-color: rgba(251,191,36,.3) !important;
+    background: rgba(69,26,3,.48) !important;
+    color: #fde68a !important;
+  }
+
+  .dark .transfers-workspace [class*="bg-rose-50"] {
+    background: rgba(76,5,25,.42) !important;
+    color: #fecdd3 !important;
+  }
+
+  .dark .transfers-workspace .fixed [class*="max-w-"][class*="bg-white"] {
+    border-color: #334155 !important;
+    background: #0f172a !important;
+    box-shadow: 0 25px 70px -25px rgba(0,0,0,.95) !important;
+  }
+
+  .dark .transfers-workspace .fixed [class*="from-teal-50"][class*="via-white"] {
+    border-color: #334155 !important;
+    background: linear-gradient(90deg, rgba(19,78,74,.38), #0f172a, rgba(8,47,73,.34)) !important;
+  }
+
+  .dark .transfers-workspace .absolute[class*="z-30"][class*="bg-white"],
+  .dark .transfers-workspace .absolute[class*="z-40"][class*="bg-white"],
+  .dark .transfers-workspace .absolute[class*="z-50"][class*="bg-white"] {
+    border-color: #334155 !important;
+    background: #0f172a !important;
+    box-shadow: 0 20px 45px -20px rgba(0,0,0,.94) !important;
+  }
+
+  .dark .transfers-workspace details {
+    border-color: #334155 !important;
+  }
+
+  .dark .transfers-workspace details > div {
+    border-color: #1e293b !important;
+  }
+
+  .dark .transfers-workspace article[class*="from-teal-50"] {
+    border-color: rgba(45,212,191,.28) !important;
+    background: linear-gradient(145deg, rgba(19,78,74,.4), #0f172a) !important;
+  }
+
+  .dark .transfers-workspace article[class*="from-cyan-50"] {
+    border-color: rgba(34,211,238,.28) !important;
+    background: linear-gradient(145deg, rgba(8,47,73,.48), #0f172a) !important;
+  }
+
+  .dark .transfers-workspace article[class*="from-indigo-50"] {
+    border-color: rgba(129,140,248,.28) !important;
+    background: linear-gradient(145deg, #1e2448, #0f172a) !important;
+  }
+
+  .dark .transfers-workspace article [class*="bg-white/"] {
+    border-color: #334155 !important;
+    background: rgba(15,23,42,.72) !important;
+  }
+
+  .dark .transfers-workspace [class*="bg-slate-200"] {
+    background-color: #334155 !important;
+  }
+
+  @media (max-width: 767px) {
+    .dark .sales-workspace table.erp-table tbody tr,
+    .dark .suppliers-workspace table.erp-table tbody tr {
+      border-color: #334155 !important;
+      background: #0f172a !important;
+    }
+
+    .dark .sales-workspace table.erp-table tbody td:first-child,
+    .dark .suppliers-workspace table.erp-table tbody td:first-child {
+      background: rgba(19,78,74,.24) !important;
+    }
+
+    .dark .transfers-workspace article,
+    .dark .transfers-workspace section {
+      box-shadow: none;
+    }
+  }
+}
