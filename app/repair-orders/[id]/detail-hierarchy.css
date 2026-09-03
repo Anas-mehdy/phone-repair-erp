@@ -112,3 +112,442 @@
     gap: 14px !important;
   }
 }
+
+/* ============================================================
+   Dark mode — repair order details workspace
+   Scoped to .dark so light mode remains unchanged.
+   ============================================================ */
+@media screen {
+  .dark .repair-order-detail {
+    --detail-brand-soft: #042f2e;
+    --detail-cyan-soft: #083344;
+    --detail-indigo-soft: #1e1b4b;
+    --detail-amber-soft: #451a03;
+    --detail-danger-soft: #4c0519;
+  }
+
+  /* Hero */
+  .dark .repair-order-detail > div > div.rounded-3xl:first-of-type {
+    border-color: rgba(45, 212, 191, .34) !important;
+    background:
+      radial-gradient(circle at 0 0, rgba(34,211,238,.12), transparent 34%),
+      linear-gradient(135deg, #0f172a, #111827 50%, rgba(8,51,68,.58)) !important;
+    box-shadow: 0 22px 68px -44px rgba(0,0,0,.94) !important;
+  }
+
+  .dark .repair-order-detail > div > div.rounded-3xl:first-of-type .text-slate-500,
+  .dark .repair-order-detail > div > div.rounded-3xl:first-of-type .text-slate-600 {
+    color: #94a3b8 !important;
+  }
+
+  .dark .repair-order-detail > div > div.rounded-3xl:first-of-type .text-slate-900 {
+    color: #f8fafc !important;
+  }
+
+  .dark .repair-order-detail > div > div.rounded-3xl:first-of-type [class*="bg-teal-50"] {
+    border-color: rgba(45,212,191,.30) !important;
+    background: rgba(19,78,74,.52) !important;
+    color: #99f6e4 !important;
+  }
+
+  .dark .repair-order-detail > div > div.rounded-3xl:first-of-type a[class*="border-teal-300"] {
+    border-color: rgba(45,212,191,.42) !important;
+    background: rgba(19,78,74,.24) !important;
+    color: #99f6e4 !important;
+  }
+
+  .dark .repair-order-detail > div > div.rounded-3xl:first-of-type a[class*="border-slate-300"] {
+    border-color: #475569 !important;
+    background: #0b1220 !important;
+    color: #e2e8f0 !important;
+  }
+
+  .dark .repair-order-detail > div > div.rounded-3xl:first-of-type a:hover {
+    background: #172033 !important;
+  }
+
+  /* Base detail surfaces */
+  .dark .repair-order-detail .erp-section {
+    border-color: #334155 !important;
+    background: linear-gradient(145deg, #0f172a, #111827) !important;
+    box-shadow: 0 18px 52px -40px rgba(0,0,0,.94) !important;
+  }
+
+  .dark .repair-order-detail .erp-section:hover {
+    border-color: rgba(45,212,191,.34) !important;
+  }
+
+  .dark .repair-order-detail .erp-section h3,
+  .dark .repair-order-detail .erp-section h4 {
+    color: #f1f5f9 !important;
+  }
+
+  .dark .repair-order-detail .erp-section > div:first-child[class*="border-b"],
+  .dark .repair-order-detail .erp-section [class*="border-slate-100"] {
+    border-color: #334155 !important;
+  }
+
+  /* Summary information cards */
+  .dark .repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:first-child > .erp-section:first-child > .grid > div:nth-child(1),
+  .dark .repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:first-child > .erp-section:first-child > .grid > div:nth-child(2) {
+    border-color: rgba(34,211,238,.28) !important;
+    background: linear-gradient(145deg, rgba(8,51,68,.40), #111827) !important;
+  }
+
+  .dark .repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:first-child > .erp-section:first-child > .grid > div:nth-child(3),
+  .dark .repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:first-child > .erp-section:first-child > .grid > div:nth-child(4) {
+    border-color: rgba(129,140,248,.28) !important;
+    background: linear-gradient(145deg, rgba(49,46,129,.34), #111827) !important;
+  }
+
+  .dark .repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:first-child > .erp-section:first-child > .grid > div:nth-child(5),
+  .dark .repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:first-child > .erp-section:first-child > .grid > div:nth-child(6) {
+    border-color: rgba(251,191,36,.28) !important;
+    background: linear-gradient(145deg, rgba(120,53,15,.32), #111827) !important;
+  }
+
+  .dark .repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:first-child > .erp-section:first-child > .grid > div:nth-child(5) > div,
+  .dark .repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:first-child > .erp-section:first-child > .grid > div:nth-child(6) > div {
+    color: #fde68a !important;
+  }
+
+  .dark .repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:first-child > .erp-section:first-child > .grid > div:nth-child(n+7) {
+    border-color: #334155 !important;
+    background: #111827 !important;
+  }
+
+  .dark .repair-order-detail .erp-section .grid > div .text-slate-500,
+  .dark .repair-order-detail .erp-section .grid > div p.text-slate-500 {
+    color: #94a3b8 !important;
+  }
+
+  .dark .repair-order-detail .erp-section .grid > div .text-slate-900,
+  .dark .repair-order-detail .erp-section .grid > div .text-slate-800 {
+    color: #f1f5f9 !important;
+  }
+
+  .dark .repair-order-detail .erp-section .grid > div .text-teal-700 {
+    color: #5eead4 !important;
+  }
+
+  /* Narrative blocks */
+  .dark .repair-order-detail .erp-section:first-child > .mt-6.grid > div {
+    border-color: #334155 !important;
+    background: #111827 !important;
+  }
+
+  .dark .repair-order-detail .erp-section:first-child > .mt-6.grid > div p {
+    color: #cbd5e1 !important;
+  }
+
+  /* Supplier / parts summary */
+  .dark .repair-order-detail [class*="border-teal-200"][class*="bg-teal-50"] {
+    border-color: rgba(45,212,191,.30) !important;
+    background: linear-gradient(145deg, rgba(19,78,74,.28), #0f172a) !important;
+  }
+
+  .dark .repair-order-detail [class*="border-teal-200"][class*="bg-teal-50"] .text-teal-900,
+  .dark .repair-order-detail [class*="border-teal-200"][class*="bg-teal-50"] .text-teal-950 {
+    color: #ccfbf1 !important;
+  }
+
+  .dark .repair-order-detail [class*="border-teal-200"][class*="bg-teal-50"] .text-teal-700,
+  .dark .repair-order-detail [class*="border-teal-200"][class*="bg-teal-50"] .text-teal-800 {
+    color: #5eead4 !important;
+  }
+
+  .dark .repair-order-detail [class*="border-teal-200"][class*="bg-teal-50"] table thead tr {
+    border-color: rgba(45,212,191,.24) !important;
+    color: #94a3b8 !important;
+  }
+
+  .dark .repair-order-detail [class*="border-teal-200"][class*="bg-teal-50"] table tbody {
+    border-color: rgba(51,65,85,.72) !important;
+  }
+
+  .dark .repair-order-detail [class*="border-teal-200"][class*="bg-teal-50"] table tbody tr {
+    color: #cbd5e1 !important;
+  }
+
+  .dark .repair-order-detail [class*="border-teal-200"][class*="bg-teal-50"] table .bg-teal-100 {
+    background: #134e4a !important;
+    color: #99f6e4 !important;
+  }
+
+  .dark .repair-order-detail [class*="border-teal-200"][class*="bg-teal-50"] [class*="bg-white/80"] {
+    border-color: #334155 !important;
+    background: #111827 !important;
+    color: #cbd5e1 !important;
+  }
+
+  /* Status editor + edit form */
+  .dark .repair-order-detail .md\:grid-cols-\[minmax\(0\,280px\)_minmax\(0\,1fr\)\] > :first-child {
+    border-color: rgba(45,212,191,.32) !important;
+    background: linear-gradient(160deg, rgba(19,78,74,.26), #0f172a) !important;
+  }
+
+  .dark .repair-order-detail .md\:grid-cols-\[minmax\(0\,280px\)_minmax\(0\,1fr\)\] > form {
+    border-color: #334155 !important;
+    background: linear-gradient(145deg, #0f172a, #111827) !important;
+  }
+
+  .dark .repair-order-detail input,
+  .dark .repair-order-detail select,
+  .dark .repair-order-detail textarea {
+    border-color: #475569 !important;
+    background: #020617 !important;
+    color: #f8fafc !important;
+    box-shadow: none !important;
+  }
+
+  .dark .repair-order-detail input::placeholder,
+  .dark .repair-order-detail textarea::placeholder {
+    color: #718096 !important;
+    opacity: 1;
+  }
+
+  .dark .repair-order-detail input:focus,
+  .dark .repair-order-detail select:focus,
+  .dark .repair-order-detail textarea:focus {
+    border-color: rgba(45,212,191,.72) !important;
+    box-shadow: 0 0 0 4px rgba(20,184,166,.12) !important;
+  }
+
+  .dark .repair-order-detail input[type="date"] {
+    color-scheme: dark;
+  }
+
+  .dark .repair-order-detail label,
+  .dark .repair-order-detail [class*="text-slate-700"] {
+    color: #e2e8f0 !important;
+  }
+
+  .dark .repair-order-detail [class*="text-slate-600"] {
+    color: #cbd5e1 !important;
+  }
+
+  .dark .repair-order-detail [class*="text-slate-500"] {
+    color: #94a3b8 !important;
+  }
+
+  .dark .repair-order-detail [class*="text-slate-400"] {
+    color: #7f8ea3 !important;
+  }
+
+  .dark .repair-order-detail [class*="bg-emerald-50"][class*="border-emerald-200"] {
+    border-color: #047857 !important;
+    background: rgba(6,78,59,.48) !important;
+    color: #a7f3d0 !important;
+  }
+
+  /* SupplierFields inside the edit form */
+  .dark .repair-order-detail form .erp-section[class*="border-teal-100"] {
+    border-color: rgba(251,191,36,.28) !important;
+    background:
+      radial-gradient(circle at 100% 0, rgba(45,212,191,.08), transparent 34%),
+      linear-gradient(145deg, rgba(69,26,3,.22), #0f172a 42%, #111827) !important;
+  }
+
+  .dark .repair-order-detail form .erp-section[class*="border-teal-100"] > div:first-of-type {
+    border-bottom-color: rgba(251,191,36,.22) !important;
+  }
+
+  .dark .repair-order-detail form .erp-section[class*="border-teal-100"] > div:first-of-type > div:first-child > div:first-child {
+    background: #78350f !important;
+    color: #fde68a !important;
+  }
+
+  .dark .repair-order-detail form .erp-section[class*="border-teal-100"] [class*="bg-white/50"],
+  .dark .repair-order-detail form .erp-section[class*="border-teal-100"] > .space-y-4 > div[class*="bg-white"] {
+    border-color: #334155 !important;
+    background: #0b1220 !important;
+  }
+
+  .dark .repair-order-detail form .erp-section[class*="border-teal-100"] .bg-slate-100 {
+    border-color: #334155 !important;
+    background: #0b1220 !important;
+  }
+
+  .dark .repair-order-detail form .erp-section[class*="border-teal-100"] .bg-teal-100 {
+    background: #134e4a !important;
+    color: #99f6e4 !important;
+  }
+
+  .dark .repair-order-detail form .erp-section[class*="border-teal-100"] label[class*="bg-white"] {
+    border-color: #334155 !important;
+    background: #111827 !important;
+  }
+
+  .dark .repair-order-detail form .erp-section[class*="border-teal-100"] button[class*="border-teal-300"] {
+    border-color: rgba(45,212,191,.38) !important;
+    background: rgba(19,78,74,.28) !important;
+    color: #99f6e4 !important;
+  }
+
+  .dark .repair-order-detail form .erp-section[class*="border-teal-100"] button[class*="border-slate-300"] {
+    border-color: #475569 !important;
+    background: #0b1220 !important;
+    color: #e2e8f0 !important;
+  }
+
+  /* Timeline */
+  .dark .repair-order-detail ol[class*="border-r"] {
+    border-color: rgba(45,212,191,.34) !important;
+  }
+
+  .dark .repair-order-detail ol[class*="border-r"] > li > span:first-child {
+    background: #14b8a6 !important;
+    box-shadow: 0 0 0 5px rgba(20,184,166,.14) !important;
+  }
+
+  .dark .repair-order-detail ol[class*="border-r"] [class*="bg-slate-50/50"] {
+    border-color: #334155 !important;
+    background: #111827 !important;
+    color: #cbd5e1 !important;
+  }
+
+  /* Side rail: shared dark surfaces */
+  .dark .repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:last-child > .erp-section {
+    border-color: #334155 !important;
+    background: linear-gradient(155deg, #0f172a, #111827) !important;
+    box-shadow: 0 18px 55px -38px rgba(0,0,0,.94) !important;
+  }
+
+  .dark .repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:last-child > .erp-section:nth-child(3) {
+    border-color: rgba(45,212,191,.34) !important;
+    background: linear-gradient(155deg, rgba(19,78,74,.26), #0f172a 54%, rgba(8,51,68,.28)) !important;
+  }
+
+  /* Assignment card */
+  .dark .repair-order-detail .bg-violet-50 {
+    background: #252755 !important;
+    color: #c7d2fe !important;
+  }
+
+  .dark .repair-order-detail .text-violet-700,
+  .dark .repair-order-detail .text-violet-900 {
+    color: #c7d2fe !important;
+  }
+
+  .dark .repair-order-detail [class*="bg-violet-50/60"] {
+    border-color: rgba(129,140,248,.28) !important;
+    background: rgba(49,46,129,.30) !important;
+    color: #c7d2fe !important;
+  }
+
+  .dark .repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:last-child [class*="bg-slate-50"] {
+    background: #0b1220 !important;
+    color: #cbd5e1 !important;
+  }
+
+  /* QR card: card dark, QR itself deliberately stays white for scan reliability. */
+  .dark .repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:last-child > .erp-section:nth-child(2) > div[class*="h-44"][class*="bg-white"] {
+    border-color: #475569 !important;
+    background: #e2e8f0 !important;
+    box-shadow: inset 0 0 0 1px rgba(15,23,42,.12) !important;
+  }
+
+  .dark .repair-order-detail img[alt^="QR "] {
+    background: #ffffff !important;
+  }
+
+  .dark .repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:last-child > .erp-section:nth-child(2) button,
+  .dark .repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:last-child > .erp-section:nth-child(2) a {
+    border-color: #475569 !important;
+    background: #0b1220 !important;
+    color: #e2e8f0 !important;
+  }
+
+  /* Quick business actions */
+  .dark .repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:last-child > .erp-section:nth-child(3) a,
+  .dark .repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:last-child > .erp-section:nth-child(3) button {
+    border-color: #475569 !important;
+    background: #0b1220 !important;
+    color: #f1f5f9 !important;
+    box-shadow: none !important;
+  }
+
+  .dark .repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:last-child > .erp-section:nth-child(3) a:hover,
+  .dark .repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:last-child > .erp-section:nth-child(3) button:hover {
+    border-color: rgba(45,212,191,.42) !important;
+    background: rgba(19,78,74,.28) !important;
+    color: #ccfbf1 !important;
+  }
+
+  .dark .repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:last-child [class*="border-amber-200"][class*="bg-amber-50"] {
+    border-color: #92400e !important;
+    background: rgba(120,53,15,.42) !important;
+    color: #fde68a !important;
+  }
+
+  .dark .repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:last-child [class*="border-amber-200"][class*="bg-amber-50"] .text-amber-950,
+  .dark .repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:last-child [class*="border-amber-200"][class*="bg-amber-50"] .text-amber-900 {
+    color: #fde68a !important;
+  }
+
+  .dark .repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:last-child [class*="border-emerald-200"][class*="bg-emerald-50"] {
+    border-color: #047857 !important;
+    background: rgba(6,78,59,.46) !important;
+    color: #a7f3d0 !important;
+  }
+
+  /* Status badges */
+  .dark .repair-order-detail span.rounded-full.border[class*="bg-slate-100"] {
+    border-color: #475569 !important;
+    background: #1e293b !important;
+    color: #cbd5e1 !important;
+  }
+
+  .dark .repair-order-detail span.rounded-full.border[class*="bg-blue-50"] {
+    border-color: #1d4ed8 !important;
+    background: rgba(30,64,175,.34) !important;
+    color: #bfdbfe !important;
+  }
+
+  .dark .repair-order-detail span.rounded-full.border[class*="bg-amber-50"] {
+    border-color: #92400e !important;
+    background: rgba(120,53,15,.46) !important;
+    color: #fde68a !important;
+  }
+
+  .dark .repair-order-detail span.rounded-full.border[class*="bg-orange-50"] {
+    border-color: #9a3412 !important;
+    background: rgba(124,45,18,.46) !important;
+    color: #fed7aa !important;
+  }
+
+  .dark .repair-order-detail span.rounded-full.border[class*="bg-teal-50"] {
+    border-color: #0f766e !important;
+    background: rgba(19,78,74,.58) !important;
+    color: #99f6e4 !important;
+  }
+
+  .dark .repair-order-detail span.rounded-full.border[class*="bg-emerald-50"] {
+    border-color: #047857 !important;
+    background: rgba(6,78,59,.58) !important;
+    color: #a7f3d0 !important;
+  }
+
+  .dark .repair-order-detail span.rounded-full.border[class*="bg-rose-50"] {
+    border-color: #9f1239 !important;
+    background: rgba(76,5,25,.58) !important;
+    color: #fecdd3 !important;
+  }
+
+  /* Invoice error */
+  .dark .repair-order-detail > div > div[class*="border-rose-200"][class*="bg-rose-50"] {
+    border-color: #9f1239 !important;
+    background: rgba(76,5,25,.52) !important;
+    color: #fecdd3 !important;
+  }
+
+  @media (max-width: 767px) {
+    .dark .repair-order-detail .erp-section {
+      background: #0f172a !important;
+    }
+
+    .dark .repair-order-detail .lg\:grid-cols-\[minmax\(0\,1fr\)_320px\] > div:first-child > .erp-section:first-child > .grid > div {
+      box-shadow: none !important;
+    }
+  }
+}
