@@ -7,9 +7,9 @@ import { shouldForceLightTheme, THEME_STORAGE_KEY, type ThemePreference } from "
 function readThemePreference(): ThemePreference {
   try {
     const stored = localStorage.getItem(THEME_STORAGE_KEY);
-    return stored === "light" || stored === "dark" || stored === "system" ? stored : "system";
+    return stored === "dark" ? "dark" : "light";
   } catch {
-    return "system";
+    return "light";
   }
 }
 
@@ -19,8 +19,7 @@ export function ThemeRouteSync() {
   useLayoutEffect(() => {
     const preference = readThemePreference();
     const forceLight = shouldForceLightTheme(pathname);
-    const systemDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
-    const dark = !forceLight && (preference === "dark" || (preference === "system" && systemDark));
+    const dark = !forceLight && preference === "dark";
     const root = document.documentElement;
 
     root.classList.toggle("dark", dark);

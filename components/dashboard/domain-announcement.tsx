@@ -21,7 +21,7 @@ export function DomainAnnouncement() {
   }
 
   return (
-    <section className="relative overflow-hidden rounded-2xl border border-teal-200 bg-gradient-to-l from-teal-50 via-cyan-50/80 to-white px-4 py-3.5 shadow-sm sm:px-5">
+    <section className="masar-domain-announcement relative overflow-hidden rounded-2xl border border-teal-200 bg-gradient-to-l from-teal-50 via-cyan-50/80 to-white px-4 py-3.5 shadow-sm sm:px-5">
       <div className="absolute inset-y-0 right-0 w-1 bg-gradient-to-b from-teal-500 to-cyan-500" />
       <div className="flex items-start gap-3 pl-8">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-700 text-white shadow-sm">

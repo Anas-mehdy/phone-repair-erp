@@ -1,6 +1,6 @@
 "use client";
 
-import { Monitor, Moon, Sun } from "lucide-react";
+import { Moon, Sun } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import { THEME_STORAGE_KEY, type ThemePreference } from "@/lib/theme";
@@ -8,21 +8,19 @@ import { THEME_STORAGE_KEY, type ThemePreference } from "@/lib/theme";
 const options: Array<{ value: ThemePreference; label: string; icon: typeof Sun }> = [
   { value: "light", label: "فاتح", icon: Sun },
   { value: "dark", label: "داكن", icon: Moon },
-  { value: "system", label: "النظام", icon: Monitor },
 ];
 
 function resolveStoredTheme(): ThemePreference {
   try {
     const value = localStorage.getItem(THEME_STORAGE_KEY);
-    return value === "light" || value === "dark" || value === "system" ? value : "system";
+    return value === "dark" ? "dark" : "light";
   } catch {
-    return "system";
+    return "light";
   }
 }
 
 function applyTheme(preference: ThemePreference) {
-  const systemDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
-  const dark = preference === "dark" || (preference === "system" && systemDark);
+  const dark = preference === "dark";
   const root = document.documentElement;
   root.classList.toggle("dark", dark);
   root.dataset.theme = preference;
@@ -30,7 +28,7 @@ function applyTheme(preference: ThemePreference) {
 }
 
 export function ThemeToggle({ compact = false }: { compact?: boolean }) {
-  const [theme, setTheme] = useState<ThemePreference>("system");
+  const [theme, setTheme] = useState<ThemePreference>("light");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -48,16 +46,9 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }) {
     } catch {
       // Keep the theme active for this session even if storage is unavailable.
     }
-
-    if (theme !== "system") return;
-    const media = window.matchMedia?.("(prefers-color-scheme: dark)");
-    if (!media) return;
-    const handleChange = () => applyTheme("system");
-    media.addEventListener?.("change", handleChange);
-    return () => media.removeEventListener?.("change", handleChange);
   }, [mounted, theme]);
 
-  const activeOption = useMemo(() => options.find((option) => option.value === theme) ?? options[2], [theme]);
+  const activeOption = useMemo(() => options.find((option) => option.value === theme) ?? options[0], [theme]);
   const ActiveIcon = activeOption.icon;
 
   if (!mounted) {
@@ -65,7 +56,7 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }) {
   }
 
   if (compact) {
-    const nextTheme: ThemePreference = theme === "light" ? "dark" : theme === "dark" ? "system" : "light";
+    const nextTheme: ThemePreference = theme === "light" ? "dark" : "light";
     return (
       <button
         type="button"
@@ -81,7 +72,7 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }) {
 
   return (
     <div className="rounded-[14px] border border-slate-200/80 bg-white/75 p-1 shadow-sm dark:border-slate-800 dark:bg-slate-900/75" aria-label="اختيار مظهر مسار">
-      <div className="grid grid-cols-3 gap-1">
+      <div className="grid grid-cols-2 gap-1">
         {options.map((option) => {
           const Icon = option.icon;
           const active = option.value === theme;

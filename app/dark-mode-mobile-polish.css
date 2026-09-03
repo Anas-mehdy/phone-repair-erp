@@ -1,0 +1,127 @@
+/* Mobile dark-mode polish: header, announcement banner, bottom navigation and sheets. */
+@media screen {
+  .dark .masar-domain-announcement {
+    border-color: rgba(45, 212, 191, .32) !important;
+    background: linear-gradient(135deg, rgba(19, 78, 74, .58), #0f172a 58%, #082f49) !important;
+    box-shadow: 0 18px 44px -38px rgba(0, 0, 0, .92) !important;
+  }
+
+  .dark .masar-domain-announcement .text-teal-950,
+  .dark .masar-domain-announcement .text-teal-900 {
+    color: #ccfbf1 !important;
+  }
+
+  .dark .masar-domain-announcement .text-slate-600 {
+    color: #cbd5e1 !important;
+  }
+
+  .dark .masar-domain-announcement .text-teal-800,
+  .dark .masar-domain-announcement .text-teal-700 {
+    color: #5eead4 !important;
+  }
+
+  .dark .masar-domain-announcement > div:nth-child(2) > span:first-child {
+    background: #0f766e !important;
+    color: #f8fafc !important;
+  }
+
+  .dark .masar-domain-announcement button {
+    color: #94a3b8 !important;
+  }
+
+  .dark .masar-domain-announcement button:hover {
+    background: #1e293b !important;
+    color: #f1f5f9 !important;
+  }
+}
+
+@media screen and (max-width: 1023px) {
+  /* Mobile app header: keep the shell dark instead of inheriting a late light surface rule. */
+  .dark .masar-shell > div > header.sticky.top-0 {
+    border-color: #1e293b !important;
+    background: rgba(2, 6, 23, .96) !important;
+    box-shadow: 0 10px 28px -24px rgba(0, 0, 0, .92) !important;
+  }
+
+  /* Fixed bottom navigation. */
+  .dark .masar-shell > div.fixed.inset-x-0.bottom-0.z-50 {
+    border-color: #1e293b !important;
+    background: linear-gradient(to top, rgba(2, 6, 23, .99), rgba(2, 6, 23, .98), rgba(15, 23, 42, .97)) !important;
+    box-shadow: 0 -18px 42px -30px rgba(0, 0, 0, .95) !important;
+  }
+
+  .dark .masar-shell > div.fixed.inset-x-0.bottom-0.z-50 > div.grid > a,
+  .dark .masar-shell > div.fixed.inset-x-0.bottom-0.z-50 > div.grid > button {
+    color: #94a3b8 !important;
+  }
+
+  .dark .masar-shell > div.fixed.inset-x-0.bottom-0.z-50 > div.grid > a[aria-current="page"],
+  .dark .masar-shell > div.fixed.inset-x-0.bottom-0.z-50 > div.grid > button[class*="text-teal-700"] {
+    color: #5eead4 !important;
+  }
+
+  .dark .masar-shell > div.fixed.inset-x-0.bottom-0.z-50 > div.grid > :is(a, button) > span:first-child {
+    background: #111827 !important;
+    box-shadow: none !important;
+    --tw-ring-color: #334155 !important;
+  }
+
+  .dark .masar-shell > div.fixed.inset-x-0.bottom-0.z-50 > div.grid > a[aria-current="page"] > span:first-child,
+  .dark .masar-shell > div.fixed.inset-x-0.bottom-0.z-50 > div.grid > button[class*="text-teal-700"] > span:first-child {
+    background: rgba(13, 148, 136, .16) !important;
+    --tw-ring-color: rgba(45, 212, 191, .34) !important;
+  }
+
+  /* Bottom-navigation sheets opened by Sales, Inventory and More. */
+  .dark .masar-shell > section.fixed.inset-x-0.bottom-0 {
+    border-color: #334155 !important;
+    background: #020617 !important;
+    color: #e2e8f0 !important;
+    box-shadow: 0 -30px 80px -34px rgba(0, 0, 0, .96) !important;
+  }
+
+  .dark .masar-shell > section.fixed.inset-x-0.bottom-0 > div:first-child {
+    background: #475569 !important;
+  }
+
+  .dark .masar-shell > section.fixed.inset-x-0.bottom-0 > div:nth-child(2) {
+    border-color: #1e293b !important;
+  }
+
+  .dark .masar-shell > section.fixed.inset-x-0.bottom-0 .text-slate-900 {
+    color: #f8fafc !important;
+  }
+
+  .dark .masar-shell > section.fixed.inset-x-0.bottom-0 .text-slate-500,
+  .dark .masar-shell > section.fixed.inset-x-0.bottom-0 .text-slate-400 {
+    color: #94a3b8 !important;
+  }
+
+  .dark .masar-shell > section.fixed.inset-x-0.bottom-0 button[class*="border-slate-200"] {
+    border-color: #334155 !important;
+    background: #111827 !important;
+    color: #cbd5e1 !important;
+  }
+
+  .dark .masar-shell > section.fixed.inset-x-0.bottom-0 div.grid > a,
+  .dark .masar-shell > section.fixed.inset-x-0.bottom-0 div.space-y-5 > a {
+    border-color: #334155 !important;
+    background: #111827 !important;
+    color: #e2e8f0 !important;
+    box-shadow: none !important;
+  }
+
+  .dark .masar-shell > section.fixed.inset-x-0.bottom-0 div.grid > a > span:first-child,
+  .dark .masar-shell > section.fixed.inset-x-0.bottom-0 div.space-y-5 > a > span:first-child {
+    background: #0b1220 !important;
+    color: #94a3b8 !important;
+    box-shadow: none !important;
+    --tw-ring-color: #334155 !important;
+  }
+
+  .dark .masar-shell > section.fixed.inset-x-0.bottom-0 .bg-orange-50 {
+    border-color: #92400e !important;
+    background: #451a03 !important;
+    color: #fdba74 !important;
+  }
+}
