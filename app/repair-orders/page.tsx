@@ -16,6 +16,7 @@ import {
   repairStatusOptions,
   selectClassName,
 } from "./_components";
+import { CurrentMonthFilter } from "./_current-month-filter";
 import { DeleteRepairOrderButton } from "./_delete-button";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +26,9 @@ type RepairOrdersPageProps = {
     status?: string;
     search?: string;
     assignment?: string;
+    currentMonth?: string;
+    monthStart?: string;
+    monthEnd?: string;
   }>;
 };
 
@@ -42,6 +46,20 @@ function toAssignment(value?: string): "ALL" | "MINE" | "UNASSIGNED" {
   return value === "MINE" || value === "UNASSIGNED" ? value : "ALL";
 }
 
+function parseDateParam(value?: string) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function currentMonthFallbackBounds() {
+  const now = new Date();
+  return {
+    start: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)),
+    end: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1)),
+  };
+}
+
 export default async function RepairOrdersPage({
   searchParams,
 }: RepairOrdersPageProps) {
@@ -49,6 +67,9 @@ export default async function RepairOrdersPage({
   const status = toStatus(params.status);
   const search = params.search ?? "";
   const assignment = toAssignment(params.assignment);
+  const currentMonthOnly = params.currentMonth === "1";
+  const requestedMonthStart = parseDateParam(params.monthStart);
+  const requestedMonthEnd = parseDateParam(params.monthEnd);
   let repairOrders: Awaited<ReturnType<typeof repairOrderService.listRepairOrders>>;
 
   let currency = "SAR";
@@ -63,6 +84,21 @@ export default async function RepairOrdersPage({
       assignment,
       currentUserId: context.userId ?? undefined,
     });
+
+    if (currentMonthOnly) {
+      const fallback = currentMonthFallbackBounds();
+      const start = requestedMonthStart ?? fallback.start;
+      const end = requestedMonthEnd ?? fallback.end;
+      const startTime = start.getTime();
+      const endTime = end.getTime();
+
+      if (startTime < endTime) {
+        repairOrders = repairOrders.filter((repairOrder) => {
+          const createdAt = new Date(repairOrder.createdAt).getTime();
+          return createdAt >= startTime && createdAt < endTime;
+        });
+      }
+    }
   } catch (error) {
     if (isDatabaseConnectionError(error)) {
       return <DatabaseUnavailable />;
@@ -172,6 +208,13 @@ export default async function RepairOrdersPage({
             تطبيق الفلتر
           </Button>
         </div>
+        <div className="sm:col-span-2 xl:col-span-4">
+          <CurrentMonthFilter
+            checked={currentMonthOnly}
+            monthStart={params.monthStart}
+            monthEnd={params.monthEnd}
+          />
+        </div>
       </form>
 
       {/* Table Container */}
@@ -179,13 +222,23 @@ export default async function RepairOrdersPage({
         {repairOrders.length === 0 ? (
           <EmptyState
             icon={Wrench}
-            title={assignment === "MINE" ? "لا توجد تذاكر مسندة إليك" : assignment === "UNASSIGNED" ? "لا توجد تذاكر غير مسندة" : "لا توجد طلبات صيانة بعد"}
+            title={
+              currentMonthOnly
+                ? "لا توجد تذاكر ضمن الشهر الحالي"
+                : assignment === "MINE"
+                  ? "لا توجد تذاكر مسندة إليك"
+                  : assignment === "UNASSIGNED"
+                    ? "لا توجد تذاكر غير مسندة"
+                    : "لا توجد طلبات صيانة بعد"
+            }
             description={
-              assignment === "MINE"
-                ? "هذا الفلتر يعرض التذاكر المسندة إليك كمسؤول فقط. استخدم «جميع تذاكر المتجر» لمشاهدة عمل الفريق كاملاً."
-                : assignment === "UNASSIGNED"
-                  ? "كل التذاكر الحالية مسندة لأعضاء الفريق. استخدم «جميع تذاكر المتجر» لمشاهدتها."
-                  : "ابدأ بإنشاء طلب صيانة جديد للعميل وسيظهر هنا لجميع أعضاء المتجر المصرح لهم."
+              currentMonthOnly
+                ? "لا توجد تذاكر تطابق الفلاتر ضمن الشهر الحالي. ألغِ خيار «إظهار تذاكر الشهر الحالي فقط» لمشاهدة الأشهر السابقة."
+                : assignment === "MINE"
+                  ? "هذا الفلتر يعرض التذاكر المسندة إليك كمسؤول فقط. استخدم «جميع تذاكر المتجر» لمشاهدة عمل الفريق كاملاً."
+                  : assignment === "UNASSIGNED"
+                    ? "كل التذاكر الحالية مسندة لأعضاء الفريق. استخدم «جميع تذاكر المتجر» لمشاهدتها."
+                    : "ابدأ بإنشاء طلب صيانة جديد للعميل وسيظهر هنا لجميع أعضاء المتجر المصرح لهم."
             }
             actionHref="/repair-orders/new"
             actionLabel="طلب صيانة جديد"
