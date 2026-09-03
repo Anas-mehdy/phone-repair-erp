@@ -1,0 +1,310 @@
+/* Dark mode phase 2 — final audit for cash drawer, online store, tutorial and global loading/PWA states.
+   Screen-only and fully scoped below .dark selectors so approved light mode stays untouched. */
+
+@media screen {
+  /* =========================
+     Cash drawer
+     ========================= */
+  .dark .cash-drawer-workspace input,
+  .dark .cash-drawer-workspace select,
+  .dark .cash-drawer-workspace textarea,
+  .dark .online-store-workspace input,
+  .dark .online-store-workspace select,
+  .dark .online-store-workspace textarea {
+    border-color: #334155 !important;
+    background-color: rgba(2,6,23,.74) !important;
+    color: #f8fafc !important;
+  }
+
+  .dark .cash-drawer-workspace input::placeholder,
+  .dark .cash-drawer-workspace textarea::placeholder,
+  .dark .online-store-workspace input::placeholder,
+  .dark .online-store-workspace textarea::placeholder {
+    color: #64748b !important;
+  }
+
+  .dark .cash-drawer-workspace input:focus,
+  .dark .cash-drawer-workspace select:focus,
+  .dark .cash-drawer-workspace textarea:focus {
+    border-color: #2dd4bf !important;
+    box-shadow: 0 0 0 4px rgba(20,184,166,.14) !important;
+  }
+
+  .dark .cash-drawer-workspace > div > section.grid.gap-4 > div,
+  .dark .cash-drawer-workspace .rounded-\[20px\][class*="bg-white"] {
+    border-color: #334155 !important;
+    background: linear-gradient(145deg,#111827,#0f172a) !important;
+    box-shadow: 0 18px 46px -38px rgba(0,0,0,.92) !important;
+  }
+
+  .dark .cash-drawer-workspace > div > section.grid.gap-4 > div:nth-child(1) {
+    border-color: rgba(45,212,191,.3) !important;
+    background: linear-gradient(145deg,#0f2f2d,#0f172a 72%) !important;
+  }
+  .dark .cash-drawer-workspace > div > section.grid.gap-4 > div:nth-child(2) {
+    border-color: #475569 !important;
+    background: linear-gradient(145deg,#1e293b,#0f172a 72%) !important;
+  }
+  .dark .cash-drawer-workspace > div > section.grid.gap-4 > div:nth-child(3) {
+    border-color: rgba(52,211,153,.3) !important;
+    background: linear-gradient(145deg,#0d3328,#0f172a 72%) !important;
+  }
+  .dark .cash-drawer-workspace > div > section.grid.gap-4 > div:nth-child(4) {
+    border-color: rgba(251,113,133,.3) !important;
+    background: linear-gradient(145deg,#3b1521,#0f172a 72%) !important;
+  }
+
+  .dark .cash-drawer-workspace section[class*="border-amber-200"][class*="from-amber-50"] {
+    border-color: rgba(251,191,36,.3) !important;
+    background: linear-gradient(135deg,#3a2a0d,#0f172a 58%,#431407) !important;
+    box-shadow: 0 18px 46px -38px rgba(0,0,0,.92) !important;
+  }
+
+  .dark .cash-drawer-workspace section[class*="border-indigo-100"][class*="from-indigo-50"] {
+    border-color: rgba(129,140,248,.3) !important;
+    background: linear-gradient(135deg,#1e2448,#0f172a 58%,#082f49) !important;
+    box-shadow: 0 18px 46px -38px rgba(0,0,0,.92) !important;
+  }
+
+  .dark .cash-drawer-workspace section[class*="border-indigo-100"] > div[class*="bg-white"],
+  .dark .cash-drawer-workspace section[class*="border-indigo-100"] > div[class*="bg-white/60"] {
+    background: rgba(15,23,42,.7) !important;
+    border-color: #334155 !important;
+  }
+
+  .dark .cash-drawer-workspace form[class*="bg-white"],
+  .dark .cash-drawer-workspace section[class*="bg-white"] {
+    border-color: #334155 !important;
+    background: linear-gradient(145deg,#111827,#0f172a) !important;
+    box-shadow: 0 18px 48px -40px rgba(0,0,0,.92) !important;
+  }
+
+  .dark .cash-drawer-workspace form[class*="from-cyan-50"] {
+    border-color: rgba(34,211,238,.28) !important;
+    background: linear-gradient(180deg,#0c2f3a,#0f172a) !important;
+  }
+
+  .dark .cash-drawer-workspace .bg-amber-50 {
+    background-color: #3a2a0d !important;
+  }
+  .dark .cash-drawer-workspace .bg-teal-50,
+  .dark .cash-drawer-workspace .bg-emerald-50 {
+    background-color: #0f2f2d !important;
+  }
+  .dark .cash-drawer-workspace .bg-rose-50 {
+    background-color: #3b1521 !important;
+  }
+  .dark .cash-drawer-workspace .bg-indigo-50,
+  .dark .cash-drawer-workspace .bg-indigo-100 {
+    background-color: #1e2448 !important;
+  }
+  .dark .cash-drawer-workspace .bg-slate-50,
+  .dark .cash-drawer-workspace .bg-slate-100 {
+    background-color: #1e293b !important;
+  }
+
+  .dark .cash-drawer-workspace section[class*="from-emerald-50"] {
+    border-color: rgba(52,211,153,.3) !important;
+    background: linear-gradient(135deg,#0d3328,#0f172a 58%,#0f2f2d) !important;
+  }
+  .dark .cash-drawer-workspace section[class*="from-rose-50"] {
+    border-color: rgba(251,113,133,.3) !important;
+    background: linear-gradient(135deg,#3b1521,#0f172a 58%,#431407) !important;
+  }
+
+  .dark .cash-drawer-workspace section[class*="border-teal-100"][class*="bg-teal-50"] {
+    border-color: rgba(45,212,191,.3) !important;
+    background: linear-gradient(135deg,#0f2f2d,#0f172a) !important;
+  }
+  .dark .cash-drawer-workspace div[class*="border-sky-100"][class*="bg-sky-50"] {
+    border-color: rgba(56,189,248,.28) !important;
+    background: linear-gradient(135deg,#082f49,#0f172a) !important;
+    color: #bae6fd !important;
+  }
+
+  .dark .cash-drawer-workspace .erp-table thead {
+    background: linear-gradient(90deg,#1e293b,rgba(19,78,74,.24)) !important;
+  }
+  .dark .cash-drawer-workspace .erp-table th {
+    color: #cbd5e1 !important;
+  }
+  .dark .cash-drawer-workspace .erp-table tbody tr:hover {
+    background: rgba(30,41,59,.58) !important;
+  }
+  .dark .cash-drawer-workspace .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
+    border-color: #334155 !important;
+  }
+
+  .dark .cash-drawer-workspace dl > div[class*="bg-slate-50"] {
+    background: #111827 !important;
+    border: 1px solid #334155;
+  }
+
+  /* =========================
+     Online digital store
+     ========================= */
+  .dark .online-store-workspace > div > div[class*="border-orange-500/30"] {
+    border-color: rgba(251,146,60,.32) !important;
+    background:
+      radial-gradient(circle at 10% 10%,rgba(251,146,60,.12),transparent 34%),
+      linear-gradient(135deg,#431407,#0f172a 54%,#1e293b) !important;
+    box-shadow: 0 20px 54px -42px rgba(0,0,0,.92) !important;
+  }
+
+  .dark .online-store-workspace > div > div[class*="border-orange-500/30"] span[class*="bg-white"] {
+    border-color: #475569 !important;
+    background: rgba(15,23,42,.82) !important;
+  }
+
+  .dark .online-store-workspace > div > div[class*="border-orange-500/30"] div[class*="bg-amber-500/10"] {
+    border-color: rgba(251,191,36,.28) !important;
+    background: rgba(69,26,3,.46) !important;
+    color: #fde68a !important;
+  }
+
+  .dark .online-store-workspace input:not([class*="bg-slate-800"]) {
+    border-color: #475569 !important;
+    background: #020617 !important;
+    color: #f8fafc !important;
+  }
+  .dark .online-store-workspace input:not([class*="bg-slate-800"]):focus {
+    border-color: #fb923c !important;
+    box-shadow: 0 0 0 4px rgba(249,115,22,.12) !important;
+  }
+
+  .dark .online-store-workspace button[class*="bg-white"] {
+    border-color: #334155 !important;
+    background: #111827 !important;
+    color: #cbd5e1 !important;
+  }
+  .dark .online-store-workspace button[class*="bg-white"]:hover {
+    border-color: rgba(251,146,60,.34) !important;
+    background: rgba(67,20,7,.4) !important;
+    color: #fed7aa !important;
+  }
+
+  .dark .online-store-workspace .grid[class*="md:grid-cols-2"] > div[class*="bg-white"] {
+    border-color: #334155 !important;
+    background: linear-gradient(145deg,#111827,#0f172a) !important;
+    box-shadow: 0 18px 48px -40px rgba(0,0,0,.92) !important;
+  }
+  .dark .online-store-workspace .grid[class*="md:grid-cols-2"] > div[class*="bg-white"]:hover {
+    border-color: rgba(251,146,60,.38) !important;
+    background: linear-gradient(145deg,#171f2e,#0f172a) !important;
+  }
+
+  .dark .online-store-workspace .bg-orange-50 {
+    background-color: #431407 !important;
+  }
+  .dark .online-store-workspace .bg-emerald-50 {
+    background-color: #0d3328 !important;
+  }
+  .dark .online-store-workspace .bg-amber-50,
+  .dark .online-store-workspace .bg-amber-100 {
+    background-color: #3a2a0d !important;
+  }
+  .dark .online-store-workspace .bg-slate-50,
+  .dark .online-store-workspace .bg-slate-50\/80,
+  .dark .online-store-workspace .bg-slate-100 {
+    background-color: #1e293b !important;
+  }
+
+  .dark .online-store-workspace div[class*="bg-slate-50"] span[class*="bg-white"] {
+    border-color: #475569 !important;
+    background: #0f172a !important;
+  }
+
+  .dark .online-store-workspace div[class*="border-dashed"][class*="bg-white"] {
+    border-color: #475569 !important;
+    background: linear-gradient(145deg,#111827,#0f172a) !important;
+  }
+
+  .dark .online-store-workspace [class*="border-t"][class*="border-slate-100"] {
+    border-color: #334155 !important;
+  }
+
+  /* =========================
+     Tutorial
+     ========================= */
+  .dark .tutorial-workspace > div > section[class*="bg-white"] {
+    border-color: #334155 !important;
+    background:
+      radial-gradient(circle at 10% 0,rgba(99,102,241,.1),transparent 30%),
+      linear-gradient(145deg,#111827,#0f172a) !important;
+    box-shadow: 0 20px 52px -42px rgba(0,0,0,.92) !important;
+  }
+
+  .dark .tutorial-workspace div[class*="border-cyan-100"][class*="bg-cyan-50"] {
+    border-color: rgba(34,211,238,.28) !important;
+    background: linear-gradient(135deg,#0c2f3a,#0f172a) !important;
+    color: #cbd5e1 !important;
+  }
+
+  .dark .tutorial-workspace iframe {
+    color-scheme: dark;
+  }
+
+  /* =========================
+     Global loading skeleton
+     ========================= */
+  .dark .masar-global-loading > div:first-child,
+  .dark .masar-global-loading > div:last-child,
+  .dark .masar-global-loading > div:nth-child(2) > div,
+  .dark .masar-global-loading [class*="bg-slate-200"] {
+    background-color: rgba(30,41,59,.86) !important;
+  }
+  .dark .masar-global-loading [class*="bg-slate-300"] {
+    background-color: rgba(71,85,105,.72) !important;
+  }
+
+  /* =========================
+     PWA iOS help dialog lives outside AppShell
+     ========================= */
+  .dark [role="dialog"][aria-labelledby="pwa-ios-title"] {
+    border-color: #334155 !important;
+    background: linear-gradient(145deg,#111827,#0f172a) !important;
+    color: #e2e8f0 !important;
+    box-shadow: 0 28px 80px -42px rgba(0,0,0,.96) !important;
+  }
+  .dark [role="dialog"][aria-labelledby="pwa-ios-title"] h2 {
+    color: #f8fafc !important;
+  }
+  .dark [role="dialog"][aria-labelledby="pwa-ios-title"] p {
+    color: #94a3b8 !important;
+  }
+  .dark [role="dialog"][aria-labelledby="pwa-ios-title"] > div:first-child button,
+  .dark [role="dialog"][aria-labelledby="pwa-ios-title"] .bg-slate-100,
+  .dark [role="dialog"][aria-labelledby="pwa-ios-title"] .bg-slate-50 {
+    background-color: #1e293b !important;
+    color: #cbd5e1 !important;
+  }
+  .dark [role="dialog"][aria-labelledby="pwa-ios-title"] .bg-white {
+    background-color: #0f172a !important;
+    color: #5eead4 !important;
+  }
+
+  /* =========================
+     Final interaction polish
+     ========================= */
+  .dark .cash-drawer-workspace button:focus-visible,
+  .dark .cash-drawer-workspace a:focus-visible,
+  .dark .online-store-workspace button:focus-visible,
+  .dark .online-store-workspace a:focus-visible,
+  .dark .tutorial-workspace a:focus-visible,
+  .dark [role="dialog"][aria-labelledby="pwa-ios-title"] button:focus-visible {
+    outline: 2px solid #2dd4bf !important;
+    outline-offset: 3px;
+  }
+
+  @media (max-width: 767px) {
+    .dark .cash-drawer-workspace .divide-slate-100 > div {
+      background: #111827 !important;
+    }
+    .dark .online-store-workspace .grid[class*="md:grid-cols-2"] > div[class*="bg-white"] {
+      box-shadow: 0 14px 36px -32px rgba(0,0,0,.94) !important;
+    }
+    .dark .tutorial-workspace > div > section[class*="bg-white"] {
+      padding: 18px !important;
+    }
+  }
+}
