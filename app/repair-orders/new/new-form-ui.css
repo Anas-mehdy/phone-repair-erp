@@ -54,6 +54,343 @@
   background-color: rgba(255,255,255,.94);
 }
 
+/* Dark mode — new repair order form only. */
+@media screen {
+  .dark .masar-repair-orders .repair-new-form .repair-new-card {
+    border-color: #334155 !important;
+    background: linear-gradient(145deg, #0f172a, #111827) !important;
+    box-shadow: 0 20px 54px -42px rgba(0, 0, 0, .94) !important;
+  }
+
+  /* Customer section */
+  .dark .masar-repair-orders .repair-new-card-customer {
+    border-color: rgba(34, 211, 238, .30) !important;
+    background: linear-gradient(145deg, rgba(8, 51, 68, .42), #0f172a 46%, #111827) !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-card-customer > div:first-child {
+    border-bottom-color: rgba(34, 211, 238, .24) !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-card-customer > div:first-child > div:first-child {
+    border-color: rgba(34, 211, 238, .28) !important;
+    background: #164e63 !important;
+    color: #a5f3fc !important;
+    --tw-ring-color: rgba(34, 211, 238, .22) !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-card-customer .text-cyan-950 {
+    color: #ecfeff !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-card-customer [class*="text-cyan-700"] {
+    color: #67e8f9 !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-card-customer > div[class*="border-cyan-200"][class*="bg-white/70"] {
+    border-color: rgba(34, 211, 238, .24) !important;
+    background: #0b1220 !important;
+    box-shadow: none !important;
+  }
+
+  /* Device section */
+  .dark .masar-repair-orders .repair-new-card-device {
+    border-color: rgba(129, 140, 248, .30) !important;
+    background: linear-gradient(145deg, rgba(30, 36, 72, .62), #0f172a 46%, #111827) !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-card-device > div:first-child {
+    border-bottom-color: rgba(129, 140, 248, .24) !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-card-device > div:first-child > div:first-child {
+    border-color: rgba(129, 140, 248, .28) !important;
+    background: #312e81 !important;
+    color: #c7d2fe !important;
+    --tw-ring-color: rgba(129, 140, 248, .22) !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-card-device .text-indigo-950 {
+    color: #eef2ff !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-card-device [class*="text-indigo-700"] {
+    color: #a5b4fc !important;
+  }
+
+  /* Technician section */
+  .dark .masar-repair-orders .repair-new-card-technician {
+    border-color: rgba(52, 211, 153, .30) !important;
+    background: linear-gradient(145deg, rgba(6, 78, 59, .34), #0f172a 46%, #111827) !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-card-technician > div:first-child {
+    border-bottom-color: rgba(52, 211, 153, .24) !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-card-technician > div:first-child > div:first-child {
+    border-color: rgba(52, 211, 153, .28) !important;
+    background: #065f46 !important;
+    color: #a7f3d0 !important;
+    --tw-ring-color: rgba(52, 211, 153, .22) !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-card-technician .text-emerald-950 {
+    color: #ecfdf5 !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-card-technician [class*="text-emerald-700"] {
+    color: #6ee7b7 !important;
+  }
+
+  /* Form labels and controls */
+  .dark .masar-repair-orders .repair-new-form label,
+  .dark .masar-repair-orders .repair-new-form [class*="text-slate-700"] {
+    color: #e2e8f0 !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-form [class*="text-slate-400"] {
+    color: #94a3b8 !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-form input,
+  .dark .masar-repair-orders .repair-new-form select,
+  .dark .masar-repair-orders .repair-new-form textarea {
+    border-color: #475569 !important;
+    background: #020617 !important;
+    color: #f8fafc !important;
+    box-shadow: none !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-form input::placeholder,
+  .dark .masar-repair-orders .repair-new-form textarea::placeholder {
+    color: #718096 !important;
+    opacity: 1;
+  }
+
+  .dark .masar-repair-orders .repair-new-form input:focus,
+  .dark .masar-repair-orders .repair-new-form select:focus,
+  .dark .masar-repair-orders .repair-new-form textarea:focus {
+    border-color: rgba(45, 212, 191, .72) !important;
+    background: #020617 !important;
+    box-shadow: 0 0 0 4px rgba(20, 184, 166, .12) !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-form input:disabled,
+  .dark .masar-repair-orders .repair-new-form select:disabled,
+  .dark .masar-repair-orders .repair-new-form textarea:disabled {
+    background: #111827 !important;
+    color: #64748b !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-form input[type="date"] {
+    color-scheme: dark;
+  }
+
+  /* Customer autocomplete */
+  .dark .masar-repair-orders .repair-new-card-customer div.absolute.z-50[class*="bg-white"] {
+    border-color: #334155 !important;
+    background: #0f172a !important;
+    box-shadow: 0 22px 58px -30px rgba(0, 0, 0, .96) !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-card-customer div.absolute.z-50 button {
+    color: #cbd5e1 !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-card-customer div.absolute.z-50 button:hover,
+  .dark .masar-repair-orders .repair-new-card-customer div.absolute.z-50 button[class*="bg-primary/5"] {
+    background: rgba(19, 78, 74, .32) !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-card-customer div.absolute.z-50 .text-slate-800 {
+    color: #f1f5f9 !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-card-customer div.absolute.z-50 .text-slate-400 {
+    color: #94a3b8 !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-card-customer button[class*="hover:bg-slate-100"]:hover {
+    background: #1e293b !important;
+    color: #e2e8f0 !important;
+  }
+
+  /* Supplier / inventory section */
+  .dark .masar-repair-orders .repair-new-supplier > section {
+    border-color: rgba(251, 191, 36, .30) !important;
+    background:
+      radial-gradient(circle at 100% 0, rgba(45, 212, 191, .08), transparent 34%),
+      linear-gradient(145deg, rgba(69, 26, 3, .24), #0f172a 42%, #111827) !important;
+    box-shadow: 0 20px 54px -42px rgba(0, 0, 0, .94) !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-supplier > section::before {
+    background: #f59e0b;
+    opacity: .85;
+  }
+
+  .dark .masar-repair-orders .repair-new-supplier > section > div:first-of-type {
+    border-bottom-color: rgba(251, 191, 36, .24) !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-supplier > section > div:first-of-type > div:first-child > div:first-child {
+    border: 1px solid rgba(251, 191, 36, .22) !important;
+    background: #78350f !important;
+    color: #fde68a !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-supplier h3,
+  .dark .masar-repair-orders .repair-new-supplier .text-slate-800,
+  .dark .masar-repair-orders .repair-new-supplier .text-slate-700 {
+    color: #f1f5f9 !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-supplier .text-slate-500,
+  .dark .masar-repair-orders .repair-new-supplier .text-slate-400 {
+    color: #94a3b8 !important;
+  }
+
+  /* Supplier action buttons */
+  .dark .masar-repair-orders .repair-new-supplier button[class*="border-teal-300"] {
+    border-color: rgba(45, 212, 191, .38) !important;
+    background: rgba(19, 78, 74, .30) !important;
+    color: #99f6e4 !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-supplier button[class*="border-teal-300"]:hover {
+    background: rgba(19, 78, 74, .52) !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-supplier button[class*="border-slate-300"] {
+    border-color: #475569 !important;
+    background: #0b1220 !important;
+    color: #e2e8f0 !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-supplier button[class*="border-slate-300"]:hover {
+    border-color: #64748b !important;
+    background: #172033 !important;
+  }
+
+  /* Empty parts state */
+  .dark .masar-repair-orders .repair-new-supplier [class*="border-dashed"][class*="bg-white/50"] {
+    border-color: rgba(45, 212, 191, .28) !important;
+    background: #0b1220 !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-supplier [class*="border-dashed"][class*="bg-white/50"] > div[class*="bg-teal-50"] {
+    background: #134e4a !important;
+    color: #5eead4 !important;
+  }
+
+  /* Added part cards */
+  .dark .masar-repair-orders .repair-new-supplier > section > .space-y-4 > div[class*="bg-white"] {
+    border-color: #334155 !important;
+    background: #111827 !important;
+    box-shadow: none !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-supplier > section > .space-y-4 > div[class*="bg-white"]:hover {
+    border-color: rgba(45, 212, 191, .36) !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-supplier > section > .space-y-4 > div > div[class*="border-slate-100"] {
+    border-bottom-color: #334155 !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-supplier .bg-slate-100 {
+    border-color: #334155 !important;
+    background: #0b1220 !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-supplier .bg-teal-100 {
+    background: #134e4a !important;
+    color: #99f6e4 !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-supplier button.text-slate-600 {
+    color: #94a3b8 !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-supplier button.text-slate-600:hover {
+    color: #f1f5f9 !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-supplier button[class*="hover:bg-rose-50"]:hover {
+    background: rgba(76, 5, 25, .48) !important;
+    color: #fda4af !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-supplier [class*="bg-amber-50"][class*="border-amber-200"] {
+    border-color: #92400e !important;
+    background: rgba(120, 53, 15, .42) !important;
+    color: #fde68a !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-supplier [class*="bg-amber-50"] .text-amber-600 {
+    color: #fbbf24 !important;
+  }
+
+  /* Deduct-cost card */
+  .dark .masar-repair-orders .repair-new-supplier > section > div[class*="border-t"] {
+    border-top-color: rgba(251, 191, 36, .22) !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-supplier label[class*="border-slate-200"][class*="bg-white"] {
+    border-color: #334155 !important;
+    background: #0b1220 !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-supplier label[class*="border-slate-200"][class*="bg-white"]:hover {
+    border-color: #475569 !important;
+    background: #111827 !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-supplier label .text-slate-800 {
+    color: #f1f5f9 !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-supplier label .text-slate-500 {
+    color: #94a3b8 !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-supplier input[type="checkbox"] {
+    border-color: #64748b !important;
+    background: #020617 !important;
+    color: #14b8a6 !important;
+  }
+
+  /* Total-cost summary */
+  .dark .masar-repair-orders .repair-new-supplier .bg-teal-900 {
+    border: 1px solid rgba(45, 212, 191, .24) !important;
+    background: linear-gradient(135deg, #134e4a, #0f172a) !important;
+  }
+
+  /* Footer actions */
+  .dark .masar-repair-orders .repair-new-form > div:last-child > a,
+  .dark .masar-repair-orders .repair-new-form > div:last-child button[variant="outline"] {
+    border-color: #475569 !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-form > div:last-child a[class*="border-slate-300"] {
+    border-color: #475569 !important;
+    background: #0b1220 !important;
+    color: #e2e8f0 !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-form > div:last-child a[class*="border-slate-300"]:hover {
+    background: #172033 !important;
+  }
+
+  .dark .masar-repair-orders .repair-new-form > div:last-child button[type="submit"] {
+    border: 1px solid rgba(45, 212, 191, .28) !important;
+    background: linear-gradient(90deg, #0f766e, #0891b2) !important;
+    color: #ffffff !important;
+    box-shadow: 0 14px 34px -24px rgba(20, 184, 166, .6) !important;
+  }
+}
+
 @media (max-width: 767px) {
   .repair-new-form .repair-new-card,
   .repair-new-supplier > section {
