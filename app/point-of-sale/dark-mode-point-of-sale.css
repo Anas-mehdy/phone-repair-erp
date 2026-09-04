@@ -1,0 +1,176 @@
+/* Dark-mode fixes for forms embedded inside the unified point of sale.
+   Scoped to POS forms only so Light Mode and original module pages stay untouched. */
+
+.dark .point-of-sale-dark-scope form [class*="bg-slate-50/"],
+.dark .point-of-sale-dark-scope form [class*="bg-slate-100/"],
+.dark .point-of-sale-dark-scope form [class*="bg-white/"] {
+  background-color: rgba(15, 23, 42, 0.82) !important;
+}
+
+.dark .point-of-sale-dark-scope form [class~="bg-cyan-50"],
+.dark .point-of-sale-dark-scope form [class*="bg-cyan-50/"],
+.dark .point-of-sale-dark-scope form [class~="bg-cyan-100"] {
+  background-color: rgba(8, 47, 73, 0.62) !important;
+}
+
+.dark .point-of-sale-dark-scope form [class~="bg-indigo-50"],
+.dark .point-of-sale-dark-scope form [class*="bg-indigo-50/"],
+.dark .point-of-sale-dark-scope form [class~="bg-indigo-100"] {
+  background-color: rgba(49, 46, 129, 0.38) !important;
+}
+
+.dark .point-of-sale-dark-scope form [class~="bg-teal-50"],
+.dark .point-of-sale-dark-scope form [class*="bg-teal-50/"],
+.dark .point-of-sale-dark-scope form [class~="bg-teal-100"] {
+  background-color: rgba(19, 78, 74, 0.48) !important;
+}
+
+.dark .point-of-sale-dark-scope form [class~="bg-emerald-50"],
+.dark .point-of-sale-dark-scope form [class*="bg-emerald-50/"],
+.dark .point-of-sale-dark-scope form [class~="bg-emerald-100"] {
+  background-color: rgba(6, 78, 59, 0.42) !important;
+}
+
+.dark .point-of-sale-dark-scope form [class~="bg-amber-50"],
+.dark .point-of-sale-dark-scope form [class*="bg-amber-50/"],
+.dark .point-of-sale-dark-scope form [class~="bg-orange-50"],
+.dark .point-of-sale-dark-scope form [class*="bg-orange-50/"] {
+  background-color: rgba(120, 53, 15, 0.34) !important;
+}
+
+.dark .point-of-sale-dark-scope form [class~="bg-rose-50"],
+.dark .point-of-sale-dark-scope form [class*="bg-rose-50/"] {
+  background-color: rgba(76, 5, 25, 0.38) !important;
+}
+
+.dark .point-of-sale-dark-scope form [class*="border-slate-100/"],
+.dark .point-of-sale-dark-scope form [class*="border-slate-200/"],
+.dark .point-of-sale-dark-scope form [class*="border-slate-300/"] {
+  border-color: rgba(71, 85, 105, 0.78) !important;
+}
+
+.dark .point-of-sale-dark-scope form [class*="text-slate-850"],
+.dark .point-of-sale-dark-scope form [class*="text-slate-950"],
+.dark .point-of-sale-dark-scope form [class*="text-slate-900"],
+.dark .point-of-sale-dark-scope form [class*="text-slate-800"],
+.dark .point-of-sale-dark-scope form [class*="text-slate-700"] {
+  color: #e2e8f0 !important;
+}
+
+.dark .point-of-sale-dark-scope form [class*="text-slate-600"],
+.dark .point-of-sale-dark-scope form [class*="text-slate-500"] {
+  color: #94a3b8 !important;
+}
+
+.dark .point-of-sale-dark-scope form [class*="text-cyan-950"],
+.dark .point-of-sale-dark-scope form [class*="text-cyan-900"],
+.dark .point-of-sale-dark-scope form [class*="text-cyan-800"],
+.dark .point-of-sale-dark-scope form [class*="text-cyan-700"] {
+  color: #67e8f9 !important;
+}
+
+.dark .point-of-sale-dark-scope form [class*="text-indigo-950"],
+.dark .point-of-sale-dark-scope form [class*="text-indigo-900"],
+.dark .point-of-sale-dark-scope form [class*="text-indigo-800"],
+.dark .point-of-sale-dark-scope form [class*="text-indigo-700"] {
+  color: #a5b4fc !important;
+}
+
+.dark .point-of-sale-dark-scope form [class*="text-teal-950"],
+.dark .point-of-sale-dark-scope form [class*="text-teal-900"],
+.dark .point-of-sale-dark-scope form [class*="text-teal-800"],
+.dark .point-of-sale-dark-scope form [class*="text-teal-700"] {
+  color: #5eead4 !important;
+}
+
+.dark .point-of-sale-dark-scope form [class*="text-emerald-950"],
+.dark .point-of-sale-dark-scope form [class*="text-emerald-900"],
+.dark .point-of-sale-dark-scope form [class*="text-emerald-800"],
+.dark .point-of-sale-dark-scope form [class*="text-emerald-700"] {
+  color: #6ee7b7 !important;
+}
+
+.dark .point-of-sale-dark-scope form [class*="text-amber-950"],
+.dark .point-of-sale-dark-scope form [class*="text-amber-900"],
+.dark .point-of-sale-dark-scope form [class*="text-amber-800"],
+.dark .point-of-sale-dark-scope form [class*="text-amber-700"] {
+  color: #fcd34d !important;
+}
+
+.dark .point-of-sale-dark-scope form [class*="text-rose-700"],
+.dark .point-of-sale-dark-scope form [class*="text-rose-650"],
+.dark .point-of-sale-dark-scope form [class*="text-rose-600"] {
+  color: #fda4af !important;
+}
+
+.dark .point-of-sale-dark-scope form input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"]),
+.dark .point-of-sale-dark-scope form select,
+.dark .point-of-sale-dark-scope form textarea {
+  border-color: rgba(71, 85, 105, 0.9) !important;
+  background-color: rgba(2, 6, 23, 0.76) !important;
+  color: #e2e8f0 !important;
+}
+
+.dark .point-of-sale-dark-scope form input::placeholder,
+.dark .point-of-sale-dark-scope form textarea::placeholder {
+  color: #64748b !important;
+}
+
+.dark .point-of-sale-dark-scope form input:disabled,
+.dark .point-of-sale-dark-scope form select:disabled,
+.dark .point-of-sale-dark-scope form textarea:disabled {
+  background-color: rgba(30, 41, 59, 0.72) !important;
+  color: #64748b !important;
+}
+
+.dark .point-of-sale-dark-scope form [class*="hover:bg-slate-50"]:hover {
+  background-color: #1e293b !important;
+}
+
+.dark .point-of-sale-dark-scope form [class*="hover:bg-teal-50"]:hover {
+  background-color: rgba(19, 78, 74, 0.55) !important;
+}
+
+.dark .point-of-sale-dark-scope form [class*="hover:bg-rose-50"]:hover {
+  background-color: rgba(76, 5, 25, 0.48) !important;
+}
+
+/* Repair form cards use light gradients that need a dark equivalent when embedded in POS. */
+.dark .point-of-sale-dark-scope form .repair-new-card-customer {
+  background: linear-gradient(135deg, rgba(8, 47, 73, 0.36), rgba(15, 23, 42, 0.94) 58%, rgba(15, 23, 42, 0.94)) !important;
+}
+
+.dark .point-of-sale-dark-scope form .repair-new-card-device {
+  background: linear-gradient(135deg, rgba(49, 46, 129, 0.28), rgba(15, 23, 42, 0.94) 58%, rgba(15, 23, 42, 0.94)) !important;
+}
+
+.dark .point-of-sale-dark-scope form .repair-new-card-technician {
+  background: linear-gradient(135deg, rgba(6, 78, 59, 0.30), rgba(15, 23, 42, 0.94) 58%, rgba(15, 23, 42, 0.94)) !important;
+}
+
+.dark .point-of-sale-dark-scope form .repair-new-supplier .erp-section {
+  background: linear-gradient(180deg, rgba(19, 78, 74, 0.22), rgba(15, 23, 42, 0.94) 45%) !important;
+}
+
+/* Wallet summary and debt settlement cards otherwise keep very bright gradients. */
+.dark .point-of-sale-dark-scope form [class*="from-teal-50"][class*="via-white"][class*="to-cyan-50"] {
+  background: linear-gradient(135deg, rgba(19, 78, 74, 0.40), rgba(15, 23, 42, 0.96) 54%, rgba(8, 47, 73, 0.42)) !important;
+}
+
+.dark .point-of-sale-dark-scope form [class*="from-amber-50"][class*="to-orange-50"] {
+  background: linear-gradient(135deg, rgba(120, 53, 15, 0.34), rgba(15, 23, 42, 0.94)) !important;
+}
+
+/* Keep selected operation cards visibly selected without using a near-white surface. */
+.dark .point-of-sale-dark-scope form [class*="border-cyan-300"][class*="bg-cyan-50"] {
+  background-color: rgba(8, 47, 73, 0.72) !important;
+}
+.dark .point-of-sale-dark-scope form [class*="border-indigo-300"][class*="bg-indigo-50"] {
+  background-color: rgba(49, 46, 129, 0.52) !important;
+}
+.dark .point-of-sale-dark-scope form [class*="border-teal-300"][class*="bg-teal-50"] {
+  background-color: rgba(19, 78, 74, 0.64) !important;
+}
+.dark .point-of-sale-dark-scope form [class*="border-amber-300"][class*="bg-amber-50"] {
+  background-color: rgba(120, 53, 15, 0.50) !important;
+}
