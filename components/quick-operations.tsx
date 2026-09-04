@@ -64,9 +64,9 @@ const primaryOperations: QuickOperation[] = [
     key: "electronic-service",
     label: "خدمة إلكترونية",
     description: "شحن وفواتير وخدمات مزودي الرصيد",
+    href: "/electronic-services/new",
     icon: Zap,
     tone: "amber",
-    comingSoon: true,
   },
 ];
 
@@ -211,7 +211,6 @@ export function QuickOperationsLauncher({
 
   return (
     <>
-      {/* Desktop speed dial */}
       {desktopOpen ? (
         <button
           type="button"
@@ -278,7 +277,6 @@ export function QuickOperationsLauncher({
         </button>
       </div>
 
-      {/* Mobile floating trigger — sits just above the existing bottom navigation. */}
       <button
         type="button"
         aria-expanded={mobileOpen}
