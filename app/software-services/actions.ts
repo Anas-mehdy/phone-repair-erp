@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requirePermission } from "@/lib/auth/context";
+import { pointOfSaleResultPath, readPointOfSaleReturn } from "@/lib/point-of-sale";
 import { softwareServiceCancellationService } from "@/lib/services/softwareServiceCancellationService";
 import { softwareServiceService } from "@/lib/services/softwareServiceService";
 
@@ -45,6 +46,7 @@ const createSaleSchema = z.object({
 });
 
 export async function createSoftwareServiceSaleAction(formData: FormData) {
+  const pointOfSaleReturn = readPointOfSaleReturn(readString(formData, "returnTo"), "software");
   let redirectTo = "/software-services/new";
   try {
     const input = createSaleSchema.parse({
@@ -96,9 +98,10 @@ export async function createSoftwareServiceSaleAction(formData: FormData) {
     revalidatePath("/debts");
     revalidatePath("/cash-drawer");
     revalidatePath("/transfers");
-    redirectTo = `/software-services/${sale.id}?created=1`;
+    revalidatePath("/point-of-sale");
+    redirectTo = pointOfSaleReturn ? pointOfSaleResultPath("software", { saved: "1", transaction: sale.id }) : `/software-services/${sale.id}?created=1`;
   } catch (error) {
-    redirectTo = `/software-services/new?error=${encodeURIComponent(getErrorMessage(error))}`;
+    redirectTo = pointOfSaleReturn ? pointOfSaleResultPath("software", { error: getErrorMessage(error) }) : `/software-services/new?error=${encodeURIComponent(getErrorMessage(error))}`;
   }
   redirect(redirectTo);
 }
@@ -112,11 +115,7 @@ const catalogSchema = z.object({
 export async function createSoftwareServiceCatalogAction(formData: FormData) {
   let redirectTo = "/software-services";
   try {
-    const input = catalogSchema.parse({
-      name: readString(formData, "name"),
-      defaultPrice: readString(formData, "defaultPrice"),
-      defaultCost: readString(formData, "defaultCost"),
-    });
+    const input = catalogSchema.parse({ name: readString(formData, "name"), defaultPrice: readString(formData, "defaultPrice"), defaultCost: readString(formData, "defaultCost") });
     const auth = await requirePermission("sales:create");
     await softwareServiceService.createCatalogItem(auth.shop.id, input);
     revalidatePath("/software-services");
@@ -145,7 +144,6 @@ export async function markSoftwareDeviceDeliveredAction(formData: FormData) {
 export async function cancelSoftwareServiceSaleAction(formData: FormData) {
   const id = readString(formData, "id");
   if (!id) redirect("/software-services?cancelError=" + encodeURIComponent("معرّف الخدمة غير موجود."));
-
   let redirectTo = `/software-services/${id}`;
   try {
     const auth = await requirePermission("sales:create");

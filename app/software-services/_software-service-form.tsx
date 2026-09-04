@@ -24,10 +24,12 @@ export function SoftwareServiceForm({
   catalog,
   wallets,
   currency,
+  returnTo,
 }: {
   catalog: CatalogOption[];
   wallets: SaleWalletOption[];
   currency: string;
+  returnTo?: string;
 }) {
   const [catalogId, setCatalogId] = useState("");
   const [serviceName, setServiceName] = useState("");
@@ -61,6 +63,7 @@ export function SoftwareServiceForm({
     <form action={createSoftwareServiceSaleAction} className="space-y-6">
       <input type="hidden" name="customerMode" value={customerMode} />
       <input type="hidden" name="customerId" value={selectedCustomer?.id ?? ""} />
+      {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
 
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-6">

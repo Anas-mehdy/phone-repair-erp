@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requirePermission } from "@/lib/auth/context";
+import { pointOfSaleResultPath, readPointOfSaleReturn } from "@/lib/point-of-sale";
 import { salesService } from "@/lib/services/salesService";
 import { salesInventorySearchService } from "@/lib/services/salesInventorySearchService";
 import { salesCustomerSearchService } from "@/lib/services/salesCustomerSearchService";
@@ -57,6 +58,7 @@ export async function searchCustomersForSaleAction(query: string) {
 
 export async function createSaleAction(_state: SaleActionState, formData: FormData): Promise<SaleActionState> {
   let saleId = "";
+  const pointOfSaleReturn = readPointOfSaleReturn(readString(formData, "returnTo"), "sale");
   try {
     const rawItems = JSON.parse(readString(formData, "items"));
     const parsed = createSaleSchema.parse({
@@ -99,7 +101,8 @@ export async function createSaleAction(_state: SaleActionState, formData: FormDa
   revalidatePath("/cash-drawer");
   revalidatePath("/debts");
   revalidatePath("/reports");
-  redirect(`/sales/${saleId}`);
+  revalidatePath("/point-of-sale");
+  redirect(pointOfSaleReturn ? pointOfSaleResultPath("sale", { saved: "1", transaction: saleId }) : `/sales/${saleId}`);
 }
 
 export async function cancelSaleAction(formData: FormData) {

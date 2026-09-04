@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requirePermission } from "@/lib/auth/context";
+import { pointOfSaleResultPath, readPointOfSaleReturn } from "@/lib/point-of-sale";
 import { repairOrderService } from "@/lib/services/repairOrderService";
 import { salesCustomerSearchService } from "@/lib/services/salesCustomerSearchService";
 import { entitlementService } from "@/lib/services/subscriptionEntitlementService";
@@ -123,6 +124,7 @@ export async function searchCustomersForRepairAction(query: string) {
 }
 
 export async function createRepairOrderAction(formData: FormData) {
+  const pointOfSaleReturn = readPointOfSaleReturn(readString(formData, "returnTo"), "repair");
   const input = createRepairOrderSchema.parse({
     customerName: readString(formData, "customerName"),
     customerPhone: readString(formData, "customerPhone"),
@@ -162,12 +164,17 @@ export async function createRepairOrderAction(formData: FormData) {
   );
 
   if (!("result" in guarded)) {
-    redirect(`/repair-orders/new?entitlement=${encodeURIComponent(guarded.code)}`);
+    redirect(pointOfSaleReturn
+      ? pointOfSaleResultPath("repair", { entitlement: guarded.code })
+      : `/repair-orders/new?entitlement=${encodeURIComponent(guarded.code)}`);
   }
 
   const repairOrder = guarded.result;
   revalidatePath("/repair-orders");
-  redirect(`/repair-orders/${repairOrder.id}`);
+  revalidatePath("/point-of-sale");
+  redirect(pointOfSaleReturn
+    ? pointOfSaleResultPath("repair", { saved: "1", transaction: repairOrder.id })
+    : `/repair-orders/${repairOrder.id}`);
 }
 
 export async function assignRepairOrderAction(formData: FormData) {

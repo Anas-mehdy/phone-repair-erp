@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requirePermission } from "@/lib/auth/context";
+import { pointOfSaleResultPath, readPointOfSaleReturn } from "@/lib/point-of-sale";
 import { electronicServiceTransactionService } from "@/lib/services/electronicServiceTransactionService";
 
 const nonNegativeMoney = z.string().trim().min(1, "القيمة مطلوبة").refine((value) => {
@@ -35,6 +36,7 @@ function refreshElectronicServices() {
   revalidatePath("/transfers");
   revalidatePath("/debts");
   revalidatePath("/dashboard");
+  revalidatePath("/point-of-sale");
 }
 
 export async function createElectronicServiceTemplateAction(formData: FormData) {
@@ -88,6 +90,7 @@ export async function setElectronicServiceTemplateStatusAction(formData: FormDat
 }
 
 export async function createElectronicServiceTransactionAction(formData: FormData) {
+  const pointOfSaleReturn = readPointOfSaleReturn(readString(formData, "returnTo"), "electronic");
   const auth = await requirePermission("electronic_services:execute");
   const mode = readString(formData, "mode");
   const financial = z.object({
@@ -101,7 +104,9 @@ export async function createElectronicServiceTransactionAction(formData: FormDat
   });
 
   if (!financial.success) {
-    redirect(`/electronic-services/new?error=${encodeURIComponent(errorMessage(financial.error))}`);
+    redirect(pointOfSaleReturn
+      ? pointOfSaleResultPath("electronic", { error: errorMessage(financial.error) })
+      : `/electronic-services/new?error=${encodeURIComponent(errorMessage(financial.error))}`);
   }
 
   const common = {
@@ -123,7 +128,9 @@ export async function createElectronicServiceTransactionAction(formData: FormDat
         ...common,
       });
       refreshElectronicServices();
-      redirect(`/electronic-services/new?saved=1&transaction=${result.id}`);
+      redirect(pointOfSaleReturn
+        ? pointOfSaleResultPath("electronic", { saved: "1", transaction: result.id })
+        : `/electronic-services/new?saved=1&transaction=${result.id}`);
     }
 
     const parsed = z.object({
@@ -162,10 +169,14 @@ export async function createElectronicServiceTransactionAction(formData: FormDat
       ...common,
     });
     refreshElectronicServices();
-    redirect(`/electronic-services/new?saved=1&transaction=${result.id}`);
+    redirect(pointOfSaleReturn
+      ? pointOfSaleResultPath("electronic", { saved: "1", transaction: result.id })
+      : `/electronic-services/new?saved=1&transaction=${result.id}`);
   } catch (error) {
     if (error && typeof error === "object" && "digest" in error) throw error;
-    redirect(`/electronic-services/new?error=${encodeURIComponent(errorMessage(error))}`);
+    redirect(pointOfSaleReturn
+      ? pointOfSaleResultPath("electronic", { error: errorMessage(error) })
+      : `/electronic-services/new?error=${encodeURIComponent(errorMessage(error))}`);
   }
 }
 

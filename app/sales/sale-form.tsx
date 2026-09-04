@@ -16,7 +16,7 @@ type SaleLineDraft = { id: string; inventoryItemId: string; description: string;
 const initialState: SaleActionState = {};
 function createLine(): SaleLineDraft { return { id: crypto.randomUUID(), inventoryItemId: "", description: "", quantity: 1, unitPrice: "0", discountTotal: "0" }; }
 
-export function SaleForm({ inventoryItems, wallets, currency = "SAR" }: { inventoryItems: InventoryOption[]; wallets: SaleWalletOption[]; currency?: string }) {
+export function SaleForm({ inventoryItems, wallets, currency = "SAR", returnTo }: { inventoryItems: InventoryOption[]; wallets: SaleWalletOption[]; currency?: string; returnTo?: string }) {
   const [state, formAction, isPending] = useActionState(createSaleAction, initialState);
   const [lines, setLines] = useState<SaleLineDraft[]>([createLine()]);
   const [customerMode, setCustomerMode] = useState<CustomerMode>("CASH");
@@ -31,7 +31,7 @@ export function SaleForm({ inventoryItems, wallets, currency = "SAR" }: { invent
   function changeCustomerMode(mode: CustomerMode) { setCustomerMode(mode); if (mode !== "EXISTING") setSelectedCustomer(null); }
 
   return <form action={formAction} className="space-y-6">
-    <input name="items" type="hidden" value={serializedItems} /><input name="customerMode" type="hidden" value={customerMode} /><input name="customerId" type="hidden" value={selectedCustomer?.id ?? ""} />
+    <input name="items" type="hidden" value={serializedItems} /><input name="customerMode" type="hidden" value={customerMode} /><input name="customerId" type="hidden" value={selectedCustomer?.id ?? ""} />{returnTo ? <input name="returnTo" type="hidden" value={returnTo} /> : null}
     {state.error ? <div className="rounded-2xl border border-rose-250/30 bg-rose-50/40 p-4.5 text-xs font-extrabold text-rose-700">⚠️ {state.error}</div> : null}
     <div className="grid gap-6 lg:grid-cols-[1fr_360px] items-start">
       <div className="space-y-6"><section className="erp-section">

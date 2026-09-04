@@ -24,6 +24,7 @@ export function ElectronicServiceExecutionForm({
   wallets,
   defaultCurrency,
   defaultProviderId,
+  returnTo,
 }: {
   providers: Provider[];
   templates: Template[];
@@ -31,6 +32,7 @@ export function ElectronicServiceExecutionForm({
   wallets: Wallet[];
   defaultCurrency: string;
   defaultProviderId?: string;
+  returnTo?: string;
 }) {
   const [mode, setMode] = useState<"TEMPLATE" | "FREE">(templates.length ? "TEMPLATE" : "FREE");
   const [templateId, setTemplateId] = useState(templates[0]?.id ?? "");
@@ -55,6 +57,7 @@ export function ElectronicServiceExecutionForm({
 
   return <form action={createElectronicServiceTransactionAction} className="space-y-5">
     <input type="hidden" name="mode" value={mode} />
+    {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
 
     <div className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1.5 dark:border-slate-800 dark:bg-slate-900/70">
       <button type="button" onClick={() => setMode("TEMPLATE")} disabled={!templates.length} className={`flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 text-xs font-black transition ${mode === "TEMPLATE" ? "bg-white text-teal-700 shadow-sm ring-1 ring-slate-200 dark:bg-slate-950 dark:text-teal-300 dark:ring-slate-700" : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"} disabled:cursor-not-allowed disabled:opacity-40`}><Layers3 className="h-4 w-4" />خدمة محفوظة</button>
@@ -85,9 +88,7 @@ export function ElectronicServiceExecutionForm({
         <PaymentChoice active={paymentDestination === "OTHER"} icon={CreditCard} label="مصدر آخر" helper="بدون حركة مالية" onClick={() => setPaymentDestination("OTHER")} />
       </div>
       <input type="hidden" name="paymentDestination" value={paymentDestination} />
-
       {paymentDestination === "WALLET" ? <label className="mt-3 block"><span className="mb-1.5 block text-[10px] font-black text-slate-600 dark:text-slate-300">المحفظة التي استلمت المبلغ *</span><select name="walletId" value={walletId} onChange={(event) => setWalletId(event.target.value)} className={inputClass} required><option value="" disabled>اختر المحفظة</option>{wallets.map((wallet) => <option key={wallet.id} value={wallet.id}>{wallet.name} — {formatCurrency(wallet.currentBalance, defaultCurrency)}</option>)}</select>{wallets.length === 0 ? <p className="mt-1 text-[9px] font-bold text-rose-600 dark:text-rose-300">لا توجد محفظة نشطة. أضف محفظة أولاً أو اختر طريقة دفع أخرى.</p> : null}</label> : <input type="hidden" name="walletId" value="" />}
-
       <label className="mt-3 block"><span className="mb-1.5 block text-[10px] font-black text-slate-600 dark:text-slate-300">العميل {paymentDestination === "DEBT" ? "*" : "(اختياري)"}</span><select name="customerId" value={customerId} onChange={(event) => setCustomerId(event.target.value)} className={inputClass} required={paymentDestination === "DEBT"}><option value="">بدون ربط بعميل</option>{customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}{customer.phone ? ` — ${customer.phone}` : ""}</option>)}</select>{paymentDestination === "DEBT" ? <p className="mt-1 text-[9px] font-semibold text-amber-700 dark:text-amber-300">سيُضاف المبلغ كاملًا إلى دفتر دين هذا العميل، ويمنع مسار إلغاء العملية بعد تحصيل جزء من الدين.</p> : null}</label>
     </section>
 
