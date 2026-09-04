@@ -53,12 +53,14 @@ function errorMessage(error: unknown) {
 
 function refreshElectronicServices(providerId?: string) {
   revalidatePath("/electronic-services");
+  revalidatePath("/electronic-services/reconcile");
+  revalidatePath("/electronic-services/reports");
   if (providerId) revalidatePath(`/electronic-services/${providerId}`);
   revalidatePath("/dashboard");
 }
 
 export async function createElectronicServiceProviderAction(formData: FormData) {
-  const auth = await requirePermission("sales:create");
+  const auth = await requirePermission("electronic_services:manage");
   const parsed = providerSchema.safeParse({
     name: readString(formData, "name"),
     typeLabel: readString(formData, "typeLabel") || undefined,
@@ -85,7 +87,7 @@ export async function createElectronicServiceProviderAction(formData: FormData) 
 }
 
 export async function updateElectronicServiceProviderAction(formData: FormData) {
-  const auth = await requirePermission("sales:create");
+  const auth = await requirePermission("electronic_services:manage");
   const parsed = updateProviderSchema.safeParse({
     providerId: readString(formData, "providerId"),
     name: readString(formData, "name"),
@@ -109,7 +111,7 @@ export async function updateElectronicServiceProviderAction(formData: FormData) 
 }
 
 export async function setElectronicServiceProviderStatusAction(formData: FormData) {
-  const auth = await requirePermission("sales:create");
+  const auth = await requirePermission("electronic_services:manage");
   const providerId = providerIdSchema.safeParse(readString(formData, "providerId"));
   const isActive = readString(formData, "isActive") === "true";
 
@@ -128,7 +130,7 @@ export async function setElectronicServiceProviderStatusAction(formData: FormDat
 }
 
 export async function recordElectronicServiceProviderBalanceAction(formData: FormData) {
-  const auth = await requirePermission("sales:create");
+  const auth = await requirePermission("electronic_services:manage");
   const parsed = movementSchema.safeParse({
     providerId: readString(formData, "providerId"),
     mode: readString(formData, "mode"),

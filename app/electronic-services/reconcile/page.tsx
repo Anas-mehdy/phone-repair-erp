@@ -24,7 +24,7 @@ export default async function ElectronicServiceReconcilePage({ searchParams }: {
     electronicServiceProviderService.getOverview(context.shopId),
     electronicServiceReconciliationService.listReconciliations(context.shopId, undefined, 100),
   ]);
-  const canManage = context.permissions.includes("sales:create");
+  const canManage = context.permissions.includes("electronic_services:manage");
   const selectedId = query.provider && overview.providers.some((p) => p.id === query.provider) ? query.provider : overview.providers[0]?.id ?? "";
 
   return <div className="space-y-6 pb-8">

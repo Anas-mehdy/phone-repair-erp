@@ -27,7 +27,7 @@ function errorMessage(error: unknown) {
 }
 
 export async function reconcileElectronicServiceProviderAction(formData: FormData) {
-  const auth = await requirePermission("sales:create");
+  const auth = await requirePermission("electronic_services:manage");
   const parsed = schema.safeParse({
     providerId: read(formData, "providerId"),
     actualBalance: read(formData, "actualBalance"),

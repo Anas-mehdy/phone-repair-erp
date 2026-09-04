@@ -29,6 +29,8 @@ function refreshElectronicServices() {
   revalidatePath("/electronic-services");
   revalidatePath("/electronic-services/new");
   revalidatePath("/electronic-services/templates");
+  revalidatePath("/electronic-services/reconcile");
+  revalidatePath("/electronic-services/reports");
   revalidatePath("/cash-drawer");
   revalidatePath("/transfers");
   revalidatePath("/debts");
@@ -36,7 +38,7 @@ function refreshElectronicServices() {
 }
 
 export async function createElectronicServiceTemplateAction(formData: FormData) {
-  const auth = await requirePermission("sales:create");
+  const auth = await requirePermission("electronic_services:manage");
   const parsed = z.object({
     providerId: uuid,
     name: z.string().trim().min(2, "اسم الخدمة مطلوب").max(160, "اسم الخدمة طويل جداً"),
@@ -68,7 +70,7 @@ export async function createElectronicServiceTemplateAction(formData: FormData) 
 }
 
 export async function setElectronicServiceTemplateStatusAction(formData: FormData) {
-  const auth = await requirePermission("sales:create");
+  const auth = await requirePermission("electronic_services:manage");
   const parsed = z.object({ templateId: uuid, isActive: z.enum(["true", "false"]) }).safeParse({
     templateId: readString(formData, "templateId"),
     isActive: readString(formData, "isActive"),
@@ -86,7 +88,7 @@ export async function setElectronicServiceTemplateStatusAction(formData: FormDat
 }
 
 export async function createElectronicServiceTransactionAction(formData: FormData) {
-  const auth = await requirePermission("sales:create");
+  const auth = await requirePermission("electronic_services:execute");
   const mode = readString(formData, "mode");
   const financial = z.object({
     paymentDestination,

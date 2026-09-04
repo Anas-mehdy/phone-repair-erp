@@ -13,6 +13,9 @@ export type AppPermission =
   | "sales:read"
   | "sales:create"
   | "sales:cancel"
+  | "electronic_services:read"
+  | "electronic_services:execute"
+  | "electronic_services:manage"
   | "inventory:read"
   | "inventory:use_parts"
   | "inventory:manage"
@@ -42,6 +45,9 @@ export const ALL_APP_PERMISSIONS: readonly AppPermission[] = [
   "sales:read",
   "sales:create",
   "sales:cancel",
+  "electronic_services:read",
+  "electronic_services:execute",
+  "electronic_services:manage",
   "inventory:read",
   "inventory:use_parts",
   "inventory:manage",
@@ -79,6 +85,9 @@ export const ROLE_PERMISSIONS_MATRIX: Record<MembershipRole, readonly AppPermiss
     "sales:read",
     "sales:create",
     "sales:cancel",
+    "electronic_services:read",
+    "electronic_services:execute",
+    "electronic_services:manage",
     "inventory:read",
     "inventory:use_parts",
     "inventory:manage",
@@ -105,6 +114,8 @@ export const ROLE_PERMISSIONS_MATRIX: Record<MembershipRole, readonly AppPermiss
     "repairs:update_status",
     "sales:read",
     "sales:create",
+    "electronic_services:read",
+    "electronic_services:execute",
     "inventory:read",
     "inventory:use_parts",
     "invoices:read",
@@ -116,6 +127,7 @@ export const ROLE_PERMISSIONS_MATRIX: Record<MembershipRole, readonly AppPermiss
   VIEWER: [
     "repairs:read",
     "sales:read",
+    "electronic_services:read",
     "inventory:read",
     "invoices:read",
     "reports:read",

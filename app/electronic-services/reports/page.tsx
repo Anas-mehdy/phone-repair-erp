@@ -1,6 +1,6 @@
 import { BarChart3, CalendarDays, CircleDollarSign, Clock3, Scale, Sparkles, WalletCards } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { getCurrentShopContext } from "@/lib/current-shop";
+import { requirePermission } from "@/lib/auth/context";
 import { formatCurrency } from "@/lib/format";
 import { electronicServiceReportService } from "@/lib/services/electronicServiceReportService";
 import { timeZoneForCountry } from "@/lib/shop-timezone";
@@ -22,15 +22,15 @@ function paymentLabel(value: string) {
 
 export default async function ElectronicServiceReportsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const query = await searchParams;
-  const context = await getCurrentShopContext();
-  const timeZone = timeZoneForCountry(context.countryCode);
+  const auth = await requirePermission("reports:read");
+  const timeZone = timeZoneForCountry(auth.shop.countryCode);
   const today = localDateString(timeZone);
   const defaultFrom = `${today.slice(0, 8)}01`;
   const from = /^\d{4}-\d{2}-\d{2}$/.test(query.from || "") ? query.from! : defaultFrom;
   const to = /^\d{4}-\d{2}-\d{2}$/.test(query.to || "") ? query.to! : today;
   const providerId = query.provider && /^[0-9a-f-]{36}$/i.test(query.provider) ? query.provider : undefined;
-  const report = await electronicServiceReportService.getElectronicServiceReport(context.shopId, { from, to, providerId, timeZone });
-  const currency = context.currency;
+  const report = await electronicServiceReportService.getElectronicServiceReport(auth.shop.id, { from, to, providerId, timeZone });
+  const currency = auth.shop.currency || "SAR";
 
   return <div className="space-y-6 pb-8">
     <section className="relative overflow-hidden rounded-[28px] border border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-cyan-50/70 px-5 py-6 shadow-sm dark:border-slate-800 dark:from-slate-950 dark:via-slate-950 dark:to-indigo-950/25 sm:px-6"><div className="flex items-start gap-4"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-600 to-cyan-600 text-white"><BarChart3 className="h-6 w-6" /></span><div><p className="text-[10px] font-black text-indigo-700 dark:text-indigo-300">تقارير الخدمات الإلكترونية</p><h1 className="mt-1 text-2xl font-black text-slate-950 dark:text-slate-50">الأداء والأرباح والأرصدة</h1><p className="mt-1.5 max-w-3xl text-xs font-semibold leading-6 text-slate-500 dark:text-slate-400">حلّل العمليات حسب الفترة والمزود والخدمة، واعرف التكلفة الفعلية والربح والتحصيل والبيع الآجل وفروقات الجرد.</p></div></div></section>

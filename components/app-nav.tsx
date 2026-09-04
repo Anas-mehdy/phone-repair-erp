@@ -25,6 +25,7 @@ import {
   WalletCards,
   Wrench,
   X,
+  Zap,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -121,6 +122,7 @@ export const navSections: NavSection[] = [
     key: "sales", label: "المبيعات", icon: ShoppingCart, tone: "indigo", children: [
       { href: "/sales", label: "المبيعات والـ POS", icon: ShoppingCart, description: "بيع القطع والخدمات وإدارة نقطة البيع" },
       { href: "/software-services", label: "خدمات السوفتوير", icon: Code2, description: "الخدمات الرقمية والفواتير المرتبطة بها" },
+      { href: "/electronic-services", label: "الخدمات الإلكترونية", icon: Zap, description: "أرصدة المزودين والشحن والفواتير والخدمات الرقمية", badge: "جديد" },
       { href: "/online-store", label: "المتجر الإلكتروني", icon: Laptop, description: "الخدمات والمنتجات الإلكترونية", badge: "قريباً" },
     ],
   },
