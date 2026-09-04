@@ -1,0 +1,201 @@
+/* Dashboard shortcut for the unified Point of Sale.
+   The rotating border is adapted from the animation supplied by the product owner. */
+.dashboard-pos-launch-wrap {
+  display: flex;
+  justify-content: center;
+}
+
+.dashboard-pos-launch-card {
+  position: relative;
+  isolation: isolate;
+  display: block;
+  width: min(100%, 820px);
+  min-height: 132px;
+  overflow: hidden;
+  border-radius: 24px;
+  background: #07182e;
+  box-shadow:
+    0 24px 58px -34px rgba(8, 145, 178, 0.68),
+    0 16px 40px -34px rgba(168, 85, 247, 0.58);
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.dashboard-pos-launch-card::before {
+  content: "";
+  position: absolute;
+  z-index: -2;
+  left: 50%;
+  top: 50%;
+  width: 180px;
+  height: 430%;
+  background-image: linear-gradient(180deg, rgb(0, 183, 255), rgb(255, 48, 255));
+  animation: dashboardPosBorderSpin 3s linear infinite;
+  transform-origin: center;
+}
+
+.dashboard-pos-launch-card::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 3px;
+  border-radius: 21px;
+  background:
+    radial-gradient(circle at 88% 22%, rgba(6, 182, 212, 0.15), transparent 32%),
+    radial-gradient(circle at 12% 92%, rgba(168, 85, 247, 0.12), transparent 36%),
+    #07182e;
+}
+
+.dashboard-pos-launch-card:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 30px 68px -34px rgba(8, 145, 178, 0.82),
+    0 22px 52px -36px rgba(217, 70, 239, 0.64);
+}
+
+.dashboard-pos-launch-card:focus-visible {
+  outline: 3px solid rgba(34, 211, 238, 0.48);
+  outline-offset: 4px;
+}
+
+.dashboard-pos-launch-card__content {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  min-height: 132px;
+  padding: 22px 24px;
+  color: #f8fafc;
+}
+
+.dashboard-pos-launch-card__icon {
+  display: flex;
+  width: 58px;
+  height: 58px;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid rgba(103, 232, 249, 0.24);
+  border-radius: 18px;
+  background: linear-gradient(145deg, rgba(8, 145, 178, 0.26), rgba(79, 70, 229, 0.18));
+  color: #67e8f9;
+  box-shadow: inset 0 0 28px rgba(6, 182, 212, 0.08);
+}
+
+.dashboard-pos-launch-card__copy {
+  min-width: 0;
+}
+
+.dashboard-pos-launch-card__copy strong {
+  display: block;
+  margin-top: 5px;
+  font-size: 23px;
+  font-weight: 900;
+  line-height: 1.35;
+  color: #fff;
+}
+
+.dashboard-pos-launch-card__copy > span:last-child {
+  display: block;
+  margin-top: 5px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.8;
+  color: #aebed2;
+}
+
+.dashboard-pos-launch-card__eyebrow {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 6px;
+  margin-top: 0 !important;
+  border: 1px solid rgba(45, 212, 191, 0.2);
+  border-radius: 999px;
+  background: rgba(13, 148, 136, 0.1);
+  padding: 4px 9px;
+  color: #5eead4 !important;
+  font-size: 10px !important;
+  font-weight: 900 !important;
+  line-height: 1.35 !important;
+}
+
+.dashboard-pos-launch-card__action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  border: 1px solid rgba(103, 232, 249, 0.18);
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.72);
+  padding: 10px 13px;
+  color: #cffafe;
+  font-size: 12px;
+  font-weight: 900;
+  transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+}
+
+.dashboard-pos-launch-card:hover .dashboard-pos-launch-card__action {
+  border-color: rgba(103, 232, 249, 0.36);
+  background: rgba(8, 145, 178, 0.17);
+  color: #fff;
+}
+
+@keyframes dashboardPosBorderSpin {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+@media (max-width: 639px) {
+  .dashboard-pos-launch-card {
+    min-height: 0;
+    border-radius: 21px;
+  }
+
+  .dashboard-pos-launch-card::after {
+    border-radius: 18px;
+  }
+
+  .dashboard-pos-launch-card__content {
+    grid-template-columns: auto minmax(0, 1fr);
+    min-height: 0;
+    gap: 13px;
+    padding: 18px;
+  }
+
+  .dashboard-pos-launch-card__icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 15px;
+  }
+
+  .dashboard-pos-launch-card__copy strong {
+    font-size: 20px;
+  }
+
+  .dashboard-pos-launch-card__copy > span:last-child {
+    font-size: 11px;
+    line-height: 1.7;
+  }
+
+  .dashboard-pos-launch-card__action {
+    grid-column: 1 / -1;
+    justify-content: center;
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-pos-launch-card::before {
+    animation: none;
+  }
+
+  .dashboard-pos-launch-card {
+    transition: none;
+  }
+}

@@ -131,6 +131,25 @@ export default async function DashboardPage() {
         <p className="relative mt-5 text-center text-[14px] font-semibold text-slate-400">من أول خطوة... حتى يعود الجهاز لصاحبه</p>
       </section>
 
+      <section className="dashboard-pos-launch-wrap" aria-label="اختصار نقطة البيع">
+        <Link href="/point-of-sale" className="dashboard-pos-launch-card">
+          <span className="dashboard-pos-launch-card__content">
+            <span className="dashboard-pos-launch-card__icon">
+              <ShoppingCart className="h-6 w-6" />
+            </span>
+            <span className="dashboard-pos-launch-card__copy">
+              <span className="dashboard-pos-launch-card__eyebrow"><Sparkles className="h-3.5 w-3.5" /> مركز العمليات اليومية</span>
+              <strong>نقطة البيع</strong>
+              <span>بيع مباشر، صيانة، سوفتوير، خدمات إلكترونية ومحافظ — من مكان واحد.</span>
+            </span>
+            <span className="dashboard-pos-launch-card__action">
+              فتح نقطة البيع
+              <ArrowRightLeft className="h-4 w-4" />
+            </span>
+          </span>
+        </Link>
+      </section>
+
       <section>
         <div className="mb-4 flex items-end justify-between gap-3">
           <div><h2 className="masar-section-title">نظرة سريعة على عملك</h2><p className="masar-section-description">أهم مؤشرات الورشة اليوم والحالات التي تحتاج متابعة.</p></div>
