@@ -15,6 +15,7 @@ import { createInstallmentPublicToken } from "@/lib/installment-public-link";
 import { financialTransferService } from "@/lib/services/financialTransferService";
 import { installmentService } from "@/lib/services/installmentService";
 import { paymentSourceService } from "@/lib/services/paymentSourceService";
+import { localDateString, timeZoneForCountry } from "@/lib/timezone";
 import { addInstallmentPaymentAction, rotateInstallmentLinkAction } from "../actions";
 import { PlanStatus } from "../_components";
 import { CopyInstallmentLink } from "./_copy-link";
@@ -25,6 +26,8 @@ export const dynamic = "force-dynamic";
 export default async function InstallmentDetailsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string; created?: string; paid?: string; linkReset?: string; updated?: string }> }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const auth = await requirePermission("invoices:read");
+  const timeZone = timeZoneForCountry(auth.shop.countryCode);
+  const todayKey = localDateString(new Date(), timeZone);
   const [plan, paymentSources, wallets] = await Promise.all([
     installmentService.getPlanById(auth.shop.id, id),
     paymentSourceService.listPaymentSourceOptions(auth.shop.id),
@@ -36,7 +39,7 @@ export default async function InstallmentDetailsPage({ params, searchParams }: {
   const publicUrl = buildAppUrl(`/installment-track/${token}`);
   const qrData = await QRCode.toDataURL(publicUrl, { width: 220, margin: 1, errorCorrectionLevel: "M" });
   const next = plan.schedules.find((item) => item.status !== InstallmentScheduleStatus.PAID && item.status !== InstallmentScheduleStatus.CANCELLED);
-  const overdue = plan.status === InstallmentPlanStatus.ACTIVE && Boolean(next && next.dueAt < new Date());
+  const overdue = plan.status === InstallmentPlanStatus.ACTIVE && Boolean(next && localDateString(next.dueAt, timeZone) < todayKey);
   const whatsappUrl = plan.customer.phone ? `https://wa.me/${plan.customer.phone.replace(/\D/g, "")}?text=${encodeURIComponent(`مرحباً ${plan.customer.name}، هذا رابط متابعة الأقساط: ${publicUrl}`)}` : null;
 
   return <div className="space-y-6">
@@ -52,7 +55,7 @@ export default async function InstallmentDetailsPage({ params, searchParams }: {
       <Metric label="المبلغ الإجمالي" value={formatCurrency(plan.totalAmount, auth.shop.currency)} icon={Receipt} />
       <Metric label="المدفوع" value={formatCurrency(plan.amountPaid, auth.shop.currency)} icon={CheckCircle2} accent="emerald" />
       <Metric label="المتبقي" value={formatCurrency(plan.balanceDue, auth.shop.currency)} icon={WalletCards} accent="amber" />
-      <Metric label="القسط القادم" value={next ? formatCurrency(Number(next.amount) - Number(next.amountPaid), auth.shop.currency) : "مكتمل"} helper={next ? formatDate(next.dueAt) : undefined} icon={CalendarDays} accent={overdue ? "rose" : "teal"} />
+      <Metric label="القسط القادم" value={next ? formatCurrency(Number(next.amount) - Number(next.amountPaid), auth.shop.currency) : "مكتمل"} helper={next ? formatDate(next.dueAt, timeZone) : undefined} icon={CalendarDays} accent={overdue ? "rose" : "teal"} />
     </div>
 
     <div className="grid gap-6 xl:grid-cols-[1fr_340px]">
@@ -60,21 +63,21 @@ export default async function InstallmentDetailsPage({ params, searchParams }: {
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-100 p-5"><h2 className="font-black text-slate-900">جدول الأقساط</h2><p className="mt-1 text-xs text-slate-500">{plan.installmentCount} أقساط — {plan.frequency === "MONTHLY" ? "شهري" : "أسبوعي"}</p></div>
           <div className="overflow-x-auto"><table className="erp-table min-w-[650px]"><thead><tr><th>#</th><th>موعد الاستحقاق</th><th>قيمة القسط</th><th>المدفوع منه</th><th>المتبقي</th><th>الحالة</th></tr></thead><tbody>{plan.schedules.map((item) => {
-            const itemOverdue = item.status !== InstallmentScheduleStatus.PAID && item.dueAt < new Date();
-            return <tr key={item.id}><td className="font-black">{item.installmentNo}</td><td className={itemOverdue ? "font-bold text-rose-700" : "font-medium text-slate-700"}>{formatDate(item.dueAt)}</td><td className="font-numeric font-black">{formatCurrency(item.amount, auth.shop.currency)}</td><td className="font-numeric text-emerald-700">{formatCurrency(item.amountPaid, auth.shop.currency)}</td><td className="font-numeric font-bold text-amber-700">{formatCurrency(Number(item.amount) - Number(item.amountPaid), auth.shop.currency)}</td><td><ScheduleStatus status={item.status} overdue={itemOverdue} /></td></tr>;
+            const itemOverdue = item.status !== InstallmentScheduleStatus.PAID && localDateString(item.dueAt, timeZone) < todayKey;
+            return <tr key={item.id}><td className="font-black">{item.installmentNo}</td><td className={itemOverdue ? "font-bold text-rose-700" : "font-medium text-slate-700"}>{formatDate(item.dueAt, timeZone)}</td><td className="font-numeric font-black">{formatCurrency(item.amount, auth.shop.currency)}</td><td className="font-numeric text-emerald-700">{formatCurrency(item.amountPaid, auth.shop.currency)}</td><td className="font-numeric font-bold text-amber-700">{formatCurrency(Number(item.amount) - Number(item.amountPaid), auth.shop.currency)}</td><td><ScheduleStatus status={item.status} overdue={itemOverdue} /></td></tr>;
           })}</tbody></table></div>
         </section>
 
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-100 p-5"><h2 className="font-black text-slate-900">سجل الدفعات</h2></div>
-          {plan.payments.length === 0 ? <div className="p-8 text-center text-sm text-slate-400">لا توجد دفعات مسجلة بعد.</div> : <div className="overflow-x-auto"><table className="erp-table min-w-[720px]"><thead><tr><th>التاريخ</th><th>المبلغ</th><th>الطريقة</th><th>مصدر الدفع</th><th>المرجع</th><th>ملاحظات</th></tr></thead><tbody>{plan.payments.map((payment) => <tr key={payment.id}><td>{formatDateTime(payment.paidAt)}</td><td className="font-numeric font-black text-emerald-700">{formatCurrency(payment.amount, auth.shop.currency)}</td><td>{paymentMethod(payment.method)}</td><td className="font-bold text-indigo-700">{payment.sourceName || "-"}</td><td>{payment.reference || "-"}</td><td>{payment.isDownPayment ? "دفعة أولى" : payment.note || "-"}</td></tr>)}</tbody></table></div>}
+          {plan.payments.length === 0 ? <div className="p-8 text-center text-sm text-slate-400">لا توجد دفعات مسجلة بعد.</div> : <div className="overflow-x-auto"><table className="erp-table min-w-[720px]"><thead><tr><th>التاريخ</th><th>المبلغ</th><th>الطريقة</th><th>مصدر الدفع</th><th>المرجع</th><th>ملاحظات</th></tr></thead><tbody>{plan.payments.map((payment) => <tr key={payment.id}><td>{formatDateTime(payment.paidAt, timeZone)}</td><td className="font-numeric font-black text-emerald-700">{formatCurrency(payment.amount, auth.shop.currency)}</td><td>{paymentMethod(payment.method)}</td><td className="font-bold text-indigo-700">{payment.sourceName || "-"}</td><td>{payment.reference || "-"}</td><td>{payment.isDownPayment ? "دفعة أولى" : payment.note || "-"}</td></tr>)}</tbody></table></div>}
         </section>
       </div>
 
       <aside className="space-y-6">
         <section className="erp-section">
           <div className="mb-4 flex items-center gap-2"><UserRound className="h-5 w-5 text-teal-600" /><h2 className="font-black text-slate-900">بيانات الاتفاق</h2></div>
-          <dl className="space-y-3 text-xs"><Info label="العميل" value={plan.customer.name} /><Info label="الهاتف" value={plan.customer.phone || "-"} /><Info label="المصدر" value={plan.invoice ? `الفاتورة ${plan.invoice.invoiceNumber}` : "اتفاق مستقل"} /><Info label="الدفعة الأولى" value={formatCurrency(plan.downPayment, auth.shop.currency)} /><Info label="تاريخ الإنشاء" value={formatDate(plan.createdAt)} /></dl>
+          <dl className="space-y-3 text-xs"><Info label="العميل" value={plan.customer.name} /><Info label="الهاتف" value={plan.customer.phone || "-"} /><Info label="المصدر" value={plan.invoice ? `الفاتورة ${plan.invoice.invoiceNumber}` : "اتفاق مستقل"} /><Info label="الدفعة الأولى" value={formatCurrency(plan.downPayment, auth.shop.currency)} /><Info label="تاريخ الإنشاء" value={formatDate(plan.createdAt, timeZone)} /></dl>
           {plan.notes && <p className="mt-4 rounded-xl bg-slate-50 p-3 text-xs leading-6 text-slate-600">{plan.notes}</p>}
         </section>
 
@@ -83,11 +86,7 @@ export default async function InstallmentDetailsPage({ params, searchParams }: {
           <h2 className="font-black text-slate-900">تسجيل دفعة جديدة</h2>
           <label className="grid gap-2"><span className="text-xs font-bold">المبلغ</span><input name="amount" className="erp-input" type="number" min="0.01" max={plan.balanceDue.toString()} step="0.01" required /></label>
           <label className="grid gap-2"><span className="text-xs font-bold">طريقة الدفع</span><select name="method" className="erp-input" defaultValue={PaymentMethod.CASH}><option value="CASH">نقدي</option><option value="CARD">بطاقة</option><option value="BANK_TRANSFER">تحويل بنكي</option><option value="OTHER">أخرى</option></select></label>
-          <div className="grid gap-3 rounded-xl border border-teal-100 bg-teal-50/40 p-3">
-            <label className="grid gap-2"><span className="text-xs font-bold text-slate-700">مكان وصول المال</span><select name="moneyDestination" className="erp-input" defaultValue="DRAWER"><option value="DRAWER">الدرج النقدي</option><option value="WALLET">محفظة إلكترونية</option><option value="OTHER">بدون تحديث رصيد</option></select></label>
-            <label className="grid gap-2"><span className="text-xs font-bold text-slate-700">المحفظة</span><select name="walletId" className="erp-input" defaultValue=""><option value="">اخترها فقط عند التحصيل على محفظة</option>{wallets.map((wallet) => <option key={wallet.id} value={wallet.id}>{wallet.name} — {formatCurrency(wallet.currentBalance, auth.shop.currency)}</option>)}</select></label>
-            <p className="text-[11px] font-semibold leading-5 text-teal-700">القسط يبقى دفعة واحدة محاسبياً؛ الاختيار هنا يحدد فقط أين أصبح المال فعلياً.</p>
-          </div>
+          <div className="grid gap-3 rounded-xl border border-teal-100 bg-teal-50/40 p-3"><label className="grid gap-2"><span className="text-xs font-bold text-slate-700">مكان وصول المال</span><select name="moneyDestination" className="erp-input" defaultValue="DRAWER"><option value="DRAWER">الدرج النقدي</option><option value="WALLET">محفظة إلكترونية</option><option value="OTHER">بدون تحديث رصيد</option></select></label><label className="grid gap-2"><span className="text-xs font-bold text-slate-700">المحفظة</span><select name="walletId" className="erp-input" defaultValue=""><option value="">اخترها فقط عند التحصيل على محفظة</option>{wallets.map((wallet) => <option key={wallet.id} value={wallet.id}>{wallet.name} — {formatCurrency(wallet.currentBalance, auth.shop.currency)}</option>)}</select></label><p className="text-[11px] font-semibold leading-5 text-teal-700">القسط يبقى دفعة واحدة محاسبياً؛ الاختيار هنا يحدد فقط أين أصبح المال فعلياً.</p></div>
           <PaymentSourceField options={paymentSources} />
           <label className="grid gap-2"><span className="text-xs font-bold">المرجع</span><input name="reference" className="erp-input" placeholder="اختياري" /></label>
           <label className="grid gap-2"><span className="text-xs font-bold">تاريخ الدفع</span><input name="paidAt" className="erp-input" type="date" /></label>

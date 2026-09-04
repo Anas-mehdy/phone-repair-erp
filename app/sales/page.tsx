@@ -43,9 +43,11 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
   let sales: Awaited<ReturnType<typeof salesService.listSales>>;
 
   let currency = "SAR";
+  let timeZone = "UTC";
   try {
     const context = await getCurrentShopContext();
     currency = context.currency;
+    timeZone = context.timeZone;
     sales = await salesService.listSales(context.shopId, {
       search,
       status,
@@ -73,7 +75,6 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
         }
       />
 
-      {/* Summary Info Strip */}
       <div className="rounded-2xl border border-amber-200/50 bg-amber-50/15 p-4 text-xs font-semibold text-amber-900/90 flex items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <ShoppingCart className="h-4.5 w-4.5 text-amber-600" aria-hidden="true" />
@@ -86,7 +87,6 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
         </span>
       </div>
 
-      {/* Premium Filter Card */}
       <form className="erp-filter-card grid gap-5 sm:grid-cols-[1fr_220px_auto] items-end">
         <div className="grid gap-2 text-xs font-extrabold text-slate-700">
           <span>بحث عن إيصال</span>
@@ -119,7 +119,6 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
         </div>
       </form>
 
-      {/* Table Container */}
       <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/50">
         {sales.length === 0 ? (
           <EmptyState
@@ -153,10 +152,8 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
                         : "عميل نقدي / غير مسجل"}
                     </td>
                     <td className="font-black font-numeric text-slate-900">{formatMoney(sale.total, currency)}</td>
-                    <td>
-                      <SaleStatusBadge status={sale.status} />
-                    </td>
-                    <td className="font-numeric text-slate-600 font-medium">{formatDate(sale.soldAt)}</td>
+                    <td><SaleStatusBadge status={sale.status} /></td>
+                    <td className="font-numeric text-slate-600 font-medium">{formatDate(sale.soldAt, timeZone)}</td>
                     <td className="text-center font-numeric font-bold text-slate-800">{sale._count.items}</td>
                     <td className="text-center">
                       <Button asChild variant="outline" size="sm" className="font-bold shadow-xs border-slate-300 hover:bg-primary/10 hover:text-primary hover:border-primary/30 rounded-lg">

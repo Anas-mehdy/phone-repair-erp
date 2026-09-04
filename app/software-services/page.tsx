@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { getCurrentShopContext } from "@/lib/current-shop";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { softwareServiceService } from "@/lib/services/softwareServiceService";
+import { dayUtcBoundsForTimeZone, isWithinUtcBounds } from "@/lib/timezone";
 import { cancelSoftwareServiceSaleAction, createSoftwareServiceCatalogAction } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -22,8 +23,9 @@ export default async function SoftwareServicesPage({ searchParams }: Props) {
     softwareServiceService.listCatalog(context.shopId),
   ]);
   const currency = context.currency || "SAR";
+  const todayBounds = dayUtcBoundsForTimeZone(new Date(), context.timeZone);
   const todayTotal = sales
-    .filter((sale) => new Date(sale.soldAt).toDateString() === new Date().toDateString())
+    .filter((sale) => isWithinUtcBounds(sale.soldAt, todayBounds))
     .reduce((sum, sale) => sum + Number(sale.invoiceTotal), 0);
   const waitingDevices = sales.filter((sale) => sale.deviceKept && !sale.deliveredAt).length;
 
@@ -100,16 +102,13 @@ export default async function SoftwareServicesPage({ searchParams }: Props) {
                     <td className="font-numeric text-slate-600">{formatCurrency(Number(sale.serviceCost ?? 0), currency)}</td>
                     <td className="font-numeric font-bold text-amber-700">{formatCurrency(sale.invoiceBalanceDue, currency)}</td>
                     <td className="text-xs font-bold">{sale.deviceKept ? (sale.deliveredAt ? "تم التسليم" : "بالمحل") : "-"}</td>
-                    <td className="font-numeric text-xs text-slate-500">{formatDate(sale.soldAt)}</td>
+                    <td className="font-numeric text-xs text-slate-500">{formatDate(sale.soldAt, context.timeZone)}</td>
                     <td>
                       <div className="flex items-center gap-2">
                         <Button asChild size="sm" variant="outline" className="rounded-lg text-xs font-bold"><Link href={`/software-services/${sale.id}`}>فتح</Link></Button>
                         <form action={cancelSoftwareServiceSaleAction}>
                           <input type="hidden" name="id" value={sale.id} />
-                          <ConfirmSubmitButton
-                            className="h-9 rounded-lg border border-rose-200 bg-white px-3 text-xs font-black text-rose-700 hover:bg-rose-50"
-                            message={`إلغاء خدمة ${sale.serviceName}؟ سيتم إلغاء الفاتورة المرتبطة وعكس أي دفعات مسجلة وإزالة الخدمة من التقارير.`}
-                          >
+                          <ConfirmSubmitButton className="h-9 rounded-lg border border-rose-200 bg-white px-3 text-xs font-black text-rose-700 hover:bg-rose-50" message={`إلغاء خدمة ${sale.serviceName}؟ سيتم إلغاء الفاتورة المرتبطة وعكس أي دفعات مسجلة وإزالة الخدمة من التقارير.`}>
                             <Trash2 className="ml-1 h-3.5 w-3.5" />إلغاء
                           </ConfirmSubmitButton>
                         </form>

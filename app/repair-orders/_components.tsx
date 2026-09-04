@@ -13,8 +13,8 @@ export function getRepairStatusLabel(status: RepairStatus) {
   return repairStatusLabels[status] ?? status;
 }
 
-export function formatDate(value: Date | string | null | undefined) {
-  return sharedFormatDate(value);
+export function formatDate(value: Date | string | null | undefined, timeZone?: string) {
+  return sharedFormatDate(value, timeZone);
 }
 
 export function formatMoney(value: unknown, currency: string = "SAR") {
@@ -42,7 +42,6 @@ export function Field({
     </label>
   );
 }
-
 
 export const inputClassName = "erp-input";
 export const textareaClassName = "erp-textarea";

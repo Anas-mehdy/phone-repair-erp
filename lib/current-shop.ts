@@ -1,5 +1,6 @@
 import { getAuthContext, type AuthContext, type GetAuthContextOptions } from "@/lib/auth/context";
 import { type MembershipRole, type MembershipStatus } from "@prisma/client";
+import { timeZoneForCountry } from "@/lib/timezone";
 
 /**
  * Standard CurrentShopContext interface.
@@ -11,6 +12,8 @@ export interface CurrentShopContext {
   userId: string | null;
   shopName: string;
   currency: string;
+  countryCode: string | null;
+  timeZone: string;
   userName: string;
   email: string;
   /**
@@ -46,19 +49,22 @@ function toLegacyRole(membershipRole: MembershipRole): string {
  * Security Guarantees:
  * 1. Validates session against PostgreSQL Membership(shopId, userId).
  * 2. Enforces membership.status === ACTIVE (rejects SUSPENDED and REMOVED immediately).
- * 3. Preserves all legacy properties (shopId, userId, role, shopName, currency) with zero breaking changes.
+ * 3. Preserves all legacy properties while exposing the shop country timezone.
  */
 export async function getCurrentShopContext(
   options: GetAuthContextOptions = { allowRedirect: true }
 ): Promise<CurrentShopContext> {
   try {
     const auth: AuthContext = await getAuthContext(options);
+    const countryCode = auth.shop.countryCode?.trim().toUpperCase() || null;
 
     return {
       shopId: auth.shop.id,
       userId: auth.user.id,
       shopName: auth.shop.name || "متجري",
       currency: auth.shop.currency || "SAR",
+      countryCode,
+      timeZone: timeZoneForCountry(countryCode),
       userName: auth.user.name || "المستخدم",
       email: auth.user.email || "",
       role: toLegacyRole(auth.membership.role),
@@ -78,6 +84,8 @@ export async function getCurrentShopContext(
       userId: null,
       shopName: "متجر غير مسجل",
       currency: "SAR",
+      countryCode: null,
+      timeZone: "UTC",
       userName: "زائر",
       email: "",
       role: "STAFF",

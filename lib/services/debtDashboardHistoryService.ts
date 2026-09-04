@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { requirePermission } from "@/lib/auth/context";
 import { prisma } from "@/lib/prisma";
+import { monthUtcBoundsForTimeZone, timeZoneForCountry } from "@/lib/timezone";
 
 /**
  * Dashboard query that keeps settled customer ledgers visible as history.
@@ -8,6 +9,8 @@ import { prisma } from "@/lib/prisma";
  */
 export async function getDebtDashboardWithHistory() {
   const auth = await requirePermission("debts:manage");
+  const timeZone = timeZoneForCountry(auth.shop.countryCode);
+  const month = monthUtcBoundsForTimeZone(new Date(), timeZone);
 
   const rows = await prisma.$queryRaw<Array<{
     customerId: string;
@@ -63,7 +66,8 @@ export async function getDebtDashboardWithHistory() {
     WHERE "shopId" = ${auth.shop.id}::uuid
       AND "type" = 'PAYMENT'
       AND "isReversed" = FALSE
-      AND "occurredAt" >= date_trunc('month', NOW())
+      AND "occurredAt" >= ${month.start}
+      AND "occurredAt" < ${month.end}
   `;
 
   const customers = rows.map((row) => ({

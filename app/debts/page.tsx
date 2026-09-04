@@ -2,6 +2,7 @@ import { requirePermission } from "@/lib/auth/context";
 import { prisma } from "@/lib/prisma";
 import { getDebtDashboardWithHistory } from "@/lib/services/debtDashboardHistoryService";
 import { getDebtAgingSummary } from "@/lib/services/debtAgingService";
+import { timeZoneForCountry } from "@/lib/timezone";
 import { DebtDashboard } from "./_debt-dashboard";
 
 export const dynamic = "force-dynamic";
@@ -32,6 +33,7 @@ export default async function DebtsPage() {
       collectedThisMonth={dashboard.collectedThisMonth}
       aging={aging}
       currency={auth.shop.currency || "SAR"}
+      timeZone={timeZoneForCountry(auth.shop.countryCode)}
     />
   );
 }

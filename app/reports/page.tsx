@@ -23,6 +23,17 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { getInventoryDamageReportSummary } from "@/lib/services/inventoryDamageReportService";
 import { reportService } from "@/lib/services/reportService";
 import { getTransferCommissionReportSummary } from "@/lib/services/transferCommissionReportService";
+import {
+  dateInputEndUtcForTimeZone,
+  dateInputStartUtcForTimeZone,
+  dateInputValueForTimeZone,
+  dayUtcBoundsForTimeZone,
+  localDateParts,
+  monthUtcBoundsForTimeZone,
+  timeZoneForCountry,
+  yearUtcBoundsForTimeZone,
+  zonedDateTimeToUtc,
+} from "@/lib/timezone";
 import { createExpenseAction, deleteExpenseAction } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -47,53 +58,46 @@ type ReportsPageProps = {
   }>;
 };
 
-function dateInput(date: Date) {
-  return date.toISOString().slice(0, 10);
+function localDayShift(reference: Date, days: number, timeZone: string) {
+  const local = localDateParts(reference, timeZone);
+  const shifted = new Date(Date.UTC(local.year, local.month - 1, local.day + days));
+  return zonedDateTimeToUtc({
+    year: shifted.getUTCFullYear(),
+    month: shifted.getUTCMonth() + 1,
+    day: shifted.getUTCDate(),
+  }, timeZone);
 }
 
-function startOfUtcDay(date: Date) {
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-}
-
-function addDays(date: Date, days: number) {
-  const next = new Date(date);
-  next.setUTCDate(next.getUTCDate() + days);
-  return next;
-}
-
-function resolveRange(params: Awaited<ReportsPageProps["searchParams"]>) {
+function resolveRange(params: Awaited<ReportsPageProps["searchParams"]>, timeZone: string) {
   const now = new Date();
-  const tomorrow = addDays(startOfUtcDay(now), 1);
+  const today = dayUtcBoundsForTimeZone(now, timeZone);
   const preset = ["today", "week", "month", "year", "custom"].includes(params.preset ?? "")
     ? params.preset!
     : "month";
 
   if (preset === "today") {
-    return { preset, start: addDays(tomorrow, -1), end: tomorrow, label: "اليوم" };
+    return { preset, start: today.start, end: today.end, label: "اليوم" };
   }
   if (preset === "week") {
-    return { preset, start: addDays(tomorrow, -7), end: tomorrow, label: "آخر 7 أيام" };
+    return { preset, start: localDayShift(now, -6, timeZone), end: today.end, label: "آخر 7 أيام" };
   }
   if (preset === "year") {
-    return {
-      preset,
-      start: new Date(Date.UTC(now.getUTCFullYear(), 0, 1)),
-      end: tomorrow,
-      label: "هذه السنة",
-    };
+    const year = yearUtcBoundsForTimeZone(now, timeZone);
+    return { preset, start: year.start, end: today.end, label: "هذه السنة" };
   }
   if (preset === "custom" && params.start && params.end) {
-    const start = new Date(`${params.start}T00:00:00.000Z`);
-    const end = addDays(new Date(`${params.end}T00:00:00.000Z`), 1);
-    if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && start < end) {
+    const start = dateInputStartUtcForTimeZone(params.start, timeZone);
+    const end = dateInputEndUtcForTimeZone(params.end, timeZone);
+    if (start && end && start < end) {
       return { preset, start, end, label: "فترة مخصصة" };
     }
   }
 
+  const month = monthUtcBoundsForTimeZone(now, timeZone);
   return {
     preset: "month",
-    start: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)),
-    end: tomorrow,
+    start: month.start,
+    end: today.end,
     label: "هذا الشهر",
   };
 }
@@ -101,7 +105,8 @@ function resolveRange(params: Awaited<ReportsPageProps["searchParams"]>) {
 export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   const params = await searchParams;
   const auth = await requirePermission("reports:read");
-  const range = resolveRange(params);
+  const timeZone = timeZoneForCountry(auth.shop.countryCode);
+  const range = resolveRange(params, timeZone);
   const [report, damageSummary, transferCommission] = await Promise.all([
     reportService.getFinancialReport(auth.shop.id, range),
     getInventoryDamageReportSummary(auth.shop.id, range.start, range.end),
@@ -115,6 +120,10 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   const netProfit = Math.round((report.metrics.netProfit + transferCommission.totalProfit + Number.EPSILON) * 100) / 100;
   const profitBase = report.metrics.netRevenueBeforeTax + transferCommission.totalProfit;
   const profitMargin = profitBase > 0 ? Math.round(((netProfit / profitBase) * 100 + Number.EPSILON) * 100) / 100 : 0;
+  const rangeLastInstant = new Date(range.end.getTime() - 1);
+  const rangeStartInput = dateInputValueForTimeZone(range.start, timeZone);
+  const rangeEndInput = dateInputValueForTimeZone(rangeLastInstant, timeZone);
+  const todayInput = dateInputValueForTimeZone(new Date(), timeZone);
 
   return (
     <div className="space-y-7">
@@ -135,7 +144,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
           <div>
             <p className="text-xs font-black text-slate-800">الفترة المعروضة: {range.label}</p>
             <p className="mt-1 text-[10px] font-bold text-slate-400">
-              من {formatDate(range.start)} إلى {formatDate(addDays(range.end, -1))}
+              من {formatDate(range.start, timeZone)} إلى {formatDate(rangeLastInstant, timeZone)}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -156,11 +165,11 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
           <input type="hidden" name="preset" value="custom" />
           <label className="grid gap-1.5 text-xs font-bold text-slate-600">
             من تاريخ
-            <input className="erp-input" type="date" name="start" defaultValue={dateInput(range.start)} required />
+            <input className="erp-input" type="date" name="start" defaultValue={rangeStartInput} required />
           </label>
           <label className="grid gap-1.5 text-xs font-bold text-slate-600">
             إلى تاريخ
-            <input className="erp-input" type="date" name="end" defaultValue={dateInput(addDays(range.end, -1))} required />
+            <input className="erp-input" type="date" name="end" defaultValue={rangeEndInput} required />
           </label>
           <Button type="submit" className="h-11 rounded-xl font-bold">عرض الفترة</Button>
         </form>
@@ -207,22 +216,8 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       </section>
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <BreakdownCard
-          title="من أين جاءت المبيعات؟"
-          description="يشمل المبيعات والخدمات الإلكترونية مع منع التكرار"
-          items={report.revenueMix}
-          max={maxMix}
-          currency={currency}
-          empty="لا توجد مبيعات في هذه الفترة."
-        />
-        <BreakdownCard
-          title="مصادر الأموال المقبوضة"
-          description="نقدي، بطاقة، تحويل، خدمات إلكترونية أو مصدر مخصص"
-          items={report.paymentSources}
-          max={maxSource}
-          currency={currency}
-          empty="لا توجد دفعات في هذه الفترة."
-        />
+        <BreakdownCard title="من أين جاءت المبيعات؟" description="يشمل المبيعات والخدمات الإلكترونية مع منع التكرار" items={report.revenueMix} max={maxMix} currency={currency} empty="لا توجد مبيعات في هذه الفترة." />
+        <BreakdownCard title="مصادر الأموال المقبوضة" description="نقدي، بطاقة، تحويل، خدمات إلكترونية أو مصدر مخصص" items={report.paymentSources} max={maxSource} currency={currency} empty="لا توجد دفعات في هذه الفترة." />
       </div>
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -232,9 +227,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
               <h3 className="text-sm font-black text-slate-900">سجل المصروفات</h3>
               <p className="mt-1 text-[10px] font-bold text-slate-400">المصروفات المسجلة ضمن الفترة المعروضة</p>
             </div>
-            <span className="rounded-full bg-rose-50 px-3 py-1 text-[10px] font-black text-rose-700">
-              {formatCurrency(report.metrics.expenseTotal, currency)}
-            </span>
+            <span className="rounded-full bg-rose-50 px-3 py-1 text-[10px] font-black text-rose-700">{formatCurrency(report.metrics.expenseTotal, currency)}</span>
           </div>
           {report.expenses.length === 0 ? (
             <div className="p-10 text-center text-xs font-bold text-slate-400">لا توجد مصروفات مسجلة في هذه الفترة.</div>
@@ -247,7 +240,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
                     <tr key={expense.id}>
                       <td><div className="font-black text-slate-800">{expense.title}</div>{expense.notes && <div className="mt-1 max-w-xs truncate text-[10px] text-slate-400">{expense.notes}</div>}</td>
                       <td>{categoryLabels[expense.category]}</td>
-                      <td>{formatDate(expense.spentAt)}</td>
+                      <td>{formatDate(expense.spentAt, timeZone)}</td>
                       <td className="font-numeric font-black text-rose-700">{formatCurrency(expense.amount, currency)}</td>
                       <td>{expense.createdByUser?.name || "-"}</td>
                       {canManageExpenses && <td><form action={deleteExpenseAction}><input type="hidden" name="expenseId" value={expense.id} /><Button type="submit" size="sm" variant="outline" className="rounded-lg border-rose-200 text-rose-700 hover:bg-rose-50"><Trash2 className="h-3.5 w-3.5 ml-1" />حذف</Button></form></td>}
@@ -269,7 +262,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
             <label className="grid gap-1.5 text-xs font-bold text-slate-700">الفئة<select name="category" className="erp-input" defaultValue="OTHER">{Object.entries(categoryLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
             <div className="grid grid-cols-2 gap-3">
               <label className="grid gap-1.5 text-xs font-bold text-slate-700">المبلغ<input name="amount" className="erp-input font-numeric" type="number" min="0.01" step="0.01" required /></label>
-              <label className="grid gap-1.5 text-xs font-bold text-slate-700">التاريخ<input name="spentAt" className="erp-input font-numeric" type="date" defaultValue={dateInput(new Date())} required /></label>
+              <label className="grid gap-1.5 text-xs font-bold text-slate-700">التاريخ<input name="spentAt" className="erp-input font-numeric" type="date" defaultValue={todayInput} required /></label>
             </div>
             <label className="grid gap-1.5 text-xs font-bold text-slate-700">ملاحظات<textarea name="notes" className="erp-textarea" rows={3} placeholder="اختياري" /></label>
             <Button type="submit" className="h-11 w-full rounded-xl font-black"><Plus className="h-4 w-4 ml-1.5" />حفظ المصروف</Button>

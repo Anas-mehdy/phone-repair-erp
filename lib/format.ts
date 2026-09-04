@@ -79,17 +79,20 @@ export function formatCurrency(value: unknown, currency: string = "SAR") {
   return `\u2066${formattedAmount}\u00A0${symbol}\u2069`;
 }
 
-export function formatDate(value: Date | string | null | undefined) {
+type DateValue = Date | string | null | undefined;
+
+export function formatDate(value: DateValue, timeZone?: string) {
   if (!value) {
     return "-";
   }
 
   return new Intl.DateTimeFormat("ar", {
     dateStyle: "medium",
+    ...(timeZone ? { timeZone } : {}),
   }).format(new Date(value));
 }
 
-export function formatDateTime(value: Date | string | null | undefined) {
+export function formatDateTime(value: DateValue, timeZone?: string) {
   if (!value) {
     return "-";
   }
@@ -97,5 +100,18 @@ export function formatDateTime(value: Date | string | null | undefined) {
   return new Intl.DateTimeFormat("ar", {
     dateStyle: "medium",
     timeStyle: "short",
+    ...(timeZone ? { timeZone } : {}),
+  }).format(new Date(value));
+}
+
+export function formatTime(value: DateValue, timeZone?: string) {
+  if (!value) {
+    return "-";
+  }
+
+  return new Intl.DateTimeFormat("ar", {
+    hour: "2-digit",
+    minute: "2-digit",
+    ...(timeZone ? { timeZone } : {}),
   }).format(new Date(value));
 }

@@ -1,5 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { getShopTimeZone } from "@/lib/shop-timezone";
+import { dayUtcBoundsForTimeZone } from "@/lib/timezone";
 
 export type ElectronicServiceProviderRow = {
   id: string;
@@ -48,6 +50,7 @@ export type ElectronicServiceProviderOverview = {
 };
 
 type QueryClient = Pick<Prisma.TransactionClient, "$queryRaw">;
+type UtcBounds = { start: Date; end: Date };
 
 type ProviderLockRow = {
   id: string;
@@ -72,6 +75,11 @@ function ensureNonNegative(value: Prisma.Decimal, label: string) {
   if (!value.isFinite() || value.lt(0)) throw new Error(`${label} لا يمكن أن يكون سالباً.`);
 }
 
+async function todayBoundsForShop(shopId: string): Promise<UtcBounds> {
+  const timeZone = await getShopTimeZone(shopId);
+  return dayUtcBoundsForTimeZone(new Date(), timeZone);
+}
+
 async function assertProviderNameAvailable(shopId: string, name: string, excludeId?: string, tx: QueryClient = prisma) {
   const excluded = excludeId ? Prisma.sql`AND "id" <> ${excludeId}::uuid` : Prisma.sql``;
   const rows = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`
@@ -84,13 +92,15 @@ async function assertProviderNameAvailable(shopId: string, name: string, exclude
   if (rows[0]) throw new Error("يوجد مزود خدمة بهذا الاسم مسبقاً في المتجر.");
 }
 
-async function getProviderBase(shopId: string, providerId: string) {
+async function getProviderBase(shopId: string, providerId: string, today: UtcBounds) {
   const rows = await prisma.$queryRaw<ElectronicServiceProviderRow[]>`
     SELECT p."id", p."shopId", p."name", p."typeLabel", p."currencyCode",
       p."currentBalance", p."openingBalance", p."isActive", p."notes",
       p."createdByUserId", p."createdAt", p."updatedAt",
       (SELECT MAX(m."createdAt") FROM "ElectronicServiceProviderMovement" m WHERE m."shopId" = p."shopId" AND m."providerId" = p."id") AS "lastMovementAt",
-      (SELECT COUNT(*)::int FROM "ElectronicServiceProviderMovement" m WHERE m."shopId" = p."shopId" AND m."providerId" = p."id" AND m."createdAt" >= date_trunc('day', NOW()) AND m."createdAt" < date_trunc('day', NOW()) + interval '1 day') AS "todayMovementCount"
+      (SELECT COUNT(*)::int FROM "ElectronicServiceProviderMovement" m
+        WHERE m."shopId" = p."shopId" AND m."providerId" = p."id"
+          AND m."createdAt" >= ${today.start} AND m."createdAt" < ${today.end}) AS "todayMovementCount"
     FROM "ElectronicServiceProvider" p
     WHERE p."shopId" = ${shopId}::uuid AND p."id" = ${providerId}::uuid
     LIMIT 1
@@ -103,6 +113,7 @@ export const electronicServiceProviderService = {
     const q = filters.q?.trim() || null;
     const searchFilter = q ? Prisma.sql`AND (p."name" ILIKE ${`%${q}%`} OR COALESCE(p."typeLabel", '') ILIKE ${`%${q}%`})` : Prisma.sql``;
     const statusFilter = filters.status === "ACTIVE" ? Prisma.sql`AND p."isActive" = true` : filters.status === "INACTIVE" ? Prisma.sql`AND p."isActive" = false` : Prisma.sql``;
+    const today = await todayBoundsForShop(shopId);
 
     const [providers, statsRows, todayRows] = await Promise.all([
       prisma.$queryRaw<ElectronicServiceProviderRow[]>(Prisma.sql`
@@ -110,7 +121,9 @@ export const electronicServiceProviderService = {
           p."currentBalance", p."openingBalance", p."isActive", p."notes",
           p."createdByUserId", p."createdAt", p."updatedAt",
           (SELECT MAX(m."createdAt") FROM "ElectronicServiceProviderMovement" m WHERE m."shopId" = p."shopId" AND m."providerId" = p."id") AS "lastMovementAt",
-          (SELECT COUNT(*)::int FROM "ElectronicServiceProviderMovement" m WHERE m."shopId" = p."shopId" AND m."providerId" = p."id" AND m."createdAt" >= date_trunc('day', NOW()) AND m."createdAt" < date_trunc('day', NOW()) + interval '1 day') AS "todayMovementCount"
+          (SELECT COUNT(*)::int FROM "ElectronicServiceProviderMovement" m
+            WHERE m."shopId" = p."shopId" AND m."providerId" = p."id"
+              AND m."createdAt" >= ${today.start} AND m."createdAt" < ${today.end}) AS "todayMovementCount"
         FROM "ElectronicServiceProvider" p
         WHERE p."shopId" = ${shopId}::uuid ${searchFilter} ${statusFilter}
         ORDER BY p."isActive" DESC, lower(p."name") ASC
@@ -122,27 +135,28 @@ export const electronicServiceProviderService = {
       prisma.$queryRaw<Array<{ todayIn: Prisma.Decimal; todayOut: Prisma.Decimal; todayMovementCount: number }>>`
         SELECT COALESCE(SUM("amount") FILTER (WHERE "direction" = 'IN'), 0) AS "todayIn", COALESCE(SUM("amount") FILTER (WHERE "direction" = 'OUT'), 0) AS "todayOut", COUNT(*)::int AS "todayMovementCount"
         FROM "ElectronicServiceProviderMovement"
-        WHERE "shopId" = ${shopId}::uuid AND "createdAt" >= date_trunc('day', NOW()) AND "createdAt" < date_trunc('day', NOW()) + interval '1 day'
+        WHERE "shopId" = ${shopId}::uuid AND "createdAt" >= ${today.start} AND "createdAt" < ${today.end}
       `,
     ]);
 
     const stats = statsRows[0];
-    const today = todayRows[0];
+    const todayStats = todayRows[0];
     return {
       providers,
       stats: {
         providerCount: stats?.providerCount ?? 0,
         activeProviderCount: stats?.activeProviderCount ?? 0,
         totalBalance: Number(stats?.totalBalance ?? 0),
-        todayIn: Number(today?.todayIn ?? 0),
-        todayOut: Number(today?.todayOut ?? 0),
-        todayMovementCount: today?.todayMovementCount ?? 0,
+        todayIn: Number(todayStats?.todayIn ?? 0),
+        todayOut: Number(todayStats?.todayOut ?? 0),
+        todayMovementCount: todayStats?.todayMovementCount ?? 0,
       },
     };
   },
 
   async getProvider(shopId: string, providerId: string, movementLimit = 150) {
-    const provider = await getProviderBase(shopId, providerId);
+    const today = await todayBoundsForShop(shopId);
+    const provider = await getProviderBase(shopId, providerId, today);
     if (!provider) return null;
     const [movements, todayRows] = await Promise.all([
       prisma.$queryRaw<ElectronicServiceProviderMovementRow[]>`
@@ -155,7 +169,8 @@ export const electronicServiceProviderService = {
       prisma.$queryRaw<Array<{ todayIn: Prisma.Decimal; todayOut: Prisma.Decimal; todayMovementCount: number }>>`
         SELECT COALESCE(SUM("amount") FILTER (WHERE "direction" = 'IN'), 0) AS "todayIn", COALESCE(SUM("amount") FILTER (WHERE "direction" = 'OUT'), 0) AS "todayOut", COUNT(*)::int AS "todayMovementCount"
         FROM "ElectronicServiceProviderMovement"
-        WHERE "shopId" = ${shopId}::uuid AND "providerId" = ${providerId}::uuid AND "createdAt" >= date_trunc('day', NOW()) AND "createdAt" < date_trunc('day', NOW()) + interval '1 day'
+        WHERE "shopId" = ${shopId}::uuid AND "providerId" = ${providerId}::uuid
+          AND "createdAt" >= ${today.start} AND "createdAt" < ${today.end}
       `,
     ]);
     return { provider, movements, today: { in: Number(todayRows[0]?.todayIn ?? 0), out: Number(todayRows[0]?.todayOut ?? 0), count: todayRows[0]?.todayMovementCount ?? 0 } };

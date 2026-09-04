@@ -1,6 +1,8 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { financialTransferService } from "@/lib/services/financialTransferService";
+import { dayUtcBoundsForTimeZone } from "@/lib/timezone";
+import { getShopTimeZone } from "@/lib/shop-timezone";
 
 export type CashDrawerMovementType =
   | "OPENING_BALANCE"
@@ -154,12 +156,14 @@ async function listMovements(shopId: string, drawerId: string, limit: number, in
 }
 
 async function todayTotals(shopId: string, drawerId: string) {
+  const timeZone = await getShopTimeZone(shopId);
+  const bounds = dayUtcBoundsForTimeZone(new Date(), timeZone);
   const rows = await prisma.$queryRaw<Array<{ inflow: Prisma.Decimal; outflow: Prisma.Decimal }>>`
     SELECT COALESCE(SUM("amount") FILTER (WHERE "direction" = 'IN' AND "type" <> 'OPENING_BALANCE'), 0) AS "inflow",
       COALESCE(SUM("amount") FILTER (WHERE "direction" = 'OUT'), 0) AS "outflow"
     FROM "CashDrawerMovement"
     WHERE "shopId" = ${shopId}::uuid AND "drawerId" = ${drawerId}::uuid AND "status" = 'ACTIVE'
-      AND "createdAt" >= date_trunc('day', NOW()) AND "createdAt" < date_trunc('day', NOW()) + interval '1 day'`;
+      AND "createdAt" >= ${bounds.start} AND "createdAt" < ${bounds.end}`;
   return rows[0];
 }
 

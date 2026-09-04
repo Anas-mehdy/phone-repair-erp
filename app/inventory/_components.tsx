@@ -28,9 +28,8 @@ export function Field({
   );
 }
 
-
-export function formatDate(value: Date | string | null | undefined) {
-  return sharedFormatDate(value);
+export function formatDate(value: Date | string | null | undefined, timeZone?: string) {
+  return sharedFormatDate(value, timeZone);
 }
 
 export function formatMoney(value: unknown, currency: string = "SAR") {

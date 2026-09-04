@@ -1,32 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-
-const COUNTRY_TIME_ZONES: Record<string, string> = {
-  SA: "Asia/Riyadh",
-  EG: "Africa/Cairo",
-  AE: "Asia/Dubai",
-  KW: "Asia/Kuwait",
-  QA: "Asia/Qatar",
-  BH: "Asia/Bahrain",
-  OM: "Asia/Muscat",
-  JO: "Asia/Amman",
-  IQ: "Asia/Baghdad",
-  SY: "Asia/Damascus",
-  PS: "Asia/Hebron",
-  YE: "Asia/Aden",
-  LB: "Asia/Beirut",
-  LY: "Africa/Tripoli",
-  TN: "Africa/Tunis",
-  DZ: "Africa/Algiers",
-  MA: "Africa/Casablanca",
-  SD: "Africa/Khartoum",
-  MR: "Africa/Nouakchott",
-  SO: "Africa/Mogadishu",
-  DJ: "Africa/Djibouti",
-  KM: "Indian/Comoro",
-  TR: "Europe/Istanbul",
-  US: "America/New_York",
-};
+import { dayUtcBoundsForTimeZone } from "@/lib/timezone";
+import { getShopTimeZone } from "@/lib/shop-timezone";
 
 export type TodayTransferOperation = {
   id: string;
@@ -40,13 +15,8 @@ export type TodayTransferOperation = {
 };
 
 export async function getTransferDailyData(shopId: string) {
-  const shop = await prisma.shop.findFirst({
-    where: { id: shopId, deletedAt: null },
-    select: { countryCode: true },
-  });
-
-  const countryCode = shop?.countryCode?.toUpperCase() || "US";
-  const timeZone = COUNTRY_TIME_ZONES[countryCode] || "UTC";
+  const timeZone = await getShopTimeZone(shopId);
+  const { start, end } = dayUtcBoundsForTimeZone(new Date(), timeZone);
 
   const [balanceRows, operationRows] = await Promise.all([
     prisma.$queryRaw<Array<{ totalBalance: Prisma.Decimal | number | string }>>`
@@ -83,8 +53,8 @@ export async function getTransferDailyData(shopId: string) {
         AND t."deletedAt" IS NULL
         AND t."status" = 'ACTIVE'
         AND t."operationType" IN ('CUSTOMER_DEPOSIT', 'CUSTOMER_WITHDRAWAL')
-        AND t."createdAt" >= ((date_trunc('day', NOW() AT TIME ZONE ${timeZone}) AT TIME ZONE ${timeZone}) AT TIME ZONE 'UTC')
-        AND t."createdAt" < (((date_trunc('day', NOW() AT TIME ZONE ${timeZone}) + interval '1 day') AT TIME ZONE ${timeZone}) AT TIME ZONE 'UTC')
+        AND t."createdAt" >= ${start}
+        AND t."createdAt" < ${end}
       ORDER BY t."createdAt" DESC
     `,
   ]);

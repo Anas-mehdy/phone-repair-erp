@@ -70,8 +70,8 @@ export function getPaymentMethodLabel(method: PaymentMethod) {
   return paymentMethodLabels[method] ?? method;
 }
 
-export function formatDate(value: Date | string | null | undefined) {
-  return sharedFormatDateTime(value);
+export function formatDate(value: Date | string | null | undefined, timeZone?: string) {
+  return sharedFormatDateTime(value, timeZone);
 }
 
 export function formatMoney(value: unknown, currency: string = "SAR") {

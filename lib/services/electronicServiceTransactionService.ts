@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { cashDrawerService } from "@/lib/services/cashDrawerService";
 import { financialTransferService } from "@/lib/services/financialTransferService";
 import { sourceDebtService } from "@/lib/services/sourceDebtService";
+import { getShopTimeZone } from "@/lib/shop-timezone";
+import { dayUtcBoundsForTimeZone } from "@/lib/timezone";
 
 export type ElectronicServiceProfitMode = "AUTO_DIFFERENCE" | "FIXED" | "PERCENTAGE" | "NONE";
 export type ElectronicServicePaymentDestination = "DRAWER" | "WALLET" | "OTHER" | "DEBT";
@@ -254,6 +256,8 @@ export const electronicServiceTransactionService = {
   async getExecutionData(shopId: string) {
     // Ensures the shared wallet tables exist before recent-transaction queries join them.
     const wallets = await financialTransferService.listWallets(shopId);
+    const timeZone = await getShopTimeZone(shopId);
+    const todayBounds = dayUtcBoundsForTimeZone(new Date(), timeZone);
     const [providers, templates, recentTransactions, customers, todayRows] = await Promise.all([
       getProviderOptions(shopId, true),
       listTemplates(shopId, false),
@@ -280,8 +284,8 @@ export const electronicServiceTransactionService = {
           COALESCE(SUM("profit"),0) AS "profit"
         FROM "ElectronicServiceTransaction"
         WHERE "shopId" = ${shopId}::uuid AND "status" = 'ACTIVE'
-          AND "createdAt" >= date_trunc('day', NOW())
-          AND "createdAt" < date_trunc('day', NOW()) + interval '1 day'
+          AND "createdAt" >= ${todayBounds.start}
+          AND "createdAt" < ${todayBounds.end}
       `,
     ]);
     const today = todayRows[0];

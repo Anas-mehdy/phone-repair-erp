@@ -9,10 +9,19 @@ import { Button } from "@/components/ui/button";
 import { requirePermission } from "@/lib/auth/context";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { installmentService } from "@/lib/services/installmentService";
+import { localDateString, timeZoneForCountry } from "@/lib/timezone";
 import { PlanStatus } from "./_components";
 import { deleteInstallmentPlanAction } from "./actions";
 
 export const dynamic = "force-dynamic";
+
+function calendarDaysFromToday(value: Date, now: Date, timeZone: string) {
+  const due = localDateString(value, timeZone);
+  const today = localDateString(now, timeZone);
+  const dueUtc = Date.parse(`${due}T00:00:00.000Z`);
+  const todayUtc = Date.parse(`${today}T00:00:00.000Z`);
+  return Math.round((dueUtc - todayUtc) / 86400000);
+}
 
 export default async function InstallmentsPage({ searchParams }: { searchParams: Promise<{ search?: string; error?: string; deleted?: string }> }) {
   const query = await searchParams;
@@ -21,11 +30,14 @@ export default async function InstallmentsPage({ searchParams }: { searchParams:
   const canDelete = auth.permissions.includes("invoices:void");
   const plans = await installmentService.listPlans(auth.shop.id, query.search);
   const now = new Date();
+  const timeZone = timeZoneForCountry(auth.shop.countryCode);
   const active = plans.filter((plan) => plan.status === InstallmentPlanStatus.ACTIVE);
-  const overdue = active.filter((plan) => plan.schedules[0] && plan.schedules[0].dueAt < now);
+  const overdue = active.filter((plan) => plan.schedules[0] && calendarDaysFromToday(plan.schedules[0].dueAt, now, timeZone) < 0);
   const dueSoon = active.filter((plan) => {
     const due = plan.schedules[0]?.dueAt;
-    return due && due >= now && due.getTime() <= now.getTime() + 7 * 86400000;
+    if (!due) return false;
+    const days = calendarDaysFromToday(due, now, timeZone);
+    return days >= 0 && days <= 7;
   });
   const totalDue = active.reduce((sum, plan) => sum + Number(plan.balanceDue), 0);
 
@@ -53,7 +65,7 @@ export default async function InstallmentsPage({ searchParams }: { searchParams:
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       {plans.length === 0 ? <EmptyState icon={WalletCards} title="لا توجد خطط أقساط" description="أنشئ أول خطة مستقلة أو قسّط رصيد فاتورة موجودة." /> : <div className="overflow-x-auto"><table className="erp-table min-w-[1080px]"><thead><tr><th>رقم الخطة</th><th>العميل</th><th>الوصف</th><th>المصدر</th><th>المدفوع</th><th>المتبقي</th><th>القسط القادم</th><th>الحالة</th><th className="text-center">الإجراءات</th></tr></thead><tbody>{plans.map((plan) => {
         const next = plan.schedules[0];
-        const isOverdue = plan.status === InstallmentPlanStatus.ACTIVE && next && next.dueAt < now;
+        const isOverdue = plan.status === InstallmentPlanStatus.ACTIVE && next && calendarDaysFromToday(next.dueAt, now, timeZone) < 0;
         return <tr key={plan.id}>
           <td className="font-numeric font-black text-slate-900">{plan.planNumber}</td>
           <td><div className="font-bold text-slate-900">{plan.customer.name}</div><div className="text-[10px] text-slate-400" dir="ltr">{plan.customer.phone || ""}</div></td>
@@ -61,7 +73,7 @@ export default async function InstallmentsPage({ searchParams }: { searchParams:
           <td><span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600">{plan.invoice ? `فاتورة ${plan.invoice.invoiceNumber}` : "اتفاق مستقل"}</span></td>
           <td className="font-numeric font-bold text-emerald-700">{formatCurrency(plan.amountPaid, auth.shop.currency)}</td>
           <td className="font-numeric font-black text-amber-700">{formatCurrency(plan.balanceDue, auth.shop.currency)}</td>
-          <td>{next ? <div><div className={`font-numeric text-xs font-black ${isOverdue ? "text-rose-700" : "text-slate-800"}`}>{formatCurrency(Number(next.amount) - Number(next.amountPaid), auth.shop.currency)}</div><div className={`text-[10px] ${isOverdue ? "text-rose-600" : "text-slate-400"}`}>{formatDate(next.dueAt)}</div></div> : "-"}</td>
+          <td>{next ? <div><div className={`font-numeric text-xs font-black ${isOverdue ? "text-rose-700" : "text-slate-800"}`}>{formatCurrency(Number(next.amount) - Number(next.amountPaid), auth.shop.currency)}</div><div className={`text-[10px] ${isOverdue ? "text-rose-600" : "text-slate-400"}`}>{formatDate(next.dueAt, timeZone)}</div></div> : "-"}</td>
           <td><PlanStatus status={plan.status} overdue={Boolean(isOverdue)} /></td>
           <td><div className="flex items-center justify-center gap-1.5">
             <Button asChild size="sm" variant="outline" title="عرض"><Link href={`/installments/${plan.id}`}><Eye className="h-4 w-4" /></Link></Button>

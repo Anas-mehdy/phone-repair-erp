@@ -63,12 +63,13 @@ export default async function DashboardPage() {
   }
 
   const currency = shopContext.currency || "SAR";
-  const todayStr = new Date().toLocaleDateString("ar-EG", {
+  const todayStr = new Intl.DateTimeFormat("ar-EG", {
     weekday: "long",
     year: "numeric",
     month: "long",
     day: "numeric",
-  });
+    timeZone: shopContext.timeZone,
+  }).format(new Date());
 
   const metricCards: Array<{
     label: string;
@@ -134,18 +135,13 @@ export default async function DashboardPage() {
       <section className="dashboard-pos-launch-wrap" aria-label="اختصار نقطة البيع">
         <Link href="/point-of-sale" className="dashboard-pos-launch-card">
           <span className="dashboard-pos-launch-card__content">
-            <span className="dashboard-pos-launch-card__icon">
-              <ShoppingCart className="h-6 w-6" />
-            </span>
+            <span className="dashboard-pos-launch-card__icon"><ShoppingCart className="h-6 w-6" /></span>
             <span className="dashboard-pos-launch-card__copy">
               <span className="dashboard-pos-launch-card__eyebrow"><Sparkles className="h-3.5 w-3.5" /> مركز العمليات اليومية</span>
               <strong>نقطة البيع</strong>
               <span>بيع مباشر، صيانة، سوفتوير، خدمات إلكترونية ومحافظ — من مكان واحد.</span>
             </span>
-            <span className="dashboard-pos-launch-card__action">
-              فتح نقطة البيع
-              <ArrowRightLeft className="h-4 w-4" />
-            </span>
+            <span className="dashboard-pos-launch-card__action">فتح نقطة البيع<ArrowRightLeft className="h-4 w-4" /></span>
           </span>
         </Link>
       </section>
@@ -154,23 +150,15 @@ export default async function DashboardPage() {
         <div className="mb-4 flex items-end justify-between gap-3">
           <div><h2 className="masar-section-title">نظرة سريعة على عملك</h2><p className="masar-section-description">أهم مؤشرات الورشة اليوم والحالات التي تحتاج متابعة.</p></div>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
-          {metricCards.map((card) => <DashboardStatCard key={card.label} {...card} />)}
-        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">{metricCards.map((card) => <DashboardStatCard key={card.label} {...card} />)}</div>
       </section>
 
       {hasAttentionItems ? (
         <DashboardSection title="يحتاج انتباهك اليوم" description="حالات تستحق المتابعة قبل نهاية يوم العمل." icon={AlertTriangle}>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {metrics.readyForDeliveryCount > 0 ? (
-              <DashboardAttentionCard title="أجهزة جاهزة للتسليم" tone="success" href="/repair-orders" action="عرض الأجهزة الجاهزة" description={<>يوجد <strong className="font-numeric font-black text-slate-900">{metrics.readyForDeliveryCount}</strong> جهاز مكتمل الصيانة بانتظار التواصل مع العميل والتسليم.</>} />
-            ) : null}
-            {metrics.lowStockItemsCount > 0 ? (
-              <DashboardAttentionCard title="نقص في المخزون" tone="danger" href="/inventory?lowStockOnly=true" action="مراجعة المخزون" description={<>يوجد <strong className="font-numeric font-black text-slate-900">{metrics.lowStockItemsCount}</strong> قطع بلغت أو تخطت حد إعادة الطلب.</>} />
-            ) : null}
-            {metrics.unpaidInvoicesCount > 0 ? (
-              <DashboardAttentionCard title="مستحقات غير محصلة" tone="warning" href="/invoices" action="متابعة التحصيل" description={<>توجد <strong className="font-numeric font-black text-slate-900">{metrics.unpaidInvoicesCount}</strong> فواتير معلقة بإجمالي <strong className="font-numeric font-black text-slate-900">{formatCurrency(metrics.unpaidBalanceTotal, currency)}</strong>.</>} />
-            ) : null}
+            {metrics.readyForDeliveryCount > 0 ? <DashboardAttentionCard title="أجهزة جاهزة للتسليم" tone="success" href="/repair-orders" action="عرض الأجهزة الجاهزة" description={<>يوجد <strong className="font-numeric font-black text-slate-900">{metrics.readyForDeliveryCount}</strong> جهاز مكتمل الصيانة بانتظار التواصل مع العميل والتسليم.</>} /> : null}
+            {metrics.lowStockItemsCount > 0 ? <DashboardAttentionCard title="نقص في المخزون" tone="danger" href="/inventory?lowStockOnly=true" action="مراجعة المخزون" description={<>يوجد <strong className="font-numeric font-black text-slate-900">{metrics.lowStockItemsCount}</strong> قطع بلغت أو تخطت حد إعادة الطلب.</>} /> : null}
+            {metrics.unpaidInvoicesCount > 0 ? <DashboardAttentionCard title="مستحقات غير محصلة" tone="warning" href="/invoices" action="متابعة التحصيل" description={<>توجد <strong className="font-numeric font-black text-slate-900">{metrics.unpaidInvoicesCount}</strong> فواتير معلقة بإجمالي <strong className="font-numeric font-black text-slate-900">{formatCurrency(metrics.unpaidBalanceTotal, currency)}</strong>.</>} /> : null}
           </div>
         </DashboardSection>
       ) : null}
@@ -181,19 +169,19 @@ export default async function DashboardPage() {
         <div className="grid gap-5 md:grid-cols-2 2xl:grid-cols-3">
           <DashboardActivityCard title="آخر تذاكر صيانة" icon={Wrench}>
             {activity.repairOrders.length === 0 ? <DashboardEmptyActivity href="/repair-orders/new" label="طلب صيانة جديد" /> : activity.repairOrders.map((repairOrder) => (
-              <DashboardActivityItem key={repairOrder.id} href={`/repair-orders/${repairOrder.id}`} title={repairOrder.ticketNumber} description={`${repairOrder.customer?.name ?? "عميل سريع"} - ${repairOrder.deviceBrand ?? ""} ${repairOrder.deviceModel ?? ""}`} meta={formatDate(repairOrder.createdAt)} />
+              <DashboardActivityItem key={repairOrder.id} href={`/repair-orders/${repairOrder.id}`} title={repairOrder.ticketNumber} description={`${repairOrder.customer?.name ?? "عميل سريع"} - ${repairOrder.deviceBrand ?? ""} ${repairOrder.deviceModel ?? ""}`} meta={formatDate(repairOrder.createdAt, shopContext.timeZone)} />
             ))}
           </DashboardActivityCard>
 
           <DashboardActivityCard title="آخر عمليات البيع" icon={ShoppingCart}>
             {activity.sales.length === 0 ? <DashboardEmptyActivity href="/sales/new" label="عملية بيع جديدة" /> : activity.sales.map((sale) => (
-              <DashboardActivityItem key={sale.id} href={`/sales/${sale.id}`} title={sale.receiptNumber ?? "إيصال بيع"} description={`${sale.customer?.name ?? "عميل نقدي"} - إجمالي: ${formatCurrency(sale.total, currency)}`} meta={formatDate(sale.soldAt)} />
+              <DashboardActivityItem key={sale.id} href={`/sales/${sale.id}`} title={sale.receiptNumber ?? "إيصال بيع"} description={`${sale.customer?.name ?? "عميل نقدي"} - إجمالي: ${formatCurrency(sale.total, currency)}`} meta={formatDate(sale.soldAt, shopContext.timeZone)} />
             ))}
           </DashboardActivityCard>
 
           <DashboardActivityCard title="آخر الفواتير" icon={FileText}>
             {activity.invoices.length === 0 ? <DashboardEmptyActivity href="/invoices" label="عرض الفواتير" /> : activity.invoices.map((invoice) => (
-              <DashboardActivityItem key={invoice.id} href={`/invoices/${invoice.id}`} title={invoice.invoiceNumber} description={`${invoice.customer?.name ?? "عميل سريع"} - متبقي: ${formatCurrency(invoice.balanceDue, currency)}`} meta={formatDate(invoice.issuedAt)} />
+              <DashboardActivityItem key={invoice.id} href={`/invoices/${invoice.id}`} title={invoice.invoiceNumber} description={`${invoice.customer?.name ?? "عميل سريع"} - متبقي: ${formatCurrency(invoice.balanceDue, currency)}`} meta={formatDate(invoice.issuedAt, shopContext.timeZone)} />
             ))}
           </DashboardActivityCard>
         </div>

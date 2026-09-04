@@ -42,10 +42,12 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
   const type = toType(params.type);
   let invoices: Awaited<ReturnType<typeof invoiceService.listInvoices>>;
   let currency = "SAR";
+  let timeZone = "UTC";
 
   try {
     const context = await getCurrentShopContext();
     currency = context.currency;
+    timeZone = context.timeZone;
     invoices = await invoiceService.listInvoices(context.shopId, { status, type, search });
   } catch (error) {
     if (isDatabaseConnectionError(error)) return <DatabaseUnavailable />;
@@ -112,7 +114,7 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
                     <td className="font-numeric text-slate-700 font-medium">{formatMoney(invoice.amountPaid, currency)}</td>
                     <td className={cn("font-black font-numeric", Number(invoice.balanceDue) > 0 ? "text-amber-700" : "text-slate-600")}>{formatMoney(invoice.balanceDue, currency)}</td>
                     <td><InvoiceStatusBadge status={invoice.status} /></td>
-                    <td className="font-numeric text-slate-600 font-medium">{formatDate(invoice.issuedAt)}</td>
+                    <td className="font-numeric text-slate-600 font-medium">{formatDate(invoice.issuedAt, timeZone)}</td>
                     <td className="text-center">
                       <Button asChild variant="outline" size="sm" className="font-bold rounded-lg">
                         <Link href={`/invoices/${invoice.id}`}><Eye className="h-3.5 w-3.5 ml-1" aria-hidden="true" />عرض</Link>

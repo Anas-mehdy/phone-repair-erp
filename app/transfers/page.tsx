@@ -14,6 +14,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { financialTransferService, type FinancialTransferSourceType, type FinancialTransferType } from "@/lib/services/financialTransferService";
 import { getTransferDailyData } from "@/lib/services/transferDailyStatsService";
+import { dateInputEndUtcForTimeZone, dateInputStartUtcForTimeZone } from "@/lib/timezone";
 import { voidTransferAction } from "./actions";
 import { TransferStatsCards } from "./_transfer-stats-cards";
 import { TransferForm } from "./_transfer-form";
@@ -24,17 +25,17 @@ export const dynamic = "force-dynamic";
 type SearchParams = { saved?: string; walletSaved?: string; walletUpdated?: string; voided?: string; error?: string; wallet?: string; type?: string; q?: string; from?: string; to?: string };
 const transferLabels: Record<FinancialTransferType, string> = { CUSTOMER_DEPOSIT: "إيداع للعميل", CUSTOMER_WITHDRAWAL: "سحب للعميل", WALLET_TOPUP: "زيادة رصيد المحفظة", WALLET_WITHDRAWAL: "نقص رصيد المحفظة" };
 const commissionLabels = { ADDED: "مضافة", DEDUCTED: "مخصومة", NONE: "بدون عمولة" } as const;
-function parseStartDate(value?: string) { if (!value) return undefined; const date = new Date(`${value}T00:00:00`); return Number.isNaN(date.getTime()) ? undefined : date; }
-function parseEndDate(value?: string) { if (!value) return undefined; const date = new Date(`${value}T00:00:00`); if (Number.isNaN(date.getTime())) return undefined; date.setDate(date.getDate() + 1); return date; }
 
 export default async function TransfersPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const query = await searchParams;
   const context = await getCurrentShopContext();
   const type = Object.prototype.hasOwnProperty.call(transferLabels, query.type ?? "") ? (query.type as FinancialTransferType) : undefined;
+  const from = query.from ? dateInputStartUtcForTimeZone(query.from, context.timeZone) : undefined;
+  const to = query.to ? dateInputEndUtcForTimeZone(query.to, context.timeZone) : undefined;
   const [wallets, dailyData, transfers, customers] = await Promise.all([
     financialTransferService.listWallets(context.shopId),
     getTransferDailyData(context.shopId),
-    financialTransferService.listTransfers(context.shopId, { walletId: query.wallet || undefined, operationType: type, q: query.q, from: parseStartDate(query.from), to: parseEndDate(query.to) }),
+    financialTransferService.listTransfers(context.shopId, { walletId: query.wallet || undefined, operationType: type, q: query.q, from, to }),
     prisma.customer.findMany({ where: { shopId: context.shopId, deletedAt: null }, select: { id: true, name: true, phone: true }, orderBy: { name: "asc" }, take: 500 }),
   ]);
 
@@ -65,7 +66,7 @@ export default async function TransfersPage({ searchParams }: { searchParams: Pr
     </section>
 
     <Feedback query={query} />
-    <TransferStatsCards stats={dailyData.stats} wallets={statsWallets} operations={statsOperations} currency={currency} />
+    <TransferStatsCards stats={dailyData.stats} wallets={statsWallets} operations={statsOperations} currency={currency} timeZone={context.timeZone} />
     <WalletsPanel wallets={walletPanelItems} currency={currency} />
 
     <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
@@ -98,7 +99,7 @@ export default async function TransfersPage({ searchParams }: { searchParams: Pr
           <td className="px-4 py-3"><div className="font-numeric font-black text-amber-700">{formatCurrency(transfer.commission, currency)}</div><div className="text-[9px] font-bold text-slate-400">{commissionLabels[transfer.commissionMode]}</div></td>
           <td className="px-4 py-3">{transfer.isDeferred ? <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-[9px] font-black text-amber-700">آجل — دفتر الديون</span> : <span className="text-[9px] font-bold text-slate-400">فوري</span>}</td>
           <td className="px-4 py-3">{transfer.status === "ACTIVE" ? <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[9px] font-black text-emerald-700"><CheckCircle2 className="h-3 w-3" /> فعالة</span> : <span className="rounded-full bg-rose-50 px-2 py-1 text-[9px] font-black text-rose-600">ملغاة</span>}</td>
-          <td className="px-4 py-3 font-numeric text-[10px] font-bold text-slate-500">{formatDate(transfer.createdAt)}</td>
+          <td className="px-4 py-3 font-numeric text-[10px] font-bold text-slate-500">{formatDate(transfer.createdAt, context.timeZone)}</td>
           <td className="px-4 py-3"><div className="flex items-center gap-1"><Button asChild variant="ghost" size="sm" className="h-8 rounded-lg px-2 text-[9px] font-black text-teal-700 hover:bg-teal-50"><Link href={`/transfers/${transfer.id}`}><Eye className="ml-1 h-3.5 w-3.5" />فتح التفاصيل</Link></Button>{sourceHref ? <Button asChild variant="ghost" size="sm" className="h-8 rounded-lg px-2 text-[9px] font-black text-indigo-700 hover:bg-indigo-50"><Link href={sourceHref}><ExternalLink className="ml-1 h-3.5 w-3.5" />{transferSourceLinkLabel(transfer.sourceType)}</Link></Button> : null}{transfer.status === "ACTIVE" && canVoid ? <form action={voidTransferAction}><input type="hidden" name="id" value={transfer.id} /><ConfirmSubmitButton message="إلغاء العملية وعكس أثرها على الرصيد والدين المرتبط إن وجد؟" variant="ghost" size="sm" className="h-8 rounded-lg px-2 text-[9px] font-black text-rose-600 hover:bg-rose-50 hover:text-rose-700">إلغاء</ConfirmSubmitButton></form> : null}</div></td>
         </tr>})}</tbody></table></div>}
       </div>
