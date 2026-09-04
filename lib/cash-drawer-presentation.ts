@@ -1,6 +1,7 @@
 import type { CashDrawerMovementRow, CashDrawerSourceType } from "@/lib/services/cashDrawerService";
 
 export function cashDrawerMovementLabel(movement: Pick<CashDrawerMovementRow, "type" | "direction" | "sourceType">) {
+  if (String(movement.type) === "ELECTRONIC_SERVICE_PAYMENT") return "تحصيل خدمة إلكترونية";
   switch (movement.type) {
     case "OPENING_BALANCE": return "الرصيد الافتتاحي";
     case "MANUAL_IN": return "إضافة نقد للدرج";
@@ -18,6 +19,8 @@ export function cashDrawerMovementLabel(movement: Pick<CashDrawerMovementRow, "t
 }
 
 export function cashDrawerSourceHref(movement: Pick<CashDrawerMovementRow, "sourceType" | "sourceId" | "customerId" | "financialTransferId">) {
+  const sourceType = String(movement.sourceType);
+  if (sourceType === "ELECTRONIC_SERVICE" && movement.sourceId) return `/electronic-services/new?transaction=${movement.sourceId}`;
   if ((movement.sourceType === "SALE" || movement.sourceType === "SALE_CHANGE") && movement.sourceId) return `/sales/${movement.sourceId}`;
   if (movement.sourceType === "INVOICE" && movement.sourceId) return `/invoices/${movement.sourceId}`;
   if ((movement.sourceType === "INSTALLMENT" || movement.sourceType === "INSTALLMENT_DOWN_PAYMENT") && movement.sourceId) return `/installments/${movement.sourceId}`;
@@ -27,6 +30,7 @@ export function cashDrawerSourceHref(movement: Pick<CashDrawerMovementRow, "sour
 }
 
 export function cashDrawerSourceLinkLabel(sourceType: CashDrawerSourceType) {
+  if (String(sourceType) === "ELECTRONIC_SERVICE") return "فتح الخدمة الإلكترونية";
   if (sourceType === "SALE" || sourceType === "SALE_CHANGE") return "فتح المبيعة";
   if (sourceType === "INVOICE") return "فتح الفاتورة";
   if (sourceType === "INSTALLMENT" || sourceType === "INSTALLMENT_DOWN_PAYMENT") return "فتح خطة الأقساط";
@@ -36,6 +40,7 @@ export function cashDrawerSourceLinkLabel(sourceType: CashDrawerSourceType) {
 }
 
 export function cashDrawerSourceLabel(sourceType: CashDrawerSourceType) {
+  if (String(sourceType) === "ELECTRONIC_SERVICE") return "خدمة إلكترونية";
   if (sourceType === "SALE") return "مبيعة";
   if (sourceType === "SALE_CHANGE") return "باقي مبيعة";
   if (sourceType === "INVOICE") return "فاتورة / خدمة";

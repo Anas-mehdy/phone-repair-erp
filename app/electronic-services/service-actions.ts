@@ -12,6 +12,8 @@ const nonNegativeMoney = z.string().trim().min(1, "القيمة مطلوبة").r
 }, "القيمة المالية غير صحيحة");
 
 const uuid = z.string().uuid("المعرف غير صالح");
+const optionalUuid = z.string().trim().optional().refine((value) => !value || z.string().uuid().safeParse(value).success, "المعرف غير صالح");
+const paymentDestination = z.enum(["DRAWER", "WALLET", "OTHER", "DEBT"]);
 
 function readString(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -27,6 +29,9 @@ function refreshElectronicServices() {
   revalidatePath("/electronic-services");
   revalidatePath("/electronic-services/new");
   revalidatePath("/electronic-services/templates");
+  revalidatePath("/cash-drawer");
+  revalidatePath("/transfers");
+  revalidatePath("/debts");
   revalidatePath("/dashboard");
 }
 
@@ -83,7 +88,24 @@ export async function setElectronicServiceTemplateStatusAction(formData: FormDat
 export async function createElectronicServiceTransactionAction(formData: FormData) {
   const auth = await requirePermission("sales:create");
   const mode = readString(formData, "mode");
+  const financial = z.object({
+    paymentDestination,
+    walletId: optionalUuid,
+    customerId: optionalUuid,
+  }).safeParse({
+    paymentDestination: readString(formData, "paymentDestination") || "DRAWER",
+    walletId: readString(formData, "walletId") || undefined,
+    customerId: readString(formData, "customerId") || undefined,
+  });
+
+  if (!financial.success) {
+    redirect(`/electronic-services/new?error=${encodeURIComponent(errorMessage(financial.error))}`);
+  }
+
   const common = {
+    paymentDestination: financial.data.paymentDestination,
+    walletId: financial.data.walletId || undefined,
+    customerId: financial.data.customerId || undefined,
     customerPhone: readString(formData, "customerPhone") || undefined,
     reference: readString(formData, "reference") || undefined,
     notes: readString(formData, "notes") || undefined,
@@ -143,4 +165,33 @@ export async function createElectronicServiceTransactionAction(formData: FormDat
     if (error && typeof error === "object" && "digest" in error) throw error;
     redirect(`/electronic-services/new?error=${encodeURIComponent(errorMessage(error))}`);
   }
+}
+
+export async function voidElectronicServiceTransactionAction(formData: FormData) {
+  const auth = await requirePermission("sales:cancel");
+  const parsed = z.object({
+    transactionId: uuid,
+    voidReason: z.string().trim().max(500, "سبب الإلغاء طويل جداً").optional(),
+  }).safeParse({
+    transactionId: readString(formData, "transactionId"),
+    voidReason: readString(formData, "voidReason") || undefined,
+  });
+
+  if (!parsed.success) {
+    redirect(`/electronic-services/new?error=${encodeURIComponent(errorMessage(parsed.error))}`);
+  }
+
+  try {
+    await electronicServiceTransactionService.voidTransaction(
+      auth.shop.id,
+      auth.user.id,
+      parsed.data.transactionId,
+      parsed.data.voidReason,
+    );
+  } catch (error) {
+    redirect(`/electronic-services/new?error=${encodeURIComponent(errorMessage(error))}`);
+  }
+
+  refreshElectronicServices();
+  redirect("/electronic-services/new?voided=1");
 }

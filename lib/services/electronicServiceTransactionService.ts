@@ -1,7 +1,11 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { cashDrawerService } from "@/lib/services/cashDrawerService";
+import { financialTransferService } from "@/lib/services/financialTransferService";
+import { sourceDebtService } from "@/lib/services/sourceDebtService";
 
 export type ElectronicServiceProfitMode = "AUTO_DIFFERENCE" | "FIXED" | "PERCENTAGE" | "NONE";
+export type ElectronicServicePaymentDestination = "DRAWER" | "WALLET" | "OTHER" | "DEBT";
 
 export type ElectronicServiceProviderOption = {
   id: string;
@@ -37,6 +41,8 @@ export type ElectronicServiceTransactionRow = {
   providerId: string;
   providerName: string;
   templateId: string | null;
+  customerId: string | null;
+  customerName: string | null;
   category: string;
   serviceName: string;
   faceValue: Prisma.Decimal;
@@ -45,6 +51,12 @@ export type ElectronicServiceTransactionRow = {
   profit: Prisma.Decimal;
   profitMode: ElectronicServiceProfitMode;
   profitValue: Prisma.Decimal;
+  paymentDestination: ElectronicServicePaymentDestination;
+  walletId: string | null;
+  walletName: string | null;
+  debtEntryId: string | null;
+  cashDrawerMovementId: string | null;
+  financialTransferId: string | null;
   customerPhone: string | null;
   reference: string | null;
   notes: string | null;
@@ -52,7 +64,32 @@ export type ElectronicServiceTransactionRow = {
   createdByUserId: string | null;
   createdByName: string | null;
   createdAt: Date;
+  voidedAt: Date | null;
+  voidReason: string | null;
 };
+
+type CommonTransactionInput = {
+  paymentDestination: ElectronicServicePaymentDestination;
+  walletId?: string | null;
+  customerId?: string | null;
+  customerPhone?: string | null;
+  reference?: string | null;
+  notes?: string | null;
+};
+
+type CreateTransactionInput =
+  | (CommonTransactionInput & { mode: "TEMPLATE"; templateId: string })
+  | (CommonTransactionInput & {
+      mode: "FREE";
+      providerId: string;
+      category: string;
+      serviceName: string;
+      faceValue: string;
+      providerCost: string;
+      profitMode: ElectronicServiceProfitMode;
+      profitValue?: string | null;
+      customerCharge?: string | null;
+    });
 
 function decimal(value: string | number | Prisma.Decimal | null | undefined) {
   return new Prisma.Decimal(String(value ?? 0).replace(",", "."));
@@ -104,11 +141,16 @@ async function listTemplates(shopId: string, includeInactive = true) {
 
 async function listRecentTransactions(shopId: string, limit = 30) {
   return prisma.$queryRaw<ElectronicServiceTransactionRow[]>`
-    SELECT tx."id", tx."providerId", p."name" AS "providerName", tx."templateId", tx."category", tx."serviceName",
+    SELECT tx."id", tx."providerId", p."name" AS "providerName", tx."templateId",
+      tx."customerId", c."name" AS "customerName", tx."category", tx."serviceName",
       tx."faceValue", tx."providerCost", tx."customerCharge", tx."profit", tx."profitMode", tx."profitValue",
-      tx."customerPhone", tx."reference", tx."notes", tx."status", tx."createdByUserId", u."name" AS "createdByName", tx."createdAt"
+      tx."paymentDestination", tx."walletId", w."name" AS "walletName", tx."debtEntryId",
+      tx."cashDrawerMovementId", tx."financialTransferId", tx."customerPhone", tx."reference", tx."notes",
+      tx."status", tx."createdByUserId", u."name" AS "createdByName", tx."createdAt", tx."voidedAt", tx."voidReason"
     FROM "ElectronicServiceTransaction" tx
     JOIN "ElectronicServiceProvider" p ON p."id" = tx."providerId"
+    LEFT JOIN "Customer" c ON c."id" = tx."customerId"
+    LEFT JOIN "FinancialWallet" w ON w."id" = tx."walletId"
     LEFT JOIN "User" u ON u."id" = tx."createdByUserId"
     WHERE tx."shopId" = ${shopId}::uuid
     ORDER BY tx."createdAt" DESC
@@ -116,15 +158,126 @@ async function listRecentTransactions(shopId: string, limit = 30) {
   `;
 }
 
+async function customerForTransaction(
+  tx: Prisma.TransactionClient,
+  shopId: string,
+  customerId?: string | null,
+) {
+  if (!customerId) return null;
+  const rows = await tx.$queryRaw<Array<{ id: string; name: string; phone: string | null }>>`
+    SELECT "id", "name", "phone"
+    FROM "Customer"
+    WHERE "id" = ${customerId}::uuid AND "shopId" = ${shopId}::uuid AND "deletedAt" IS NULL
+    LIMIT 1
+  `;
+  if (!rows[0]) throw new Error("العميل المحدد غير موجود في هذا المتجر.");
+  return rows[0];
+}
+
+async function applyIncomingPaymentTx(
+  tx: Prisma.TransactionClient,
+  input: {
+    shopId: string;
+    userId: string;
+    transactionId: string;
+    customerId: string | null;
+    serviceName: string;
+    amount: Prisma.Decimal;
+    destination: ElectronicServicePaymentDestination;
+    walletId?: string | null;
+    reference?: string | null;
+  },
+) {
+  if (input.amount.lte(0) || input.destination === "OTHER" || input.destination === "DEBT") {
+    return { cashDrawerMovementId: null as string | null, financialTransferId: null as string | null };
+  }
+
+  const description = `تحصيل خدمة إلكترونية: ${input.serviceName}`;
+  const sourceReference = nullableText(input.reference) ?? input.serviceName;
+
+  if (input.destination === "DRAWER") {
+    const drawerRows = await tx.$queryRaw<Array<{ id: string; currentBalance: Prisma.Decimal }>>`
+      SELECT "id", "currentBalance"
+      FROM "CashDrawer"
+      WHERE "shopId" = ${input.shopId}::uuid
+      FOR UPDATE
+    `;
+    const drawer = drawerRows[0];
+    if (!drawer) throw new Error("الدرج النقدي غير جاهز.");
+    const nextBalance = drawer.currentBalance.add(input.amount);
+    await tx.$executeRaw`
+      UPDATE "CashDrawer" SET "currentBalance" = ${nextBalance}, "updatedAt" = NOW()
+      WHERE "id" = ${drawer.id}::uuid
+    `;
+    const movementRows = await tx.$queryRaw<Array<{ id: string }>>`
+      INSERT INTO "CashDrawerMovement" (
+        "shopId", "drawerId", "createdByUserId", "type", "direction", "amount", "description", "reference",
+        "sourceType", "sourceId", "sourceReference", "customerId", "createdAt"
+      ) VALUES (
+        ${input.shopId}::uuid, ${drawer.id}::uuid, ${input.userId}::uuid,
+        'ELECTRONIC_SERVICE_PAYMENT', 'IN', ${input.amount}, ${description}, ${nullableText(input.reference)},
+        'ELECTRONIC_SERVICE', ${input.transactionId}, ${sourceReference}, ${input.customerId}::uuid, NOW()
+      ) RETURNING "id"
+    `;
+    return { cashDrawerMovementId: movementRows[0]?.id ?? null, financialTransferId: null };
+  }
+
+  if (!input.walletId) throw new Error("اختر المحفظة التي استلمت المبلغ.");
+  const walletRows = await tx.$queryRaw<Array<{ id: string; name: string; currentBalance: Prisma.Decimal }>>`
+    SELECT "id", "name", "currentBalance"
+    FROM "FinancialWallet"
+    WHERE "id" = ${input.walletId}::uuid AND "shopId" = ${input.shopId}::uuid
+      AND "deletedAt" IS NULL AND "isActive" = TRUE
+    FOR UPDATE
+  `;
+  const wallet = walletRows[0];
+  if (!wallet) throw new Error("المحفظة المحددة غير موجودة أو متوقفة.");
+  const nextBalance = wallet.currentBalance.add(input.amount);
+  await tx.$executeRaw`
+    UPDATE "FinancialWallet" SET "currentBalance" = ${nextBalance}, "updatedAt" = NOW()
+    WHERE "id" = ${wallet.id}::uuid
+  `;
+  const transferRows = await tx.$queryRaw<Array<{ id: string }>>`
+    INSERT INTO "FinancialTransfer" (
+      "shopId", "walletId", "customerId", "createdByUserId", "operationType", "amount", "walletAmount",
+      "commission", "commissionMode", "isDeferred", "sourceType", "sourceId", "sourceReference", "notes", "status", "createdAt", "updatedAt"
+    ) VALUES (
+      ${input.shopId}::uuid, ${wallet.id}::uuid, ${input.customerId}::uuid, ${input.userId}::uuid,
+      'WALLET_TOPUP', ${input.amount}, ${input.amount}, 0, 'NONE', FALSE,
+      'ELECTRONIC_SERVICE', ${input.transactionId}, ${sourceReference}, ${description}, 'ACTIVE', NOW(), NOW()
+    ) RETURNING "id"
+  `;
+  return { cashDrawerMovementId: null, financialTransferId: transferRows[0]?.id ?? null };
+}
+
 export const electronicServiceTransactionService = {
   async getExecutionData(shopId: string) {
-    const [providers, templates, recentTransactions, todayRows] = await Promise.all([
+    // Ensures the shared wallet tables exist before recent-transaction queries join them.
+    const wallets = await financialTransferService.listWallets(shopId);
+    const [providers, templates, recentTransactions, customers, todayRows] = await Promise.all([
       getProviderOptions(shopId, true),
       listTemplates(shopId, false),
       listRecentTransactions(shopId, 25),
-      prisma.$queryRaw<Array<{ count: number; providerCost: Prisma.Decimal; customerCharge: Prisma.Decimal; profit: Prisma.Decimal }>>`
-        SELECT COUNT(*)::int AS "count", COALESCE(SUM("providerCost"),0) AS "providerCost",
-          COALESCE(SUM("customerCharge"),0) AS "customerCharge", COALESCE(SUM("profit"),0) AS "profit"
+      prisma.customer.findMany({
+        where: { shopId, deletedAt: null },
+        select: { id: true, name: true, phone: true },
+        orderBy: { name: "asc" },
+        take: 500,
+      }),
+      prisma.$queryRaw<Array<{
+        count: number;
+        providerCost: Prisma.Decimal;
+        customerCharge: Prisma.Decimal;
+        collected: Prisma.Decimal;
+        deferred: Prisma.Decimal;
+        profit: Prisma.Decimal;
+      }>>`
+        SELECT COUNT(*)::int AS "count",
+          COALESCE(SUM("providerCost"),0) AS "providerCost",
+          COALESCE(SUM("customerCharge"),0) AS "customerCharge",
+          COALESCE(SUM("customerCharge") FILTER (WHERE "paymentDestination" <> 'DEBT'),0) AS "collected",
+          COALESCE(SUM("customerCharge") FILTER (WHERE "paymentDestination" = 'DEBT'),0) AS "deferred",
+          COALESCE(SUM("profit"),0) AS "profit"
         FROM "ElectronicServiceTransaction"
         WHERE "shopId" = ${shopId}::uuid AND "status" = 'ACTIVE'
           AND "createdAt" >= date_trunc('day', NOW())
@@ -136,10 +289,14 @@ export const electronicServiceTransactionService = {
       providers,
       templates,
       recentTransactions,
+      customers,
+      wallets,
       today: {
         count: today?.count ?? 0,
         providerCost: Number(today?.providerCost ?? 0),
         customerCharge: Number(today?.customerCharge ?? 0),
+        collected: Number(today?.collected ?? 0),
+        deferred: Number(today?.deferred ?? 0),
         profit: Number(today?.profit ?? 0),
       },
     };
@@ -206,10 +363,13 @@ export const electronicServiceTransactionService = {
     if (changed === 0) throw new Error("الخدمة المحفوظة غير موجودة.");
   },
 
-  async createTransaction(shopId: string, userId: string, input:
-    | { mode: "TEMPLATE"; templateId: string; customerPhone?: string | null; reference?: string | null; notes?: string | null }
-    | { mode: "FREE"; providerId: string; category: string; serviceName: string; faceValue: string; providerCost: string; profitMode: ElectronicServiceProfitMode; profitValue?: string | null; customerCharge?: string | null; customerPhone?: string | null; reference?: string | null; notes?: string | null }
-  ) {
+  async createTransaction(shopId: string, userId: string, input: CreateTransactionInput) {
+    if (input.paymentDestination === "DRAWER") {
+      await cashDrawerService.getSnapshot(shopId, 1);
+    } else if (input.paymentDestination === "WALLET") {
+      await financialTransferService.listWallets(shopId);
+    }
+
     return prisma.$transaction(async (tx) => {
       let providerId: string;
       let templateId: string | null = null;
@@ -223,8 +383,14 @@ export const electronicServiceTransactionService = {
 
       if (input.mode === "TEMPLATE") {
         const rows = await tx.$queryRaw<Array<{
-          id: string; providerId: string; name: string; category: string; faceValue: Prisma.Decimal | null;
-          providerCost: Prisma.Decimal; customerCharge: Prisma.Decimal; isActive: boolean;
+          id: string;
+          providerId: string;
+          name: string;
+          category: string;
+          faceValue: Prisma.Decimal | null;
+          providerCost: Prisma.Decimal;
+          customerCharge: Prisma.Decimal;
+          isActive: boolean;
         }>>`
           SELECT "id", "providerId", "name", "category", "faceValue", "providerCost", "customerCharge", "isActive"
           FROM "ElectronicServiceTemplate"
@@ -272,8 +438,19 @@ export const electronicServiceTransactionService = {
       ensureNonNegative(customerCharge, "المبلغ على العميل");
       const profit = customerCharge.sub(providerCost).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
 
-      const providerRows = await tx.$queryRaw<Array<{ id: string; currentBalance: Prisma.Decimal; isActive: boolean; currencyCode: string }>>`
-        SELECT "id", "currentBalance", "isActive", "currencyCode"
+      const customer = await customerForTransaction(tx, shopId, input.customerId);
+      if (input.paymentDestination === "DEBT" && !customer) {
+        throw new Error("اختر العميل عند تسجيل الخدمة على الدين.");
+      }
+      if (input.paymentDestination === "DEBT" && customerCharge.lte(0)) {
+        throw new Error("لا يمكن إنشاء دين بقيمة صفر.");
+      }
+      if (input.paymentDestination === "WALLET" && !input.walletId) {
+        throw new Error("اختر المحفظة التي استلمت المبلغ.");
+      }
+
+      const providerRows = await tx.$queryRaw<Array<{ id: string; currentBalance: Prisma.Decimal; isActive: boolean }>>`
+        SELECT "id", "currentBalance", "isActive"
         FROM "ElectronicServiceProvider"
         WHERE "shopId" = ${shopId}::uuid AND "id" = ${providerId}::uuid
         FOR UPDATE
@@ -283,13 +460,17 @@ export const electronicServiceTransactionService = {
       if (!provider.isActive) throw new Error("مزود الخدمة متوقف حالياً ولا يمكن تنفيذ عمليات جديدة عليه.");
       if (provider.currentBalance.lt(providerCost)) throw new Error("رصيد المزود غير كافٍ لتغطية تكلفة هذه الخدمة.");
 
+      const effectivePhone = nullableText(input.customerPhone) ?? customer?.phone ?? null;
       const transactionRows = await tx.$queryRaw<Array<{ id: string }>>`
         INSERT INTO "ElectronicServiceTransaction" (
-          "shopId", "providerId", "templateId", "createdByUserId", "category", "serviceName", "faceValue",
-          "providerCost", "customerCharge", "profit", "profitMode", "profitValue", "customerPhone", "reference", "notes", "status", "createdAt"
+          "shopId", "providerId", "templateId", "createdByUserId", "customerId", "category", "serviceName", "faceValue",
+          "providerCost", "customerCharge", "profit", "profitMode", "profitValue", "paymentDestination", "walletId",
+          "customerPhone", "reference", "notes", "status", "createdAt"
         ) VALUES (
-          ${shopId}::uuid, ${providerId}::uuid, ${templateId}::uuid, ${userId}::uuid, ${category}, ${serviceName}, ${faceValue},
-          ${providerCost}, ${customerCharge}, ${profit}, ${profitMode}, ${profitValue}, ${nullableText(input.customerPhone)}, ${nullableText(input.reference)}, ${nullableText(input.notes)}, 'ACTIVE', NOW()
+          ${shopId}::uuid, ${providerId}::uuid, ${templateId}::uuid, ${userId}::uuid, ${customer?.id ?? null}::uuid,
+          ${category}, ${serviceName}, ${faceValue}, ${providerCost}, ${customerCharge}, ${profit}, ${profitMode}, ${profitValue},
+          ${input.paymentDestination}, ${input.paymentDestination === "WALLET" ? input.walletId ?? null : null}::uuid,
+          ${effectivePhone}, ${nullableText(input.reference)}, ${nullableText(input.notes)}, 'ACTIVE', NOW()
         ) RETURNING "id"
       `;
       const transactionId = transactionRows[0]?.id;
@@ -313,6 +494,40 @@ export const electronicServiceTransactionService = {
         `;
       }
 
+      let debtEntryId: string | null = null;
+      if (input.paymentDestination === "DEBT") {
+        debtEntryId = await sourceDebtService.createSourceDebtTx(tx, {
+          shopId,
+          customerId: customer!.id,
+          createdByUserId: userId,
+          amount: customerCharge,
+          sourceType: "ELECTRONIC_SERVICE",
+          sourceId: transactionId,
+          sourceReference: nullableText(input.reference) ?? serviceName,
+          description: `خدمة إلكترونية: ${serviceName}`,
+        });
+      }
+
+      const incoming = await applyIncomingPaymentTx(tx, {
+        shopId,
+        userId,
+        transactionId,
+        customerId: customer?.id ?? null,
+        serviceName,
+        amount: customerCharge,
+        destination: input.paymentDestination,
+        walletId: input.walletId,
+        reference: input.reference,
+      });
+
+      await tx.$executeRaw`
+        UPDATE "ElectronicServiceTransaction"
+        SET "debtEntryId" = ${debtEntryId}::uuid,
+            "cashDrawerMovementId" = ${incoming.cashDrawerMovementId}::uuid,
+            "financialTransferId" = ${incoming.financialTransferId}::uuid
+        WHERE "id" = ${transactionId}::uuid AND "shopId" = ${shopId}::uuid
+      `;
+
       return {
         id: transactionId,
         providerId,
@@ -321,7 +536,129 @@ export const electronicServiceTransactionService = {
         providerCost: Number(providerCost),
         customerCharge: Number(customerCharge),
         profit: Number(profit),
+        paymentDestination: input.paymentDestination,
       };
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 10_000 });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 15_000 });
+  },
+
+  async voidTransaction(shopId: string, userId: string, transactionId: string, reason?: string | null) {
+    return prisma.$transaction(async (tx) => {
+      const rows = await tx.$queryRaw<Array<{
+        id: string;
+        providerId: string;
+        providerCost: Prisma.Decimal;
+        customerCharge: Prisma.Decimal;
+        paymentDestination: ElectronicServicePaymentDestination;
+        customerId: string | null;
+        cashDrawerMovementId: string | null;
+        financialTransferId: string | null;
+        serviceName: string;
+        reference: string | null;
+        status: "ACTIVE" | "VOID";
+      }>>`
+        SELECT "id", "providerId", "providerCost", "customerCharge", "paymentDestination", "customerId",
+          "cashDrawerMovementId", "financialTransferId", "serviceName", "reference", "status"
+        FROM "ElectronicServiceTransaction"
+        WHERE "shopId" = ${shopId}::uuid AND "id" = ${transactionId}::uuid
+        FOR UPDATE
+      `;
+      const operation = rows[0];
+      if (!operation) throw new Error("عملية الخدمة الإلكترونية غير موجودة.");
+      if (operation.status === "VOID") throw new Error("هذه العملية ملغاة مسبقاً.");
+
+      if (operation.paymentDestination === "DRAWER" && operation.customerCharge.gt(0)) {
+        const movementRows = await tx.$queryRaw<Array<{ id: string; drawerId: string; amount: Prisma.Decimal; status: string }>>`
+          SELECT "id", "drawerId", "amount", "status"
+          FROM "CashDrawerMovement"
+          WHERE "shopId" = ${shopId}::uuid
+            AND ("id" = ${operation.cashDrawerMovementId}::uuid OR ("sourceType" = 'ELECTRONIC_SERVICE' AND "sourceId" = ${transactionId}))
+          ORDER BY "createdAt" DESC LIMIT 1 FOR UPDATE
+        `;
+        const movement = movementRows[0];
+        if (movement && movement.status === "ACTIVE") {
+          const drawerRows = await tx.$queryRaw<Array<{ currentBalance: Prisma.Decimal }>>`
+            SELECT "currentBalance" FROM "CashDrawer"
+            WHERE "id" = ${movement.drawerId}::uuid AND "shopId" = ${shopId}::uuid FOR UPDATE
+          `;
+          const drawer = drawerRows[0];
+          if (!drawer) throw new Error("الدرج النقدي المرتبط بالعملية غير موجود.");
+          const nextBalance = drawer.currentBalance.sub(movement.amount);
+          if (nextBalance.lt(0)) throw new Error("لا يمكن إلغاء العملية لأن رصيد الدرج الحالي لا يكفي لعكس المبلغ المحصل.");
+          await tx.$executeRaw`UPDATE "CashDrawer" SET "currentBalance" = ${nextBalance}, "updatedAt" = NOW() WHERE "id" = ${movement.drawerId}::uuid`;
+          await tx.$executeRaw`UPDATE "CashDrawerMovement" SET "status" = 'VOID', "voidedAt" = NOW() WHERE "id" = ${movement.id}::uuid`;
+        }
+      }
+
+      if (operation.paymentDestination === "WALLET" && operation.customerCharge.gt(0)) {
+        const transferRows = await tx.$queryRaw<Array<{ id: string; walletId: string; walletAmount: Prisma.Decimal; status: string }>>`
+          SELECT "id", "walletId", "walletAmount", "status"
+          FROM "FinancialTransfer"
+          WHERE "shopId" = ${shopId}::uuid AND "deletedAt" IS NULL
+            AND ("id" = ${operation.financialTransferId}::uuid OR ("sourceType" = 'ELECTRONIC_SERVICE' AND "sourceId" = ${transactionId}))
+          ORDER BY "createdAt" DESC LIMIT 1 FOR UPDATE
+        `;
+        const transfer = transferRows[0];
+        if (transfer && transfer.status === "ACTIVE") {
+          const walletRows = await tx.$queryRaw<Array<{ currentBalance: Prisma.Decimal }>>`
+            SELECT "currentBalance" FROM "FinancialWallet"
+            WHERE "id" = ${transfer.walletId}::uuid AND "shopId" = ${shopId}::uuid AND "deletedAt" IS NULL FOR UPDATE
+          `;
+          const wallet = walletRows[0];
+          if (!wallet) throw new Error("المحفظة المرتبطة بالعملية غير موجودة.");
+          const nextBalance = wallet.currentBalance.sub(transfer.walletAmount);
+          if (nextBalance.lt(0)) throw new Error("لا يمكن إلغاء العملية لأن رصيد المحفظة الحالي لا يكفي لعكس المبلغ المحصل.");
+          await tx.$executeRaw`UPDATE "FinancialWallet" SET "currentBalance" = ${nextBalance}, "updatedAt" = NOW() WHERE "id" = ${transfer.walletId}::uuid`;
+          await tx.$executeRaw`
+            UPDATE "FinancialTransfer"
+            SET "status" = 'VOID', "voidedByUserId" = ${userId}::uuid, "voidedAt" = NOW(), "updatedAt" = NOW()
+            WHERE "id" = ${transfer.id}::uuid
+          `;
+        }
+      }
+
+      if (operation.paymentDestination === "DEBT") {
+        await sourceDebtService.reverseSourceDebtTx(tx, {
+          shopId,
+          sourceType: "ELECTRONIC_SERVICE",
+          sourceId: transactionId,
+        });
+      }
+
+      const providerRows = await tx.$queryRaw<Array<{ id: string; currentBalance: Prisma.Decimal }>>`
+        SELECT "id", "currentBalance"
+        FROM "ElectronicServiceProvider"
+        WHERE "shopId" = ${shopId}::uuid AND "id" = ${operation.providerId}::uuid
+        FOR UPDATE
+      `;
+      const provider = providerRows[0];
+      if (!provider) throw new Error("مزود الخدمة المرتبط بالعملية غير موجود.");
+
+      if (operation.providerCost.gt(0)) {
+        const after = provider.currentBalance.add(operation.providerCost);
+        await tx.$executeRaw`
+          UPDATE "ElectronicServiceProvider" SET "currentBalance" = ${after}, "updatedAt" = NOW()
+          WHERE "id" = ${provider.id}::uuid
+        `;
+        await tx.$executeRaw`
+          INSERT INTO "ElectronicServiceProviderMovement" (
+            "shopId", "providerId", "createdByUserId", "type", "direction", "amount", "balanceBefore", "balanceAfter",
+            "description", "reference", "sourceType", "sourceId", "createdAt"
+          ) VALUES (
+            ${shopId}::uuid, ${provider.id}::uuid, ${userId}::uuid, 'REVERSAL', 'IN', ${operation.providerCost},
+            ${provider.currentBalance}, ${after}, ${`عكس خدمة ملغاة: ${operation.serviceName}`}, ${operation.reference},
+            'ELECTRONIC_SERVICE', ${transactionId}, NOW()
+          )
+        `;
+      }
+
+      await tx.$executeRaw`
+        UPDATE "ElectronicServiceTransaction"
+        SET "status" = 'VOID', "voidedByUserId" = ${userId}::uuid, "voidedAt" = NOW(),
+            "voidReason" = ${nullableText(reason) ?? "إلغاء العملية بواسطة المستخدم"}
+        WHERE "shopId" = ${shopId}::uuid AND "id" = ${transactionId}::uuid
+      `;
+
+      return { id: transactionId };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 15_000 });
   },
 };

@@ -5,6 +5,7 @@ import type {
 } from "@/lib/services/financialTransferService";
 
 export function transferSourceLabel(sourceType: FinancialTransferSourceType, operationType: FinancialTransferType) {
+  if (String(sourceType) === "ELECTRONIC_SERVICE") return "تحصيل خدمة إلكترونية";
   if (sourceType === "SALE") return "تحصيل مبيعة";
   if (sourceType === "SALE_CHANGE") return "إرجاع باقي مبيعة";
   if (sourceType === "INVOICE") return operationType === "WALLET_WITHDRAWAL" ? "إرجاع باقي فاتورة / خدمة" : "تحصيل فاتورة / خدمة";
@@ -17,6 +18,7 @@ export function transferSourceLabel(sourceType: FinancialTransferSourceType, ope
 }
 
 export function transferSourceHref(transfer: Pick<TransferRow, "sourceType" | "sourceId" | "customerId">) {
+  if (String(transfer.sourceType) === "ELECTRONIC_SERVICE") return transfer.sourceId ? `/electronic-services/new?transaction=${transfer.sourceId}` : null;
   if (transfer.sourceType === "SALE" || transfer.sourceType === "SALE_CHANGE") return transfer.sourceId ? `/sales/${transfer.sourceId}` : null;
   if (transfer.sourceType === "INVOICE") return transfer.sourceId ? `/invoices/${transfer.sourceId}` : null;
   if (transfer.sourceType === "INSTALLMENT" || transfer.sourceType === "INSTALLMENT_DOWN_PAYMENT") return transfer.sourceId ? `/installments/${transfer.sourceId}` : null;
@@ -25,6 +27,7 @@ export function transferSourceHref(transfer: Pick<TransferRow, "sourceType" | "s
 }
 
 export function transferSourceLinkLabel(sourceType: FinancialTransferSourceType) {
+  if (String(sourceType) === "ELECTRONIC_SERVICE") return "فتح الخدمة الإلكترونية";
   if (sourceType === "SALE" || sourceType === "SALE_CHANGE") return "فتح المبيعة";
   if (sourceType === "INVOICE") return "فتح الفاتورة";
   if (sourceType === "INSTALLMENT" || sourceType === "INSTALLMENT_DOWN_PAYMENT") return "فتح خطة الأقساط";
