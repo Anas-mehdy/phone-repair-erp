@@ -17,7 +17,7 @@ const operationOptions = [
   { value: "WALLET_WITHDRAWAL" as const, label: "سحب من المحفظة", helper: "حركة داخلية من الرصيد", icon: Landmark, active: "border-slate-300 bg-slate-50 text-slate-800", iconClass: "bg-slate-100 text-slate-600" },
 ];
 
-export function TransferForm({ wallets, customers, currency }: { wallets: WalletOption[]; customers: CustomerOption[]; currency: string }) {
+export function TransferForm({ wallets, customers, currency, returnTo }: { wallets: WalletOption[]; customers: CustomerOption[]; currency: string; returnTo?: string }) {
   const [operationType, setOperationType] = useState<OperationType>("CUSTOMER_DEPOSIT");
   const [walletId, setWalletId] = useState(wallets[0]?.id ?? "");
   const [amount, setAmount] = useState("");
@@ -55,6 +55,7 @@ export function TransferForm({ wallets, customers, currency }: { wallets: Wallet
   function clearCustomer() { setCustomerId(""); setCustomerSearch(""); setCustomerSearchOpen(false); }
 
   return <form action={createTransferAction} className="space-y-5">
+    {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
     <div><Label>نوع العملية</Label><input type="hidden" name="operationType" value={operationType} /><div className="grid grid-cols-2 gap-2">{operationOptions.map((option) => { const Icon = option.icon; const selected = operationType === option.value; return <button key={option.value} type="button" onClick={() => selectOperation(option.value)} className={`relative rounded-xl border p-3 text-right transition ${selected ? option.active : "border-slate-200 bg-white text-slate-600 hover:border-teal-200 hover:bg-teal-50/30"}`}><div className="flex items-start gap-2.5"><span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${selected ? option.iconClass : "bg-slate-100 text-slate-500"}`}><Icon className="h-4 w-4" /></span><div><div className="text-[10px] font-black">{option.label}</div><div className="mt-0.5 text-[9px] font-semibold opacity-65">{option.helper}</div></div></div>{selected ? <span className="absolute left-2 top-2 flex h-4 w-4 items-center justify-center rounded-full bg-white text-teal-700 shadow-sm"><Check className="h-2.5 w-2.5" /></span> : null}</button>; })}</div></div>
 
     <div className="grid gap-3 sm:grid-cols-2"><div><Label>المحفظة *</Label><select name="walletId" required className={inputClass} value={walletId} onChange={(event) => setWalletId(event.target.value)}><option value="">اختر المحفظة</option>{wallets.map((item) => <option key={item.id} value={item.id}>{item.name} — {money(item.balance)}</option>)}</select></div><div><Label>المبلغ *</Label><input name="amount" type="number" min="0.01" step="0.01" required className={`${inputClass} font-numeric`} placeholder="0.00" value={amount} onChange={(event) => setAmount(event.target.value)} /></div></div>

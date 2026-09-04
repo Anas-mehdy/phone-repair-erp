@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  ArrowLeftRight,
   CheckCircle2,
   Code2,
   ExternalLink,
@@ -10,19 +11,21 @@ import {
   Zap,
   type LucideIcon,
 } from "lucide-react";
-import { SaleForm } from "@/app/sales/sale-form";
-import { CreateRepairOrderForm } from "@/app/repair-orders/new/_create-form";
-import { SoftwareServiceForm } from "@/app/software-services/_software-service-form";
 import { ElectronicServiceExecutionForm } from "@/app/electronic-services/new/_service-form";
+import { CreateRepairOrderForm } from "@/app/repair-orders/new/_create-form";
+import { SaleForm } from "@/app/sales/sale-form";
+import { SoftwareServiceForm } from "@/app/software-services/_software-service-form";
+import { TransferForm } from "@/app/transfers/_transfer-form";
 import { Button } from "@/components/ui/button";
 import { getCurrentShopContext, type CurrentShopContext } from "@/lib/current-shop";
 import { pointOfSaleReturnPath, type PointOfSaleTabKey } from "@/lib/point-of-sale";
+import { prisma } from "@/lib/prisma";
+import { electronicServiceTransactionService } from "@/lib/services/electronicServiceTransactionService";
 import { financialTransferService } from "@/lib/services/financialTransferService";
 import { inventoryService } from "@/lib/services/inventoryService";
 import { repairOrderService } from "@/lib/services/repairOrderService";
-import { supplierService } from "@/lib/services/supplierService";
 import { softwareServiceService } from "@/lib/services/softwareServiceService";
-import { electronicServiceTransactionService } from "@/lib/services/electronicServiceTransactionService";
+import { supplierService } from "@/lib/services/supplierService";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -43,7 +46,7 @@ type PointOfSaleTab = {
   description: string;
   icon: LucideIcon;
   permission: string;
-  tone: "indigo" | "cyan" | "violet" | "amber";
+  tone: "indigo" | "cyan" | "violet" | "amber" | "emerald";
 };
 
 const tabs: PointOfSaleTab[] = [
@@ -51,6 +54,7 @@ const tabs: PointOfSaleTab[] = [
   { key: "repair", label: "تذكرة صيانة", description: "استلام جهاز وفتح تذكرة صيانة جديدة.", icon: Wrench, permission: "repairs:create", tone: "cyan" },
   { key: "software", label: "خدمة سوفتوير", description: "تنفيذ خدمة سوفتوير باستخدام نفس المحرك الحالي.", icon: Code2, permission: "sales:create", tone: "violet" },
   { key: "electronic", label: "خدمة إلكترونية", description: "شحن وفواتير وخدمات مزودي الرصيد.", icon: Zap, permission: "electronic_services:execute", tone: "amber" },
+  { key: "wallet", label: "المحافظ", description: "إيداع وسحب وشحن أرصدة المحافظ.", icon: ArrowLeftRight, permission: "sales:create", tone: "emerald" },
 ];
 
 const toneClasses = {
@@ -70,6 +74,10 @@ const toneClasses = {
     active: "border-amber-300 bg-amber-50 text-amber-800 shadow-sm dark:border-amber-800 dark:bg-amber-950/35 dark:text-amber-200",
     icon: "bg-amber-100 text-amber-700 dark:bg-amber-950/70 dark:text-amber-300",
   },
+  emerald: {
+    active: "border-emerald-300 bg-emerald-50 text-emerald-800 shadow-sm dark:border-emerald-800 dark:bg-emerald-950/35 dark:text-emerald-200",
+    icon: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300",
+  },
 } as const;
 
 function operationRecordHref(tab: PointOfSaleTabKey, transaction?: string) {
@@ -77,11 +85,14 @@ function operationRecordHref(tab: PointOfSaleTabKey, transaction?: string) {
   if (tab === "sale") return `/sales/${transaction}`;
   if (tab === "repair") return `/repair-orders/${transaction}`;
   if (tab === "software") return `/software-services/${transaction}`;
+  if (tab === "wallet") return `/transfers/${transaction}`;
   return "/electronic-services";
 }
 
 function operationRecordLabel(tab: PointOfSaleTabKey) {
-  return tab === "electronic" ? "فتح سجل الخدمات" : "فتح تفاصيل العملية";
+  if (tab === "electronic") return "فتح سجل الخدمات";
+  if (tab === "wallet") return "فتح تفاصيل التحويل";
+  return "فتح تفاصيل العملية";
 }
 
 async function renderSaleForm(context: CurrentShopContext, key: string) {
@@ -192,10 +203,52 @@ async function renderElectronicForm(context: CurrentShopContext, key: string) {
   );
 }
 
+async function renderWalletForm(context: CurrentShopContext, key: string) {
+  const [wallets, customers] = await Promise.all([
+    financialTransferService.listWallets(context.shopId),
+    prisma.customer.findMany({
+      where: { shopId: context.shopId, deletedAt: null },
+      select: { id: true, name: true, phone: true },
+      orderBy: { name: "asc" },
+      take: 500,
+    }),
+  ]);
+
+  if (wallets.length === 0) {
+    return (
+      <div className="rounded-[22px] border border-emerald-200 bg-emerald-50 px-5 py-8 text-center dark:border-emerald-900/70 dark:bg-emerald-950/25">
+        <ArrowLeftRight className="mx-auto h-8 w-8 text-emerald-600 dark:text-emerald-300" />
+        <h3 className="mt-3 text-sm font-black text-emerald-900 dark:text-emerald-200">أضف محفظة أولاً</h3>
+        <p className="mt-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">لا يمكن تسجيل تحويل قبل إنشاء محفظة مالية واحدة على الأقل.</p>
+        <Button asChild className="mt-4 rounded-xl bg-emerald-600 text-xs font-black text-white hover:bg-emerald-700"><Link href="/transfers" target="_blank" rel="noreferrer">إدارة المحافظ</Link></Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-4xl">
+      <TransferForm
+        key={key}
+        wallets={wallets.map((wallet) => ({
+          id: wallet.id,
+          name: wallet.name,
+          balance: Number(wallet.currentBalance),
+          depositCommission: Number(wallet.defaultDepositCommission),
+          withdrawalCommission: Number(wallet.defaultWithdrawalCommission),
+        }))}
+        customers={customers}
+        currency={context.currency || "SAR"}
+        returnTo={pointOfSaleReturnPath("wallet")}
+      />
+    </div>
+  );
+}
+
 async function renderActiveForm(tab: PointOfSaleTabKey, context: CurrentShopContext, key: string) {
   if (tab === "sale") return renderSaleForm(context, key);
   if (tab === "repair") return renderRepairForm(context, key);
   if (tab === "software") return renderSoftwareForm(context, key);
+  if (tab === "wallet") return renderWalletForm(context, key);
   return renderElectronicForm(context, key);
 }
 
@@ -222,14 +275,14 @@ export default async function PointOfSalePage({ searchParams }: Props) {
               <span className="hidden items-center gap-1 text-[10px] font-bold text-slate-400 sm:inline-flex"><Sparkles className="h-3 w-3 text-cyan-500" /> نفس محركات مسار، في مكان واحد</span>
             </div>
             <h1 className="mt-2 text-xl font-black tracking-tight text-slate-950 dark:text-slate-50 sm:text-[28px]">نقطة البيع</h1>
-            <p className="mt-1.5 max-w-3xl text-[11px] font-semibold leading-5 text-slate-500 dark:text-slate-400 sm:text-xs sm:leading-6">نفّذ البيع والصيانة والسوفتوير والخدمات الإلكترونية من صفحة واحدة. بعد الحفظ تبقى هنا مباشرة لتبدأ العملية التالية.</p>
+            <p className="mt-1.5 max-w-3xl text-[11px] font-semibold leading-5 text-slate-500 dark:text-slate-400 sm:text-xs sm:leading-6">نفّذ البيع والصيانة والسوفتوير والخدمات الإلكترونية وتحويلات المحافظ من صفحة واحدة. بعد الحفظ تبقى هنا مباشرة لتبدأ العملية التالية.</p>
           </div>
         </div>
       </section>
 
       {availableTabs.length > 0 ? (
         <nav className="rounded-[20px] border border-slate-200/80 bg-white p-2 shadow-sm dark:border-slate-800 dark:bg-slate-950 sm:rounded-[22px]" aria-label="أنواع عمليات نقطة البيع">
-          <div className="flex gap-2 overflow-x-auto pb-1 sm:grid sm:grid-cols-4 sm:overflow-visible sm:pb-0">
+          <div className="flex gap-2 overflow-x-auto pb-1 sm:grid sm:grid-cols-3 sm:overflow-visible sm:pb-0 lg:grid-cols-5">
             {availableTabs.map((tab) => {
               const Icon = tab.icon;
               const active = activeTab?.key === tab.key;

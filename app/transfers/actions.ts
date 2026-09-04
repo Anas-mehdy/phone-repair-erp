@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requirePermission } from "@/lib/auth/context";
+import { pointOfSaleResultPath, readPointOfSaleReturn } from "@/lib/point-of-sale";
 import { prisma } from "@/lib/prisma";
 import { financialTransferService } from "@/lib/services/financialTransferService";
 
@@ -125,6 +126,7 @@ const transferSchema = z.object({
 });
 
 export async function createTransferAction(formData: FormData) {
+  const pointOfSaleReturn = readPointOfSaleReturn(readString(formData, "returnTo"), "wallet");
   let redirectTo = "/transfers";
   try {
     const input = transferSchema.parse({
@@ -140,17 +142,22 @@ export async function createTransferAction(formData: FormData) {
       notes: readString(formData, "notes"),
     });
     const auth = await requirePermission("sales:create");
-    await financialTransferService.createTransfer(auth.shop.id, auth.user.id, {
+    const transfer = await financialTransferService.createTransfer(auth.shop.id, auth.user.id, {
       ...input,
       customerId: input.customerId || undefined,
     });
     revalidatePath("/transfers");
     revalidatePath("/reports");
     revalidatePath("/debts");
+    revalidatePath("/point-of-sale");
     if (input.customerId) revalidatePath(`/debts/${input.customerId}`);
-    redirectTo = "/transfers?saved=1";
+    redirectTo = pointOfSaleReturn
+      ? pointOfSaleResultPath("wallet", { saved: "1", transaction: transfer.id })
+      : "/transfers?saved=1";
   } catch (error) {
-    redirectTo = `/transfers?error=${encodeURIComponent(errorMessage(error))}`;
+    redirectTo = pointOfSaleReturn
+      ? pointOfSaleResultPath("wallet", { error: errorMessage(error) })
+      : `/transfers?error=${encodeURIComponent(errorMessage(error))}`;
   }
   redirect(redirectTo);
 }

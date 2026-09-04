@@ -1,4 +1,4 @@
-export type PointOfSaleTabKey = "sale" | "repair" | "software" | "electronic";
+export type PointOfSaleTabKey = "sale" | "repair" | "software" | "electronic" | "wallet";
 
 export function pointOfSaleReturnPath(tab: PointOfSaleTabKey) {
   return `/point-of-sale?tab=${tab}`;
