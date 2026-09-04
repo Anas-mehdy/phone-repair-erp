@@ -4,49 +4,16 @@ import { Calculator, CheckCircle2, Layers3, Sparkles, Zap } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/format";
-import { createElectronicServiceTransactionAction } from "./service-actions";
+import { createElectronicServiceTransactionAction } from "../service-actions";
 
-type Provider = {
-  id: string;
-  name: string;
-  currentBalance: number;
-  currencyCode: string;
-};
-
-type Template = {
-  id: string;
-  providerId: string;
-  providerName: string;
-  currencyCode: string;
-  providerBalance: number;
-  name: string;
-  category: string;
-  faceValue: number | null;
-  providerCost: number;
-  customerCharge: number;
-};
-
+type Provider = { id: string; name: string; currentBalance: number; currencyCode: string };
+type Template = { id: string; providerId: string; providerName: string; currencyCode: string; providerBalance: number; name: string; category: string; faceValue: number | null; providerCost: number; customerCharge: number };
 type ProfitMode = "AUTO_DIFFERENCE" | "FIXED" | "PERCENTAGE" | "NONE";
-
 const inputClass = "h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-800 outline-none transition focus:border-teal-400 focus:ring-4 focus:ring-teal-100/60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-teal-700 dark:focus:ring-teal-950/50";
 const categories = ["شحن رصيد", "إنترنت وباقات", "دفع فاتورة", "بطاقة / قسيمة", "رسوم ومدفوعات", "خدمة حكومية", "محفظة", "أخرى"];
+function numberValue(value: string) { const number = Number(value.replace(",", ".")); return Number.isFinite(number) ? Math.max(0, number) : 0; }
 
-function numberValue(value: string) {
-  const number = Number(value.replace(",", "."));
-  return Number.isFinite(number) ? Math.max(0, number) : 0;
-}
-
-export function ElectronicServiceExecutionForm({
-  providers,
-  templates,
-  defaultCurrency,
-  defaultProviderId,
-}: {
-  providers: Provider[];
-  templates: Template[];
-  defaultCurrency: string;
-  defaultProviderId?: string;
-}) {
+export function ElectronicServiceExecutionForm({ providers, templates, defaultCurrency, defaultProviderId }: { providers: Provider[]; templates: Template[]; defaultCurrency: string; defaultProviderId?: string }) {
   const [mode, setMode] = useState<"TEMPLATE" | "FREE">(templates.length ? "TEMPLATE" : "FREE");
   const [templateId, setTemplateId] = useState(templates[0]?.id ?? "");
   const [providerId, setProviderId] = useState(defaultProviderId && providers.some((provider) => provider.id === defaultProviderId) ? defaultProviderId : providers[0]?.id ?? "");
@@ -55,74 +22,33 @@ export function ElectronicServiceExecutionForm({
   const [profitMode, setProfitMode] = useState<ProfitMode>("AUTO_DIFFERENCE");
   const [profitValue, setProfitValue] = useState("");
   const [customerCharge, setCustomerCharge] = useState("");
-
   const selectedTemplate = useMemo(() => templates.find((template) => template.id === templateId) ?? null, [templateId, templates]);
   const selectedProvider = useMemo(() => providers.find((provider) => provider.id === providerId) ?? null, [providerId, providers]);
-
-  const freeSummary = useMemo(() => {
-    const face = numberValue(faceValue);
-    const cost = numberValue(providerCost);
-    const value = numberValue(profitValue);
-    let charge = numberValue(customerCharge);
-    if (profitMode === "NONE") charge = cost;
-    if (profitMode === "FIXED") charge = cost + value;
-    if (profitMode === "PERCENTAGE") charge = cost + (face * value) / 100;
-    return { face, cost, charge, profit: charge - cost };
-  }, [customerCharge, faceValue, profitMode, profitValue, providerCost]);
-
+  const freeSummary = useMemo(() => { const face = numberValue(faceValue); const cost = numberValue(providerCost); const value = numberValue(profitValue); let charge = numberValue(customerCharge); if (profitMode === "NONE") charge = cost; if (profitMode === "FIXED") charge = cost + value; if (profitMode === "PERCENTAGE") charge = cost + (face * value) / 100; return { face, cost, charge, profit: charge - cost }; }, [customerCharge, faceValue, profitMode, profitValue, providerCost]);
   const currency = mode === "TEMPLATE" ? selectedTemplate?.currencyCode ?? defaultCurrency : selectedProvider?.currencyCode ?? defaultCurrency;
-  const summary = mode === "TEMPLATE" && selectedTemplate
-    ? {
-        face: selectedTemplate.faceValue ?? selectedTemplate.customerCharge,
-        cost: selectedTemplate.providerCost,
-        charge: selectedTemplate.customerCharge,
-        profit: selectedTemplate.customerCharge - selectedTemplate.providerCost,
-        balance: selectedTemplate.providerBalance,
-      }
-    : { ...freeSummary, balance: selectedProvider?.currentBalance ?? 0 };
-
+  const summary = mode === "TEMPLATE" && selectedTemplate ? { face: selectedTemplate.faceValue ?? selectedTemplate.customerCharge, cost: selectedTemplate.providerCost, charge: selectedTemplate.customerCharge, profit: selectedTemplate.customerCharge - selectedTemplate.providerCost, balance: selectedTemplate.providerBalance } : { ...freeSummary, balance: selectedProvider?.currentBalance ?? 0 };
   const insufficient = summary.cost > summary.balance;
 
   return <form action={createElectronicServiceTransactionAction} className="space-y-5">
     <input type="hidden" name="mode" value={mode} />
+    <div className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1.5 dark:border-slate-800 dark:bg-slate-900/70"><button type="button" onClick={() => setMode("TEMPLATE")} disabled={!templates.length} className={`flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 text-xs font-black transition ${mode === "TEMPLATE" ? "bg-white text-teal-700 shadow-sm ring-1 ring-slate-200 dark:bg-slate-950 dark:text-teal-300 dark:ring-slate-700" : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"} disabled:cursor-not-allowed disabled:opacity-40`}><Layers3 className="h-4 w-4" />خدمة محفوظة</button><button type="button" onClick={() => setMode("FREE")} className={`flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 text-xs font-black transition ${mode === "FREE" ? "bg-white text-teal-700 shadow-sm ring-1 ring-slate-200 dark:bg-slate-950 dark:text-teal-300 dark:ring-slate-700" : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"}`}><Zap className="h-4 w-4" />مبلغ حر</button></div>
 
-    <div className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1.5 dark:border-slate-800 dark:bg-slate-900/70">
-      <button type="button" onClick={() => setMode("TEMPLATE")} disabled={!templates.length} className={`flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 text-xs font-black transition ${mode === "TEMPLATE" ? "bg-white text-teal-700 shadow-sm ring-1 ring-slate-200 dark:bg-slate-950 dark:text-teal-300 dark:ring-slate-700" : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"} disabled:cursor-not-allowed disabled:opacity-40`}><Layers3 className="h-4 w-4" />خدمة محفوظة</button>
-      <button type="button" onClick={() => setMode("FREE")} className={`flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 text-xs font-black transition ${mode === "FREE" ? "bg-white text-teal-700 shadow-sm ring-1 ring-slate-200 dark:bg-slate-950 dark:text-teal-300 dark:ring-slate-700" : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"}`}><Zap className="h-4 w-4" />مبلغ حر</button>
-    </div>
-
-    {mode === "TEMPLATE" ? <div className="space-y-3">
-      <label className="block"><span className="mb-1.5 block text-[10px] font-black text-slate-600 dark:text-slate-300">اختر الخدمة المحفوظة *</span><select name="templateId" value={templateId} onChange={(event) => setTemplateId(event.target.value)} className={inputClass} required>{templates.map((template) => <option key={template.id} value={template.id}>{template.name} — {template.providerName}</option>)}</select></label>
-      {selectedTemplate ? <div className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-3 text-[10px] font-semibold text-indigo-800 dark:border-indigo-900/60 dark:bg-indigo-950/25 dark:text-indigo-200"><div className="flex flex-wrap gap-x-4 gap-y-1"><span>الفئة: <strong>{selectedTemplate.category}</strong></span><span>المزود: <strong>{selectedTemplate.providerName}</strong></span>{selectedTemplate.faceValue != null ? <span>القيمة: <strong>{formatCurrency(selectedTemplate.faceValue, selectedTemplate.currencyCode)}</strong></span> : null}</div></div> : null}
-    </div> : <div className="space-y-3">
+    {mode === "TEMPLATE" ? <div className="space-y-3"><label className="block"><span className="mb-1.5 block text-[10px] font-black text-slate-600 dark:text-slate-300">اختر الخدمة المحفوظة *</span><select name="templateId" value={templateId} onChange={(event) => setTemplateId(event.target.value)} className={inputClass} required>{templates.map((template) => <option key={template.id} value={template.id}>{template.name} — {template.providerName}</option>)}</select></label>{selectedTemplate ? <div className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-3 text-[10px] font-semibold text-indigo-800 dark:border-indigo-900/60 dark:bg-indigo-950/25 dark:text-indigo-200"><div className="flex flex-wrap gap-x-4 gap-y-1"><span>الفئة: <strong>{selectedTemplate.category}</strong></span><span>المزود: <strong>{selectedTemplate.providerName}</strong></span>{selectedTemplate.faceValue != null ? <span>القيمة: <strong>{formatCurrency(selectedTemplate.faceValue, selectedTemplate.currencyCode)}</strong></span> : null}</div></div> : null}</div> : <div className="space-y-3">
       <label className="block"><span className="mb-1.5 block text-[10px] font-black text-slate-600 dark:text-slate-300">مزود الخدمة *</span><select name="providerId" value={providerId} onChange={(event) => setProviderId(event.target.value)} className={inputClass} required><option value="" disabled>اختر المزود</option>{providers.map((provider) => <option key={provider.id} value={provider.id}>{provider.name} — رصيد {formatCurrency(provider.currentBalance, provider.currencyCode)}</option>)}</select></label>
       <div className="grid gap-3 sm:grid-cols-2"><label className="block"><span className="mb-1.5 block text-[10px] font-black text-slate-600 dark:text-slate-300">نوع الخدمة *</span><input name="category" list="electronic-service-categories" defaultValue="شحن رصيد" maxLength={120} className={inputClass} required /><datalist id="electronic-service-categories">{categories.map((category) => <option key={category} value={category} />)}</datalist></label><label className="block"><span className="mb-1.5 block text-[10px] font-black text-slate-600 dark:text-slate-300">اسم الخدمة *</span><input name="serviceName" maxLength={160} className={inputClass} placeholder="مثال: شحن هاتف / دفع فاتورة" required /></label></div>
       <div className="grid gap-3 sm:grid-cols-2"><label className="block"><span className="mb-1.5 block text-[10px] font-black text-slate-600 dark:text-slate-300">قيمة الخدمة *</span><input name="faceValue" type="number" min="0" step="0.01" value={faceValue} onChange={(event) => setFaceValue(event.target.value)} className={inputClass} placeholder="مثال: 100" required /></label><label className="block"><span className="mb-1.5 block text-[10px] font-black text-slate-600 dark:text-slate-300">تكلفة التنفيذ من رصيد المزود *</span><input name="providerCost" type="number" min="0" step="0.01" value={providerCost} onChange={(event) => setProviderCost(event.target.value)} className={inputClass} placeholder="مثال: 97" required /></label></div>
       <label className="block"><span className="mb-1.5 block text-[10px] font-black text-slate-600 dark:text-slate-300">طريقة احتساب الربح</span><select name="profitMode" value={profitMode} onChange={(event) => setProfitMode(event.target.value as ProfitMode)} className={inputClass}><option value="AUTO_DIFFERENCE">فرق يدوي بين التكلفة والمبلغ على العميل</option><option value="FIXED">ربح ثابت</option><option value="PERCENTAGE">نسبة من قيمة الخدمة</option><option value="NONE">بدون ربح</option></select></label>
       {profitMode === "AUTO_DIFFERENCE" ? <label className="block"><span className="mb-1.5 block text-[10px] font-black text-slate-600 dark:text-slate-300">المبلغ النهائي على العميل *</span><input name="customerCharge" type="number" min="0" step="0.01" value={customerCharge} onChange={(event) => setCustomerCharge(event.target.value)} className={inputClass} required /></label> : null}
-      {profitMode === "FIXED" || profitMode === "PERCENTAGE" ? <label className="block"><span className="mb-1.5 block text-[10px] font-black text-slate-600 dark:text-slate-300">{profitMode === "FIXED" ? "الربح الثابت" : "النسبة المئوية"} *</span><input name="profitValue" type="number" min="0" step={profitMode === "PERCENTAGE" ? "0.01" : "0.01"} value={profitValue} onChange={(event) => setProfitValue(event.target.value)} className={inputClass} required /></label> : null}
+      {profitMode === "FIXED" || profitMode === "PERCENTAGE" ? <label className="block"><span className="mb-1.5 block text-[10px] font-black text-slate-600 dark:text-slate-300">{profitMode === "FIXED" ? "الربح الثابت" : "النسبة المئوية"} *</span><input name="profitValue" type="number" min="0" step="0.01" value={profitValue} onChange={(event) => setProfitValue(event.target.value)} className={inputClass} required /></label> : null}
     </div>}
 
-    <div className="grid gap-3 sm:grid-cols-3">
-      <SummaryCard title="تكلفة المزود" value={formatCurrency(summary.cost, currency)} tone="amber" />
-      <SummaryCard title="على العميل" value={formatCurrency(summary.charge, currency)} tone="teal" />
-      <SummaryCard title="الربح المتوقع" value={formatCurrency(summary.profit, currency)} tone={summary.profit < 0 ? "rose" : "emerald"} />
-    </div>
-
-    <div className={`rounded-2xl border px-4 py-3 text-[11px] font-bold leading-5 ${insufficient ? "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/70 dark:bg-rose-950/30 dark:text-rose-200" : "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"}`}>
-      <div className="flex items-center gap-2"><Calculator className="h-4 w-4" /><span>رصيد المزود الحالي: {formatCurrency(summary.balance, currency)}</span></div>
-      {insufficient ? <p className="mt-1">الرصيد غير كافٍ لتغطية تكلفة العملية. أضف رصيداً للمزود أولاً.</p> : <p className="mt-1">بعد التنفيذ سيصبح الرصيد التقريبي {formatCurrency(summary.balance - summary.cost, currency)}.</p>}
-    </div>
-
+    <div className="grid gap-3 sm:grid-cols-3"><SummaryCard title="تكلفة المزود" value={formatCurrency(summary.cost, currency)} tone="amber" /><SummaryCard title="على العميل" value={formatCurrency(summary.charge, currency)} tone="teal" /><SummaryCard title="الربح المتوقع" value={formatCurrency(summary.profit, currency)} tone={summary.profit < 0 ? "rose" : "emerald"} /></div>
+    <div className={`rounded-2xl border px-4 py-3 text-[11px] font-bold leading-5 ${insufficient ? "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/70 dark:bg-rose-950/30 dark:text-rose-200" : "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"}`}><div className="flex items-center gap-2"><Calculator className="h-4 w-4" /><span>رصيد المزود الحالي: {formatCurrency(summary.balance, currency)}</span></div>{insufficient ? <p className="mt-1">الرصيد غير كافٍ لتغطية تكلفة العملية. أضف رصيداً للمزود أولاً.</p> : <p className="mt-1">بعد التنفيذ سيصبح الرصيد التقريبي {formatCurrency(summary.balance - summary.cost, currency)}.</p>}</div>
     <div className="grid gap-3 sm:grid-cols-2"><label className="block"><span className="mb-1.5 block text-[10px] font-black text-slate-600 dark:text-slate-300">رقم الهاتف / الحساب</span><input name="customerPhone" maxLength={80} className={inputClass} placeholder="اختياري" /></label><label className="block"><span className="mb-1.5 block text-[10px] font-black text-slate-600 dark:text-slate-300">مرجع العملية</span><input name="reference" maxLength={160} className={inputClass} placeholder="رقم فاتورة أو مرجع خارجي" /></label></div>
     <label className="block"><span className="mb-1.5 block text-[10px] font-black text-slate-600 dark:text-slate-300">ملاحظات</span><textarea name="notes" maxLength={1000} rows={3} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-800 outline-none transition focus:border-teal-400 focus:ring-4 focus:ring-teal-100/60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100" placeholder="اختياري" /></label>
-
     <Button type="submit" disabled={insufficient || (mode === "TEMPLATE" && !selectedTemplate) || (mode === "FREE" && !selectedProvider)} className="h-12 w-full rounded-xl bg-gradient-to-l from-teal-600 to-cyan-600 text-sm font-black text-white shadow-lg shadow-teal-600/20 disabled:cursor-not-allowed disabled:opacity-50"><CheckCircle2 className="ml-2 h-5 w-5" />تنفيذ الخدمة وتحديث رصيد المزود</Button>
     <p className="flex items-center justify-center gap-1.5 text-center text-[10px] font-semibold leading-5 text-slate-400"><Sparkles className="h-3 w-3" />هذه المرحلة تخص رصيد المزود والربح فقط؛ ربط الصندوق والدين سيأتي في المرحلة التالية.</p>
   </form>;
 }
 
-function SummaryCard({ title, value, tone }: { title: string; value: string; tone: "amber" | "teal" | "emerald" | "rose" }) {
-  const tones = { amber: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/70 dark:bg-amber-950/25 dark:text-amber-300", teal: "border-teal-200 bg-teal-50 text-teal-700 dark:border-teal-900/70 dark:bg-teal-950/25 dark:text-teal-300", emerald: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/25 dark:text-emerald-300", rose: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/70 dark:bg-rose-950/25 dark:text-rose-300" } as const;
-  return <div className={`rounded-xl border px-3 py-2.5 ${tones[tone]}`}><p className="text-[9px] font-black opacity-70">{title}</p><p className="mt-1 font-numeric text-sm font-black">{value}</p></div>;
-}
+function SummaryCard({ title, value, tone }: { title: string; value: string; tone: "amber" | "teal" | "emerald" | "rose" }) { const tones = { amber: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/70 dark:bg-amber-950/25 dark:text-amber-300", teal: "border-teal-200 bg-teal-50 text-teal-700 dark:border-teal-900/70 dark:bg-teal-950/25 dark:text-teal-300", emerald: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/25 dark:text-emerald-300", rose: "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/70 dark:bg-rose-950/25 dark:text-rose-300" } as const; return <div className={`rounded-xl border px-3 py-2.5 ${tones[tone]}`}><p className="text-[9px] font-black opacity-70">{title}</p><p className="mt-1 font-numeric text-sm font-black">{value}</p></div>; }
