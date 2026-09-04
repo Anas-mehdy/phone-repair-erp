@@ -1,6 +1,9 @@
 import Link from "next/link";
 import {
+  CheckCircle2,
   Code2,
+  ExternalLink,
+  RotateCcw,
   ShoppingCart,
   Sparkles,
   Wrench,
@@ -68,6 +71,18 @@ const toneClasses = {
     icon: "bg-amber-100 text-amber-700 dark:bg-amber-950/70 dark:text-amber-300",
   },
 } as const;
+
+function operationRecordHref(tab: PointOfSaleTabKey, transaction?: string) {
+  if (!transaction) return null;
+  if (tab === "sale") return `/sales/${transaction}`;
+  if (tab === "repair") return `/repair-orders/${transaction}`;
+  if (tab === "software") return `/software-services/${transaction}`;
+  return "/electronic-services";
+}
+
+function operationRecordLabel(tab: PointOfSaleTabKey) {
+  return tab === "electronic" ? "فتح سجل الخدمات" : "فتح تفاصيل العملية";
+}
 
 async function renderSaleForm(context: CurrentShopContext, key: string) {
   const [inventoryItems, wallets] = await Promise.all([
@@ -146,7 +161,7 @@ async function renderElectronicForm(context: CurrentShopContext, key: string) {
         <Zap className="mx-auto h-8 w-8 text-amber-500" />
         <h3 className="mt-3 text-sm font-black text-amber-900 dark:text-amber-200">أضف مزود خدمة أولاً</h3>
         <p className="mt-1 text-[11px] font-semibold text-amber-700 dark:text-amber-300">لا يمكن تنفيذ خدمة إلكترونية بدون مزود ورصيد مرتبط به.</p>
-        <Button asChild className="mt-4 rounded-xl bg-amber-600 text-xs font-black text-white hover:bg-amber-700"><Link href="/electronic-services">إدارة المزودين</Link></Button>
+        <Button asChild className="mt-4 rounded-xl bg-amber-600 text-xs font-black text-white hover:bg-amber-700"><Link href="/electronic-services" target="_blank" rel="noreferrer">إدارة المزودين</Link></Button>
       </div>
     );
   }
@@ -193,62 +208,78 @@ export default async function PointOfSalePage({ searchParams }: Props) {
   const ActiveIcon = activeTab?.icon ?? ShoppingCart;
   const formKey = `${activeTab?.key ?? "none"}-${query.transaction ?? "new"}`;
   const form = activeTab ? await renderActiveForm(activeTab.key, context, formKey) : null;
+  const recordHref = activeTab ? operationRecordHref(activeTab.key, query.transaction) : null;
 
   return (
-    <div className="space-y-5 pb-8">
-      <section className="relative overflow-hidden rounded-[28px] border border-slate-200/80 bg-gradient-to-br from-white via-white to-teal-50/55 px-5 py-6 shadow-sm dark:border-slate-800 dark:from-slate-950 dark:via-slate-950 dark:to-teal-950/20 sm:px-6">
+    <div className="space-y-4 pb-8 sm:space-y-5">
+      <section className="relative overflow-hidden rounded-[24px] border border-slate-200/80 bg-gradient-to-br from-white via-white to-teal-50/55 px-4 py-5 shadow-sm dark:border-slate-800 dark:from-slate-950 dark:via-slate-950 dark:to-teal-950/20 sm:rounded-[28px] sm:px-6 sm:py-6">
         <div aria-hidden className="absolute -left-16 -top-20 h-52 w-52 rounded-full bg-cyan-200/25 blur-3xl dark:bg-cyan-700/10" />
-        <div className="relative flex items-start gap-4">
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-600 to-cyan-600 text-white shadow-lg shadow-teal-600/20"><ShoppingCart className="h-6 w-6" /></span>
-          <div>
+        <div className="relative flex items-start gap-3 sm:gap-4">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-600 to-cyan-600 text-white shadow-lg shadow-teal-600/20 sm:h-12 sm:w-12"><ShoppingCart className="h-5 w-5 sm:h-6 sm:w-6" /></span>
+          <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <span className="rounded-full border border-teal-200 bg-white/80 px-2.5 py-1 text-[10px] font-black text-teal-700 dark:border-teal-900 dark:bg-teal-950/50 dark:text-teal-300">مركز العمليات اليومية</span>
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400"><Sparkles className="h-3 w-3 text-cyan-500" /> نفس محركات مسار، في مكان واحد</span>
+              <span className="hidden items-center gap-1 text-[10px] font-bold text-slate-400 sm:inline-flex"><Sparkles className="h-3 w-3 text-cyan-500" /> نفس محركات مسار، في مكان واحد</span>
             </div>
-            <h1 className="mt-2 text-2xl font-black tracking-tight text-slate-950 dark:text-slate-50 sm:text-[28px]">نقطة البيع</h1>
-            <p className="mt-1.5 max-w-3xl text-xs font-semibold leading-6 text-slate-500 dark:text-slate-400">نفّذ البيع والصيانة والسوفتوير والخدمات الإلكترونية من صفحة واحدة. كل عملية تستخدم نفس الفورم والمحرك والمحاسبة الموجودة في قسمها الأصلي.</p>
+            <h1 className="mt-2 text-xl font-black tracking-tight text-slate-950 dark:text-slate-50 sm:text-[28px]">نقطة البيع</h1>
+            <p className="mt-1.5 max-w-3xl text-[11px] font-semibold leading-5 text-slate-500 dark:text-slate-400 sm:text-xs sm:leading-6">نفّذ البيع والصيانة والسوفتوير والخدمات الإلكترونية من صفحة واحدة. بعد الحفظ تبقى هنا مباشرة لتبدأ العملية التالية.</p>
           </div>
         </div>
       </section>
 
       {availableTabs.length > 0 ? (
-        <nav className="grid grid-cols-2 gap-2 rounded-[22px] border border-slate-200/80 bg-white p-2 shadow-sm dark:border-slate-800 dark:bg-slate-950 sm:grid-cols-4" aria-label="أنواع عمليات نقطة البيع">
-          {availableTabs.map((tab) => {
-            const Icon = tab.icon;
-            const active = activeTab?.key === tab.key;
-            const palette = toneClasses[tab.tone];
-            return (
-              <Link key={tab.key} href={pointOfSaleReturnPath(tab.key)} aria-current={active ? "page" : undefined} className={cn("flex min-h-[70px] items-center gap-3 rounded-2xl border px-3 py-3 transition", active ? palette.active : "border-transparent bg-slate-50/70 text-slate-600 hover:border-slate-200 hover:bg-white dark:bg-slate-900/70 dark:text-slate-300 dark:hover:border-slate-700 dark:hover:bg-slate-900")}>
-                <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", palette.icon)}><Icon className="h-4.5 w-4.5" /></span>
-                <span className="min-w-0"><span className="block text-[12px] font-black">{tab.label}</span><span className="mt-0.5 block truncate text-[9px] font-semibold opacity-65">عملية جديدة</span></span>
-              </Link>
-            );
-          })}
+        <nav className="rounded-[20px] border border-slate-200/80 bg-white p-2 shadow-sm dark:border-slate-800 dark:bg-slate-950 sm:rounded-[22px]" aria-label="أنواع عمليات نقطة البيع">
+          <div className="flex gap-2 overflow-x-auto pb-1 sm:grid sm:grid-cols-4 sm:overflow-visible sm:pb-0">
+            {availableTabs.map((tab) => {
+              const Icon = tab.icon;
+              const active = activeTab?.key === tab.key;
+              const palette = toneClasses[tab.tone];
+              return (
+                <Link key={tab.key} href={pointOfSaleReturnPath(tab.key)} aria-current={active ? "page" : undefined} className={cn("flex min-h-[64px] min-w-[148px] flex-1 items-center gap-3 rounded-2xl border px-3 py-2.5 transition sm:min-h-[70px] sm:min-w-0 sm:py-3", active ? palette.active : "border-transparent bg-slate-50/70 text-slate-600 hover:border-slate-200 hover:bg-white dark:bg-slate-900/70 dark:text-slate-300 dark:hover:border-slate-700 dark:hover:bg-slate-900")}>
+                  <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl sm:h-10 sm:w-10", palette.icon)}><Icon className="h-4 w-4 sm:h-4.5 sm:w-4.5" /></span>
+                  <span className="min-w-0"><span className="block text-[11px] font-black sm:text-[12px]">{tab.label}</span><span className="mt-0.5 block truncate text-[8.5px] font-semibold opacity-65 sm:text-[9px]">عملية جديدة</span></span>
+                </Link>
+              );
+            })}
+          </div>
         </nav>
       ) : null}
 
       {query.saved && activeTab ? (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-bold text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/30 dark:text-emerald-200">تم تسجيل {activeTab.label} بنجاح. الفورم أصبح جاهزاً للعملية التالية بدون مغادرة نقطة البيع.</div>
+        <section aria-live="polite" className="flex flex-col gap-3 rounded-[20px] border border-emerald-200 bg-emerald-50 px-4 py-3.5 text-emerald-800 shadow-sm dark:border-emerald-900/70 dark:bg-emerald-950/30 dark:text-emerald-200 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-emerald-600 shadow-sm ring-1 ring-emerald-200 dark:bg-slate-950 dark:text-emerald-300 dark:ring-emerald-900"><CheckCircle2 className="h-4.5 w-4.5" /></span>
+            <div><p className="text-xs font-black">تم تسجيل {activeTab.label} بنجاح</p><p className="mt-1 text-[10px] font-semibold leading-5 opacity-80">الفورم أُعيد تهيئته وأصبح جاهزاً للعملية التالية. تفاصيل العملية تفتح بتبويب جديد حتى تبقى نقطة البيع أمامك.</p></div>
+          </div>
+          <div className="flex flex-wrap gap-2 sm:shrink-0">
+            {recordHref ? <Button asChild variant="outline" className="h-9 rounded-xl border-emerald-200 bg-white px-3 text-[10px] font-black text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900 dark:bg-slate-950 dark:text-emerald-300 dark:hover:bg-emerald-950/50"><Link href={recordHref} target="_blank" rel="noreferrer"><ExternalLink className="ml-1.5 h-3.5 w-3.5" />{operationRecordLabel(activeTab.key)}</Link></Button> : null}
+            <Button asChild className="h-9 rounded-xl bg-emerald-600 px-3 text-[10px] font-black text-white hover:bg-emerald-700"><Link href={pointOfSaleReturnPath(activeTab.key)}><RotateCcw className="ml-1.5 h-3.5 w-3.5" />عملية جديدة</Link></Button>
+          </div>
+        </section>
       ) : null}
+
       {query.error ? (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-700 dark:border-rose-900/70 dark:bg-rose-950/30 dark:text-rose-200">{query.error}</div>
+        <div aria-live="assertive" className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-700 dark:border-rose-900/70 dark:bg-rose-950/30 dark:text-rose-200">{query.error}</div>
       ) : null}
       {query.entitlement ? (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-800 dark:border-amber-900/70 dark:bg-amber-950/30 dark:text-amber-200">تعذر إنشاء العملية بسبب حدود الاشتراك الحالية. بياناتك محفوظة ويمكنك مراجعة الاشتراك أو التواصل مع الدعم.</div>
+        <div aria-live="assertive" className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-800 dark:border-amber-900/70 dark:bg-amber-950/30 dark:text-amber-200">تعذر إنشاء العملية بسبب حدود الاشتراك الحالية. بياناتك محفوظة ويمكنك مراجعة الاشتراك أو التواصل مع الدعم.</div>
       ) : null}
 
       {activeTab ? (
-        <section className="overflow-hidden rounded-[26px] border border-slate-200/80 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
-          <div className="border-b border-slate-100 px-5 py-4 dark:border-slate-800 sm:px-6">
+        <section className="overflow-hidden rounded-[22px] border border-slate-200/80 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950 sm:rounded-[26px]">
+          <div className="border-b border-slate-100 px-4 py-3.5 dark:border-slate-800 sm:px-6 sm:py-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <span className={cn("flex h-10 w-10 items-center justify-center rounded-xl", toneClasses[activeTab.tone].icon)}><ActiveIcon className="h-4.5 w-4.5" /></span>
-                <div><h2 className="text-sm font-black text-slate-900 dark:text-slate-100">{activeTab.label}</h2><p className="mt-0.5 text-[10px] font-semibold text-slate-400">{activeTab.description}</p></div>
+              <div className="flex min-w-0 items-center gap-3">
+                <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl sm:h-10 sm:w-10", toneClasses[activeTab.tone].icon)}><ActiveIcon className="h-4 w-4 sm:h-4.5 sm:w-4.5" /></span>
+                <div className="min-w-0"><h2 className="text-sm font-black text-slate-900 dark:text-slate-100">{activeTab.label}</h2><p className="mt-0.5 truncate text-[9px] font-semibold text-slate-400 sm:text-[10px]">{activeTab.description}</p></div>
               </div>
-              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[9px] font-black text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/30 dark:text-emerald-300">نفس النظام الحالي</span>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[9px] font-black text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/30 dark:text-emerald-300">نفس النظام الحالي</span>
+                <Button asChild variant="ghost" className="h-8 rounded-lg px-2.5 text-[9px] font-black text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-900"><a href={pointOfSaleReturnPath(activeTab.key)}><RotateCcw className="ml-1 h-3.5 w-3.5" />تفريغ النموذج</a></Button>
+              </div>
             </div>
           </div>
-          <div className="p-4 sm:p-6">{form}</div>
+          <div className="p-3 sm:p-6">{form}</div>
         </section>
       ) : (
         <section className="rounded-[24px] border border-amber-200 bg-amber-50 px-5 py-8 text-center dark:border-amber-900/70 dark:bg-amber-950/25">
