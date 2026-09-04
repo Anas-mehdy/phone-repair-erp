@@ -12,6 +12,7 @@ import {
   Trash2,
   TrendingUp,
   Wallet,
+  Zap,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -120,7 +121,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       <PageHeader
         eyebrow="المالية في صورة واضحة"
         title="التقارير والأرباح"
-        description="المبيعات والمقبوضات والمستحقات وتكلفة القطع والمصروفات وعمولات التحويلات، بدون احتساب المبلغ مرتين."
+        description="المبيعات والخدمات الإلكترونية والمقبوضات والمستحقات والتكاليف المباشرة والمصروفات وعمولات التحويلات، بدون احتساب المبلغ مرتين."
       />
 
       {(params.expenseSaved || params.expenseDeleted) && (
@@ -166,22 +167,49 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="إجمالي المبيعات" helper="شامل الضريبة إن وجدت" value={formatCurrency(report.metrics.grossRevenue, currency)} icon={ReceiptText} tone="indigo" />
-        <MetricCard label="المقبوض فعلياً" helper="دخل الصندوق ووسائل الدفع" value={formatCurrency(report.metrics.collected, currency)} icon={Banknote} tone="emerald" />
-        <MetricCard label="المتبقي عند العملاء" helper="فواتير وخطط هذه الفترة" value={formatCurrency(report.metrics.outstanding, currency)} icon={Wallet} tone="amber" />
-        <MetricCard label="تكلفة القطع المستخدمة" helper="مخزون وقطع صيانة خارجية" value={formatCurrency(report.metrics.directCosts, currency)} icon={Boxes} tone="rose" />
+        <MetricCard label="إجمالي المبيعات" helper="يشمل المبيعات والخدمات الإلكترونية" value={formatCurrency(report.metrics.grossRevenue, currency)} icon={ReceiptText} tone="indigo" />
+        <MetricCard label="المقبوض فعلياً" helper="يشمل التحصيل المباشر وتحصيلات الديون" value={formatCurrency(report.metrics.collected, currency)} icon={Banknote} tone="emerald" />
+        <MetricCard label="المتبقي عند العملاء" helper="فواتير وخطط وديون خدمات إلكترونية" value={formatCurrency(report.metrics.outstanding, currency)} icon={Wallet} tone="amber" />
+        <MetricCard label="التكاليف المباشرة" helper="قطع وتكاليف صيانة وتكلفة مزودي الخدمات" value={formatCurrency(report.metrics.directCosts, currency)} icon={Boxes} tone="rose" />
         <MetricCard label="إجمالي التوالف" helper={`${damageSummary.movementCount} حركة تالف — لا تؤثر على الربح`} value={formatCurrency(damageSummary.totalValue, currency)} icon={Boxes} tone="rose" />
+        <MetricCard label="ربح الخدمات الإلكترونية" helper={`${report.counts.electronicServices} عملية ضمن الفترة`} value={formatCurrency(report.metrics.electronicServiceProfit, currency)} icon={Zap} tone={report.metrics.electronicServiceProfit >= 0 ? "teal" : "rose"} />
         <MetricCard label="ربح التحويلات" helper={`${transferCommission.operationCount} عملية بعمولة — دون أصل مبلغ التحويل`} value={formatCurrency(transferCommission.totalProfit, currency)} icon={ArrowLeftRight} tone="teal" />
-        <MetricCard label="مجمل الربح" helper="يشمل عمولات التحويلات وقبل المصروفات" value={formatCurrency(grossProfit, currency)} icon={TrendingUp} tone={grossProfit >= 0 ? "teal" : "rose"} />
+        <MetricCard label="مجمل الربح" helper="يشمل الخدمات الإلكترونية وعمولات التحويلات وقبل المصروفات" value={formatCurrency(grossProfit, currency)} icon={TrendingUp} tone={grossProfit >= 0 ? "teal" : "rose"} />
         <MetricCard label="المصروفات" helper={`${report.counts.expenses} حركة مصروف`} value={formatCurrency(report.metrics.expenseTotal, currency)} icon={ArrowDownLeft} tone="orange" />
         <MetricCard label="صافي الربح" helper={`هامش ${profitMargin.toFixed(1)}%`} value={formatCurrency(netProfit, currency)} icon={CircleDollarSign} tone={netProfit >= 0 ? "emerald" : "rose"} featured />
         <MetricCard label="قيمة المخزون الحالية" helper="بسعر التكلفة وليس البيع" value={formatCurrency(report.metrics.inventoryValue, currency)} icon={Landmark} tone="slate" />
       </section>
 
+      <section className="rounded-2xl border border-cyan-200 bg-gradient-to-br from-cyan-50 via-white to-teal-50/60 p-5 shadow-sm dark:border-cyan-900/60 dark:from-slate-950 dark:via-slate-950 dark:to-cyan-950/25">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-600 to-cyan-600 text-white shadow-sm"><Zap className="h-5 w-5" /></span>
+            <div>
+              <p className="text-[10px] font-black text-cyan-700 dark:text-cyan-300">الخدمات الإلكترونية ضمن التقرير العام</p>
+              <h3 className="mt-0.5 text-sm font-black text-slate-900 dark:text-slate-100">ملخص الأداء المالي للخدمات الإلكترونية</h3>
+              <p className="mt-1 text-[10px] font-bold text-slate-400">{report.counts.electronicServices} عملية فعالة ضمن الفترة — العمليات الملغاة مستبعدة بالكامل.</p>
+            </div>
+          </div>
+          <Button asChild variant="outline" className="h-9 rounded-xl border-cyan-200 bg-white text-[10px] font-black text-cyan-700 hover:bg-cyan-50 dark:border-cyan-900 dark:bg-slate-900 dark:text-cyan-300 dark:hover:bg-cyan-950/30">
+            <Link href="/electronic-services/reports">فتح التقرير التفصيلي</Link>
+          </Button>
+        </div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <ElectronicMetric label="قيمة الخدمات" value={formatCurrency(report.metrics.electronicServiceRevenue, currency)} />
+          <ElectronicMetric label="تكلفة المزودين" value={formatCurrency(report.metrics.electronicServiceCost, currency)} />
+          <ElectronicMetric label="تحصيل مباشر" value={formatCurrency(report.metrics.electronicServiceImmediateCollected, currency)} />
+          <ElectronicMetric label="المتبقي على العملاء" value={formatCurrency(report.metrics.electronicServiceOutstanding, currency)} />
+          <ElectronicMetric label="الربح" value={formatCurrency(report.metrics.electronicServiceProfit, currency)} emphasized={report.metrics.electronicServiceProfit >= 0} />
+        </div>
+        {report.metrics.electronicServiceDeferred > 0 && (
+          <p className="mt-3 text-[10px] font-bold text-amber-700 dark:text-amber-300">قيمة العمليات المسجلة على الدين وقت التنفيذ خلال الفترة: {formatCurrency(report.metrics.electronicServiceDeferred, currency)}. المتبقي أعلاه يعكس ما بقي منها بعد التحصيلات.</p>
+        )}
+      </section>
+
       <div className="grid gap-6 xl:grid-cols-2">
         <BreakdownCard
           title="من أين جاءت المبيعات؟"
-          description="تفصيل يمنع تكرار البيع عند إصدار فاتورة له"
+          description="يشمل المبيعات والخدمات الإلكترونية مع منع التكرار"
           items={report.revenueMix}
           max={maxMix}
           currency={currency}
@@ -189,7 +217,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
         />
         <BreakdownCard
           title="مصادر الأموال المقبوضة"
-          description="نقدي، بطاقة، تحويل أو مصدر مخصص"
+          description="نقدي، بطاقة، تحويل، خدمات إلكترونية أو مصدر مخصص"
           items={report.paymentSources}
           max={maxSource}
           currency={currency}
@@ -250,7 +278,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       </section>
 
       <div className="rounded-2xl border border-sky-200 bg-sky-50/70 p-4 text-[11px] font-bold leading-6 text-sky-900">
-        <strong>كيف نقرأ الأرقام؟</strong> المبيعات ليست هي المقبوضات. الربح يحسب من قيمة البيع قبل الضريبة ناقص تكلفة القطع، وتضاف إليه عمولات التحويلات كربح مستقل دون احتساب أصل مبلغ التحويل، ثم تُطرح المصروفات للوصول إلى صافي الربح. مبيعات POS غير المفوترة تعتبر مقبوضة مباشرة، بينما الفواتير تعتمد على الدفعات المسجلة.
+        <strong>كيف نقرأ الأرقام؟</strong> المبيعات ليست هي المقبوضات. الربح يحسب من قيمة البيع قبل الضريبة ناقص التكاليف المباشرة، ومنها تكلفة مزودي الخدمات الإلكترونية، وتضاف إليه عمولات التحويلات كربح مستقل دون احتساب أصل مبلغ التحويل، ثم تُطرح المصروفات للوصول إلى صافي الربح. الخدمات الإلكترونية النقدية أو عبر المحفظة تدخل ضمن المقبوض مباشرة، أما العمليات على الدين فتظهر كمستحقات ويُحتسب تحصيلها عند تسجيل دفعات الدين.
       </div>
     </div>
   );
@@ -270,6 +298,10 @@ const toneClasses: Record<Tone, string> = {
 
 function MetricCard({ label, helper, value, icon: Icon, tone, featured = false }: { label: string; helper: string; value: string; icon: LucideIcon; tone: Tone; featured?: boolean }) {
   return <div className={`rounded-2xl border p-5 shadow-sm ${featured ? "ring-2 ring-emerald-500/15" : ""} ${toneClasses[tone]}`}><div className="flex items-start justify-between gap-3"><div><p className="text-[11px] font-black opacity-80">{label}</p><p className="mt-2 break-words font-numeric text-xl font-black text-slate-900">{value}</p><p className="mt-2 text-[10px] font-bold opacity-70">{helper}</p></div><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/80 shadow-sm"><Icon className="h-5 w-5" /></div></div></div>;
+}
+
+function ElectronicMetric({ label, value, emphasized = false }: { label: string; value: string; emphasized?: boolean }) {
+  return <div className={`rounded-xl border px-3 py-3 ${emphasized ? "border-emerald-200 bg-emerald-50 dark:border-emerald-900/60 dark:bg-emerald-950/25" : "border-slate-200 bg-white/80 dark:border-slate-800 dark:bg-slate-900/70"}`}><p className="text-[9px] font-black text-slate-400">{label}</p><p className={`mt-1 font-numeric text-sm font-black ${emphasized ? "text-emerald-700 dark:text-emerald-300" : "text-slate-900 dark:text-slate-100"}`}>{value}</p></div>;
 }
 
 function BreakdownCard({ title, description, items, max, currency, empty }: { title: string; description: string; items: Array<{ label: string; value: number }>; max: number; currency: string; empty: string }) {

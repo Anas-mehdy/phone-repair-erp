@@ -29,7 +29,12 @@ export async function getDebtReportSummary(shopId: string, start: Date, end: Dat
 
   const deferredSaleIds = new Set<string>();
   const remaining = new Map<string, Prisma.Decimal>();
-  const sourceDebts = new Map<string, { sourceId: string; occurredAt: Date; customerId: string }>();
+  const sourceDebts = new Map<string, {
+    sourceType: "SALE" | "ELECTRONIC_SERVICE";
+    sourceId: string;
+    occurredAt: Date;
+    customerId: string;
+  }>();
   const queues = new Map<string, Array<{ id: string; remaining: Prisma.Decimal }>>();
   const payments: Array<{ amount: number; sourceName: string }> = [];
 
@@ -45,9 +50,14 @@ export async function getDebtReportSummary(shopId: string, start: Date, end: Dat
       remaining.set(row.id, amount);
 
       const source = row.type === "DEBT" ? parseSourceDebtReference(row.reference) : null;
-      if (source?.sourceType === "SALE") {
-        deferredSaleIds.add(source.sourceId);
-        sourceDebts.set(row.id, { sourceId: source.sourceId, occurredAt: row.occurredAt, customerId: row.customerId });
+      if (source?.sourceType === "SALE" || source?.sourceType === "ELECTRONIC_SERVICE") {
+        if (source.sourceType === "SALE") deferredSaleIds.add(source.sourceId);
+        sourceDebts.set(row.id, {
+          sourceType: source.sourceType,
+          sourceId: source.sourceId,
+          occurredAt: row.occurredAt,
+          customerId: row.customerId,
+        });
       }
       continue;
     }
@@ -71,14 +81,18 @@ export async function getDebtReportSummary(shopId: string, start: Date, end: Dat
   }
 
   let saleOutstanding = 0;
+  let electronicServiceOutstanding = 0;
   for (const [entryId, source] of sourceDebts) {
     if (!inRange(source.occurredAt, start, end)) continue;
-    saleOutstanding += Number(remaining.get(entryId) ?? 0);
+    const outstanding = Number(remaining.get(entryId) ?? 0);
+    if (source.sourceType === "SALE") saleOutstanding += outstanding;
+    if (source.sourceType === "ELECTRONIC_SERVICE") electronicServiceOutstanding += outstanding;
   }
 
   return {
     deferredSaleIds: [...deferredSaleIds],
     saleOutstanding: Math.round((saleOutstanding + Number.EPSILON) * 100) / 100,
+    electronicServiceOutstanding: Math.round((electronicServiceOutstanding + Number.EPSILON) * 100) / 100,
     payments,
   };
 }

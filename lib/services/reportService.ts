@@ -30,6 +30,17 @@ const paymentMethodLabels: Record<PaymentMethod, string> = {
   OTHER: "أخرى",
 };
 
+type ElectronicServiceFinancialRow = {
+  operationCount: number;
+  revenue: Prisma.Decimal;
+  providerCost: Prisma.Decimal;
+  profit: Prisma.Decimal;
+  drawerCollected: Prisma.Decimal;
+  walletCollected: Prisma.Decimal;
+  otherCollected: Prisma.Decimal;
+  deferred: Prisma.Decimal;
+};
+
 function decimalNumber(value: Prisma.Decimal | number | string | null | undefined) {
   return value == null ? 0 : Number(value);
 }
@@ -56,6 +67,7 @@ export async function getFinancialReport(shopId: string, range: FinancialRange) 
     inventoryItems,
     softwareRows,
     debtSummary,
+    electronicServiceRows,
   ] = await Promise.all([
     prisma.sale.findMany({
       where: { shopId, deletedAt: null, status: SaleStatus.COMPLETED, soldAt: rangeWhere(range) },
@@ -176,8 +188,42 @@ export async function getFinancialReport(shopId: string, range: FinancialRange) 
       select: { quantity: true, unitCost: true },
     }),
     softwareServiceService.getFinancialRows(shopId, range.start, range.end).catch(() => []),
-    debtReportService.getDebtReportSummary(shopId, range.start, range.end).catch(() => ({ deferredSaleIds: [], saleOutstanding: 0, payments: [] })),
+    debtReportService.getDebtReportSummary(shopId, range.start, range.end).catch(() => ({
+      deferredSaleIds: [],
+      saleOutstanding: 0,
+      electronicServiceOutstanding: 0,
+      payments: [],
+    })),
+    prisma.$queryRaw<ElectronicServiceFinancialRow[]>`
+      SELECT
+        COUNT(*)::int AS "operationCount",
+        COALESCE(SUM(tx."customerCharge"), 0) AS "revenue",
+        COALESCE(SUM(tx."providerCost"), 0) AS "providerCost",
+        COALESCE(SUM(tx."profit"), 0) AS "profit",
+        COALESCE(SUM(tx."customerCharge") FILTER (WHERE tx."paymentDestination" = 'DRAWER'), 0) AS "drawerCollected",
+        COALESCE(SUM(tx."customerCharge") FILTER (WHERE tx."paymentDestination" = 'WALLET'), 0) AS "walletCollected",
+        COALESCE(SUM(tx."customerCharge") FILTER (WHERE tx."paymentDestination" = 'OTHER'), 0) AS "otherCollected",
+        COALESCE(SUM(tx."customerCharge") FILTER (WHERE tx."paymentDestination" = 'DEBT'), 0) AS "deferred"
+      FROM "ElectronicServiceTransaction" tx
+      WHERE tx."shopId" = ${shopId}::uuid
+        AND tx."status" = 'ACTIVE'
+        AND tx."createdAt" >= ${range.start}
+        AND tx."createdAt" < ${range.end}
+    `,
   ]);
+
+  const electronicService = electronicServiceRows[0];
+  const electronicServiceRevenue = money(decimalNumber(electronicService?.revenue));
+  const electronicServiceCost = money(decimalNumber(electronicService?.providerCost));
+  const electronicServiceProfit = money(decimalNumber(electronicService?.profit));
+  const electronicServiceDrawerCollected = money(decimalNumber(electronicService?.drawerCollected));
+  const electronicServiceWalletCollected = money(decimalNumber(electronicService?.walletCollected));
+  const electronicServiceOtherCollected = money(decimalNumber(electronicService?.otherCollected));
+  const electronicServiceImmediateCollected = money(
+    electronicServiceDrawerCollected + electronicServiceWalletCollected + electronicServiceOtherCollected,
+  );
+  const electronicServiceDeferred = money(decimalNumber(electronicService?.deferred));
+  const electronicServiceOutstanding = money(debtSummary.electronicServiceOutstanding);
 
   const salesGross = sales.reduce((sum, sale) => sum + decimalNumber(sale.total), 0);
   const salesNet = sales.reduce(
@@ -192,8 +238,8 @@ export async function getFinancialReport(shopId: string, range: FinancialRange) 
   );
   const manualPlanGross = manualPlans.reduce((sum, plan) => sum + decimalNumber(plan.totalAmount), 0);
 
-  const grossRevenue = money(salesGross + invoiceGross + manualPlanGross);
-  const netRevenueBeforeTax = money(salesNet + invoiceNet + manualPlanGross);
+  const grossRevenue = money(salesGross + invoiceGross + manualPlanGross + electronicServiceRevenue);
+  const netRevenueBeforeTax = money(salesNet + invoiceNet + manualPlanGross + electronicServiceRevenue);
   const invoiceCollected = invoicePayments.reduce((sum, payment) => sum + decimalNumber(payment.amount), 0);
   const manualInstallmentsCollected = manualInstallmentPayments.reduce(
     (sum, payment) => sum + decimalNumber(payment.amount),
@@ -204,12 +250,19 @@ export async function getFinancialReport(shopId: string, range: FinancialRange) 
     .filter((sale) => sale.invoices.length === 0 && !deferredSaleIds.has(sale.id))
     .reduce((sum, sale) => sum + decimalNumber(sale.total), 0);
   const debtCollected = debtSummary.payments.reduce((sum, payment) => sum + payment.amount, 0);
-  const collected = money(invoiceCollected + manualInstallmentsCollected + immediateSalesCollected + debtCollected);
+  const collected = money(
+    invoiceCollected +
+      manualInstallmentsCollected +
+      immediateSalesCollected +
+      debtCollected +
+      electronicServiceImmediateCollected,
+  );
 
   const outstanding = money(
     invoices.reduce((sum, invoice) => sum + decimalNumber(invoice.balanceDue), 0) +
       manualPlans.reduce((sum, plan) => sum + decimalNumber(plan.balanceDue), 0) +
-      debtSummary.saleOutstanding,
+      debtSummary.saleOutstanding +
+      electronicServiceOutstanding,
   );
 
   const movementCost = inventoryMovements.reduce((sum, movement) => {
@@ -232,7 +285,7 @@ export async function getFinancialReport(shopId: string, range: FinancialRange) 
   const softwareCost = softwareRows
     .filter((row) => row.invoiceStatus !== InvoiceStatus.VOID)
     .reduce((sum, row) => sum + decimalNumber(row.serviceCost), 0);
-  const directCosts = money(Math.max(0, movementCost + externalCost + legacyCost + softwareCost));
+  const directCosts = money(Math.max(0, movementCost + externalCost + legacyCost + softwareCost + electronicServiceCost));
   const expenseTotal = money(expenses.reduce((sum, expense) => sum + decimalNumber(expense.amount), 0));
   const grossProfit = money(netRevenueBeforeTax - directCosts);
   const netProfit = money(grossProfit - expenseTotal);
@@ -250,6 +303,24 @@ export async function getFinancialReport(shopId: string, range: FinancialRange) 
   if (immediateSalesCollected > 0) {
     paymentSources.set("مبيعات POS مباشرة", (paymentSources.get("مبيعات POS مباشرة") ?? 0) + immediateSalesCollected);
   }
+  if (electronicServiceDrawerCollected > 0) {
+    paymentSources.set(
+      "خدمات إلكترونية — نقدي",
+      (paymentSources.get("خدمات إلكترونية — نقدي") ?? 0) + electronicServiceDrawerCollected,
+    );
+  }
+  if (electronicServiceWalletCollected > 0) {
+    paymentSources.set(
+      "خدمات إلكترونية — محفظة",
+      (paymentSources.get("خدمات إلكترونية — محفظة") ?? 0) + electronicServiceWalletCollected,
+    );
+  }
+  if (electronicServiceOtherCollected > 0) {
+    paymentSources.set(
+      "خدمات إلكترونية — مصدر آخر",
+      (paymentSources.get("خدمات إلكترونية — مصدر آخر") ?? 0) + electronicServiceOtherCollected,
+    );
+  }
   for (const payment of debtSummary.payments) {
     paymentSources.set(payment.sourceName, (paymentSources.get(payment.sourceName) ?? 0) + payment.amount);
   }
@@ -262,6 +333,7 @@ export async function getFinancialReport(shopId: string, range: FinancialRange) 
   const revenueMix = [
     { label: "المبيعات والـ POS", value: money(salesGross) },
     { label: "خدمات السوفتوير", value: money(softwareRevenue) },
+    { label: "الخدمات الإلكترونية", value: electronicServiceRevenue },
     {
       label: "فواتير الصيانة والخدمات",
       value: money(
@@ -292,6 +364,12 @@ export async function getFinancialReport(shopId: string, range: FinancialRange) 
       netProfit,
       profitMargin,
       inventoryValue,
+      electronicServiceRevenue,
+      electronicServiceCost,
+      electronicServiceProfit,
+      electronicServiceImmediateCollected,
+      electronicServiceDeferred,
+      electronicServiceOutstanding,
     },
     counts: {
       sales: sales.length,
@@ -299,6 +377,7 @@ export async function getFinancialReport(shopId: string, range: FinancialRange) 
       manualPlans: manualPlans.length,
       expenses: expenses.length,
       softwareServices: softwareRows.filter((row) => row.invoiceStatus !== InvoiceStatus.VOID).length,
+      electronicServices: electronicService?.operationCount ?? 0,
     },
     revenueMix,
     paymentSources: [...paymentSources.entries()]
