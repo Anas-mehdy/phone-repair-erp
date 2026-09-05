@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   MessageCircle,
   Phone,
@@ -16,6 +17,7 @@ import {
   ShieldCheck,
   ArrowRight,
   ChevronDown,
+  BookOpenText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
@@ -84,7 +86,7 @@ export default function SupportPage() {
   }
 
   function getWhatsAppUrl(customText?: string) {
-    const defaultMsg = "مرحباً، أتواصل معك بخصوص نظام إدارة مراكز الصيانة (مصلح OS):";
+    const defaultMsg = "مرحباً، أتواصل معك بخصوص نظام مسار:";
     const text = customText || defaultMsg;
     return `https://wa.me/905350215375?text=${encodeURIComponent(text)}`;
   }
@@ -95,6 +97,11 @@ export default function SupportPage() {
         title="مركز الدعم الفني والمساعدة المباشرة"
         description="نحن هنا لمساعدتك في كل خطوة لتشغيل وإدارة مركز الصيانة الخاص بك بأعلى كفاءة."
       />
+
+      <div className="flex flex-col gap-3 rounded-2xl border border-teal-200 bg-teal-50/70 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-teal-700 shadow-sm"><BookOpenText className="h-5 w-5" /></span><div><h2 className="text-xs font-black text-slate-900">جرّب مركز المساعدة أولاً إذا سؤالك عن طريقة الاستخدام</h2><p className="mt-1 text-[11px] font-semibold leading-5 text-slate-600">شروحات قصيرة حسب الصيانة والمبيعات والمخزون والمحافظ والديون والخدمات الإلكترونية.</p></div></div>
+        <Link href="/help" className="inline-flex h-10 shrink-0 items-center justify-center rounded-xl bg-teal-600 px-4 text-xs font-black text-white hover:bg-teal-700">فتح مركز المساعدة</Link>
+      </div>
 
       {/* Main WhatsApp Support Hero Card */}
       <div className="rounded-3xl border border-emerald-200/80 bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-transparent p-6 sm:p-8 shadow-md relative overflow-hidden">

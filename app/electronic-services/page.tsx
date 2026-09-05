@@ -1,14 +1,16 @@
 import { Activity, ArrowDownLeft, ArrowUpRight, Plus, Search, Sparkles, WalletCards, Zap } from "lucide-react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { getCurrentShopContext } from "@/lib/current-shop";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { electronicServiceProviderService } from "@/lib/services/electronicServiceProviderService";
 import { createElectronicServiceProviderAction } from "./actions";
+import { OnboardingElectronicProviderSetup } from "./_onboarding-provider-setup";
 
 export const dynamic = "force-dynamic";
 
-type SearchParams = { q?: string; status?: string; created?: string; error?: string };
+type SearchParams = { q?: string; status?: string; created?: string; error?: string; onboarding?: string };
 const inputClass = "h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-800 outline-none transition focus:border-teal-400 focus:ring-4 focus:ring-teal-100/60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-teal-700 dark:focus:ring-teal-950/50";
 
 export default async function ElectronicServicesPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
@@ -17,6 +19,15 @@ export default async function ElectronicServicesPage({ searchParams }: { searchP
   const status = query.status === "ACTIVE" || query.status === "INACTIVE" ? query.status : undefined;
   const overview = await electronicServiceProviderService.getOverview(context.shopId, { q: query.q, status });
   const canManage = context.permissions.includes("electronic_services:manage");
+
+  if (query.onboarding === "1") {
+    const activeProvider = overview.providers.find((provider) => provider.isActive);
+    if (activeProvider) redirect(`/electronic-services/new?onboarding=1&provider=${activeProvider.id}`);
+    if (!canManage) {
+      return <div className="mx-auto max-w-xl rounded-2xl border border-amber-200 bg-amber-50 p-5 text-center text-xs font-bold text-amber-800 dark:border-amber-900 dark:bg-amber-950/25 dark:text-amber-200">هذا الحساب لا يملك صلاحية إنشاء مزود خدمة. اطلب من مالك المتجر إكمال الإعداد.</div>;
+    }
+    return <div className="pb-8 pt-1"><OnboardingElectronicProviderSetup currency={context.currency || "SAR"} error={query.error} /></div>;
+  }
 
   return <div className="space-y-6 pb-8">
     <section className="relative overflow-hidden rounded-[28px] border border-teal-100/80 bg-gradient-to-br from-teal-50 via-white to-cyan-50/70 px-5 py-6 shadow-[0_22px_75px_-48px_rgba(13,148,136,0.5)] dark:border-slate-800 dark:from-slate-950 dark:via-slate-950 dark:to-teal-950/25 sm:px-6">

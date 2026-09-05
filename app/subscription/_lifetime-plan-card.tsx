@@ -1,4 +1,9 @@
+"use client";
+
 import { Crown, Flame, Infinity, MessageCircle, Sparkles } from "lucide-react";
+import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { captureClientEvent } from "@/lib/analytics/client";
+import type { MonetizationStage } from "@/lib/monetization/onboarding";
 import { Button } from "@/components/ui/button";
 
 export interface LifetimePriceInfo {
@@ -12,12 +17,16 @@ export function LifetimePlanCard({
   totalEligible,
   remainingEligible,
   isActive,
+  subscriptionStatus,
+  monetizationStage,
 }: {
   shopName: string;
   price: LifetimePriceInfo | null;
   totalEligible: number;
   remainingEligible: number;
   isActive: boolean;
+  subscriptionStatus: string;
+  monetizationStage?: MonetizationStage | null;
 }) {
   const soldOut = remainingEligible <= 0;
   const available = isActive && !soldOut && price;
@@ -27,6 +36,20 @@ export function LifetimePlanCard({
     ? `مرحباً، أريد الاشتراك في خطة مسار مدى الحياة لمتجري (${shopName}) بسعر (${price.amount} ${price.currencyCode}) ضمن العرض المحدود لأول ${totalEligible} مشترك.`
     : "مرحباً، أريد الاستفسار عن خطة مسار مدى الحياة لمتجري.";
   const href = `https://wa.me/905350215375?text=${encodeURIComponent(message)}`;
+
+  function trackLifetimeUpgrade() {
+    if (!price) return;
+    captureClientEvent(ANALYTICS_EVENTS.UPGRADE_CLICKED, {
+      destination: "whatsapp",
+      interval: "lifetime",
+      price: price.amount,
+      currency_code: price.currencyCode,
+      discount_percent: 0,
+      subscription_status: subscriptionStatus,
+      offer_state: "lifetime_limited",
+      monetization_stage: monetizationStage ?? "unscoped",
+    });
+  }
 
   return (
     <section id="lifetime-plan" className="mx-auto mb-8 max-w-6xl overflow-hidden rounded-3xl border-2 border-amber-300 bg-gradient-to-br from-amber-50 via-white to-orange-50 shadow-lg shadow-amber-500/10">
@@ -67,7 +90,7 @@ export function LifetimePlanCard({
 
           <Button asChild={Boolean(available)} disabled={!available} className="mt-4 h-12 w-full rounded-2xl bg-amber-500 font-black text-slate-950 hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50">
             {available ? (
-              <a href={href} target="_blank" rel="noopener noreferrer"><MessageCircle className="ml-2 h-5 w-5" />طلب خطة مدى الحياة</a>
+              <a href={href} onClick={trackLifetimeUpgrade} target="_blank" rel="noopener noreferrer"><MessageCircle className="ml-2 h-5 w-5" />طلب خطة مدى الحياة</a>
             ) : (
               <span>{soldOut ? "اكتمل العدد المخصص" : "الخطة غير متاحة حالياً"}</span>
             )}

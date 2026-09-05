@@ -1,7 +1,13 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Crown, ArrowLeft } from "lucide-react";
 
 export function LifetimeOfferBanner({ remaining, total }: { remaining: number; total: number }) {
+  const pathname = usePathname();
+  if (pathname === "/onboarding") return null;
+
   return (
     <div className="sticky top-0 z-[60] border-b border-amber-300 bg-gradient-to-l from-amber-500 via-orange-500 to-amber-500 px-3 py-2 text-slate-950 shadow-md print:hidden">
       <div className="mx-auto flex max-w-7xl items-center justify-center gap-2 text-center text-[11px] font-black sm:text-xs">

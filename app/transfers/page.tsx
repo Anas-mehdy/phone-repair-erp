@@ -2,6 +2,7 @@ import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, CheckCircle2, Eye, Externa
 import Link from "next/link";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { Button } from "@/components/ui/button";
+import { SmartEmptyState } from "@/components/onboarding/smart-empty-state";
 import { getCurrentShopContext } from "@/lib/current-shop";
 import {
   transferCanVoid,
@@ -19,10 +20,12 @@ import { voidTransferAction } from "./actions";
 import { TransferStatsCards } from "./_transfer-stats-cards";
 import { TransferForm } from "./_transfer-form";
 import { WalletsPanel } from "./_wallets-panel";
+import { OnboardingWalletSetup } from "./_onboarding-wallet-setup";
+import { OnboardingTransferForm } from "./_onboarding-transfer-form";
 
 export const dynamic = "force-dynamic";
 
-type SearchParams = { saved?: string; walletSaved?: string; walletUpdated?: string; voided?: string; error?: string; wallet?: string; type?: string; q?: string; from?: string; to?: string };
+type SearchParams = { saved?: string; walletSaved?: string; walletUpdated?: string; voided?: string; error?: string; wallet?: string; type?: string; q?: string; from?: string; to?: string; onboarding?: string };
 const transferLabels: Record<FinancialTransferType, string> = { CUSTOMER_DEPOSIT: "إيداع للعميل", CUSTOMER_WITHDRAWAL: "سحب للعميل", WALLET_TOPUP: "زيادة رصيد المحفظة", WALLET_WITHDRAWAL: "نقص رصيد المحفظة" };
 const commissionLabels = { ADDED: "مضافة", DEDUCTED: "مخصومة", NONE: "بدون عمولة" } as const;
 
@@ -44,6 +47,22 @@ export default async function TransfersPage({ searchParams }: { searchParams: Pr
   const statsOperations = dailyData.operations.map((row) => ({ id: row.id, walletName: row.walletName, userName: row.userName, customerName: row.customerName, operationType: row.operationType, amount: row.amount, commission: row.commission, createdAt: row.createdAt.toISOString() }));
   const formWallets = wallets.map((wallet) => ({ id: wallet.id, name: wallet.name, balance: Number(wallet.currentBalance), depositCommission: Number(wallet.defaultDepositCommission), withdrawalCommission: Number(wallet.defaultWithdrawalCommission) }));
   const walletPanelItems = wallets.map((wallet) => ({ id: wallet.id, name: wallet.name, balance: Number(wallet.currentBalance), monthlyLimit: wallet.monthlyLimit == null ? null : Number(wallet.monthlyLimit), monthlyUsed: Number(wallet.monthlyUsed), depositCommission: Number(wallet.defaultDepositCommission), withdrawalCommission: Number(wallet.defaultWithdrawalCommission) }));
+
+  if (query.onboarding === "1") {
+    return (
+      <div className="pb-8 pt-1">
+        {query.error ? <div className="mx-auto mb-4 max-w-3xl rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-[11px] font-bold leading-5 text-rose-700 dark:border-rose-900/70 dark:bg-rose-950/30 dark:text-rose-200">{query.error}</div> : null}
+        {wallets.length === 0 ? (
+          <OnboardingWalletSetup currency={currency} />
+        ) : (
+          <OnboardingTransferForm
+            currency={currency}
+            wallets={formWallets.map((wallet) => ({ id: wallet.id, name: wallet.name, balance: wallet.balance }))}
+          />
+        )}
+      </div>
+    );
+  }
 
   return <div className="space-y-6 pb-8">
     <section className="relative overflow-hidden rounded-[26px] border border-teal-100/80 bg-gradient-to-br from-teal-50 via-white to-cyan-50/70 px-5 py-5 shadow-[0_20px_70px_-46px_rgba(13,148,136,0.5)] sm:px-6 sm:py-6">
@@ -88,7 +107,7 @@ export default async function TransfersPage({ searchParams }: { searchParams: Pr
           <div className="mt-2 flex justify-end"><Button type="submit" variant="outline" className="h-9 rounded-xl border-teal-200 bg-white px-4 text-[10px] font-black text-teal-700 hover:bg-teal-50">تطبيق الفلاتر</Button></div>
         </form>
 
-        {transfers.length === 0 ? <div className="flex min-h-52 flex-col items-center justify-center px-4 text-center"><span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-50 text-slate-400"><Search className="h-5 w-5" /></span><p className="mt-3 text-xs font-black text-slate-600">لا توجد عمليات ضمن النطاق الحالي</p><p className="mt-1 text-[10px] font-semibold text-slate-400">غيّر الفلاتر أو سجّل عملية جديدة.</p></div> : <div className="overflow-x-auto"><table className="min-w-[1180px] w-full text-right text-xs"><thead className="bg-slate-50/80 text-[10px] font-black text-slate-500"><tr><th className="px-4 py-3">ماهية الحركة</th><th className="px-4 py-3">المحفظة</th><th className="px-4 py-3">العميل</th><th className="px-4 py-3">المبلغ</th><th className="px-4 py-3">العمولة</th><th className="px-4 py-3">الدفع</th><th className="px-4 py-3">الحالة</th><th className="px-4 py-3">التاريخ</th><th className="px-4 py-3">الإجراءات</th></tr></thead><tbody className="divide-y divide-slate-100">{transfers.map((transfer) => {
+        {transfers.length === 0 ? <SmartEmptyState job="WALLETS" icon={Search} title="لا توجد عمليات ضمن النطاق الحالي" description="غيّر الفلاتر أو سجّل عملية جديدة." /> : <div className="overflow-x-auto"><table className="min-w-[1180px] w-full text-right text-xs"><thead className="bg-slate-50/80 text-[10px] font-black text-slate-500"><tr><th className="px-4 py-3">ماهية الحركة</th><th className="px-4 py-3">المحفظة</th><th className="px-4 py-3">العميل</th><th className="px-4 py-3">المبلغ</th><th className="px-4 py-3">العمولة</th><th className="px-4 py-3">الدفع</th><th className="px-4 py-3">الحالة</th><th className="px-4 py-3">التاريخ</th><th className="px-4 py-3">الإجراءات</th></tr></thead><tbody className="divide-y divide-slate-100">{transfers.map((transfer) => {
           const canVoid = transferCanVoid(transfer.sourceType);
           const sourceHref = transferSourceHref(transfer);
           return <tr key={transfer.id} className={`transition hover:bg-teal-50/25 ${transfer.status === "VOID" ? "opacity-50" : ""}`}>

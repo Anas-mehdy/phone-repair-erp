@@ -11,6 +11,8 @@ import { cn } from "@/lib/utils";
 import { UserPresenceHeartbeat } from "@/components/user-presence-heartbeat";
 import { GlobalSubscriptionBanner } from "@/components/subscription/global-subscription-banner";
 import { TutorialOnboarding } from "@/components/tutorial-onboarding";
+import { ContextualHelp } from "@/components/help/contextual-help";
+import { clearAnalyticsSession } from "@/lib/analytics/client";
 
 export function AppShell({
   children,
@@ -53,10 +55,15 @@ export function AppShell({
     });
   };
 
+  const clearAnalyticsBeforeLogout = () => {
+    clearAnalyticsSession();
+  };
+
   const isPublicPage =
     pathname === "/" ||
     pathname === "/login" ||
     pathname === "/register" ||
+    pathname === "/onboarding" ||
     pathname === "/forgot-password" ||
     pathname === "/reset-password" ||
     pathname.startsWith("/partners") ||
@@ -74,6 +81,7 @@ export function AppShell({
   const readOnlyUiExempt =
     pathname.startsWith("/subscription") ||
     pathname.startsWith("/support") ||
+    pathname.startsWith("/help") ||
     pathname.startsWith("/account/security");
   const enforceReadOnlyUi = subscriptionReadOnly && !readOnlyUiExempt;
 
@@ -166,6 +174,7 @@ export function AppShell({
             <form action={logoutAction} className={cn(!isCollapsed && "w-full")}>
               <button
                 type="submit"
+                onClick={clearAnalyticsBeforeLogout}
                 title="تسجيل الخروج"
                 className={cn(
                   "flex items-center rounded-[13px] border border-transparent font-bold text-slate-500 transition-all hover:border-rose-100 hover:bg-rose-50/80 hover:text-rose-600 active:scale-[0.98] dark:text-slate-400 dark:hover:border-rose-900/70 dark:hover:bg-rose-950/35 dark:hover:text-rose-300",
@@ -195,7 +204,7 @@ export function AppShell({
             <div className="flex items-center gap-2">
               <ThemeToggle compact />
               <form action={logoutAction}>
-                <button type="submit" title="تسجيل الخروج" aria-label="تسجيل الخروج" className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-500 transition active:bg-rose-50 active:text-rose-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:active:bg-rose-950/40 dark:active:text-rose-300">
+                <button type="submit" onClick={clearAnalyticsBeforeLogout} title="تسجيل الخروج" aria-label="تسجيل الخروج" className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-500 transition active:bg-rose-50 active:text-rose-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:active:bg-rose-950/40 dark:active:text-rose-300">
                   <LogOut className="h-4 w-4" />
                 </button>
               </form>
@@ -211,6 +220,7 @@ export function AppShell({
         </main>
       </div>
 
+      <ContextualHelp />
       <MobileBottomNav {...navPermissions} />
     </div>
   );

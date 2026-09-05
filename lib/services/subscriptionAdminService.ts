@@ -6,6 +6,8 @@ import {
 import { requireSuperAdmin } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
 import { computeEffectiveStatus } from "@/lib/services/subscriptionEntitlementService";
+import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { captureShopOwnerEvent } from "@/lib/analytics/server";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -195,7 +197,7 @@ export async function activateSubscription(
     foundersOfferAnnualDiscountPercent = globalOffer.annualDiscountPercent;
   }
 
-  return prisma.subscription.update({
+  const updatedSubscription = await prisma.subscription.update({
     where: { shopId: input.shopId },
     data: {
       // PROFESSIONAL is retained as the internal enum value for the one
@@ -218,6 +220,21 @@ export async function activateSubscription(
       foundersOfferAnnualDiscountPercent,
     },
   });
+
+  await captureShopOwnerEvent({
+    event: ANALYTICS_EVENTS.SUBSCRIPTION_ACTIVATED,
+    shopId: input.shopId,
+    countryCode: existingSub.shop.countryCode,
+    properties: {
+      billing_interval: input.billingInterval === SubscriptionBillingInterval.ANNUAL ? "annual" : "six_months",
+      activation_type: existingSub.activatedAt ? "renewal" : "first_paid_activation",
+      channel: "direct_admin",
+      is_lifetime: false,
+      founders_offer: Boolean(foundersOfferEligible),
+    },
+  });
+
+  return updatedSubscription;
 }
 
 

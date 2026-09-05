@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Cairo, Outfit } from "next/font/google";
 import { AppShell } from "@/components/app-shell";
+import { AnalyticsIdentity, type AnalyticsIdentityData } from "@/components/analytics/analytics-identity";
+import { AnalyticsPageTracker } from "@/components/analytics/analytics-page-tracker";
 import { DashboardKpiNavigation } from "@/components/dashboard/dashboard-kpi-navigation";
 import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
 import { LifetimeOfferBanner } from "@/components/lifetime-offer-banner";
@@ -8,6 +10,7 @@ import { QuickOperationsLauncher } from "@/components/quick-operations";
 import { ThemeRouteSync } from "@/components/theme-route-sync";
 import { getAuthContext, can } from "@/lib/auth/context";
 import { APP_URL } from "@/lib/app-url";
+import { getPostHogBrowserSnippet } from "@/lib/analytics/posthog-snippet";
 import { prisma } from "@/lib/prisma";
 import { subscriptionOfferService } from "@/lib/services/subscriptionOfferService";
 import { lifetimeSubscriptionService } from "@/lib/services/lifetimeSubscriptionService";
@@ -39,16 +42,32 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   let canSettings = false, canReports = false, canManageSubscription = false, canManageDebts = false, showTutorialBanner = false;
   let subscriptionReadOnly = false;
   let lifetimeBanner: { remaining: number; total: number } | null = null;
+  let analyticsIdentity: AnalyticsIdentityData | null = null;
 
   try {
     const auth = await getAuthContext({ allowRedirect: false });
+    analyticsIdentity = {
+      userId: auth.user.id,
+      shopId: auth.shop.id,
+      countryCode: auth.shop.countryCode,
+      currency: auth.shop.currency,
+      membershipRole: auth.membership.role,
+    };
     canSettings = can(auth, "shop:settings");
     canReports = can(auth, "reports:read");
     canManageDebts = can(auth, "debts:manage");
 
     try {
-      const operationalAccess = await entitlementService.checkCanCreateNewOperation(auth.shop.id);
-      subscriptionReadOnly = !operationalAccess.allowed;
+      const entitlement = await entitlementService.getEntitlementContext(auth.shop.id);
+      subscriptionReadOnly = !entitlement.isOperationallyActive;
+      analyticsIdentity = {
+        ...analyticsIdentity,
+        subscriptionStatus: entitlement.subscription.effectiveStatus,
+        isLifetime: entitlement.subscription.isLifetime,
+        trialDaysRemaining: entitlement.subscription.effectiveStatus === "TRIALING"
+          ? Math.max(0, Math.ceil((entitlement.subscription.trialEndsAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000)))
+          : null,
+      };
     } catch (error) {
       console.error("[SubscriptionReadOnly] Failed to resolve operational access", error);
       subscriptionReadOnly = true;
@@ -93,13 +112,19 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     showTutorialBanner = false;
     subscriptionReadOnly = false;
     lifetimeBanner = null;
+    analyticsIdentity = null;
   }
+
+  const postHogSnippet = getPostHogBrowserSnippet();
 
   return <html lang="ar" dir="rtl" suppressHydrationWarning className={`${cairo.variable} ${outfit.variable} overflow-x-hidden w-full max-w-full`}>
     <head>
       <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      {postHogSnippet ? <script dangerouslySetInnerHTML={{ __html: postHogSnippet }} /> : null}
     </head>
     <body className="font-sans antialiased overflow-x-hidden min-h-screen w-full max-w-full">
+      <AnalyticsIdentity identity={analyticsIdentity} />
+      <AnalyticsPageTracker authenticated={Boolean(analyticsIdentity)} />
       <ThemeRouteSync />
       <DashboardKpiNavigation />
       <PwaInstallPrompt />

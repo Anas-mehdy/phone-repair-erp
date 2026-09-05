@@ -2,7 +2,7 @@ import { RepairStatus } from "@prisma/client";
 import { Eye, Pencil, Plus, Search, Sparkles, Truck, UserRoundCheck, Wrench } from "lucide-react";
 import Link from "next/link";
 import { DatabaseUnavailable } from "@/components/database-unavailable";
-import { EmptyState } from "@/components/empty-state";
+import { SmartEmptyState } from "@/components/onboarding/smart-empty-state";
 import { PageHeader } from "@/components/page-header";
 import { RepairStatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -133,7 +133,8 @@ export default async function RepairOrdersPage({ searchParams }: RepairOrdersPag
 
       <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/50">
         {repairOrders.length === 0 ? (
-          <EmptyState
+          <SmartEmptyState
+            job="REPAIRS"
             icon={Wrench}
             title={currentMonthOnly ? "لا توجد تذاكر ضمن الشهر الحالي" : assignment === "MINE" ? "لا توجد تذاكر مسندة إليك" : assignment === "UNASSIGNED" ? "لا توجد تذاكر غير مسندة" : "لا توجد طلبات صيانة بعد"}
             description={currentMonthOnly ? "لا توجد تذاكر تطابق الفلاتر ضمن الشهر الحالي. ألغِ خيار «إظهار تذاكر الشهر الحالي فقط» لمشاهدة الأشهر السابقة." : assignment === "MINE" ? "هذا الفلتر يعرض التذاكر المسندة إليك كمسؤول فقط. استخدم «جميع تذاكر المتجر» لمشاهدة عمل الفريق كاملاً." : assignment === "UNASSIGNED" ? "كل التذاكر الحالية مسندة لأعضاء الفريق. استخدم «جميع تذاكر المتجر» لمشاهدتها." : "ابدأ بإنشاء طلب صيانة جديد للعميل وسيظهر هنا لجميع أعضاء المتجر المصرح لهم."}

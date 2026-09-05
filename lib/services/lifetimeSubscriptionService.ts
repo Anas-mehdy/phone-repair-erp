@@ -1,6 +1,8 @@
 import { Prisma, SubscriptionPlan, SubscriptionStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireSuperAdmin } from "@/lib/adminAuth";
+import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { captureShopOwnerEvent } from "@/lib/analytics/server";
 
 export type LifetimePriceRow = {
   id: string;
@@ -157,6 +159,7 @@ export async function activateLifetimeSubscription(input: {
   const price = await getLifetimePriceForCountry(shop.countryCode);
   if (!price) throw new Error("سعر مدى الحياة غير محدد لدولة هذا المتجر.");
 
+  let wasPreviouslyActivated = false;
   await prisma.$transaction(async (tx) => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`lifetime-subscription:${input.shopId}`}))`;
 
@@ -165,6 +168,7 @@ export async function activateLifetimeSubscription(input: {
       select: { id: true, status: true, billingInterval: true },
     });
     if (!subscription) throw new Error("لا يوجد سجل اشتراك لهذا المتجر.");
+    wasPreviouslyActivated = subscription.status === SubscriptionStatus.ACTIVE;
 
     const activeRows = await tx.$queryRaw<Array<{ id: string }>>`
       SELECT l."id"
@@ -218,7 +222,21 @@ export async function activateLifetimeSubscription(input: {
     });
   }, { timeout: 10_000 });
 
-  return getActiveLifetimeForShop(input.shopId);
+  const lifetime = await getActiveLifetimeForShop(input.shopId);
+  await captureShopOwnerEvent({
+    event: ANALYTICS_EVENTS.SUBSCRIPTION_ACTIVATED,
+    shopId: input.shopId,
+    countryCode: shop.countryCode,
+    properties: {
+      billing_interval: "lifetime",
+      activation_type: wasPreviouslyActivated ? "upgrade_to_lifetime" : "first_paid_activation",
+      channel: "lifetime",
+      is_lifetime: true,
+      paid_amount: Number(price.amount),
+      currency_code: price.currencyCode,
+    },
+  });
+  return lifetime;
 }
 
 export const lifetimeSubscriptionService = {

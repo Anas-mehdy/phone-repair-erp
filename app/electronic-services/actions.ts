@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requirePermission } from "@/lib/auth/context";
 import { electronicServiceProviderService } from "@/lib/services/electronicServiceProviderService";
+import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { captureServerEvent } from "@/lib/analytics/server";
 
 const moneySchema = z
   .string()
@@ -51,6 +53,12 @@ function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "تعذر تنفيذ العملية. حاول مجدداً.";
 }
 
+function providerCreateErrorPath(message: string, onboarding: boolean) {
+  return onboarding
+    ? `/electronic-services?onboarding=1&error=${encodeURIComponent(message)}`
+    : `/electronic-services?error=${encodeURIComponent(message)}`;
+}
+
 function refreshElectronicServices(providerId?: string) {
   revalidatePath("/electronic-services");
   revalidatePath("/electronic-services/reconcile");
@@ -61,6 +69,7 @@ function refreshElectronicServices(providerId?: string) {
 
 export async function createElectronicServiceProviderAction(formData: FormData) {
   const auth = await requirePermission("electronic_services:manage");
+  const onboarding = readString(formData, "onboarding") === "1";
   const parsed = providerSchema.safeParse({
     name: readString(formData, "name"),
     typeLabel: readString(formData, "typeLabel") || undefined,
@@ -69,7 +78,10 @@ export async function createElectronicServiceProviderAction(formData: FormData) 
   });
 
   if (!parsed.success) {
-    redirect(`/electronic-services?error=${encodeURIComponent(errorMessage(parsed.error))}`);
+    redirect(providerCreateErrorPath(errorMessage(parsed.error), onboarding));
+  }
+  if (onboarding && Number(parsed.data.openingBalance.replace(",", ".")) <= 0) {
+    redirect(providerCreateErrorPath("أدخل الرصيد الحقيقي الحالي للمزود بقيمة أكبر من صفر حتى نقدر ننفذ أول خدمة.", true));
   }
 
   let providerId: string;
@@ -79,10 +91,23 @@ export async function createElectronicServiceProviderAction(formData: FormData) 
       currencyCode: auth.shop.currency || "SAR",
     });
   } catch (error) {
-    redirect(`/electronic-services?error=${encodeURIComponent(errorMessage(error))}`);
+    redirect(providerCreateErrorPath(errorMessage(error), onboarding));
   }
 
+  await captureServerEvent({
+    event: ANALYTICS_EVENTS.ELECTRONIC_PROVIDER_CREATED,
+    distinctId: auth.user.id,
+    shopId: auth.shop.id,
+    countryCode: auth.shop.countryCode,
+    properties: {
+      has_opening_balance: Number(parsed.data.openingBalance.replace(",", ".")) !== 0,
+      source: onboarding ? "electronic_services_onboarding" : "electronic_services",
+      onboarding_mode: onboarding,
+    },
+  });
+
   refreshElectronicServices(providerId);
+  if (onboarding) redirect(`/electronic-services/new?onboarding=1&provider=${providerId}`);
   redirect(`/electronic-services/${providerId}?created=1`);
 }
 

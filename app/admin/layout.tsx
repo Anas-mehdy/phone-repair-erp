@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ShieldAlert, ArrowRight, LayoutDashboard, Handshake } from "lucide-react";
+import { ShieldAlert, ArrowRight, LayoutDashboard, Handshake, TrendingUp, CirclePlay } from "lucide-react";
 import { requireSuperAdmin } from "@/lib/adminAuth";
 
 export const dynamic = "force-dynamic";
@@ -43,6 +43,20 @@ export default async function AdminLayout({
               >
                 <LayoutDashboard className="h-4 w-4 text-violet-400" />
                 <span>إحصائيات المنصة</span>
+              </Link>
+              <Link
+                href="/admin/growth"
+                className="flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-2 text-xs font-bold text-slate-300 hover:bg-slate-800 hover:text-white transition"
+              >
+                <TrendingUp className="h-4 w-4 text-violet-400" />
+                <span>النمو</span>
+              </Link>
+              <Link
+                href="/admin/tutorial-videos"
+                className="flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-2 text-xs font-bold text-slate-300 hover:bg-slate-800 hover:text-white transition"
+              >
+                <CirclePlay className="h-4 w-4 text-cyan-400" />
+                <span>فيديوهات الشرح</span>
               </Link>
               <Link
                 href="/admin/partners"

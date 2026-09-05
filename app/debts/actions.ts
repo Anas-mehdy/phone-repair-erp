@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma";
 import { customerService } from "@/lib/services/customerService";
 import { debtCollectionService } from "@/lib/services/debtCollectionService";
 import { createDebtEntry } from "@/lib/services/debtLedgerService";
+import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { captureServerEvent } from "@/lib/analytics/server";
 
 export type DebtActionResult = { success: true } | { success: false; error: string };
 export type CreateDebtCustomerResult =
@@ -49,9 +51,23 @@ export async function createDebtAction(input: {
   dueAt?: string | null;
   description?: string | null;
   reference?: string | null;
+  onboarding?: boolean;
 }): Promise<DebtActionResult> {
   try {
+    const auth = await requirePermission("debts:manage");
     await createDebtEntry(input);
+    await captureServerEvent({
+      event: ANALYTICS_EVENTS.DEBT_CREATED,
+      distinctId: auth.user.id,
+      shopId: auth.shop.id,
+      countryCode: auth.shop.countryCode,
+      properties: {
+        debt_type: input.type === "OPENING_BALANCE" ? "opening_balance" : "debt",
+        has_due_date: Boolean(input.dueAt),
+        source: input.onboarding ? "debts_onboarding" : "debts",
+        onboarding_mode: Boolean(input.onboarding),
+      },
+    });
     revalidatePath("/debts");
     revalidatePath(`/debts/${input.customerId}`);
     return { success: true };
@@ -71,9 +87,23 @@ export async function recordDebtPaymentAction(input: {
   reference?: string | null;
   moneyDestination: "DRAWER" | "WALLET" | "OTHER";
   walletId?: string;
+  onboarding?: boolean;
 }): Promise<DebtActionResult> {
   try {
+    const auth = await requirePermission("debts:manage");
     await debtCollectionService.recordPayment(input);
+    await captureServerEvent({
+      event: ANALYTICS_EVENTS.DEBT_PAYMENT_CREATED,
+      distinctId: auth.user.id,
+      shopId: auth.shop.id,
+      countryCode: auth.shop.countryCode,
+      properties: {
+        money_destination: input.moneyDestination,
+        has_custom_source: Boolean(input.customSourceName?.trim()),
+        source: input.onboarding ? "debts_onboarding" : "debts",
+        onboarding_mode: Boolean(input.onboarding),
+      },
+    });
     revalidatePath("/debts");
     revalidatePath(`/debts/${input.customerId}`);
     revalidatePath(`/debts/${input.customerId}/print`);

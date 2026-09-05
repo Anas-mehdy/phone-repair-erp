@@ -20,6 +20,7 @@ import {
   formatMoney,
 } from "../_components";
 import { cancelSaleAction } from "../actions";
+import { SaleActivationSuccess } from "../_activation-success";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,7 @@ type SaleDetailsPageProps = {
   }>;
   searchParams: Promise<{
     invoiceError?: string;
+    onboarding?: string;
   }>;
 };
 
@@ -102,6 +104,14 @@ export default async function SaleDetailsPage({
 
       {query.invoiceError ? (
         <div className="rounded-2xl border border-rose-100 bg-rose-50/50 p-4 text-xs font-bold text-rose-600">{query.invoiceError}</div>
+      ) : null}
+
+      {query.onboarding === "1" && sale.status === SaleStatus.COMPLETED ? (
+        <SaleActivationSuccess
+          saleId={sale.id}
+          printHref={`/sales/${sale.id}/print`}
+          usedInventory={sale.inventoryMovements.some((movement) => movement.quantityChange < 0)}
+        />
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">

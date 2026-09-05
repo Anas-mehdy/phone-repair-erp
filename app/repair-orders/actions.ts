@@ -9,6 +9,8 @@ import { pointOfSaleResultPath, readPointOfSaleReturn } from "@/lib/point-of-sal
 import { repairOrderService } from "@/lib/services/repairOrderService";
 import { salesCustomerSearchService } from "@/lib/services/salesCustomerSearchService";
 import { entitlementService } from "@/lib/services/subscriptionEntitlementService";
+import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { captureServerEvent } from "@/lib/analytics/server";
 
 const repairOrderItemSchema = z.object({
   id: z.string().optional(),
@@ -125,6 +127,7 @@ export async function searchCustomersForRepairAction(query: string) {
 
 export async function createRepairOrderAction(formData: FormData) {
   const pointOfSaleReturn = readPointOfSaleReturn(readString(formData, "returnTo"), "repair");
+  const onboardingMode = !pointOfSaleReturn && readString(formData, "onboarding") === "1";
   const input = createRepairOrderSchema.parse({
     customerName: readString(formData, "customerName"),
     customerPhone: readString(formData, "customerPhone"),
@@ -166,15 +169,28 @@ export async function createRepairOrderAction(formData: FormData) {
   if (!("result" in guarded)) {
     redirect(pointOfSaleReturn
       ? pointOfSaleResultPath("repair", { entitlement: guarded.code })
-      : `/repair-orders/new?entitlement=${encodeURIComponent(guarded.code)}`);
+      : `/repair-orders/new?entitlement=${encodeURIComponent(guarded.code)}${onboardingMode ? "&onboarding=1" : ""}`);
   }
 
   const repairOrder = guarded.result;
+
+  await captureServerEvent({
+    event: ANALYTICS_EVENTS.REPAIR_CREATED,
+    distinctId: auth.user.id,
+    shopId: auth.shop.id,
+    countryCode: auth.shop.countryCode,
+    properties: {
+      source: pointOfSaleReturn ? "point_of_sale" : "repair_orders",
+      onboarding_mode: onboardingMode,
+      assigned: Boolean(input.assignedToUserId),
+      has_inventory_items: Boolean(input.items?.some((item) => item.inventoryItemId)),
+    },
+  });
   revalidatePath("/repair-orders");
   revalidatePath("/point-of-sale");
   redirect(pointOfSaleReturn
     ? pointOfSaleResultPath("repair", { saved: "1", transaction: repairOrder.id })
-    : `/repair-orders/${repairOrder.id}`);
+    : `/repair-orders/${repairOrder.id}${onboardingMode ? "?onboarding=1" : ""}`);
 }
 
 export async function assignRepairOrderAction(formData: FormData) {
@@ -276,6 +292,17 @@ export async function updateRepairOrderStatusAction(formData: FormData) {
       note: input.note,
     },
   );
+
+  await captureServerEvent({
+    event: ANALYTICS_EVENTS.REPAIR_STATUS_CHANGED,
+    distinctId: auth.user.id,
+    shopId: auth.shop.id,
+    countryCode: auth.shop.countryCode,
+    properties: {
+      status: input.status,
+      has_note: Boolean(input.note?.trim()),
+    },
+  });
 
   revalidatePath("/repair-orders");
   revalidatePath(`/repair-orders/${input.repairOrderId}`);

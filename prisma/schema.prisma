@@ -140,6 +140,12 @@ enum SubscriptionBillingInterval {
   ANNUAL
 }
 
+enum GrowthLifecycleDeliveryStatus {
+  PROCESSING
+  SENT
+  FAILED
+}
+
 // ---------------------------------------------------------
 // TENANT / BUSINESS MODEL
 // ---------------------------------------------------------
@@ -182,10 +188,84 @@ model Shop {
   paymentSourceOptions      PaymentSourceOption[]
   expenses                  Expense[]
   subscription              Subscription?
+  onboardingProfile         ShopOnboardingProfile?
+  growthExperimentAssignments GrowthExperimentAssignment[]
+  growthLifecyclePreference GrowthLifecyclePreference?
+  growthLifecycleDeliveries GrowthLifecycleDelivery[]
 
   @@index([updatedAt])
   @@index([deletedAt])
   @@index([countryCode])
+}
+
+model ShopOnboardingProfile {
+  id           String    @id @default(uuid()) @db.Uuid
+  shopId       String    @unique @db.Uuid
+  flowVersion  Int       @default(1)
+  primaryJob   String?   @db.VarChar(40)
+  selectedJobs String[]  @default([])
+  startedAt    DateTime?
+  completedAt  DateTime?
+  skippedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([primaryJob])
+  @@index([flowVersion, completedAt])
+}
+
+model GrowthLifecyclePreference {
+  id            String    @id @default(uuid()) @db.Uuid
+  shopId        String    @unique @db.Uuid
+  emailOptOutAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+}
+
+model GrowthLifecycleDelivery {
+  id                String                        @id @default(uuid()) @db.Uuid
+  shopId            String                        @db.Uuid
+  flowVersion       Int
+  kind              String                        @db.VarChar(64)
+  triggerKey        String                        @db.VarChar(220)
+  status            GrowthLifecycleDeliveryStatus @default(PROCESSING)
+  attemptCount      Int                           @default(0)
+  lastAttemptAt     DateTime?
+  sentAt            DateTime?
+  providerMessageId String?                       @db.VarChar(160)
+  failureCode       String?                       @db.VarChar(80)
+  createdAt         DateTime                      @default(now())
+  updatedAt         DateTime                      @updatedAt
+
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, kind, triggerKey])
+  @@index([shopId, sentAt])
+  @@index([status, lastAttemptAt])
+  @@index([kind, createdAt])
+}
+
+model GrowthExperimentAssignment {
+  id             String   @id @default(uuid()) @db.Uuid
+  shopId         String   @db.Uuid
+  experimentKey  String   @db.VarChar(100)
+  variant        String   @db.VarChar(60)
+  assignedAt     DateTime @default(now())
+  firstExposedAt DateTime?
+  lastExposedAt  DateTime?
+  exposureCount  Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, experimentKey])
+  @@index([experimentKey, variant, firstExposedAt])
+  @@index([firstExposedAt])
 }
 
 model Subscription {

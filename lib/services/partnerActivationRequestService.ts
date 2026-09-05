@@ -9,6 +9,8 @@ import { requirePartnerSession } from "@/lib/partner-auth";
 import { prisma } from "@/lib/prisma";
 import { buildPartnerWholesaleQuote } from "@/lib/services/partnerPricingService";
 import { calculatePaidActivationEnd } from "@/lib/services/subscriptionAdminService";
+import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { captureShopOwnerEvent } from "@/lib/analytics/server";
 
 export type PartnerActivationRequestStatus =
   | "PENDING"
@@ -182,7 +184,8 @@ export async function approvePartnerActivationRequest(input: {
     throw new Error("عدد الأيام الإضافية غير صالح.");
   }
 
-  return prisma.$transaction(async (tx) => {
+  let wasPreviouslyActivated = false;
+  const approvedRequest = await prisma.$transaction(async (tx) => {
     const rows = await tx.$queryRaw<
       Array<
         PartnerActivationRequestRecord & {
@@ -216,6 +219,7 @@ export async function approvePartnerActivationRequest(input: {
 
     const subscription = await tx.subscription.findUnique({ where: { shopId: request.shopId } });
     if (!subscription) throw new Error("لم يتم العثور على اشتراك لهذا المتجر.");
+    wasPreviouslyActivated = Boolean(subscription.activatedAt);
 
     const currentPeriodStartedAt = new Date(now);
     const currentPeriodEndsAt = calculatePaidActivationEnd(
@@ -260,6 +264,21 @@ export async function approvePartnerActivationRequest(input: {
 
     return mapRequest(approvedRows[0]);
   });
+
+  await captureShopOwnerEvent({
+    event: ANALYTICS_EVENTS.SUBSCRIPTION_ACTIVATED,
+    shopId: approvedRequest.shopId,
+    properties: {
+      billing_interval: approvedRequest.billingInterval === SubscriptionBillingInterval.ANNUAL ? "annual" : "six_months",
+      activation_type: wasPreviouslyActivated ? "renewal" : "first_paid_activation",
+      channel: "partner",
+      is_lifetime: false,
+      paid_amount: approvedRequest.payableAmount,
+      currency_code: approvedRequest.currencyCode,
+    },
+  });
+
+  return approvedRequest;
 }
 
 export async function rejectPartnerActivationRequest(

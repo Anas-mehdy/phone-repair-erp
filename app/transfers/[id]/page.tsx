@@ -13,6 +13,7 @@ import {
 import { formatCurrency } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { financialTransferService } from "@/lib/services/financialTransferService";
+import { WalletActivationSuccess } from "../_activation-success";
 import { formatDateTimeInTimeZone, getShopTimeZone } from "@/lib/shop-timezone";
 
 export const dynamic = "force-dynamic";
@@ -22,14 +23,19 @@ function cleanNotes(value: string | null) {
   return value.replace(/\s*\[(?:INSTALLMENT-PAYMENT|INSTALLMENT-DOWN|DEBT-PAYMENT):[0-9a-f-]+\]\s*/gi, "").trim() || "—";
 }
 
-export default async function TransferDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function TransferDetailsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ onboarding?: string }> }) {
   const { id } = await params;
+  const query = await searchParams;
   const context = await getCurrentShopContext();
   const [transfer, timeZone] = await Promise.all([
     financialTransferService.getTransferById(context.shopId, id),
     getShopTimeZone(context.shopId),
   ]);
   if (!transfer) notFound();
+
+  const onboardingWallet = query.onboarding === "1"
+    ? (await financialTransferService.listWallets(context.shopId)).find((wallet) => wallet.id === transfer.walletId) ?? null
+    : null;
 
   let resolvedCustomerId = transfer.customerId;
   if (transfer.sourceType === "DEBT" && !resolvedCustomerId && transfer.notes) {
@@ -60,6 +66,14 @@ export default async function TransferDetailsPage({ params }: { params: Promise<
         </div>
         {sourceHref ? <Button asChild className="h-11 rounded-xl bg-teal-600 px-5 font-black hover:bg-teal-700"><Link href={sourceHref}><ExternalLink className="ml-2 h-4 w-4" />{transferSourceLinkLabel(transfer.sourceType)}</Link></Button> : null}
       </div>
+
+      {query.onboarding === "1" && onboardingWallet ? (
+        <WalletActivationSuccess
+          walletName={onboardingWallet.name}
+          currentBalance={Number(onboardingWallet.currentBalance)}
+          currency={context.currency}
+        />
+      ) : null}
 
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Metric label="مبلغ الحركة" value={formatCurrency(transfer.amount, context.currency)} />

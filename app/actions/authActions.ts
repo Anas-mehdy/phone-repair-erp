@@ -3,6 +3,8 @@
 import { authService, type RegisterInput, type LoginInput } from "@/lib/services/authService";
 import { COUNTRY_DIAL_CODES, PHONE_DIAL_CODES, validatePhoneForCountry } from "@/lib/countries";
 import { CURRENCY_OPTIONS } from "@/lib/format";
+import { shouldEnterOnboarding } from "@/lib/onboarding/navigation";
+import { onboardingService } from "@/lib/services/onboardingService";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
@@ -83,12 +85,14 @@ export async function registerAction(formData: FormData) {
   }
 
   revalidatePath("/");
-  redirect("/dashboard");
+  redirect("/onboarding");
 }
 
 export async function loginAction(formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
+
+  let loginResult: Awaited<ReturnType<typeof authService.loginUser>>;
 
   try {
     const input: LoginInput = {
@@ -96,7 +100,7 @@ export async function loginAction(formData: FormData) {
       password,
     };
 
-    await authService.loginUser(input);
+    loginResult = await authService.loginUser(input);
   } catch (error) {
     return {
       success: false,
@@ -105,6 +109,12 @@ export async function loginAction(formData: FormData) {
   }
 
   revalidatePath("/");
+
+  if (loginResult.user.role === "OWNER") {
+    const onboardingProfile = await onboardingService.getOnboardingProfile(loginResult.shop.id).catch(() => null);
+    if (shouldEnterOnboarding(onboardingProfile)) redirect("/onboarding");
+  }
+
   redirect("/dashboard");
 }
 

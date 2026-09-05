@@ -1,16 +1,19 @@
 import { ArrowRight, BookOpenCheck, Clock3, Layers3, Sparkles, WalletCards, Zap } from "lucide-react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { Button } from "@/components/ui/button";
 import { getCurrentShopContext } from "@/lib/current-shop";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { electronicServiceTransactionService, type ElectronicServicePaymentDestination } from "@/lib/services/electronicServiceTransactionService";
 import { ElectronicServiceExecutionForm } from "./_service-form";
+import { OnboardingElectronicServiceForm } from "./_onboarding-service-form";
+import { ElectronicServiceActivationSuccess } from "./_activation-success";
 import { voidElectronicServiceTransactionAction } from "../service-actions";
 
 export const dynamic = "force-dynamic";
 
-type SearchParams = { saved?: string; voided?: string; transaction?: string; error?: string; provider?: string };
+type SearchParams = { saved?: string; voided?: string; transaction?: string; error?: string; provider?: string; onboarding?: string };
 
 function paymentLabel(destination: ElectronicServicePaymentDestination, walletName?: string | null) {
   if (destination === "DRAWER") return "نقدي — الدرج";
@@ -30,6 +33,34 @@ export default async function NewElectronicServicePage({ searchParams }: { searc
   const templates = data.templates.map((template) => ({ id: template.id, providerId: template.providerId, providerName: template.providerName, currencyCode: template.currencyCode, providerBalance: Number(template.providerBalance), name: template.name, category: template.category, faceValue: template.faceValue == null ? null : Number(template.faceValue), providerCost: Number(template.providerCost), customerCharge: Number(template.customerCharge) }));
   const customers = data.customers.map((customer) => ({ id: customer.id, name: customer.name, phone: customer.phone }));
   const wallets = data.wallets.map((wallet) => ({ id: wallet.id, name: wallet.name, currentBalance: Number(wallet.currentBalance) }));
+
+  if (query.onboarding === "1") {
+    if (providers.length === 0) redirect("/electronic-services?onboarding=1");
+    if (!canCreate) {
+      return <div className="mx-auto max-w-xl rounded-2xl border border-amber-200 bg-amber-50 p-5 text-center text-xs font-bold text-amber-800 dark:border-amber-900 dark:bg-amber-950/25 dark:text-amber-200">هذا الحساب لا يملك صلاحية تنفيذ خدمة إلكترونية. اطلب من مالك المتجر إكمال الإعداد.</div>;
+    }
+    const completed = query.transaction ? data.recentTransactions.find((transaction) => transaction.id === query.transaction && transaction.status === "ACTIVE") : null;
+    const completedProvider = completed ? providers.find((provider) => provider.id === completed.providerId) : null;
+    return (
+      <div className="space-y-5 pb-8">
+        {query.error ? <div className="mx-auto max-w-3xl rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-200">{query.error}</div> : null}
+        {query.saved && completed && completedProvider ? (
+          <ElectronicServiceActivationSuccess
+            transactionId={completed.id}
+            providerId={completed.providerId}
+            providerBalance={completedProvider.currentBalance}
+            providerCost={Number(completed.providerCost)}
+            customerCharge={Number(completed.customerCharge)}
+            profit={Number(completed.profit)}
+            currency={completedProvider.currencyCode}
+            paymentDestination={completed.paymentDestination}
+          />
+        ) : (
+          <OnboardingElectronicServiceForm providers={providers} defaultProviderId={query.provider} />
+        )}
+      </div>
+    );
+  }
 
   return <div className="space-y-6 pb-8">
     <div className="flex flex-wrap items-center justify-between gap-3">

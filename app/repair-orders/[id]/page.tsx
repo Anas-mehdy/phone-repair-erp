@@ -26,6 +26,7 @@ import { WhatsAppMessageModal } from "../_whatsapp-modal";
 import { StatusUpdateForm } from "../_status-form";
 import { DeleteRepairOrderButton } from "../_delete-button";
 import { CopyTrackingLinkButton } from "../_copy-tracking-button";
+import { RepairActivationSuccess } from "../_activation-success";
 import {
   assignRepairOrderAction,
   updateRepairOrderDetailsAction,
@@ -41,6 +42,7 @@ type RepairOrderDetailsPageProps = {
   }>;
   searchParams: Promise<{
     invoiceError?: string;
+    onboarding?: string;
   }>;
 };
 
@@ -113,6 +115,7 @@ export default async function RepairOrderDetailsPage({
 
   const existingInvoice = repairOrder.invoices[0];
   const trackingUrl = buildAppUrl(`/track/${repairOrder.id}`);
+  const onboardingMode = query.onboarding === "1";
 
   const qrCodeDataUrl = await QRCode.toDataURL(trackingUrl, {
     margin: 1,
@@ -166,6 +169,15 @@ export default async function RepairOrderDetailsPage({
         <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs font-bold text-rose-800">
           {query.invoiceError}
         </div>
+      ) : null}
+
+      {onboardingMode ? (
+        <RepairActivationSuccess
+          repairOrderId={repairOrder.id}
+          trackingUrl={trackingUrl}
+          printHref={`/repair-orders/${repairOrder.id}/print`}
+          currentStatus={repairOrder.status}
+        />
       ) : null}
 
       {/* 2-column layout */}
@@ -328,7 +340,9 @@ export default async function RepairOrderDetailsPage({
           {/* Form modifications */}
           <div className="grid gap-6 md:grid-cols-[minmax(0,280px)_minmax(0,1fr)] min-w-0 max-w-full">
             {/* Status Update Card */}
-            <StatusUpdateForm repairOrderId={repairOrder.id} currentStatus={repairOrder.status} />
+            <div id="repair-status" className="scroll-mt-28">
+              <StatusUpdateForm repairOrderId={repairOrder.id} currentStatus={repairOrder.status} />
+            </div>
 
             {/* Edit details form */}
             <form action={updateRepairOrderDetailsAction} className="erp-section space-y-6">

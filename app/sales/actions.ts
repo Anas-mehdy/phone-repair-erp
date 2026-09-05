@@ -9,6 +9,8 @@ import { salesService } from "@/lib/services/salesService";
 import { salesInventorySearchService } from "@/lib/services/salesInventorySearchService";
 import { salesCustomerSearchService } from "@/lib/services/salesCustomerSearchService";
 import { entitlementService } from "@/lib/services/subscriptionEntitlementService";
+import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { captureServerEvent } from "@/lib/analytics/server";
 
 export type SaleActionState = { error?: string };
 
@@ -59,6 +61,7 @@ export async function searchCustomersForSaleAction(query: string) {
 export async function createSaleAction(_state: SaleActionState, formData: FormData): Promise<SaleActionState> {
   let saleId = "";
   const pointOfSaleReturn = readPointOfSaleReturn(readString(formData, "returnTo"), "sale");
+  const onboardingMode = !pointOfSaleReturn && readString(formData, "onboarding") === "1";
   try {
     const rawItems = JSON.parse(readString(formData, "items"));
     const parsed = createSaleSchema.parse({
@@ -73,6 +76,16 @@ export async function createSaleAction(_state: SaleActionState, formData: FormDa
       changeDestination: readString(formData, "changeDestination") || "DRAWER",
       changeWalletId: readString(formData, "changeWalletId"),
     });
+
+    if (onboardingMode) {
+      const onboardingTotal = parsed.items.reduce(
+        (sum, item) => sum + (Number(item.unitPrice) * item.quantity) - Number(item.discountTotal || 0),
+        0,
+      );
+      if (!Number.isFinite(onboardingTotal) || onboardingTotal <= 0) {
+        return { error: "أدخل سعراً أكبر من صفر حتى تكون أول عملية بيع حقيقية." };
+      }
+    }
 
     const auth = await requirePermission("sales:create");
     const entitlement = await entitlementService.checkCanCreateNewOperation(auth.shop.id);
@@ -90,6 +103,19 @@ export async function createSaleAction(_state: SaleActionState, formData: FormDa
       changeWalletId: parsed.changeWalletId || undefined,
     });
     saleId = sale.id;
+    await captureServerEvent({
+      event: ANALYTICS_EVENTS.SALE_COMPLETED,
+      distinctId: auth.user.id,
+      shopId: auth.shop.id,
+      countryCode: auth.shop.countryCode,
+      properties: {
+        source: onboardingMode ? "point_of_sale_onboarding" : pointOfSaleReturn ? "point_of_sale" : "sales",
+        onboarding_mode: onboardingMode,
+        payment_destination: parsed.paymentDestination,
+        customer_mode: parsed.customerMode,
+        item_count: parsed.items.length,
+      },
+    });
   } catch (error) {
     return { error: getErrorMessage(error) };
   }
@@ -102,7 +128,9 @@ export async function createSaleAction(_state: SaleActionState, formData: FormDa
   revalidatePath("/debts");
   revalidatePath("/reports");
   revalidatePath("/point-of-sale");
-  redirect(pointOfSaleReturn ? pointOfSaleResultPath("sale", { saved: "1", transaction: saleId }) : `/sales/${saleId}`);
+  redirect(pointOfSaleReturn
+    ? pointOfSaleResultPath("sale", { saved: "1", transaction: saleId })
+    : `/sales/${saleId}${onboardingMode ? "?onboarding=1" : ""}`);
 }
 
 export async function cancelSaleAction(formData: FormData) {

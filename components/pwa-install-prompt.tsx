@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { Download, Share2, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -12,6 +13,7 @@ type BeforeInstallPromptEvent = Event & {
 type NavigatorWithStandalone = Navigator & { standalone?: boolean };
 
 export function PwaInstallPrompt() {
+  const pathname = usePathname();
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isIos, setIsIos] = useState(false);
   const [isInstalled, setIsInstalled] = useState(true);
@@ -67,7 +69,7 @@ export function PwaInstallPrompt() {
     if (isIos) setShowIosHelp(true);
   }
 
-  if (isInstalled || dismissed || (!installPrompt && !isIos)) return null;
+  if (pathname === "/onboarding" || isInstalled || dismissed || (!installPrompt && !isIos)) return null;
 
   return (
     <>

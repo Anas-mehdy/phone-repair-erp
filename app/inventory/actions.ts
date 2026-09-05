@@ -7,6 +7,8 @@ import { requirePermission } from "@/lib/auth/context";
 import { inventoryService } from "@/lib/services/inventoryService";
 import { inventoryCategoryService } from "@/lib/services/inventoryCategoryService";
 import { inventoryDamageService } from "@/lib/services/inventoryDamageService";
+import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { captureServerEvent } from "@/lib/analytics/server";
 
 const optionalMoneySchema = z
   .string()
@@ -130,6 +132,7 @@ function errorMessage(error: unknown) {
 }
 
 export async function createInventoryItemAction(formData: FormData) {
+  const onboardingMode = readString(formData, "onboarding") === "1";
   const parsed = createInventoryItemSchema.safeParse({
     name: readString(formData, "name"),
     categoryId: readString(formData, "categoryId"),
@@ -143,18 +146,52 @@ export async function createInventoryItemAction(formData: FormData) {
     compatibilityGroupIds: readStrings(formData, "compatibilityGroupIds"),
   });
 
-  if (!parsed.success) redirect(`/inventory/new?error=${encodeURIComponent(errorMessage(parsed.error))}`);
+  if (!parsed.success) {
+    redirect(`${onboardingMode ? "/inventory/new?onboarding=1&" : "/inventory/new?"}error=${encodeURIComponent(errorMessage(parsed.error))}`);
+  }
+  if (onboardingMode && Number.parseInt(parsed.data.quantity || "0", 10) <= 0) {
+    redirect(`/inventory/new?onboarding=1&error=${encodeURIComponent("أدخل كمية فعلية أكبر من صفر حتى نسجل أول حركة مخزون.")}`);
+  }
 
   const auth = await requirePermission("inventory:manage");
   let item: Awaited<ReturnType<typeof inventoryService.createInventoryItem>>;
   try {
     item = await inventoryService.createInventoryItem(auth.shop.id, auth.user.id, parsed.data);
   } catch (error) {
-    redirect(`/inventory/new?error=${encodeURIComponent(errorMessage(error))}`);
+    redirect(`${onboardingMode ? "/inventory/new?onboarding=1&" : "/inventory/new?"}error=${encodeURIComponent(errorMessage(error))}`);
+  }
+
+  await captureServerEvent({
+    event: ANALYTICS_EVENTS.INVENTORY_ITEM_CREATED,
+    distinctId: auth.user.id,
+    shopId: auth.shop.id,
+    countryCode: auth.shop.countryCode,
+    properties: {
+      has_category: Boolean(parsed.data.categoryId || parsed.data.newCategoryName),
+      has_opening_quantity: Number.parseInt(parsed.data.quantity || "0", 10) > 0,
+      compatibility_links: parsed.data.compatibilityGroupIds.length,
+      source: onboardingMode ? "inventory_onboarding" : "inventory",
+      onboarding_mode: onboardingMode,
+    },
+  });
+
+  if (onboardingMode) {
+    await captureServerEvent({
+      event: ANALYTICS_EVENTS.INVENTORY_STOCK_ADDED,
+      distinctId: auth.user.id,
+      shopId: auth.shop.id,
+      countryCode: auth.shop.countryCode,
+      properties: {
+        quantity: Number.parseInt(parsed.data.quantity || "0", 10),
+        has_supplier: false,
+        source: "opening_balance",
+        onboarding_mode: true,
+      },
+    });
   }
 
   revalidatePath("/inventory");
-  redirect(`/inventory/${item.id}`);
+  redirect(onboardingMode ? `/inventory/${item.id}?onboarding=1` : `/inventory/${item.id}`);
 }
 
 export async function updateInventoryItemDetailsAction(formData: FormData) {
@@ -211,6 +248,17 @@ export async function addStockAction(formData: FormData) {
   } catch (error) {
     redirect(`${destination}?error=${encodeURIComponent(errorMessage(error))}`);
   }
+
+  await captureServerEvent({
+    event: ANALYTICS_EVENTS.INVENTORY_STOCK_ADDED,
+    distinctId: auth.user.id,
+    shopId: auth.shop.id,
+    countryCode: auth.shop.countryCode,
+    properties: {
+      quantity: Number.parseInt(parsed.data.quantity, 10),
+      has_supplier: Boolean(parsed.data.supplierId),
+    },
+  });
 
   revalidatePath("/inventory");
   revalidatePath(`/inventory/${parsed.data.inventoryItemId}`);

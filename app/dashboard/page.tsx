@@ -33,6 +33,9 @@ import { DashboardUpdatesSection } from "@/components/dashboard/dashboard-update
 import { MasarJourney } from "@/components/dashboard/masar-journey";
 import { MasarWaveBackground } from "@/components/dashboard/masar-wave-background";
 import { DomainAnnouncement } from "@/components/dashboard/domain-announcement";
+import { ActivationChecklist } from "@/components/onboarding/activation-checklist";
+import { ContextualFeatureDiscovery } from "@/components/onboarding/contextual-feature-discovery";
+import { MonetizationPrompt } from "@/components/onboarding/monetization-prompt";
 import { getCurrentShopContext } from "@/lib/current-shop";
 import { isDatabaseConnectionError } from "@/lib/database-errors";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -96,6 +99,12 @@ export default async function DashboardPage() {
   return (
     <div className="masar-page">
       <DomainAnnouncement />
+
+      <ActivationChecklist />
+
+      <ContextualFeatureDiscovery shopId={shopContext.shopId} membershipRole={shopContext.membershipRole} />
+
+      <MonetizationPrompt />
 
       {subscriptionOverview?.effectiveStatus === SubscriptionStatus.TRIALING ? (
         <section className="masar-surface-brand flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">

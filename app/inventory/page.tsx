@@ -3,7 +3,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { DatabaseUnavailable } from "@/components/database-unavailable";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
-import { EmptyState } from "@/components/empty-state";
+import { SmartEmptyState } from "@/components/onboarding/smart-empty-state";
 import { PageHeader } from "@/components/page-header";
 import { PlainBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -109,7 +109,7 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
       <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/50">
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4"><div><h3 className="text-sm font-black text-slate-800">منتجات: {selectedLabel}</h3><p className="mt-0.5 text-[10px] font-medium text-slate-400">يظهر الجدول المنتجات المطابقة للتصنيف والفلاتر الحالية.</p></div><span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-bold text-slate-600">{items.length} نتيجة معروضة</span></div>
         {items.length === 0 ? (
-          <EmptyState icon={PackagePlus} title="لا توجد منتجات ضمن هذا العرض" description="جرّب تصنيفاً آخر أو أضف أول قطعة لهذا التصنيف." actionHref={categoryId ? `/inventory/new?categoryId=${categoryId}` : "/inventory/new"} actionLabel="إضافة قطعة جديدة" />
+          <SmartEmptyState job="INVENTORY" icon={PackagePlus} title="لا توجد منتجات ضمن هذا العرض" description="جرّب تصنيفاً آخر أو أضف أول قطعة لهذا التصنيف." actionHref={categoryId ? `/inventory/new?categoryId=${categoryId}` : "/inventory/new"} actionLabel="إضافة قطعة جديدة" />
         ) : (
           <div className="overflow-x-auto"><table className="erp-table min-w-[920px]"><thead><tr><th>الاسم</th><th>التصنيف</th><th>SKU</th><th className="text-center">الكمية</th><th className="text-center">حد الطلب</th><th>تكلفة الشراء</th><th>سعر البيع</th><th>الحالة</th><th>آخر تحديث</th><th className="w-64 text-center">الإجراءات</th></tr></thead><tbody>{items.map((item) => {
             const lowStock = isLowStock(item.quantity, item.reorderLevel);

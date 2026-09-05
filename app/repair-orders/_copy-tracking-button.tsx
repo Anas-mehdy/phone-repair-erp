@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Check, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { captureClientEvent } from "@/lib/analytics/client";
 
 interface CopyTrackingLinkButtonProps {
   trackingUrl: string;
@@ -30,6 +32,7 @@ export function CopyTrackingLinkButton({
         document.execCommand("copy");
         document.body.removeChild(textarea);
       }
+      captureClientEvent(ANALYTICS_EVENTS.REPAIR_TRACKING_LINK_COPIED);
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
     } catch (err) {

@@ -1,6 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { hashPassword, verifyPassword, setSessionCookie, clearSessionCookie, getSession } from "@/lib/auth";
 import { COUNTRY_DIAL_CODES } from "@/lib/countries";
+import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { captureServerEvent } from "@/lib/analytics/server";
+import { CURRENT_ONBOARDING_FLOW_VERSION } from "@/lib/onboarding/jobs";
 import { z } from "zod";
 
 const TRIAL_DURATION_MS = 10 * 24 * 60 * 60 * 1000;
@@ -64,6 +67,11 @@ export const authService = {
               trialEndsAt,
             },
           },
+          onboardingProfile: {
+            create: {
+              flowVersion: CURRENT_ONBOARDING_FLOW_VERSION,
+            },
+          },
         },
       });
 
@@ -95,6 +103,17 @@ export const authService = {
       shopName: result.shop.name,
       currency: result.shop.currency,
       sessionVersion: result.user.version,
+    });
+
+    await captureServerEvent({
+      event: ANALYTICS_EVENTS.SIGNUP_COMPLETED,
+      distinctId: result.user.id,
+      shopId: result.shop.id,
+      countryCode: result.shop.countryCode,
+      properties: {
+        currency: result.shop.currency,
+        membership_role: "OWNER",
+      },
     });
 
     return result;
@@ -141,6 +160,17 @@ export const authService = {
       shopName: user.shop.name,
       currency: user.shop.currency,
       sessionVersion: user.version,
+    });
+
+    await captureServerEvent({
+      event: ANALYTICS_EVENTS.LOGIN_COMPLETED,
+      distinctId: user.id,
+      shopId: user.shop.id,
+      countryCode: user.shop.countryCode,
+      properties: {
+        currency: user.shop.currency,
+        user_role: user.role,
+      },
     });
 
     return { user, shop: user.shop };

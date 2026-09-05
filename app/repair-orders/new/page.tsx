@@ -9,14 +9,33 @@ import { repairOrderService } from "@/lib/services/repairOrderService";
 import { EntitlementAlert } from "@/components/subscription/entitlement-alert";
 import type { EntitlementDenyCode } from "@/lib/services/subscriptionEntitlementService";
 import { CreateRepairOrderForm } from "./_create-form";
+import { RepairOnboardingQuickForm } from "./_onboarding-quick-form";
 
 export default async function NewRepairOrderPage(props: {
-  searchParams?: Promise<{ entitlement?: string }>;
+  searchParams?: Promise<{ entitlement?: string; onboarding?: string; mode?: string }>;
 }) {
   const searchParams = await props.searchParams;
   const entitlementCode = searchParams?.entitlement as EntitlementDenyCode | undefined;
+  const onboardingMode = searchParams?.onboarding === "1";
+  const onboardingFullMode = onboardingMode && searchParams?.mode === "full";
 
   const context = await getCurrentShopContext();
+
+  if (onboardingMode && !onboardingFullMode) {
+    return (
+      <div className="mx-auto max-w-2xl space-y-5">
+        {entitlementCode === "SUBSCRIPTION_EXPIRED" ? (
+          <EntitlementAlert
+            code="SUBSCRIPTION_EXPIRED"
+            customMessage="انتهت فترة استخدامك. بياناتك محفوظة بالكامل، تواصل مع الدعم لتجديد الاشتراك."
+            actionHref="/support"
+            actionLabel="تواصل مع الدعم"
+          />
+        ) : null}
+        <RepairOnboardingQuickForm />
+      </div>
+    );
+  }
   const canAssign = context.permissions.includes("repairs:assign");
   const [suppliers, inventoryItems, technicians] = await Promise.all([
     supplierService.listSuppliers(context.shopId),
@@ -64,6 +83,8 @@ export default async function NewRepairOrderPage(props: {
         inventoryItems={serializedInventory}
         currency={context.currency}
         technicians={technicians}
+        onboardingMode={onboardingMode}
+        cancelHref={onboardingMode ? "/dashboard" : "/repair-orders"}
       />
     </div>
   );

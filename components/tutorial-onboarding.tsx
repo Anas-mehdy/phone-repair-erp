@@ -28,7 +28,7 @@ export function TutorialOnboarding({ initialShowBanner }: { initialShowBanner: b
             <div>
               <p className="text-sm font-black text-slate-900">جديد على مسار؟ ابدأ من هنا</p>
               <p className="mt-1 text-[11px] font-bold leading-5 text-slate-600">
-                شاهد فيديو شرح مسار لتتعرف بسرعة على أهم الأقسام والميزات وطريقة استخدام النظام.
+                اختر القسم الذي تحتاجه وافتح شروحات مسار الخاص به مباشرة: الصيانة، المبيعات، المخزون، المالية وغيرها.
               </p>
             </div>
           </div>
@@ -59,12 +59,12 @@ export function TutorialOnboarding({ initialShowBanner }: { initialShowBanner: b
             <CirclePlay className="h-5 w-5" />
           </span>
           <div>
-            <p className="text-xs font-black text-slate-900">تحتاج شرح سريع للنظام؟</p>
-            <p className="mt-1 text-[11px] font-medium text-slate-500">فيديو شرح مسار متاح لك في أي وقت.</p>
+            <p className="text-xs font-black text-slate-900">تحتاج شرح سريع لقسم معيّن؟</p>
+            <p className="mt-1 text-[11px] font-medium text-slate-500">فيديو مستقل لكل قسم من أقسام مسار، متاح لك في أي وقت.</p>
           </div>
         </div>
         <Link href="/tutorial" className="text-xs font-black text-cyan-700 hover:text-cyan-800">
-          مشاهدة فيديو شرح مسار ←
+          فتح مكتبة شروحات مسار ←
         </Link>
       </section>
     </div>

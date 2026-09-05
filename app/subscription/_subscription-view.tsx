@@ -17,6 +17,8 @@ import {
   Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { captureClientEvent } from "@/lib/analytics/client";
 import {
   calculateDiscountedPrice,
   resolveEffectiveOffer,
@@ -24,6 +26,7 @@ import {
   type SubscriptionFoundersOfferSnapshot,
 } from "@/lib/subscription/offer-pricing";
 import type { EntitlementContext } from "@/lib/services/subscriptionEntitlementService";
+import type { MonetizationStage } from "@/lib/monetization/onboarding";
 
 interface PriceInfo {
   amount: number;
@@ -41,6 +44,7 @@ interface SubscriptionViewProps {
   foundersOfferSnapshot?: SubscriptionFoundersOfferSnapshot | null;
   sixMonthsPrice: PriceInfo | null;
   annualPrice: PriceInfo | null;
+  monetizationStage?: MonetizationStage | null;
 }
 
 export function SubscriptionView({
@@ -50,6 +54,7 @@ export function SubscriptionView({
   foundersOfferSnapshot,
   sixMonthsPrice,
   annualPrice,
+  monetizationStage,
 }: SubscriptionViewProps) {
   const [selectedInterval, setSelectedInterval] = useState<"ANNUAL" | "SIX_MONTHS">(
     "ANNUAL",
@@ -191,6 +196,23 @@ export function SubscriptionView({
     return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
   };
 
+  const trackUpgradeClick = () => {
+    captureClientEvent(ANALYTICS_EVENTS.UPGRADE_CLICKED, {
+      destination: "whatsapp",
+      interval: selectedInterval === "ANNUAL" ? "annual" : "six_months",
+      price: finalPrice,
+      currency_code: currencyCode,
+      discount_percent: discountPercent,
+      subscription_status: effectiveStatus,
+      monetization_stage: monetizationStage ?? "unscoped",
+      offer_state: effectiveOffer.isFrozen
+        ? "founders_frozen"
+        : effectiveOffer.isEligible
+          ? "founders_eligible"
+          : "standard",
+    });
+  };
+
   const features = [
     "طلبات صيانة غير محدودة",
     "المبيعات ونقطة البيع (POS)",
@@ -305,6 +327,7 @@ export function SubscriptionView({
             >
               <a
                 href={buildWhatsAppHref(selectedInterval)}
+                onClick={trackUpgradeClick}
                 target="_blank"
                 rel="noopener noreferrer"
               >
@@ -575,6 +598,7 @@ export function SubscriptionView({
             >
               <a
                 href={buildWhatsAppHref(selectedInterval)}
+                onClick={trackUpgradeClick}
                 target="_blank"
                 rel="noopener noreferrer"
               >

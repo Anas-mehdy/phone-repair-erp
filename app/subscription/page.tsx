@@ -8,6 +8,9 @@ import { SubscriptionView } from "./_subscription-view";
 import { TrialCreditNote } from "./_trial-credit-note";
 import { LifetimePlanCard } from "./_lifetime-plan-card";
 import { LifetimeActiveView } from "./_lifetime-active-view";
+import { SubscriptionMonetizationContext } from "@/components/onboarding/subscription-monetization-context";
+import { monetizationOnboardingService } from "@/lib/services/monetizationOnboardingService";
+import { timeZoneForCountry } from "@/lib/timezone";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +34,12 @@ export default async function SubscriptionPage() {
   ]);
   const countryCode = shopDetails?.countryCode || "SA";
 
+  const monetizationState = await monetizationOnboardingService.getState({
+    shopId: auth.shop.id,
+    timeZone: timeZoneForCountry(countryCode),
+    entitlement,
+  });
+
   if (entitlement.subscription.isLifetime) {
     return <div className="px-4 py-6 sm:px-6 lg:px-8"><LifetimeActiveView shopName={auth.shop.name} activatedAt={entitlement.subscription.lifetimeActivatedAt} price={entitlement.subscription.lifetimePrice} currencyCode={entitlement.subscription.lifetimeCurrencyCode} /></div>;
   }
@@ -50,8 +59,11 @@ export default async function SubscriptionPage() {
   const regularPlansOffer = { ...offer, isActive: false, totalEligible: 0, remainingEligible: 0, claimedEligible: 0 };
 
   return <div className="px-4 py-6 sm:px-6 lg:px-8">
+    <SubscriptionMonetizationContext state={monetizationState} />
+    <div id="subscription-plans">
     {entitlement.subscription.effectiveStatus === "TRIALING" ? <div className="mx-auto max-w-6xl"><TrialCreditNote /></div> : null}
-    <LifetimePlanCard shopName={auth.shop.name} price={lifetimePrice} totalEligible={offer.totalEligible} remainingEligible={offer.remainingEligible} isActive={offer.isActive} />
-    <SubscriptionView shop={{ name: auth.shop.name, countryCode, currency: auth.shop.currency }} entitlement={entitlement} offer={regularPlansOffer} foundersOfferSnapshot={subscriptionRow} sixMonthsPrice={sixMonthsPrice} annualPrice={annualPrice} />
+    <LifetimePlanCard shopName={auth.shop.name} price={lifetimePrice} totalEligible={offer.totalEligible} remainingEligible={offer.remainingEligible} isActive={offer.isActive} subscriptionStatus={entitlement.subscription.effectiveStatus} monetizationStage={monetizationState?.stage ?? null} />
+    <SubscriptionView shop={{ name: auth.shop.name, countryCode, currency: auth.shop.currency }} entitlement={entitlement} offer={regularPlansOffer} foundersOfferSnapshot={subscriptionRow} sixMonthsPrice={sixMonthsPrice} annualPrice={annualPrice} monetizationStage={monetizationState?.stage ?? null} />
+    </div>
   </div>;
 }

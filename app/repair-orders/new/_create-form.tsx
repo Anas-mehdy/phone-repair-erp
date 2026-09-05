@@ -16,6 +16,7 @@ export function CreateRepairOrderForm({
   technicians = [],
   returnTo,
   cancelHref = "/repair-orders",
+  onboardingMode = false,
 }: {
   suppliers: SupplierOption[];
   inventoryItems?: InventoryItemOption[];
@@ -23,6 +24,7 @@ export function CreateRepairOrderForm({
   technicians?: Array<{ id: string; name: string; email: string }>;
   returnTo?: string;
   cancelHref?: string;
+  onboardingMode?: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
   const [selectedCustomer, setSelectedCustomer] = useState<RepairCustomerOption | null>(null);
@@ -52,6 +54,7 @@ export function CreateRepairOrderForm({
   return (
     <form onSubmit={handleSubmit} className="repair-new-form space-y-6">
       {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
+      {onboardingMode ? <input type="hidden" name="onboarding" value="1" /> : null}
       <section className="erp-section repair-new-card repair-new-card-customer border-cyan-200/80 bg-gradient-to-br from-cyan-50/70 via-white to-white shadow-sm shadow-cyan-100/50">
         <div className="flex items-center gap-2 border-b border-cyan-100/80 pb-3 mb-4">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-100 text-cyan-800 ring-1 ring-cyan-200/70">

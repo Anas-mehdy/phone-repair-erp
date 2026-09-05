@@ -16,12 +16,13 @@ import { Field, formatDate, formatMoney, inputClassName, isLowStock, textareaCla
 import { CompatibilityGroupPicker } from "../_compatibility-group-picker";
 import { InventoryCategoryField } from "../_category-field";
 import { addStockAction, adjustStockAction, recordDamagedStockAction, updateInventoryItemDetailsAction } from "../actions";
+import { InventoryActivationSuccess } from "./_activation-success";
 
 export const dynamic = "force-dynamic";
 
 type InventoryItemDetailsPageProps = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string; damaged?: string; stockAdded?: string }>;
+  searchParams: Promise<{ error?: string; damaged?: string; stockAdded?: string; onboarding?: string }>;
 };
 
 export default async function InventoryItemDetailsPage({ params, searchParams }: InventoryItemDetailsPageProps) {
@@ -62,12 +63,23 @@ export default async function InventoryItemDetailsPage({ params, searchParams }:
     compatibleDevices: linkedGroup.members.map((member) => ({ id: member.id, name: member.rawModelName })),
     dataset: datasetKeyForSourceCategory(linkedGroup.batch.categoryName),
   } : null;
+  const openingMovement = movements.find((movement) => movement.note === "رصيد افتتاحي" && movement.quantityChange > 0) ?? null;
 
   return (
     <div className="space-y-6">
       {query.error ? <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-700">{query.error}</div> : null}
       {query.damaged ? <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-700">تم تسجيل التالف وخصم الكمية من المخزون بنجاح.</div> : null}
       {query.stockAdded ? <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-700">تم تسجيل التوريد وإضافة الكمية إلى المخزون بنجاح.</div> : null}
+
+      {query.onboarding === "1" ? (
+        <InventoryActivationSuccess
+          inventoryItemId={item.id}
+          itemName={item.name}
+          quantity={item.quantity}
+          openingQuantity={openingMovement?.quantityChange ?? 0}
+          hasOpeningMovement={Boolean(openingMovement)}
+        />
+      ) : null}
 
       <div className="rounded-3xl border border-slate-200/50 bg-white/95 p-6 shadow-sm shadow-slate-100/40">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
@@ -113,7 +125,7 @@ export default async function InventoryItemDetailsPage({ params, searchParams }:
             <div className="mt-6 flex justify-end"><Button type="submit" className="h-11 rounded-xl px-6 font-bold shadow-sm"><Save className="ml-1.5 h-4.5 w-4.5" />حفظ بيانات القطعة المحدثة</Button></div>
           </form>
 
-          <div className="erp-section">
+          <div id="inventory-movements" className="erp-section scroll-mt-24">
             <div className="mb-4 flex items-center justify-between border-b border-slate-100/60 pb-3"><h3 className="text-sm font-bold text-slate-800">حركات المخزون والعمليات السابقة</h3><span className="font-numeric text-[10px] font-bold text-slate-400">{movements.length} حركة مخزنة</span></div>
             {movements.length === 0 ? <p className="py-6 text-center text-xs font-medium text-slate-400">لا توجد أية حركات مخزون مسجلة لهذه القطعة بعد.</p> : (
               <div className="overflow-hidden rounded-xl border border-slate-200/50"><div className="overflow-x-auto"><table className="erp-table min-w-[940px]"><thead><tr><th>النوع</th><th className="text-center">التغير</th><th className="text-center">الكمية بعد الحركة</th><th>المورد</th><th>الفاتورة</th><th>التكلفة الفعلية</th><th>الملاحظة</th><th>التاريخ</th></tr></thead><tbody>{movements.map((movement) => {

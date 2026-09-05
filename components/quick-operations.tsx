@@ -149,6 +149,7 @@ function isHiddenPath(pathname: string) {
     pathname === "/" ||
     pathname === "/login" ||
     pathname === "/register" ||
+    pathname === "/onboarding" ||
     pathname === "/forgot-password" ||
     pathname === "/reset-password" ||
     pathname.startsWith("/admin") ||

@@ -6,6 +6,8 @@ import { z } from "zod";
 import { requirePermission } from "@/lib/auth/context";
 import { pointOfSaleResultPath, readPointOfSaleReturn } from "@/lib/point-of-sale";
 import { electronicServiceTransactionService } from "@/lib/services/electronicServiceTransactionService";
+import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { captureServerEvent } from "@/lib/analytics/server";
 
 const nonNegativeMoney = z.string().trim().min(1, "القيمة مطلوبة").refine((value) => {
   const number = Number(value.replace(",", "."));
@@ -37,6 +39,13 @@ function refreshElectronicServices() {
   revalidatePath("/debts");
   revalidatePath("/dashboard");
   revalidatePath("/point-of-sale");
+}
+
+function electronicServiceCreateErrorPath(message: string, onboarding: boolean, providerId?: string) {
+  if (!onboarding) return `/electronic-services/new?error=${encodeURIComponent(message)}`;
+  const search = new URLSearchParams({ onboarding: "1", error: message });
+  if (providerId) search.set("provider", providerId);
+  return `/electronic-services/new?${search.toString()}`;
 }
 
 export async function createElectronicServiceTemplateAction(formData: FormData) {
@@ -91,6 +100,8 @@ export async function setElectronicServiceTemplateStatusAction(formData: FormDat
 
 export async function createElectronicServiceTransactionAction(formData: FormData) {
   const pointOfSaleReturn = readPointOfSaleReturn(readString(formData, "returnTo"), "electronic");
+  const onboarding = readString(formData, "onboarding") === "1";
+  const onboardingProviderId = readString(formData, "providerId") || undefined;
   const auth = await requirePermission("electronic_services:execute");
   const mode = readString(formData, "mode");
   const financial = z.object({
@@ -106,7 +117,7 @@ export async function createElectronicServiceTransactionAction(formData: FormDat
   if (!financial.success) {
     redirect(pointOfSaleReturn
       ? pointOfSaleResultPath("electronic", { error: errorMessage(financial.error) })
-      : `/electronic-services/new?error=${encodeURIComponent(errorMessage(financial.error))}`);
+      : electronicServiceCreateErrorPath(errorMessage(financial.error), onboarding, onboardingProviderId));
   }
 
   const common = {
@@ -127,10 +138,24 @@ export async function createElectronicServiceTransactionAction(formData: FormDat
         templateId: parsed.data.templateId,
         ...common,
       });
+      await captureServerEvent({
+        event: ANALYTICS_EVENTS.ELECTRONIC_SERVICE_COMPLETED,
+        distinctId: auth.user.id,
+        shopId: auth.shop.id,
+        countryCode: auth.shop.countryCode,
+        properties: {
+          mode: "template",
+          payment_destination: financial.data.paymentDestination,
+          source: pointOfSaleReturn ? "point_of_sale" : onboarding ? "electronic_services_onboarding" : "electronic_services",
+          onboarding_mode: onboarding,
+        },
+      });
       refreshElectronicServices();
       redirect(pointOfSaleReturn
         ? pointOfSaleResultPath("electronic", { saved: "1", transaction: result.id })
-        : `/electronic-services/new?saved=1&transaction=${result.id}`);
+        : onboarding
+          ? `/electronic-services/new?onboarding=1&saved=1&transaction=${result.id}&provider=${result.providerId}`
+          : `/electronic-services/new?saved=1&transaction=${result.id}`);
     }
 
     const parsed = z.object({
@@ -153,6 +178,9 @@ export async function createElectronicServiceTransactionAction(formData: FormDat
       customerCharge: readString(formData, "customerCharge") || undefined,
     });
     if (!parsed.success) throw parsed.error;
+    if (onboarding && Number(parsed.data.providerCost.replace(",", ".")) <= 0) {
+      throw new Error("تكلفة أول خدمة يجب أن تكون أكبر من صفر حتى يظهر أثرها الحقيقي على رصيد المزود.");
+    }
 
     if (parsed.data.profitMode === "AUTO_DIFFERENCE") {
       const charge = nonNegativeMoney.safeParse(parsed.data.customerCharge ?? "");
@@ -168,15 +196,30 @@ export async function createElectronicServiceTransactionAction(formData: FormDat
       ...parsed.data,
       ...common,
     });
+    await captureServerEvent({
+      event: ANALYTICS_EVENTS.ELECTRONIC_SERVICE_COMPLETED,
+      distinctId: auth.user.id,
+      shopId: auth.shop.id,
+      countryCode: auth.shop.countryCode,
+      properties: {
+        mode: "free",
+        profit_mode: parsed.data.profitMode,
+        payment_destination: financial.data.paymentDestination,
+        source: pointOfSaleReturn ? "point_of_sale" : onboarding ? "electronic_services_onboarding" : "electronic_services",
+        onboarding_mode: onboarding,
+      },
+    });
     refreshElectronicServices();
     redirect(pointOfSaleReturn
       ? pointOfSaleResultPath("electronic", { saved: "1", transaction: result.id })
-      : `/electronic-services/new?saved=1&transaction=${result.id}`);
+      : onboarding
+          ? `/electronic-services/new?onboarding=1&saved=1&transaction=${result.id}&provider=${result.providerId}`
+          : `/electronic-services/new?saved=1&transaction=${result.id}`);
   } catch (error) {
     if (error && typeof error === "object" && "digest" in error) throw error;
     redirect(pointOfSaleReturn
       ? pointOfSaleResultPath("electronic", { error: errorMessage(error) })
-      : `/electronic-services/new?error=${encodeURIComponent(errorMessage(error))}`);
+      : electronicServiceCreateErrorPath(errorMessage(error), onboarding, onboardingProviderId));
   }
 }
 

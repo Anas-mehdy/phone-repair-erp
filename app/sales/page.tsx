@@ -2,7 +2,7 @@ import { SaleStatus } from "@prisma/client";
 import { Eye, Plus, Search, ShoppingCart } from "lucide-react";
 import Link from "next/link";
 import { DatabaseUnavailable } from "@/components/database-unavailable";
-import { EmptyState } from "@/components/empty-state";
+import { SmartEmptyState } from "@/components/onboarding/smart-empty-state";
 import { PageHeader } from "@/components/page-header";
 import { SaleStatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
@@ -121,7 +121,8 @@ export default async function SalesPage({ searchParams }: SalesPageProps) {
 
       <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/50">
         {sales.length === 0 ? (
-          <EmptyState
+          <SmartEmptyState
+            job="SALES"
             icon={ShoppingCart}
             title="لا توجد عمليات بيع بعد"
             description="ابدأ عملية بيع جديدة وسيتم خصم المخزون تلقائياً للبنود المرتبطة."

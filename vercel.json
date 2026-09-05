@@ -1,4 +1,12 @@
 {
   "framework": "nextjs",
-  "regions": ["sin1"]
+  "regions": [
+    "sin1"
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/growth-lifecycle",
+      "schedule": "17 * * * *"
+    }
+  ]
 }

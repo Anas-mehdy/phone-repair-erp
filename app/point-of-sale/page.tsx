@@ -14,6 +14,7 @@ import {
 import { ElectronicServiceExecutionForm } from "@/app/electronic-services/new/_service-form";
 import { CreateRepairOrderForm } from "@/app/repair-orders/new/_create-form";
 import { SaleForm } from "@/app/sales/sale-form";
+import { SaleOnboardingQuickForm } from "./_onboarding-sale-form";
 import { SoftwareServiceForm } from "@/app/software-services/_software-service-form";
 import { TransferForm } from "@/app/transfers/_transfer-form";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,7 @@ type Props = {
     error?: string;
     transaction?: string;
     entitlement?: string;
+    onboarding?: string;
   }>;
 };
 
@@ -259,6 +261,26 @@ export default async function PointOfSalePage({ searchParams }: Props) {
   const requested = tabs.find((tab) => tab.key === query.tab);
   const activeTab = availableTabs.find((tab) => tab.key === requested?.key) ?? availableTabs[0] ?? null;
   const ActiveIcon = activeTab?.icon ?? ShoppingCart;
+  const onboardingSaleMode = query.onboarding === "1" && activeTab?.key === "sale";
+
+  if (onboardingSaleMode) {
+    const inventoryItems = await inventoryService.listInventoryItems(context.shopId);
+    return (
+      <div className="pb-8 pt-1">
+        <SaleOnboardingQuickForm
+          currency={context.currency || "SAR"}
+          inventoryItems={inventoryItems.map((item) => ({
+            id: item.id,
+            name: item.name,
+            sku: item.sku,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice.toString(),
+          }))}
+        />
+      </div>
+    );
+  }
+
   const formKey = `${activeTab?.key ?? "none"}-${query.transaction ?? "new"}`;
   const form = activeTab ? await renderActiveForm(activeTab.key, context, formKey) : null;
   const recordHref = activeTab ? operationRecordHref(activeTab.key, query.transaction) : null;

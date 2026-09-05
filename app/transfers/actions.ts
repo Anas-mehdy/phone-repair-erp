@@ -7,6 +7,8 @@ import { requirePermission } from "@/lib/auth/context";
 import { pointOfSaleResultPath, readPointOfSaleReturn } from "@/lib/point-of-sale";
 import { prisma } from "@/lib/prisma";
 import { financialTransferService } from "@/lib/services/financialTransferService";
+import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { captureServerEvent } from "@/lib/analytics/server";
 
 function readString(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -28,6 +30,7 @@ const walletSchema = z.object({
 });
 
 export async function createWalletAction(formData: FormData) {
+  const onboardingMode = readString(formData, "onboarding") === "1";
   let redirectTo = "/transfers";
   try {
     const input = walletSchema.parse({
@@ -39,10 +42,23 @@ export async function createWalletAction(formData: FormData) {
     });
     const auth = await requirePermission("sales:create");
     await financialTransferService.createWallet(auth.shop.id, input);
+    await captureServerEvent({
+      event: ANALYTICS_EVENTS.WALLET_CREATED,
+      distinctId: auth.user.id,
+      shopId: auth.shop.id,
+      countryCode: auth.shop.countryCode,
+      properties: {
+        has_opening_balance: Number((input.openingBalance || "0").replace(",", ".")) !== 0,
+        has_monthly_limit: Boolean(input.monthlyLimit?.trim()),
+        onboarding_mode: onboardingMode,
+      },
+    });
     revalidatePath("/transfers");
-    redirectTo = "/transfers?walletSaved=1";
+    redirectTo = onboardingMode ? "/transfers?onboarding=1&walletSaved=1" : "/transfers?walletSaved=1";
   } catch (error) {
-    redirectTo = `/transfers?error=${encodeURIComponent(errorMessage(error))}`;
+    redirectTo = onboardingMode
+      ? `/transfers?onboarding=1&error=${encodeURIComponent(errorMessage(error))}`
+      : `/transfers?error=${encodeURIComponent(errorMessage(error))}`;
   }
   redirect(redirectTo);
 }
@@ -127,6 +143,7 @@ const transferSchema = z.object({
 
 export async function createTransferAction(formData: FormData) {
   const pointOfSaleReturn = readPointOfSaleReturn(readString(formData, "returnTo"), "wallet");
+  const onboardingMode = !pointOfSaleReturn && readString(formData, "onboarding") === "1";
   let redirectTo = "/transfers";
   try {
     const input = transferSchema.parse({
@@ -146,6 +163,19 @@ export async function createTransferAction(formData: FormData) {
       ...input,
       customerId: input.customerId || undefined,
     });
+    await captureServerEvent({
+      event: ANALYTICS_EVENTS.TRANSFER_CREATED,
+      distinctId: auth.user.id,
+      shopId: auth.shop.id,
+      countryCode: auth.shop.countryCode,
+      properties: {
+        operation_type: input.operationType,
+        is_deferred: Boolean(input.isDeferred),
+        has_customer: Boolean(input.customerId || input.customerName || input.customerPhone),
+        source: onboardingMode ? "transfers_onboarding" : pointOfSaleReturn ? "point_of_sale" : "transfers",
+        onboarding_mode: onboardingMode,
+      },
+    });
     revalidatePath("/transfers");
     revalidatePath("/reports");
     revalidatePath("/debts");
@@ -153,11 +183,15 @@ export async function createTransferAction(formData: FormData) {
     if (input.customerId) revalidatePath(`/debts/${input.customerId}`);
     redirectTo = pointOfSaleReturn
       ? pointOfSaleResultPath("wallet", { saved: "1", transaction: transfer.id })
-      : "/transfers?saved=1";
+      : onboardingMode
+        ? `/transfers/${transfer.id}?onboarding=1`
+        : "/transfers?saved=1";
   } catch (error) {
     redirectTo = pointOfSaleReturn
       ? pointOfSaleResultPath("wallet", { error: errorMessage(error) })
-      : `/transfers?error=${encodeURIComponent(errorMessage(error))}`;
+      : onboardingMode
+        ? `/transfers?onboarding=1&error=${encodeURIComponent(errorMessage(error))}`
+        : `/transfers?error=${encodeURIComponent(errorMessage(error))}`;
   }
   redirect(redirectTo);
 }

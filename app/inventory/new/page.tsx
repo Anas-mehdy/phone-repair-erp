@@ -10,14 +10,25 @@ import { CompatibilityGroupPicker } from "../_compatibility-group-picker";
 import { InventoryCategoryField } from "../_category-field";
 import { getCompatibilityGroupSelection } from "@/lib/services/compatibility/compatibility-directory.service";
 import { datasetKeyForSourceCategory } from "@/lib/services/compatibility/compatibility-datasets";
+import { OnboardingInventoryItemForm } from "./_onboarding-inventory-form";
 
 export default async function NewInventoryItemPage({
   searchParams,
 }: {
-  searchParams: Promise<{ groupId?: string; name?: string; categoryId?: string; error?: string }>;
+  searchParams: Promise<{ groupId?: string; name?: string; categoryId?: string; error?: string; onboarding?: string; full?: string }>;
 }) {
   const params = await searchParams;
   const context = await getCurrentShopContext();
+
+  if (params.onboarding === "1" && params.full !== "1") {
+    return (
+      <div className="pb-8 pt-1">
+        {params.error ? <div role="alert" className="mx-auto mb-4 max-w-3xl rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-[11px] font-bold leading-5 text-rose-700 dark:border-rose-900/70 dark:bg-rose-950/30 dark:text-rose-200">{params.error}</div> : null}
+        <OnboardingInventoryItemForm currency={context.currency || "SAR"} />
+      </div>
+    );
+  }
+
   const [group, categories] = await Promise.all([
     params.groupId ? getCompatibilityGroupSelection(params.groupId) : Promise.resolve(null),
     inventoryCategoryService.listInventoryCategories(context.shopId),
@@ -53,6 +64,7 @@ export default async function NewInventoryItemPage({
       ) : null}
 
       <form action={createInventoryItemAction} className="erp-section">
+        {params.onboarding === "1" ? <input type="hidden" name="onboarding" value="1" /> : null}
         <div className="mb-5 border-b border-slate-100/60 pb-3">
           <h3 className="text-sm font-bold text-slate-800">بيانات قطعة الغيار / المنتج</h3>
           <p className="mt-1 text-xs font-medium text-slate-400">
