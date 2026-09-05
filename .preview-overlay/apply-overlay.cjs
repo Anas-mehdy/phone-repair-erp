@@ -36,4 +36,26 @@ for (const [relativePath, content] of Object.entries(payload.files)) {
   fs.writeFileSync(target, content, "utf8");
   count += 1;
 }
+
+// Preview-only release-candidate hotfix discovered by the first full Vercel build.
+// Next.js requires Link for internal navigation; keep the staged source behavior unchanged otherwise.
+const onboardingTransferPath = path.join(root, "app/transfers/_onboarding-transfer-form.tsx");
+if (fs.existsSync(onboardingTransferPath)) {
+  let source = fs.readFileSync(onboardingTransferPath, "utf8");
+  if (source.includes('<a href="/transfers"')) {
+    if (!source.includes('from "next/link"')) {
+      source = source.replace(
+        'import { useFormStatus } from "react-dom";\n',
+        'import { useFormStatus } from "react-dom";\nimport Link from "next/link";\n',
+      );
+    }
+    source = source.replace(
+      '<a href="/transfers" className="block text-center text-[10px] font-black text-slate-400 hover:text-teal-700">استخدام نموذج التحويلات الكامل بدلاً من ذلك</a>',
+      '<Link href="/transfers" className="block text-center text-[10px] font-black text-slate-400 hover:text-teal-700">استخدام نموذج التحويلات الكامل بدلاً من ذلك</Link>',
+    );
+    fs.writeFileSync(onboardingTransferPath, source, "utf8");
+    console.log("[preview-overlay] Applied Next.js Link hotfix for onboarding transfer form.");
+  }
+}
+
 console.log(`[preview-overlay] Applied ${count} Release Candidate files.`);
