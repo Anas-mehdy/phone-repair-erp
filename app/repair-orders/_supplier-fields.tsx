@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { Truck, Calculator, Package, Trash2, Layers, AlertCircle } from "lucide-react";
-import { Field, inputClassName, selectClassName } from "./_components";
+import { Field, inputClassName } from "./_components";
 import { Button } from "@/components/ui/button";
+import { RepairInventorySearchCombobox } from "./_inventory-search-combobox";
 
 export type SupplierOption = {
   id: string;
@@ -335,20 +336,17 @@ export function SupplierFields({
                   <div className="grid gap-3 sm:grid-cols-12 min-w-0">
                     <div className="sm:col-span-6">
                       <Field label="اختر القطعة من المخزون">
-                        <select
-                          className={selectClassName}
+                        <RepairInventorySearchCombobox
                           value={item.inventoryItemId}
+                          selectedLabel={item.partName}
+                          items={inventoryItems}
                           disabled={readOnly}
-                          onChange={(e) => handleInventorySelect(idx, e.target.value)}
-                        >
-                          <option value="">-- اختر قطعة الغيار --</option>
-                          {inventoryItems.map((inv) => (
-                            <option key={inv.id} value={inv.id}>
-                              {inv.name} (المتوفر: {inv.quantity}) {inv.sku ? `[${inv.sku}]` : ""}
-                            </option>
-                          ))}
-                        </select>
+                          onSelect={(inventoryItemId) => handleInventorySelect(idx, inventoryItemId)}
+                        />
                       </Field>
+                      <p className="mt-1 text-[10px] font-medium text-slate-400">
+                        اكتب اسم القطعة أو SKU للوصول إليها مباشرة، ويمكنك استخدام الأسهم وEnter للاختيار.
+                      </p>
                       {selectedInventoryItem && (
                         <div className="mt-1 flex items-center justify-between text-[11px] font-medium text-slate-500">
                           <span>
