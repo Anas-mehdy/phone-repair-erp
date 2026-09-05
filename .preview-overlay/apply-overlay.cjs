@@ -58,4 +58,18 @@ if (fs.existsSync(onboardingTransferPath)) {
   }
 }
 
+// TypeScript cannot infer that shouldEnterOnboarding(profile) excludes null because the helper is not a type predicate.
+// Keep runtime behavior identical while making the non-null guard explicit for the compiler.
+const onboardingPagePath = path.join(root, "app/onboarding/page.tsx");
+if (fs.existsSync(onboardingPagePath)) {
+  let source = fs.readFileSync(onboardingPagePath, "utf8");
+  const before = 'if (!shouldEnterOnboarding(profile)) redirect("/dashboard");';
+  const after = 'if (!profile || !shouldEnterOnboarding(profile)) redirect("/dashboard");';
+  if (source.includes(before)) {
+    source = source.replace(before, after);
+    fs.writeFileSync(onboardingPagePath, source, "utf8");
+    console.log("[preview-overlay] Applied explicit onboarding profile null guard.");
+  }
+}
+
 console.log(`[preview-overlay] Applied ${count} Release Candidate files.`);
