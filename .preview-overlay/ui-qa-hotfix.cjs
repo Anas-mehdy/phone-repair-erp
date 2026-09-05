@@ -63,4 +63,19 @@ replaceRequired(
   "contextual help responsive position",
 );
 
-console.log("[preview-ui-hotfix] Applied dark discovery styles and responsive contextual help positioning.");
+// Next.js 15 enforces that runtime exports from a `use server` module are async functions only.
+// Keep the action state type in the server module, but move the initial state object into the client module.
+replaceRequired(
+  "app/admin/tutorial-videos/actions.ts",
+  'export const INITIAL_TUTORIAL_VIDEO_ACTION_STATE: TutorialVideoActionState = { success: false };\n\n',
+  '',
+  "tutorial video server action runtime export",
+);
+replaceRequired(
+  "app/admin/tutorial-videos/_tutorial-video-management.tsx",
+  'import {\n  adminSaveTutorialVideoAction,\n  INITIAL_TUTORIAL_VIDEO_ACTION_STATE,\n  type TutorialVideoActionState,\n} from "./actions";\n',
+  'import { adminSaveTutorialVideoAction, type TutorialVideoActionState } from "./actions";\n\nconst INITIAL_TUTORIAL_VIDEO_ACTION_STATE: TutorialVideoActionState = { success: false };\n',
+  "tutorial video client initial action state",
+);
+
+console.log("[preview-ui-hotfix] Applied QA UI fixes and tutorial video server-action export fix.");
