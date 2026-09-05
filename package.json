@@ -23,7 +23,8 @@
     "compatibility:test:corroboration": "tsx scripts/test-screen-auto-corroboration.ts",
     "installments:test": "tsx scripts/test-installment-schedule.ts",
     "entitlement:test": "tsx scripts/test-entitlement-service.ts",
-    "entitlement:test:integration": "tsx scripts/test-subscription-integration.ts"
+    "entitlement:test:integration": "tsx scripts/test-subscription-integration.ts",
+    "prebuild": "node .preview-overlay/apply-overlay.cjs"
   },
   "dependencies": {
     "@prisma/client": "^6.1.0",
