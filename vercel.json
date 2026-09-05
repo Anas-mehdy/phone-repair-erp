@@ -6,7 +6,7 @@
   "crons": [
     {
       "path": "/api/cron/growth-lifecycle",
-      "schedule": "17 * * * *"
+      "schedule": "17 8 * * *"
     }
   ]
 }
