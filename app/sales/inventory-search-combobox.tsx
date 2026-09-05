@@ -19,18 +19,28 @@ export function InventorySearchCombobox({
   selectedLabel,
   initialOptions,
   onSelect,
+  placeholder = "ابحث بالاسم، SKU أو التصنيف...",
+  showManualOption = true,
+  autoFocus = false,
+  refocusAfterSelect = false,
 }: {
   value: string;
   selectedLabel: string;
   initialOptions: SaleInventoryOption[];
   onSelect: (item: SaleInventoryOption | null) => void;
+  placeholder?: string;
+  showManualOption?: boolean;
+  autoFocus?: boolean;
+  refocusAfterSelect?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [results, setResults] = useState<SaleInventoryOption[]>(initialOptions.slice(0, 20));
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
   const [isPending, startTransition] = useTransition();
   const requestId = useRef(0);
   const rootRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     function onPointerDown(event: MouseEvent) {
@@ -45,6 +55,7 @@ export function InventorySearchCombobox({
     if (!trimmed) {
       requestId.current += 1;
       setResults(initialOptions.slice(0, 20));
+      setHighlightedIndex(0);
       return;
     }
 
@@ -53,15 +64,31 @@ export function InventorySearchCombobox({
       startTransition(async () => {
         try {
           const matches = await searchInventoryForSaleAction(trimmed);
-          if (requestId.current === currentRequest) setResults(matches);
+          if (requestId.current === currentRequest) {
+            setResults(matches);
+            setHighlightedIndex(0);
+          }
         } catch {
-          if (requestId.current === currentRequest) setResults([]);
+          if (requestId.current === currentRequest) {
+            setResults([]);
+            setHighlightedIndex(0);
+          }
         }
       });
     }, 140);
 
     return () => window.clearTimeout(timer);
   }, [query, initialOptions]);
+
+  function finishSelection(item: SaleInventoryOption | null) {
+    onSelect(item);
+    setQuery("");
+    setOpen(false);
+    setHighlightedIndex(0);
+    if (refocusAfterSelect) {
+      window.requestAnimationFrame(() => inputRef.current?.focus());
+    }
+  }
 
   const displayValue = open ? query : value ? selectedLabel : "";
 
@@ -70,17 +97,45 @@ export function InventorySearchCombobox({
       <div className="relative">
         <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
         <input
+          ref={inputRef}
           className="h-10 w-full rounded-md border bg-background pr-9 pl-9 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
           value={displayValue}
-          placeholder="ابحث بالاسم، SKU أو التصنيف..."
+          placeholder={placeholder}
           autoComplete="off"
+          autoFocus={autoFocus}
           onFocus={() => {
             setOpen(true);
             setQuery("");
+            setHighlightedIndex(0);
           }}
           onChange={(event) => {
             setQuery(event.target.value);
             setOpen(true);
+            setHighlightedIndex(0);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              event.stopPropagation();
+              if (open && results.length > 0) finishSelection(results[highlightedIndex] ?? results[0]);
+              return;
+            }
+            if (event.key === "ArrowDown") {
+              event.preventDefault();
+              setOpen(true);
+              setHighlightedIndex((current) => results.length ? (current + 1) % results.length : 0);
+              return;
+            }
+            if (event.key === "ArrowUp") {
+              event.preventDefault();
+              setOpen(true);
+              setHighlightedIndex((current) => results.length ? (current - 1 + results.length) % results.length : 0);
+              return;
+            }
+            if (event.key === "Escape") {
+              event.preventDefault();
+              setOpen(false);
+            }
           }}
         />
         {isPending ? (
@@ -90,11 +145,7 @@ export function InventorySearchCombobox({
             type="button"
             aria-label="إلغاء اختيار قطعة المخزون"
             className="absolute left-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-            onClick={() => {
-              onSelect(null);
-              setQuery("");
-              setOpen(false);
-            }}
+            onClick={() => finishSelection(null)}
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -103,39 +154,36 @@ export function InventorySearchCombobox({
 
       {open ? (
         <div className="absolute z-50 mt-1.5 max-h-80 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl shadow-slate-200/60">
-          <button
-            type="button"
-            className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-right text-xs font-bold text-slate-600 hover:bg-slate-50"
-            onClick={() => {
-              onSelect(null);
-              setQuery("");
-              setOpen(false);
-            }}
-          >
-            <PackageSearch className="h-4 w-4 text-slate-400" />
-            بند يدوي / خدمة خارجية
-          </button>
-
-          <div className="my-1 border-t border-slate-100" />
+          {showManualOption ? (
+            <>
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-right text-xs font-bold text-slate-600 hover:bg-slate-50"
+                onClick={() => finishSelection(null)}
+              >
+                <PackageSearch className="h-4 w-4 text-slate-400" />
+                بند يدوي / خدمة خارجية
+              </button>
+              <div className="my-1 border-t border-slate-100" />
+            </>
+          ) : null}
 
           {results.length === 0 && !isPending ? (
             <div className="px-3 py-6 text-center text-xs font-semibold text-slate-400">
               لا توجد قطعة مطابقة للبحث.
             </div>
           ) : (
-            results.map((item) => (
+            results.map((item, index) => (
               <button
                 key={item.id}
                 type="button"
                 className={cn(
-                  "flex w-full items-start justify-between gap-3 rounded-lg px-3 py-2.5 text-right hover:bg-primary/5",
+                  "flex w-full items-start justify-between gap-3 rounded-lg px-3 py-2.5 text-right",
+                  index === highlightedIndex ? "bg-primary/5 ring-1 ring-primary/10" : "hover:bg-primary/5",
                   item.id === value && "bg-primary/5",
                 )}
-                onClick={() => {
-                  onSelect(item);
-                  setQuery("");
-                  setOpen(false);
-                }}
+                onMouseEnter={() => setHighlightedIndex(index)}
+                onClick={() => finishSelection(item)}
               >
                 <div className="min-w-0">
                   <div className="truncate text-xs font-black text-slate-800">{item.name}</div>
