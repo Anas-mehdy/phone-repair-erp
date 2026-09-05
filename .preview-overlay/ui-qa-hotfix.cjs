@@ -59,8 +59,8 @@ replaceRequired(
 replaceRequired(
   "components/help/contextual-help.tsx",
   'className="fixed bottom-[92px] left-4 z-40 flex h-11 w-11 items-center justify-center rounded-2xl border border-teal-200 bg-white text-teal-700 shadow-lg shadow-slate-900/10 transition hover:-translate-y-0.5 hover:bg-teal-50 lg:bottom-5 lg:left-5 dark:border-teal-900 dark:bg-slate-900 dark:text-teal-300 dark:hover:bg-teal-950/50"',
-  'className="fixed bottom-[92px] right-4 z-40 flex h-11 w-11 items-center justify-center rounded-2xl border border-teal-200 bg-white text-teal-700 shadow-lg shadow-slate-900/10 transition hover:-translate-y-0.5 hover:bg-teal-50 lg:bottom-5 lg:right-5 dark:border-teal-900 dark:bg-slate-900 dark:text-teal-300 dark:hover:bg-teal-950/50"',
-  "contextual help mobile position",
+  'className="fixed bottom-[92px] right-4 z-[57] flex h-11 w-11 items-center justify-center rounded-2xl border border-teal-200 bg-white text-teal-700 shadow-lg shadow-slate-900/10 transition hover:-translate-y-0.5 hover:bg-teal-50 lg:bottom-6 lg:left-44 lg:right-auto dark:border-teal-900 dark:bg-slate-900 dark:text-teal-300 dark:hover:bg-teal-950/50"',
+  "contextual help responsive position",
 );
 
-console.log("[preview-ui-hotfix] Applied dark discovery styles and moved contextual help button to the opposite bottom corner.");
+console.log("[preview-ui-hotfix] Applied dark discovery styles and responsive contextual help positioning.");
