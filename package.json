@@ -24,7 +24,7 @@
     "installments:test": "tsx scripts/test-installment-schedule.ts",
     "entitlement:test": "tsx scripts/test-entitlement-service.ts",
     "entitlement:test:integration": "tsx scripts/test-subscription-integration.ts",
-    "prebuild": "node .preview-overlay/apply-overlay.cjs"
+    "prebuild": "node .preview-overlay/apply-overlay.cjs && node .preview-overlay/ui-qa-hotfix.cjs"
   },
   "dependencies": {
     "@prisma/client": "^6.1.0",
