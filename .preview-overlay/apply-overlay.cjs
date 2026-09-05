@@ -72,4 +72,18 @@ if (fs.existsSync(onboardingPagePath)) {
   }
 }
 
+// The current PWA is intentionally online-only. A pass-through fetch handler adds no caching benefit and
+// turns transient network rejections into noisy Service Worker errors. Leave install/activate behavior intact
+// and let the browser perform normal network requests directly.
+const serviceWorkerPath = path.join(root, "public/sw.js");
+if (fs.existsSync(serviceWorkerPath)) {
+  let source = fs.readFileSync(serviceWorkerPath, "utf8");
+  const fetchHandler = `\nself.addEventListener("fetch", (event) => {\n  const request = event.request;\n  if (request.method !== "GET") return;\n\n  const url = new URL(request.url);\n  if (url.origin !== self.location.origin) return;\n\n  // Online-first by design: do not cache pages, API responses, or user data.\n  // Every navigation continues to read the latest deployed web application.\n  event.respondWith(fetch(request));\n});\n`;
+  if (source.includes(fetchHandler)) {
+    source = source.replace(fetchHandler, "\n");
+    fs.writeFileSync(serviceWorkerPath, source, "utf8");
+    console.log("[preview-overlay] Removed redundant online-only Service Worker fetch interception.");
+  }
+}
+
 console.log(`[preview-overlay] Applied ${count} Release Candidate files.`);
