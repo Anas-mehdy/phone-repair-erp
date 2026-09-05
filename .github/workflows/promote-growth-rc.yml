@@ -1,0 +1,82 @@
+name: Promote verified Growth RC to Main
+
+on:
+  push:
+    branches:
+      - preview/growth-phase18-rc
+    paths:
+      - .github/workflows/promote-growth-rc.yml
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout verified preview branch
+        uses: actions/checkout@v4
+        with:
+          ref: preview/growth-phase18-rc
+          fetch-depth: 0
+
+      - name: Verify main has not moved
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main preview/growth-phase18-rc
+          test "$(git rev-parse origin/main)" = "83f16763abc459256a34dd30965f3f7391187821"
+
+      - name: Preserve verified preview overlay
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/massar-preview-overlay
+          mkdir -p /tmp/massar-preview-overlay
+          cp -R .preview-overlay /tmp/massar-preview-overlay/.preview-overlay
+
+      - name: Materialize the tested release candidate on top of main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout -B promote origin/main
+          cp -R /tmp/massar-preview-overlay/.preview-overlay ./.preview-overlay
+          node .preview-overlay/apply-overlay.cjs
+          node .preview-overlay/ui-qa-hotfix.cjs
+          rm -rf .preview-overlay
+          git checkout origin/main -- tsconfig.tsbuildinfo 2>/dev/null || true
+          if grep -q 'preview-overlay' package.json; then
+            echo "Preview-only prebuild hook leaked into production package.json" >&2
+            exit 1
+          fi
+          if find . -path './.preview-overlay*' -print -quit | grep -q .; then
+            echo "Preview overlay artifacts remain in production tree" >&2
+            exit 1
+          fi
+          git status --short
+
+      - name: Guard production feature flags
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'GROWTH_LIFECYCLE_EMAILS_ENABLED="false"' .env.example
+          grep -q 'GROWTH_EXPERIMENT_ONBOARDING_VALUE_COPY_V1="off"' .env.example
+
+      - name: Commit clean release candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Massar Release Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to promote" >&2
+            exit 1
+          fi
+          git commit -m "release: growth onboarding and self-service phases 1-17"
+
+      - name: Push safely to main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git push --force-with-lease=refs/heads/main:83f16763abc459256a34dd30965f3f7391187821 origin HEAD:main
