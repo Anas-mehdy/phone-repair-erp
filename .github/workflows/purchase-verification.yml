@@ -1,0 +1,117 @@
+name: Purchase preview bootstrap verification
+
+on:
+  push:
+    branches:
+      - preview/purchase-receiving
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  verify-and-materialize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: massar_purchase_verify
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d massar_purchase_verify"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/massar_purchase_verify?schema=public
+      OPENAI_API_KEY: ""
+      PURCHASE_AI_MODEL: gpt-4.1-mini
+      PURCHASE_AI_SHOP_DAILY_LIMIT: "6"
+      PURCHASE_AI_FEATURE_BUDGET_USD: "5"
+      PURCHASE_AI_MAX_OUTPUT_TOKENS: "8000"
+      PURCHASE_AI_PDF_DETAIL: high
+      PURCHASE_IMPORT_MAX_FILE_MB: "4"
+      PURCHASE_IMPORT_MAX_PDF_PAGES: "3"
+      PURCHASE_IMPORT_EXTRACTING_STALE_MINUTES: "5"
+      NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: ""
+      NEXT_PUBLIC_POSTHOG_HOST: ""
+      GROWTH_LIFECYCLE_EMAILS_ENABLED: "false"
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply local verification payload
+        id: payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -f .preview-verification-payload.tar.gz ]]; then
+            tar -xzf .preview-verification-payload.tar.gz
+            rm .preview-verification-payload.tar.gz
+            echo "applied=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "applied=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Generate real package-lock with npm
+        run: npm install --package-lock-only --ignore-scripts
+
+      - name: Clean install
+        run: npm ci --ignore-scripts
+
+      - name: Create Supabase-compatible roles in disposable Postgres
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h 127.0.0.1 -U postgres -d massar_purchase_verify -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$ BEGIN CREATE ROLE anon NOLOGIN; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+          DO $$ BEGIN CREATE ROLE authenticated NOLOGIN; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+          SQL
+
+      - name: Prisma validate and generate
+        run: |
+          npx prisma validate
+          npx prisma generate
+
+      - name: Apply migrations only to disposable CI PostgreSQL
+        run: npx prisma migrate deploy
+
+      - name: TypeScript
+        run: npx tsc --noEmit
+
+      - name: Purchase checks
+        run: |
+          node scripts/test-purchase-openai-static.cjs
+          node scripts/test-purchase-document-security.cjs
+          node scripts/test-purchase-receiving-phase4-static.cjs
+          node scripts/test-purchase-receiving-lifecycle.cjs
+          node scripts/test-purchase-legacy-cost-compat-static.cjs
+          npm run purchases:test
+          npm run purchases:document-test
+
+      - name: Full application build
+        run: npm run build
+
+      - name: Materialize verified source on preview branch
+        if: steps.payload.outputs.applied == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore(preview): materialize verified purchase preview"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
