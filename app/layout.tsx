@@ -6,6 +6,7 @@ import { AnalyticsPageTracker } from "@/components/analytics/analytics-page-trac
 import { DashboardKpiNavigation } from "@/components/dashboard/dashboard-kpi-navigation";
 import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
 import { LifetimeOfferBanner } from "@/components/lifetime-offer-banner";
+import { LifetimeMaintenanceBanner } from "@/components/lifetime-maintenance-banner";
 import { QuickOperationsLauncher } from "@/components/quick-operations";
 import { ThemeRouteSync } from "@/components/theme-route-sync";
 import { getAuthContext, can } from "@/lib/auth/context";
@@ -42,6 +43,13 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   let canSettings = false, canReports = false, canManageSubscription = false, canManageDebts = false, showTutorialBanner = false;
   let subscriptionReadOnly = false;
   let lifetimeBanner: { remaining: number; total: number } | null = null;
+  let maintenanceBanner: {
+    status: "DUE_SOON" | "OVERDUE";
+    amount: number;
+    currencyCode: string;
+    dueAt: Date;
+    daysUntilDue: number;
+  } | null = null;
   let analyticsIdentity: AnalyticsIdentityData | null = null;
 
   try {
@@ -97,10 +105,28 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           if (!activeLifetime) {
             const offer = await subscriptionOfferService.getOfferSettings();
             if (offer.isActive && offer.remainingEligible > 0) lifetimeBanner = { remaining: offer.remainingEligible, total: offer.totalEligible };
+          } else if (activeLifetime.annualMaintenanceAmount != null && activeLifetime.maintenanceStartsAt) {
+            const maintenance = await lifetimeSubscriptionService.getMaintenanceAccountForShop(auth.shop.id);
+            if (
+              (maintenance.status === "DUE_SOON" || maintenance.status === "OVERDUE") &&
+              maintenance.annualAmount != null &&
+              maintenance.currencyCode &&
+              maintenance.nextDueAt &&
+              maintenance.daysUntilDue != null
+            ) {
+              maintenanceBanner = {
+                status: maintenance.status,
+                amount: maintenance.annualAmount,
+                currencyCode: maintenance.currencyCode,
+                dueAt: maintenance.nextDueAt,
+                daysUntilDue: maintenance.daysUntilDue,
+              };
+            }
           }
         } catch (error) {
-          console.error("[LifetimeBanner] Failed to resolve banner state", error);
+          console.error("[LifetimeBanner] Failed to resolve lifetime banner state", error);
           lifetimeBanner = null;
+          maintenanceBanner = null;
         }
       }
     }
@@ -112,6 +138,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     showTutorialBanner = false;
     subscriptionReadOnly = false;
     lifetimeBanner = null;
+    maintenanceBanner = null;
     analyticsIdentity = null;
   }
 
@@ -128,6 +155,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       <ThemeRouteSync />
       <DashboardKpiNavigation />
       <PwaInstallPrompt />
+      {maintenanceBanner ? <LifetimeMaintenanceBanner {...maintenanceBanner} /> : null}
       {lifetimeBanner ? <LifetimeOfferBanner remaining={lifetimeBanner.remaining} total={lifetimeBanner.total} /> : null}
       <AppShell canSettings={canSettings} canReports={canReports} canManageSubscription={canManageSubscription} canManageDebts={canManageDebts} subscriptionReadOnly={subscriptionReadOnly} tutorialInitialShowBanner={showTutorialBanner}>{children}</AppShell>
       <QuickOperationsLauncher canManageDebts={canManageDebts} readOnly={subscriptionReadOnly} />

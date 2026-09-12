@@ -43,14 +43,24 @@ export default async function SuperAdminDashboardPage() {
       currencyCode: p.currencyCode,
       amount: Number(p.amount),
     })),
-    ...lifetimePrices.map((p) => ({
-      id: p.id,
-      countryCode: p.countryCode,
-      plan: SubscriptionPlan.PROFESSIONAL,
-      billingInterval: "LIFETIME" as const,
-      currencyCode: p.currencyCode,
-      amount: Number(p.amount),
-    })),
+    ...lifetimePrices.flatMap((p) => ([
+      {
+        id: p.id,
+        countryCode: p.countryCode,
+        plan: SubscriptionPlan.PROFESSIONAL,
+        billingInterval: "LIFETIME" as const,
+        currencyCode: p.currencyCode,
+        amount: Number(p.amount),
+      },
+      {
+        id: `maintenance-${p.id}`,
+        countryCode: p.countryCode,
+        plan: SubscriptionPlan.PROFESSIONAL,
+        billingInterval: "LIFETIME_MAINTENANCE" as const,
+        currencyCode: p.currencyCode,
+        amount: p.annualMaintenanceAmount == null ? 0 : Number(p.annualMaintenanceAmount),
+      },
+    ])),
   ];
 
   const activeLifetimeShopIds = new Set(lifetimeRows.filter((row) => row.isActive).map((row) => row.shopId));
@@ -70,6 +80,15 @@ export default async function SuperAdminDashboardPage() {
     activatedAt: row.activatedAt.toISOString(),
     pricePaid: row.pricePaid == null ? null : Number(row.pricePaid),
     currencyCode: row.currencyCode,
+    annualMaintenanceAmount: row.annualMaintenanceAmount == null ? null : Number(row.annualMaintenanceAmount),
+    maintenanceCurrencyCode: row.maintenanceCurrencyCode,
+    maintenanceStartsAt: row.maintenanceStartsAt?.toISOString() ?? null,
+    maintenancePaidThrough: row.maintenancePaidThrough?.toISOString() ?? null,
+    maintenancePaymentCount: row.maintenancePaymentCount,
+    lastMaintenancePaidAt: row.lastMaintenancePaidAt?.toISOString() ?? null,
+    maintenanceStatus: row.maintenanceStatus,
+    nextMaintenanceDueAt: row.nextMaintenanceDueAt?.toISOString() ?? null,
+    maintenanceDaysUntilDue: row.maintenanceDaysUntilDue,
     paymentMethod: row.paymentMethod,
     paymentReference: row.paymentReference,
     isActive: row.isActive,

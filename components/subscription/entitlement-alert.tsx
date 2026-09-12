@@ -35,8 +35,14 @@ const ENTITLEMENT_MESSAGES: Record<
     icon: ShieldAlert,
     tone: "rose",
   },
+  LIFETIME_MAINTENANCE_EXPIRED: {
+    title: "انتهت مهلة رسم الصيانة السنوي",
+    message:
+      "انتهت مهلة تجديد رسم الصيانة السنوي للخطة الدائمة. جدّد الرسم لاستعادة الميزات والخدمات المشمولة بالصيانة.",
+    icon: ShieldAlert,
+    tone: "rose",
+  },
 };
-
 
 /**
  * Reusable UI Banner for structured Entitlement Limits & Expirations.

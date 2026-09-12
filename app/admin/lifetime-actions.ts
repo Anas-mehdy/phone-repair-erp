@@ -12,6 +12,11 @@ const schema = z.object({
   amount: z.coerce.number().positive("سعر مدى الحياة يجب أن يكون أكبر من صفر"),
 });
 
+const maintenanceSchema = z.object({
+  countryCode: z.string().trim().toUpperCase().regex(/^[A-Z]{2}$/),
+  amount: z.coerce.number().positive("رسم الصيانة والتحديث السنوي يجب أن يكون أكبر من صفر"),
+});
+
 export async function adminUpsertLifetimePriceAction(formData: FormData) {
   await requireSuperAdmin();
   try {
@@ -42,6 +47,51 @@ export async function adminUpsertLifetimePriceAction(formData: FormData) {
     return {
       success: false,
       error: error instanceof Error ? error.message : "تعذر حفظ سعر مدى الحياة.",
+    };
+  }
+}
+
+export async function adminUpsertLifetimeMaintenancePriceAction(formData: FormData) {
+  await requireSuperAdmin();
+  try {
+    await lifetimeSubscriptionService.listLifetimePrices();
+    const input = maintenanceSchema.parse({
+      countryCode: formData.get("countryCode"),
+      amount: formData.get("amount"),
+    });
+
+    const rows = await prisma.$queryRaw<Array<{
+      id: string;
+      countryCode: string;
+      currencyCode: string;
+      annualMaintenanceAmount: unknown;
+    }>>`
+      UPDATE "LifetimeSubscriptionPrice"
+      SET "annualMaintenanceAmount" = ${input.amount}, "updatedAt" = NOW()
+      WHERE "countryCode" = ${input.countryCode}
+      RETURNING "id", "countryCode", "currencyCode", "annualMaintenanceAmount"
+    `;
+
+    const row = rows[0];
+    if (!row) {
+      throw new Error("حدد سعر خطة مدى الحياة لهذه الدولة أولاً، ثم أضف الرسم السنوي.");
+    }
+
+    revalidatePath("/admin");
+    revalidatePath("/subscription");
+    return {
+      success: true,
+      price: {
+        id: `maintenance-${row.id}`,
+        countryCode: row.countryCode,
+        currencyCode: row.currencyCode,
+        amount: Number(row.annualMaintenanceAmount),
+      },
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "تعذر حفظ الرسم السنوي لخطة مدى الحياة.",
     };
   }
 }
