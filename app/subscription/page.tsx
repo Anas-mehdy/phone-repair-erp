@@ -41,7 +41,29 @@ export default async function SubscriptionPage() {
   });
 
   if (entitlement.subscription.isLifetime) {
-    return <div className="px-4 py-6 sm:px-6 lg:px-8"><LifetimeActiveView shopName={auth.shop.name} activatedAt={entitlement.subscription.lifetimeActivatedAt} price={entitlement.subscription.lifetimePrice} currencyCode={entitlement.subscription.lifetimeCurrencyCode} /></div>;
+    const maintenanceAccount = await lifetimeSubscriptionService.getMaintenanceAccountForShop(auth.shop.id);
+    return <div className="px-4 py-6 sm:px-6 lg:px-8"><LifetimeActiveView
+      shopName={auth.shop.name}
+      activatedAt={entitlement.subscription.lifetimeActivatedAt}
+      price={entitlement.subscription.lifetimePrice}
+      currencyCode={entitlement.subscription.lifetimeCurrencyCode}
+      annualMaintenanceAmount={maintenanceAccount.annualAmount}
+      maintenanceCurrencyCode={maintenanceAccount.currencyCode}
+      maintenanceStartsAt={maintenanceAccount.startsAt}
+      maintenanceStatus={maintenanceAccount.status}
+      nextMaintenanceDueAt={maintenanceAccount.nextDueAt}
+      maintenanceDaysUntilDue={maintenanceAccount.daysUntilDue}
+      maintenancePayments={maintenanceAccount.payments.map((payment) => ({
+        id: payment.id,
+        coverageStart: payment.coverageStart,
+        coverageEnd: payment.coverageEnd,
+        amount: Number(payment.amount),
+        currencyCode: payment.currencyCode,
+        paidAt: payment.paidAt,
+        paymentMethod: payment.paymentMethod,
+        paymentReference: payment.paymentReference,
+      }))}
+    /></div>;
   }
 
   const [rawPrices, lifetimeRaw] = await Promise.all([
@@ -55,7 +77,11 @@ export default async function SubscriptionPage() {
   const annualRaw = effectivePrices.find((p) => p.billingInterval === SubscriptionBillingInterval.ANNUAL);
   const sixMonthsPrice = sixMonthsRaw ? { amount: Number(sixMonthsRaw.amount), currencyCode: sixMonthsRaw.currencyCode } : null;
   const annualPrice = annualRaw ? { amount: Number(annualRaw.amount), currencyCode: annualRaw.currencyCode } : null;
-  const lifetimePrice = lifetimeRaw ? { amount: Number(lifetimeRaw.amount), currencyCode: lifetimeRaw.currencyCode } : null;
+  const lifetimePrice = lifetimeRaw ? {
+    amount: Number(lifetimeRaw.amount),
+    currencyCode: lifetimeRaw.currencyCode,
+    annualMaintenanceAmount: lifetimeRaw.annualMaintenanceAmount == null ? null : Number(lifetimeRaw.annualMaintenanceAmount),
+  } : null;
   const regularPlansOffer = { ...offer, isActive: false, totalEligible: 0, remainingEligible: 0, claimedEligible: 0 };
 
   return <div className="px-4 py-6 sm:px-6 lg:px-8">

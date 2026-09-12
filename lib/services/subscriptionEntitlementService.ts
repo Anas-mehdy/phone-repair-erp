@@ -13,8 +13,16 @@ import {
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { lifetimeSubscriptionService } from "@/lib/services/lifetimeSubscriptionService";
+import {
+  LIFETIME_MAINTENANCE_GRACE_DAYS,
+  resolveLifetimeMaintenancePolicy,
+  type LifetimeMaintenancePolicyStatus,
+} from "@/lib/subscription/lifetime-maintenance-policy";
 
-export type EntitlementDenyCode = "SUBSCRIPTION_EXPIRED" | "EMPLOYEE_LIMIT_REACHED";
+export type EntitlementDenyCode =
+  | "SUBSCRIPTION_EXPIRED"
+  | "EMPLOYEE_LIMIT_REACHED"
+  | "LIFETIME_MAINTENANCE_EXPIRED";
 export type EffectiveStatus = "TRIALING" | "ACTIVE" | "GRACE_PERIOD" | "EXPIRED" | "CANCELED";
 export type EffectivePlan = "TRIAL_AS_PROFESSIONAL" | "BASIC" | "PROFESSIONAL";
 
@@ -35,16 +43,33 @@ export type SubscriptionSnapshot = {
   lifetimeCurrencyCode: string | null;
 };
 
+export type MaintenanceAccessSnapshot = {
+  applicable: boolean;
+  status: "NOT_APPLICABLE" | LifetimeMaintenancePolicyStatus;
+  hasMaintenanceAccess: boolean;
+  graceDays: number;
+  graceEndsAt: Date | null;
+  graceDaysRemaining: number | null;
+  overdueDays: number;
+  annualAmount: number | null;
+  currencyCode: string | null;
+  nextDueAt: Date | null;
+  daysUntilDue: number | null;
+};
+
 export type PlanLimits = { monthlyRepairOrders: number | null; totalSeats: number | null; dailyCompatibilitySearches: number | null };
 export type UsageSnapshot = { repairOrdersThisMonth: number; activeSeats: number; compatibilitySearchesToday: number };
 export type EntitlementContext = {
   subscription: SubscriptionSnapshot;
+  maintenance: MaintenanceAccessSnapshot;
   limits: PlanLimits;
   usage: UsageSnapshot;
   isOperationallyActive: boolean;
   canCreateRepairOrder: boolean;
   canAddEmployee: boolean;
   canPerformCompatibilitySearch: boolean;
+  canAccessMaintenanceFeatures: boolean;
+  canAccessPrioritySupport: boolean;
 };
 export type EntitlementResult = { allowed: true } | { allowed: false; code: EntitlementDenyCode; message: string; upgradeUrl: string };
 export type RepairOrderCreateCallback<T> = (tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0]) => Promise<T>;
@@ -53,6 +78,7 @@ export type SeatLimitGuardOptions = { acceptingInvitationId?: string; now?: Date
 export type SeatGuardOutcome<T> = { result: T } | { denied: true; code: EntitlementDenyCode; message: string; upgradeUrl: string };
 
 const UPGRADE_URL = "/support";
+const MAINTENANCE_RENEWAL_URL = "/subscription";
 export const TOTAL_SEAT_LIMIT = 5;
 export const PLAN_LIMITS: Record<EffectivePlan, PlanLimits> = {
   TRIAL_AS_PROFESSIONAL: { monthlyRepairOrders: null, totalSeats: TOTAL_SEAT_LIMIT, dailyCompatibilitySearches: null },
@@ -160,6 +186,49 @@ async function getSubscriptionSnapshot(shopId: string, now: Date): Promise<Subsc
   };
 }
 
+async function getMaintenanceSnapshot(
+  shopId: string,
+  isLifetime: boolean,
+  now: Date,
+): Promise<MaintenanceAccessSnapshot> {
+  if (!isLifetime) {
+    return {
+      applicable: false,
+      status: "NOT_APPLICABLE",
+      hasMaintenanceAccess: true,
+      graceDays: LIFETIME_MAINTENANCE_GRACE_DAYS,
+      graceEndsAt: null,
+      graceDaysRemaining: null,
+      overdueDays: 0,
+      annualAmount: null,
+      currencyCode: null,
+      nextDueAt: null,
+      daysUntilDue: null,
+    };
+  }
+
+  const account = await lifetimeSubscriptionService.getMaintenanceAccountForShop(shopId, now);
+  const policy = resolveLifetimeMaintenancePolicy({
+    status: account.status,
+    nextDueAt: account.nextDueAt,
+    daysUntilDue: account.daysUntilDue,
+  });
+
+  return {
+    applicable: account.status !== "LEGACY",
+    status: policy.status,
+    hasMaintenanceAccess: policy.hasMaintenanceAccess,
+    graceDays: policy.graceDays,
+    graceEndsAt: policy.graceEndsAt,
+    graceDaysRemaining: policy.graceDaysRemaining,
+    overdueDays: policy.overdueDays,
+    annualAmount: account.annualAmount,
+    currencyCode: account.currencyCode,
+    nextDueAt: account.nextDueAt,
+    daysUntilDue: account.daysUntilDue,
+  };
+}
+
 async function countActiveSeats(shopId: string): Promise<number> {
   const [activeMemberships, activeOwnerMembership, pendingInvitesCount] = await Promise.all([
     prisma.membership.count({ where: { shopId, status: MembershipStatus.ACTIVE, deletedAt: null } }),
@@ -238,16 +307,21 @@ export async function withSeatLimitGuard<T>(shopId: string, callback: SeatMutati
 
 export async function getEntitlementContext(shopId: string, now: Date = new Date()): Promise<EntitlementContext> {
   const [snapshot, activeSeats] = await Promise.all([getSubscriptionSnapshot(shopId, now), countActiveSeats(shopId)]);
+  const maintenance = await getMaintenanceSnapshot(shopId, snapshot.isLifetime, now);
   const limits = PLAN_LIMITS[snapshot.effectivePlan];
   const isOperationallyActive = snapshot.effectiveStatus === "TRIALING" || snapshot.effectiveStatus === "ACTIVE" || snapshot.effectiveStatus === "GRACE_PERIOD";
+  const canAccessMaintenanceFeatures = isOperationallyActive && maintenance.hasMaintenanceAccess;
   return {
     subscription: snapshot,
+    maintenance,
     limits,
     usage: { repairOrdersThisMonth: 0, activeSeats, compatibilitySearchesToday: 0 },
     isOperationallyActive,
     canCreateRepairOrder: isOperationallyActive,
     canAddEmployee: isOperationallyActive && activeSeats < TOTAL_SEAT_LIMIT,
     canPerformCompatibilitySearch: isOperationallyActive,
+    canAccessMaintenanceFeatures,
+    canAccessPrioritySupport: canAccessMaintenanceFeatures,
   };
 }
 
@@ -264,12 +338,32 @@ export async function checkCanAddEmployee(shopId: string, now: Date = new Date()
 }
 export async function checkCanPerformCompatibilitySearch(shopId: string, now: Date = new Date()): Promise<EntitlementResult> { return checkCanCreateNewOperation(shopId, now); }
 
+export async function checkCanAccessMaintenanceFeature(shopId: string, now: Date = new Date()): Promise<EntitlementResult> {
+  const ctx = await getEntitlementContext(shopId, now);
+  if (!ctx.isOperationallyActive) {
+    return { allowed: false, code: "SUBSCRIPTION_EXPIRED", message: "انتهت فترة استخدامك. بياناتك محفوظة بالكامل، تواصل مع الدعم لتجديد الاشتراك.", upgradeUrl: UPGRADE_URL };
+  }
+  if (ctx.canAccessMaintenanceFeatures) return { allowed: true };
+  return {
+    allowed: false,
+    code: "LIFETIME_MAINTENANCE_EXPIRED",
+    message: "ترخيص مدى الحياة الأساسي ما زال فعالاً وبياناتك واستخدامك الأساسي محفوظان بالكامل. انتهت مهلة تجديد الصيانة والتحديثات؛ جدّد الرسم السنوي لاستعادة الدعم والميزات الجديدة المرتبطة بالصيانة.",
+    upgradeUrl: MAINTENANCE_RENEWAL_URL,
+  };
+}
+
+export async function checkCanAccessPrioritySupport(shopId: string, now: Date = new Date()): Promise<EntitlementResult> {
+  return checkCanAccessMaintenanceFeature(shopId, now);
+}
+
 export const entitlementService = {
   getEntitlementContext,
   checkCanCreateNewOperation,
   checkCanCreateRepairOrder,
   checkCanAddEmployee,
   checkCanPerformCompatibilitySearch,
+  checkCanAccessMaintenanceFeature,
+  checkCanAccessPrioritySupport,
   withRepairOrderLimitGuard,
   withSeatLimitGuard,
 };
