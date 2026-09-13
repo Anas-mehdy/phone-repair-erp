@@ -1,6 +1,6 @@
 "use client";
 
-import { PackagePlus, Plus, Save, Trash2 } from "lucide-react";
+import { AlertTriangle, PackagePlus, Plus, Save, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { createSalesEmployeePurchaseAction } from "./actions";
@@ -15,7 +15,6 @@ function emptyLine(): Line {
 
 export function EmployeeReceivingForm({ inventory, suppliers, defaultDate }: { inventory: InventoryOption[]; suppliers: SupplierOption[]; defaultDate: string }) {
   const [lines, setLines] = useState<Line[]>([emptyLine()]);
-  const [supplierMode, setSupplierMode] = useState<"EXISTING" | "OTHER">("EXISTING");
   const byId = useMemo(() => new Map(inventory.map((item) => [item.id, item])), [inventory]);
   const serialized = JSON.stringify(lines.map((line) => ({
     inventoryItemId: line.mode === "EXISTING" ? line.inventoryItemId || null : null,
@@ -28,6 +27,8 @@ export function EmployeeReceivingForm({ inventory, suppliers, defaultDate }: { i
     salePrice: line.salePrice || null,
   })));
   const total = lines.reduce((sum, line) => sum + Math.max(0, Number(line.unitCost || 0)) * Math.max(1, line.quantity), 0);
+  const hasSuppliers = suppliers.length > 0;
+  const linesValid = lines.every((line) => line.unitCost && (line.mode === "EXISTING" ? line.inventoryItemId : line.newItemName));
 
   function update(key: string, patch: Partial<Line>) { setLines((current) => current.map((line) => line.key === key ? { ...line, ...patch } : line)); }
   function addLine() { setLines((current) => [...current, emptyLine()]); }
@@ -35,10 +36,12 @@ export function EmployeeReceivingForm({ inventory, suppliers, defaultDate }: { i
 
   return <form action={createSalesEmployeePurchaseAction} className="space-y-5">
     <input type="hidden" name="lines" value={serialized} />
+
+    {!hasSuppliers ? <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs font-bold leading-6 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-200"><AlertTriangle className="ml-1.5 inline h-4 w-4" />لا يوجد مورد مسجل حالياً. اطلب من المدير إضافة المورد أولاً؛ موظف المبيعات لا يملك صلاحية إنشاء الموردين أو الدخول إلى إدارتهم.</div> : null}
+
     <section className="erp-section space-y-4">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <label className="grid gap-1.5 text-xs font-bold">نوع المورد<select className="erp-input" value={supplierMode} onChange={(e) => setSupplierMode(e.target.value as "EXISTING" | "OTHER")}><option value="EXISTING">مورد مسجل</option><option value="OTHER">مورد غير مسجل</option></select></label>
-        {supplierMode === "EXISTING" ? <label className="grid gap-1.5 text-xs font-bold">المورد<select name="supplierId" className="erp-input"><option value="">بدون مورد محدد</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}</select></label> : <label className="grid gap-1.5 text-xs font-bold">اسم المورد<input name="supplierNameSnapshot" className="erp-input" maxLength={180} /></label>}
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <label className="grid gap-1.5 text-xs font-bold">المورد المسجل<select name="supplierId" required defaultValue="" disabled={!hasSuppliers} className="erp-input"><option value="" disabled>{hasSuppliers ? "اختر المورد" : "لا يوجد مورد متاح"}</option>{suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}</select></label>
         <label className="grid gap-1.5 text-xs font-bold">رقم فاتورة المورد<input name="supplierInvoiceNumber" className="erp-input" maxLength={120} /></label>
         <label className="grid gap-1.5 text-xs font-bold">تاريخ الفاتورة<input name="invoiceDate" type="date" defaultValue={defaultDate} required className="erp-input font-numeric" /></label>
       </div>
@@ -57,7 +60,7 @@ export function EmployeeReceivingForm({ inventory, suppliers, defaultDate }: { i
       })}</div>
     </section>
 
-    <section className="flex flex-col gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5 sm:flex-row sm:items-center sm:justify-between dark:border-emerald-900/60 dark:bg-emerald-950/20"><div><p className="text-[10px] font-black text-emerald-700">إجمالي قيمة البضاعة</p><p className="mt-1 font-numeric text-xl font-black">{total.toFixed(2)}</p><p className="mt-1 text-[10px] font-bold text-slate-500">سيتم اعتماد الاستلام وإضافة الكميات للمخزون بدون تسجيل دفعة مالية.</p></div><Button type="submit" disabled={!lines.every((line) => line.unitCost && (line.mode === "EXISTING" ? line.inventoryItemId : line.newItemName))} className="h-12 rounded-xl px-6 font-black"><Save className="ml-2 h-4 w-4" />اعتماد استلام البضاعة</Button></section>
+    <section className="flex flex-col gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5 sm:flex-row sm:items-center sm:justify-between dark:border-emerald-900/60 dark:bg-emerald-950/20"><div><p className="text-[10px] font-black text-emerald-700">إجمالي قيمة البضاعة</p><p className="mt-1 font-numeric text-xl font-black">{total.toFixed(2)}</p><p className="mt-1 text-[10px] font-bold text-slate-500">سيتم اعتماد الاستلام وإضافة الكميات للمخزون بدون تسجيل دفعة مالية أو إظهار أي رصيد مالي للموظف.</p></div><Button type="submit" disabled={!hasSuppliers || !linesValid} className="h-12 rounded-xl px-6 font-black"><Save className="ml-2 h-4 w-4" />اعتماد استلام البضاعة</Button></section>
   </form>;
 }
 
