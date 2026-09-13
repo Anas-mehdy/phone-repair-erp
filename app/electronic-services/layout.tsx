@@ -5,7 +5,7 @@ import { redirectSalesEmployee } from "@/lib/auth/salesEmployeeRoute";
 import { requirePermission } from "@/lib/auth/context";
 
 export default async function ElectronicServicesLayout({ children }: { children: ReactNode }) {
-  await redirectSalesEmployee("/employee/pos");
+  await redirectSalesEmployee("/point-of-sale?tab=electronic");
   const auth = await requirePermission("electronic_services:read");
   const canExecute = auth.permissions.includes("electronic_services:execute");
   const canManage = auth.permissions.includes("electronic_services:manage");
