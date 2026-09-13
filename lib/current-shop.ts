@@ -1,12 +1,8 @@
 import { getAuthContext, type AuthContext, type GetAuthContextOptions } from "@/lib/auth/context";
 import { type MembershipRole, type MembershipStatus } from "@prisma/client";
 import { timeZoneForCountry } from "@/lib/timezone";
+import type { AccessProfile } from "@/lib/services/accessProfileService";
 
-/**
- * Standard CurrentShopContext interface.
- * Preserves 100% backward compatibility with all existing consumers while
- * providing modern Membership and permission properties.
- */
 export interface CurrentShopContext {
   shopId: string;
   userId: string | null;
@@ -16,48 +12,23 @@ export interface CurrentShopContext {
   timeZone: string;
   userName: string;
   email: string;
-  /**
-   * Legacy role string ("OWNER" | "STAFF") for backward compatibility with existing UI and logic.
-   */
   role: string;
-  /**
-   * Modern Membership Role ("OWNER" | "ADMIN" | "TECHNICIAN" | "VIEWER").
-   */
   membershipRole: MembershipRole;
-  /**
-   * Modern Membership Lifecycle Status ("ACTIVE" | "SUSPENDED" | "REMOVED").
-   */
   membershipStatus: MembershipStatus;
-  /**
-   * Resolved permissions for the active membership.
-   */
+  accessProfile: AccessProfile | null;
   permissions: string[];
 }
 
-/**
- * Adapter mapping modern MembershipRole to legacy string role.
- * - OWNER -> "OWNER"
- * - ADMIN / TECHNICIAN / VIEWER -> "STAFF"
- */
 function toLegacyRole(membershipRole: MembershipRole): string {
   return membershipRole === "OWNER" ? "OWNER" : "STAFF";
 }
 
-/**
- * Retrieves the current shop context backed by live database Membership resolution.
- *
- * Security Guarantees:
- * 1. Validates session against PostgreSQL Membership(shopId, userId).
- * 2. Enforces membership.status === ACTIVE (rejects SUSPENDED and REMOVED immediately).
- * 3. Preserves all legacy properties while exposing the shop country timezone.
- */
 export async function getCurrentShopContext(
   options: GetAuthContextOptions = { allowRedirect: true }
 ): Promise<CurrentShopContext> {
   try {
     const auth: AuthContext = await getAuthContext(options);
     const countryCode = auth.shop.countryCode?.trim().toUpperCase() || null;
-
     return {
       shopId: auth.shop.id,
       userId: auth.user.id,
@@ -70,15 +41,11 @@ export async function getCurrentShopContext(
       role: toLegacyRole(auth.membership.role),
       membershipRole: auth.membership.role,
       membershipStatus: auth.membership.status,
+      accessProfile: auth.membership.accessProfile ?? null,
       permissions: auth.permissions,
     };
   } catch (error) {
-    // If allowRedirect is true (default), rethrow Next.js redirect or Auth errors
-    if (options.allowRedirect !== false) {
-      throw error;
-    }
-
-    // Fallback for non-redirect callers (e.g. background/optional context callers)
+    if (options.allowRedirect !== false) throw error;
     return {
       shopId: "",
       userId: null,
@@ -91,6 +58,7 @@ export async function getCurrentShopContext(
       role: "STAFF",
       membershipRole: "VIEWER" as MembershipRole,
       membershipStatus: "REMOVED" as MembershipStatus,
+      accessProfile: null,
       permissions: [],
     };
   }

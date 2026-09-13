@@ -27,7 +27,7 @@ function exactDateTime(date: Date, timeZone: string) { return new Intl.DateTimeF
 export default async function CashDrawerMovementDetailsPage({ params }: MovementDetailsPageProps) {
   const { id } = await params;
   if (!z.string().uuid().safeParse(id).success) notFound();
-  const auth = await requirePermission("sales:create");
+  const auth = await requirePermission("reports:read");
   await financialTransferService.listWallets(auth.shop.id);
   const movement = await cashDrawerService.getMovementById(auth.shop.id, id);
   if (!movement) notFound();

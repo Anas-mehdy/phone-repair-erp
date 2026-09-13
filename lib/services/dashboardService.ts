@@ -7,91 +7,24 @@ import { getShopTimeZone } from "@/lib/shop-timezone";
 export async function getDashboardMetrics(shopId: string) {
   const timeZone = await getShopTimeZone(shopId);
   const { start: startOfToday, end: startOfTomorrow } = dayUtcBoundsForTimeZone(new Date(), timeZone);
-
-  const [
-    openRepairOrdersCount,
-    readyForDeliveryCount,
-    repairOrdersCreatedToday,
-    deliveredToday,
-    salesTodayAggregate,
-    softwareRowsToday,
-    unpaidInvoicesAggregate,
-    inventoryItems,
-    debtRows,
-  ] = await Promise.all([
-    prisma.repairOrder.count({
-      where: {
-        shopId,
-        deletedAt: null,
-        status: { notIn: [RepairStatus.DELIVERED, RepairStatus.CANCELLED] },
-      },
-    }),
-    prisma.repairOrder.count({
-      where: { shopId, deletedAt: null, status: RepairStatus.DONE },
-    }),
-    prisma.repairOrder.count({
-      where: {
-        shopId,
-        deletedAt: null,
-        createdAt: { gte: startOfToday, lt: startOfTomorrow },
-      },
-    }),
-    prisma.repairOrder.count({
-      where: {
-        shopId,
-        deletedAt: null,
-        deliveredAt: { gte: startOfToday, lt: startOfTomorrow },
-      },
-    }),
-    prisma.sale.aggregate({
-      where: {
-        shopId,
-        deletedAt: null,
-        status: SaleStatus.COMPLETED,
-        soldAt: { gte: startOfToday, lt: startOfTomorrow },
-      },
-      _sum: { total: true },
-    }),
+  const [openRepairOrdersCount, readyForDeliveryCount, repairOrdersCreatedToday, deliveredToday, salesTodayAggregate, softwareRowsToday, unpaidInvoicesAggregate, inventoryItems, debtRows] = await Promise.all([
+    prisma.repairOrder.count({ where: { shopId, deletedAt: null, status: { notIn: [RepairStatus.DELIVERED, RepairStatus.CANCELLED] } } }),
+    prisma.repairOrder.count({ where: { shopId, deletedAt: null, status: RepairStatus.DONE } }),
+    prisma.repairOrder.count({ where: { shopId, deletedAt: null, createdAt: { gte: startOfToday, lt: startOfTomorrow } } }),
+    prisma.repairOrder.count({ where: { shopId, deletedAt: null, deliveredAt: { gte: startOfToday, lt: startOfTomorrow } } }),
+    prisma.sale.aggregate({ where: { shopId, deletedAt: null, status: SaleStatus.COMPLETED, soldAt: { gte: startOfToday, lt: startOfTomorrow } }, _sum: { total: true } }),
     softwareServiceService.getFinancialRows(shopId, startOfToday, startOfTomorrow).catch(() => []),
-    prisma.invoice.aggregate({
-      where: {
-        shopId,
-        deletedAt: null,
-        status: { in: [InvoiceStatus.UNPAID, InvoiceStatus.PARTIALLY_PAID] },
-      },
-      _count: { id: true },
-      _sum: { balanceDue: true },
-    }),
-    prisma.inventoryItem.findMany({
-      where: { shopId, deletedAt: null },
-      select: { quantity: true, reorderLevel: true },
-    }),
+    prisma.invoice.aggregate({ where: { shopId, deletedAt: null, status: { in: [InvoiceStatus.UNPAID, InvoiceStatus.PARTIALLY_PAID] } }, _count: { id: true }, _sum: { balanceDue: true } }),
+    prisma.inventoryItem.findMany({ where: { shopId, deletedAt: null }, select: { quantity: true, reorderLevel: true } }),
     prisma.$queryRaw<Array<{ totalOutstanding: Prisma.Decimal | number | string }>>`
       WITH balances AS (
-        SELECT
-          a."customerId",
-          COALESCE(SUM(
-            CASE
-              WHEN e."isReversed" THEN 0
-              WHEN e."type" IN ('DEBT','OPENING_BALANCE','ADJUSTMENT_DEBIT') THEN e."amount"
-              WHEN e."type" IN ('PAYMENT','ADJUSTMENT_CREDIT') THEN -e."amount"
-              ELSE 0
-            END
-          ), 0) AS balance
-        FROM "DebtLedgerAccount" a
-        LEFT JOIN "DebtLedgerEntry" e ON e."accountId" = a."id"
-        WHERE a."shopId" = ${shopId}::uuid
-        GROUP BY a."customerId"
-      )
-      SELECT COALESCE(SUM(GREATEST(balance, 0)), 0) AS "totalOutstanding"
-      FROM balances
+        SELECT a."customerId", COALESCE(SUM(CASE WHEN e."isReversed" THEN 0 WHEN e."type" IN ('DEBT','OPENING_BALANCE','ADJUSTMENT_DEBIT') THEN e."amount" WHEN e."type" IN ('PAYMENT','ADJUSTMENT_CREDIT') THEN -e."amount" ELSE 0 END), 0) AS balance
+        FROM "DebtLedgerAccount" a LEFT JOIN "DebtLedgerEntry" e ON e."accountId" = a."id"
+        WHERE a."shopId" = ${shopId}::uuid GROUP BY a."customerId"
+      ) SELECT COALESCE(SUM(GREATEST(balance, 0)), 0) AS "totalOutstanding" FROM balances
     `,
   ]);
-
-  const softwareSalesToday = softwareRowsToday
-    .filter((row) => row.invoiceStatus !== InvoiceStatus.VOID)
-    .reduce((sum, row) => sum + Number(row.invoiceTotal), 0);
-
+  const softwareSalesToday = softwareRowsToday.filter((row) => row.invoiceStatus !== InvoiceStatus.VOID).reduce((sum, row) => sum + Number(row.invoiceTotal), 0);
   return {
     openRepairOrdersCount,
     readyForDeliveryCount,
@@ -102,38 +35,27 @@ export async function getDashboardMetrics(shopId: string) {
     unpaidInvoicesCount: unpaidInvoicesAggregate._count.id ?? 0,
     unpaidBalanceTotal: unpaidInvoicesAggregate._sum.balanceDue ?? 0,
     totalDebtOutstanding: Number(debtRows[0]?.totalOutstanding ?? 0),
-    lowStockItemsCount: inventoryItems.filter(
-      (item) => item.quantity <= item.reorderLevel,
-    ).length,
+    lowStockItemsCount: inventoryItems.filter((item) => item.quantity <= item.reorderLevel).length,
   };
 }
 
 export async function getRecentActivity(shopId: string) {
-  const [repairOrders, sales, invoices] = await Promise.all([
-    prisma.repairOrder.findMany({
-      where: { shopId, deletedAt: null },
-      include: { customer: true },
-      orderBy: { createdAt: "desc" },
-      take: 5,
-    }),
-    prisma.sale.findMany({
-      where: { shopId, deletedAt: null },
-      include: { customer: true },
-      orderBy: { soldAt: "desc" },
-      take: 5,
-    }),
-    prisma.invoice.findMany({
-      where: { shopId, deletedAt: null },
-      include: { customer: true },
-      orderBy: { issuedAt: "desc" },
-      take: 5,
-    }),
+  const [repairOrders, rawSales, invoices] = await Promise.all([
+    prisma.repairOrder.findMany({ where: { shopId, deletedAt: null }, include: { customer: true }, orderBy: { createdAt: "desc" }, take: 5 }),
+    prisma.sale.findMany({ where: { shopId, deletedAt: null }, include: { customer: true }, orderBy: { soldAt: "desc" }, take: 5 }),
+    prisma.invoice.findMany({ where: { shopId, deletedAt: null }, include: { customer: true }, orderBy: { issuedAt: "desc" }, take: 5 }),
   ]);
-
+  const creatorIds = [...new Set(rawSales.flatMap((sale) => sale.createdByUserId ? [sale.createdByUserId] : []))];
+  const creators = creatorIds.length ? await prisma.user.findMany({ where: { id: { in: creatorIds } }, select: { id: true, name: true } }) : [];
+  const creatorById = new Map(creators.map((user) => [user.id, user.name]));
+  const sales = rawSales.map((sale) => ({
+    ...sale,
+    createdByName: sale.createdByUserId ? creatorById.get(sale.createdByUserId) ?? null : null,
+    receiptNumber: sale.createdByUserId && creatorById.get(sale.createdByUserId)
+      ? `${sale.receiptNumber ?? "إيصال بيع"} • ${creatorById.get(sale.createdByUserId)}`
+      : sale.receiptNumber,
+  }));
   return { repairOrders, sales, invoices };
 }
 
-export const dashboardService = {
-  getDashboardMetrics,
-  getRecentActivity,
-};
+export const dashboardService = { getDashboardMetrics, getRecentActivity };

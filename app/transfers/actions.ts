@@ -40,7 +40,7 @@ export async function createWalletAction(formData: FormData) {
       defaultDepositCommission: readString(formData, "defaultDepositCommission"),
       defaultWithdrawalCommission: readString(formData, "defaultWithdrawalCommission"),
     });
-    const auth = await requirePermission("sales:create");
+    const auth = await requirePermission("expenses:manage");
     await financialTransferService.createWallet(auth.shop.id, input);
     await captureServerEvent({
       event: ANALYTICS_EVENTS.WALLET_CREATED,
@@ -54,6 +54,8 @@ export async function createWalletAction(formData: FormData) {
       },
     });
     revalidatePath("/transfers");
+    revalidatePath("/reports");
+    revalidatePath("/dashboard");
     redirectTo = onboardingMode ? "/transfers?onboarding=1&walletSaved=1" : "/transfers?walletSaved=1";
   } catch (error) {
     redirectTo = onboardingMode
@@ -95,7 +97,7 @@ export async function updateWalletAction(formData: FormData) {
     const depositCommission = parseNumber(input.defaultDepositCommission ?? "", "عمولة الإيداع") ?? 0;
     const withdrawalCommission = parseNumber(input.defaultWithdrawalCommission ?? "", "عمولة السحب") ?? 0;
 
-    const auth = await requirePermission("sales:create");
+    const auth = await requirePermission("expenses:manage");
     const duplicate = await prisma.$queryRaw<Array<{ id: string }>>`
       SELECT "id" FROM "FinancialWallet"
       WHERE "shopId" = ${auth.shop.id}::uuid
@@ -121,6 +123,8 @@ export async function updateWalletAction(formData: FormData) {
     `;
     if (!updated) throw new Error("المحفظة غير موجودة.");
     revalidatePath("/transfers");
+    revalidatePath("/reports");
+    revalidatePath("/dashboard");
     redirectTo = "/transfers?walletUpdated=1";
   } catch (error) {
     redirectTo = `/transfers?error=${encodeURIComponent(errorMessage(error))}`;
@@ -162,7 +166,8 @@ export async function createTransferAction(formData: FormData) {
       customerPhone: readString(formData, "customerPhone"),
       notes: readString(formData, "notes"),
     });
-    const auth = await requirePermission("sales:create");
+    const requiresFinanceManage = input.operationType === "WALLET_TOPUP" || input.operationType === "WALLET_WITHDRAWAL";
+    const auth = await requirePermission(requiresFinanceManage ? "expenses:manage" : "sales:create");
     const transfer = await financialTransferService.createTransfer(auth.shop.id, auth.user.id, {
       ...input,
       settlementWalletId: input.settlementWalletId || undefined,
@@ -207,7 +212,7 @@ export async function voidTransferAction(formData: FormData) {
   const id = readString(formData, "id");
   let redirectTo = "/transfers";
   try {
-    const auth = await requirePermission("sales:create");
+    const auth = await requirePermission("sales:cancel");
     await financialTransferService.voidTransfer(auth.shop.id, id, auth.user.id);
     revalidatePath("/transfers");
     revalidatePath("/cash-drawer");

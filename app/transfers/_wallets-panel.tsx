@@ -17,7 +17,7 @@ export type WalletPanelItem = {
 
 type EditorState = { mode: "create" } | { mode: "edit"; wallet: WalletPanelItem } | null;
 
-export function WalletsPanel({ wallets, currency }: { wallets: WalletPanelItem[]; currency: string }) {
+export function WalletsPanel({ wallets, currency, canManage }: { wallets: WalletPanelItem[]; currency: string; canManage: boolean }) {
   const [editor, setEditor] = useState<EditorState>(null);
 
   return (
@@ -32,9 +32,11 @@ export function WalletsPanel({ wallets, currency }: { wallets: WalletPanelItem[]
             <p className="mt-1 text-[11px] font-semibold text-slate-500">الأرصدة، حدود الاستخدام، والعمولات الافتراضية لكل خدمة.</p>
           </div>
         </div>
-        <Button type="button" onClick={() => setEditor({ mode: "create" })} className="h-10 rounded-xl bg-teal-600 px-4 text-xs font-black text-white shadow-md shadow-teal-600/15 hover:bg-teal-700">
-          <Plus className="ml-1.5 h-4 w-4" /> إضافة محفظة
-        </Button>
+        {canManage ? (
+          <Button type="button" onClick={() => setEditor({ mode: "create" })} className="h-10 rounded-xl bg-teal-600 px-4 text-xs font-black text-white shadow-md shadow-teal-600/15 hover:bg-teal-700">
+            <Plus className="ml-1.5 h-4 w-4" /> إضافة محفظة
+          </Button>
+        ) : null}
       </div>
 
       <div className="grid gap-4 p-5 lg:grid-cols-2 2xl:grid-cols-3">
@@ -60,9 +62,11 @@ export function WalletsPanel({ wallets, currency }: { wallets: WalletPanelItem[]
                   <p className="mt-2 font-numeric text-[26px] font-black tracking-tight text-slate-950">{money(wallet.balance, currency)}</p>
                   <p className="mt-0.5 text-[10px] font-bold text-slate-400">الرصيد المتاح الآن</p>
                 </div>
-                <button type="button" onClick={() => setEditor({ mode: "edit", wallet })} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/90 bg-white/80 text-slate-500 shadow-sm transition hover:border-teal-200 hover:text-teal-700" aria-label={`تعديل ${wallet.name}`}>
-                  <Edit3 className="h-4 w-4" />
-                </button>
+                {canManage ? (
+                  <button type="button" onClick={() => setEditor({ mode: "edit", wallet })} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/90 bg-white/80 text-slate-500 shadow-sm transition hover:border-teal-200 hover:text-teal-700" aria-label={`تعديل ${wallet.name}`}>
+                    <Edit3 className="h-4 w-4" />
+                  </button>
+                ) : null}
               </div>
 
               <div className="relative mt-4 rounded-xl border border-white/80 bg-white/65 p-3 backdrop-blur-sm">
@@ -86,16 +90,20 @@ export function WalletsPanel({ wallets, currency }: { wallets: WalletPanelItem[]
           );
         })}
 
-        {wallets.length === 0 ? (
+        {wallets.length === 0 && canManage ? (
           <button type="button" onClick={() => setEditor({ mode: "create" })} className="col-span-full flex min-h-44 flex-col items-center justify-center rounded-2xl border border-dashed border-teal-200 bg-teal-50/30 p-8 text-center transition hover:bg-teal-50/60">
             <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-teal-600 shadow-sm"><Plus className="h-5 w-5" /></span>
             <span className="mt-3 text-xs font-black text-slate-700">أضف أول محفظة تحويل</span>
             <span className="mt-1 text-[10px] font-semibold text-slate-400">Vodafone Cash، InstaPay أو أي خدمة تستخدمها.</span>
           </button>
         ) : null}
+
+        {wallets.length === 0 && !canManage ? (
+          <div className="col-span-full rounded-2xl border border-slate-200 bg-slate-50/60 p-8 text-center text-xs font-bold text-slate-500">لا توجد محافظ مسجلة حالياً.</div>
+        ) : null}
       </div>
 
-      {editor ? <WalletEditor editor={editor} onClose={() => setEditor(null)} /> : null}
+      {canManage && editor ? <WalletEditor editor={editor} onClose={() => setEditor(null)} /> : null}
     </section>
   );
 }

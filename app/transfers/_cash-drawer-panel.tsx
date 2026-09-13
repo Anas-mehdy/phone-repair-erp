@@ -28,7 +28,7 @@ const movementLabels: Record<string, string> = {
   CHANGE_RETURN: "باقي للعميل",
 };
 
-export function CashDrawerPanel({ drawer, wallets, currency }: { drawer: DrawerSnapshot; wallets: WalletOption[]; currency: string }) {
+export function CashDrawerPanel({ drawer, wallets, currency, canManage }: { drawer: DrawerSnapshot; wallets: WalletOption[]; currency: string; canManage: boolean }) {
   return (
     <section className="overflow-hidden rounded-[22px] border border-emerald-100 bg-gradient-to-br from-white via-white to-emerald-50/40 shadow-[0_18px_55px_-36px_rgba(5,150,105,0.35)]">
       <div className="flex flex-col gap-3 border-b border-emerald-100 bg-gradient-to-l from-emerald-50 via-white to-teal-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -45,7 +45,7 @@ export function CashDrawerPanel({ drawer, wallets, currency }: { drawer: DrawerS
         <Stat label="خرج اليوم" value={drawer.todayOut} currency={currency} tone="rose" />
       </div>
 
-      {!drawer.openingBalanceSetAt ? (
+      {canManage && !drawer.openingBalanceSetAt ? (
         <form action={setCashDrawerOpeningBalanceAction} className="grid gap-3 border-b border-amber-100 bg-amber-50/60 p-5 sm:grid-cols-[1fr_1.2fr_auto] sm:items-end">
           <label className="grid gap-1.5 text-xs font-black text-slate-700">الرصيد الافتتاحي<input name="amount" type="number" min="0" step="0.01" required className={inputClass} placeholder="مثال: 5000" /></label>
           <label className="grid gap-1.5 text-xs font-black text-slate-700">ملاحظة<input name="notes" className={inputClass} placeholder="مثال: رصيد المحل قبل استخدام مسار" /></label>
@@ -53,27 +53,31 @@ export function CashDrawerPanel({ drawer, wallets, currency }: { drawer: DrawerS
         </form>
       ) : null}
 
-      <div className="grid gap-5 p-5 xl:grid-cols-2">
-        <form action={addCashDrawerMovementAction} className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
-          <h3 className="text-sm font-black text-slate-900">حركة نقدية يدوية</h3><p className="mt-1 text-[10px] font-semibold text-slate-400">لتمويل المالك، سحب نقد، أو أي تصحيح له سبب واضح.</p>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <label className="grid gap-1.5 text-xs font-black text-slate-700">نوع الحركة<select name="direction" className={inputClass} defaultValue="IN"><option value="IN">إضافة للدرج</option><option value="OUT">سحب من الدرج</option></select></label>
-            <label className="grid gap-1.5 text-xs font-black text-slate-700">المبلغ<input name="amount" type="number" min="0.01" step="0.01" required className={inputClass} /></label>
-            <label className="grid gap-1.5 text-xs font-black text-slate-700 sm:col-span-2">السبب<input name="description" required className={inputClass} placeholder="مثال: تمويل إضافي من المالك" /></label>
-          </div>
-          <Button type="submit" className="mt-3 h-10 w-full rounded-xl bg-slate-800 text-xs font-black text-white hover:bg-slate-900">حفظ الحركة</Button>
-        </form>
+      {canManage ? (
+        <div className="grid gap-5 p-5 xl:grid-cols-2">
+          <form action={addCashDrawerMovementAction} className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
+            <h3 className="text-sm font-black text-slate-900">حركة نقدية يدوية</h3><p className="mt-1 text-[10px] font-semibold text-slate-400">لتمويل المالك، سحب نقد، أو أي تصحيح له سبب واضح.</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <label className="grid gap-1.5 text-xs font-black text-slate-700">نوع الحركة<select name="direction" className={inputClass} defaultValue="IN"><option value="IN">إضافة للدرج</option><option value="OUT">سحب من الدرج</option></select></label>
+              <label className="grid gap-1.5 text-xs font-black text-slate-700">المبلغ<input name="amount" type="number" min="0.01" step="0.01" required className={inputClass} /></label>
+              <label className="grid gap-1.5 text-xs font-black text-slate-700 sm:col-span-2">السبب<input name="description" required className={inputClass} placeholder="مثال: تمويل إضافي من المالك" /></label>
+            </div>
+            <Button type="submit" className="mt-3 h-10 w-full rounded-xl bg-slate-800 text-xs font-black text-white hover:bg-slate-900">حفظ الحركة</Button>
+          </form>
 
-        <form action={transferCashDrawerWalletAction} className="rounded-2xl border border-indigo-100 bg-indigo-50/45 p-4">
-          <h3 className="text-sm font-black text-slate-900">تحويل بين الدرج والمحفظة</h3><p className="mt-1 text-[10px] font-semibold text-slate-400">نقل أموال فقط؛ لا يُحسب كمبيع أو ربح أو مصروف.</p>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <label className="grid gap-1.5 text-xs font-black text-slate-700">الاتجاه<select name="direction" className={inputClass} defaultValue="DRAWER_TO_WALLET"><option value="DRAWER_TO_WALLET">من الدرج إلى المحفظة</option><option value="WALLET_TO_DRAWER">من المحفظة إلى الدرج</option></select></label>
-            <label className="grid gap-1.5 text-xs font-black text-slate-700">المحفظة<select name="walletId" required className={inputClass}><option value="">اختر المحفظة</option>{wallets.map((wallet) => <option key={wallet.id} value={wallet.id}>{wallet.name}</option>)}</select></label>
-            <label className="grid gap-1.5 text-xs font-black text-slate-700 sm:col-span-2">المبلغ<input name="amount" type="number" min="0.01" step="0.01" required className={inputClass} /></label>
-          </div>
-          <Button type="submit" disabled={wallets.length === 0} className="mt-3 h-10 w-full rounded-xl bg-indigo-600 text-xs font-black text-white hover:bg-indigo-700"><ArrowLeftRight className="ml-1.5 h-4 w-4" />تنفيذ التحويل</Button>
-        </form>
-      </div>
+          <form action={transferCashDrawerWalletAction} className="rounded-2xl border border-indigo-100 bg-indigo-50/45 p-4">
+            <h3 className="text-sm font-black text-slate-900">تحويل بين الدرج والمحفظة</h3><p className="mt-1 text-[10px] font-semibold text-slate-400">نقل أموال فقط؛ لا يُحسب كمبيع أو ربح أو مصروف.</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <label className="grid gap-1.5 text-xs font-black text-slate-700">الاتجاه<select name="direction" className={inputClass} defaultValue="DRAWER_TO_WALLET"><option value="DRAWER_TO_WALLET">من الدرج إلى المحفظة</option><option value="WALLET_TO_DRAWER">من المحفظة إلى الدرج</option></select></label>
+              <label className="grid gap-1.5 text-xs font-black text-slate-700">المحفظة<select name="walletId" required className={inputClass}><option value="">اختر المحفظة</option>{wallets.map((wallet) => <option key={wallet.id} value={wallet.id}>{wallet.name}</option>)}</select></label>
+              <label className="grid gap-1.5 text-xs font-black text-slate-700 sm:col-span-2">المبلغ<input name="amount" type="number" min="0.01" step="0.01" required className={inputClass} /></label>
+            </div>
+            <Button type="submit" disabled={wallets.length === 0} className="mt-3 h-10 w-full rounded-xl bg-indigo-600 text-xs font-black text-white hover:bg-indigo-700"><ArrowLeftRight className="ml-1.5 h-4 w-4" />تنفيذ التحويل</Button>
+          </form>
+        </div>
+      ) : (
+        <div className="border-b border-slate-100 bg-slate-50/60 px-5 py-3 text-[11px] font-bold text-slate-600">عرض للقراءة فقط. تعديل الدرج أو نقل السيولة يتطلب صلاحية إدارة المصروفات.</div>
+      )}
 
       <div className="border-t border-slate-100">
         <div className="flex items-center justify-between px-5 py-4"><div><h3 className="text-sm font-black text-slate-900">آخر حركات الدرج</h3><p className="mt-1 text-[10px] font-semibold text-slate-400">كل إضافة أو سحب محفوظة كمصدر مستقل.</p></div><CircleDollarSign className="h-5 w-5 text-emerald-600" /></div>

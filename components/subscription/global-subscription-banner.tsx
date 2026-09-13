@@ -16,13 +16,13 @@ export function GlobalSubscriptionBanner() {
   const [notice, setNotice] = useState<OwnerSubscriptionNotice>(null);
 
   useEffect(() => {
-    // Exclude public pages, auth routes, admin, tracking, and receipts
     const isExcluded =
       pathname === "/" ||
       pathname === "/login" ||
       pathname === "/register" ||
       pathname === "/forgot-password" ||
       pathname === "/reset-password" ||
+      pathname.startsWith("/employee") ||
       pathname.startsWith("/admin") ||
       pathname.startsWith("/track") ||
       pathname.startsWith("/installment-track") ||
@@ -36,42 +36,20 @@ export function GlobalSubscriptionBanner() {
 
     let isMounted = true;
     getOwnerSubscriptionNoticeAction()
-      .then((res) => {
-        if (isMounted) setNotice(res);
-      })
-      .catch(() => {
-        if (isMounted) setNotice(null);
-      });
+      .then((res) => { if (isMounted) setNotice(res); })
+      .catch(() => { if (isMounted) setNotice(null); });
 
-    return () => {
-      isMounted = false;
-    };
+    return () => { isMounted = false; };
   }, [pathname]);
 
   if (!notice) return null;
 
   if (notice.effectiveStatus === "EXPIRED" || notice.effectiveStatus === "CANCELED") {
-    return (
-      <div className="mb-6">
-        <SubscriptionExpiredBanner
-          message="انتهت فترة استخدامك. بياناتك محفوظة بالكامل، ويمكنك الاطلاع على بياناتك الحالية. تواصل مع الدعم لتجديد الاشتراك."
-          actionHref="/support"
-          actionLabel="تواصل مع الدعم لتجديد الاشتراك"
-        />
-      </div>
-    );
+    return <div className="mb-6"><SubscriptionExpiredBanner message="انتهت فترة استخدامك. بياناتك محفوظة بالكامل، ويمكنك الاطلاع على بياناتك الحالية. تواصل مع الدعم لتجديد الاشتراك." actionHref="/support" actionLabel="تواصل مع الدعم لتجديد الاشتراك" /></div>;
   }
 
   if (notice.effectiveStatus === "GRACE_PERIOD") {
-    return (
-      <div className="mb-6">
-        <SubscriptionGracePeriodBanner
-          remainingText={notice.graceRemainingText}
-          actionHref="/support"
-          actionLabel="تواصل مع الدعم للتجديد"
-        />
-      </div>
-    );
+    return <div className="mb-6"><SubscriptionGracePeriodBanner remainingText={notice.graceRemainingText} actionHref="/support" actionLabel="تواصل مع الدعم للتجديد" /></div>;
   }
 
   return null;
