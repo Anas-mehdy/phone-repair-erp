@@ -41,7 +41,7 @@ export async function getCurrentShopContext(
       role: toLegacyRole(auth.membership.role),
       membershipRole: auth.membership.role,
       membershipStatus: auth.membership.status,
-      accessProfile: auth.membership.accessProfile,
+      accessProfile: auth.membership.accessProfile ?? null,
       permissions: auth.permissions,
     };
   } catch (error) {
