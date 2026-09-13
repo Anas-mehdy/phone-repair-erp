@@ -8,7 +8,10 @@ let tablesReady: Promise<void> | null = null;
 
 async function createTables() {
   await prisma.$transaction(async (tx) => {
-    await tx.$queryRawUnsafe("SELECT pg_advisory_xact_lock(91309261)");
+    // Keep schema bootstrap serialized without returning PostgreSQL's `void`
+    // value through Prisma (which cannot deserialize the result of
+    // pg_advisory_xact_lock when it is selected directly).
+    await tx.$executeRawUnsafe("DO $$ BEGIN PERFORM pg_advisory_xact_lock(91309261); END $$;");
     await tx.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "MembershipAccessProfile" (
         "membershipId" UUID PRIMARY KEY REFERENCES "Membership"("id") ON DELETE CASCADE,
