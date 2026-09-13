@@ -54,10 +54,12 @@ export const ALL_APP_PERMISSIONS: readonly AppPermission[] = [
 ] as const;
 
 export const SALES_EMPLOYEE_PERMISSIONS: readonly AppPermission[] = [
+  "sales:create",
   "sales:create_own",
   "sales:read_own",
   "sales:update_own",
   "sales:cancel_own",
+  "electronic_services:execute",
   "purchases:create",
   "purchases:read_own",
   "expenses:create",

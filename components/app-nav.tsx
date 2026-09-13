@@ -33,7 +33,7 @@ if (finance?.children) {
 }
 
 const employeeItems = [
-  { href: "/employee/pos", label: "نقطة البيع", icon: ShoppingCart },
+  { href: "/point-of-sale", label: "نقطة البيع", icon: ShoppingCart },
   { href: "/employee/sales", label: "مبيعاتي", icon: WalletCards },
   { href: "/employee/receiving", label: "استلام بضاعة", icon: PackageCheck },
   { href: "/employee/expenses", label: "مصروفاتي", icon: ReceiptText },

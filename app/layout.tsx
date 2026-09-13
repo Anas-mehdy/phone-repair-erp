@@ -55,7 +55,17 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     isSalesEmployee = auth.membership.accessProfile === "SALES_EMPLOYEE";
     if (isSalesEmployee) {
       const pathname = (await headers()).get("x-massar-pathname");
-      if (pathname && !pathname.startsWith("/employee")) redirect("/employee/pos");
+      if (pathname && !pathname.startsWith("/employee") && !pathname.startsWith("/point-of-sale")) {
+        const saleDetailsMatch = pathname.match(/^\/sales\/([0-9a-fA-F-]{36})\/?$/);
+        if (saleDetailsMatch?.[1]) redirect(`/employee/sales/${saleDetailsMatch[1]}`);
+        if (pathname.startsWith("/sales")) redirect("/employee/sales");
+        if (pathname.startsWith("/software-services")) redirect("/point-of-sale?tab=software");
+        if (pathname.startsWith("/electronic-services")) redirect("/point-of-sale?tab=electronic");
+        if (pathname.startsWith("/transfers")) redirect("/point-of-sale?tab=wallet");
+        if (pathname.startsWith("/inventory/purchases")) redirect("/employee/receiving");
+        if (pathname.startsWith("/expenses")) redirect("/employee/expenses");
+        redirect("/point-of-sale");
+      }
     }
 
     analyticsIdentity = { userId: auth.user.id, shopId: auth.shop.id, countryCode: auth.shop.countryCode, currency: auth.shop.currency, membershipRole: auth.membership.role };
