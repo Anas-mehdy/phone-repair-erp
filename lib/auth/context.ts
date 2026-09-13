@@ -30,7 +30,7 @@ export class SubscriptionReadOnlyError extends AuthorizationError {
 export interface AuthContext {
   user: { id: string; email: string; name: string };
   shop: { id: string; name: string; currency: string; countryCode?: string | null };
-  membership: { id: string; role: MembershipRole; status: MembershipStatus; accessProfile: AccessProfile | null };
+  membership: { id: string; role: MembershipRole; status: MembershipStatus; accessProfile?: AccessProfile | null };
   permissions: AppPermission[];
 }
 export interface GetAuthContextOptions { allowRedirect?: boolean }
