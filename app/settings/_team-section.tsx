@@ -1,34 +1,25 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import {
-  Users,
-  UserPlus,
-  Shield,
-  Copy,
-  Check,
-  Share2,
-  Trash2,
-  UserX,
-  UserCheck,
-  Edit3,
-  Clock,
-  AlertCircle,
-  Loader2,
-  X,
-} from "lucide-react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { Check, Copy, Edit3, Shield, Trash2, UserCheck, UserPlus, Users, UserX, X } from "lucide-react";
 import { MembershipRole, MembershipStatus } from "@prisma/client";
 import { Button } from "@/components/ui/button";
-import {
-  inviteTeamMemberAction,
-  updateMemberRoleAction,
-  toggleMemberStatusAction,
-  removeMemberAction,
-  revokeInvitationAction,
-} from "@/app/actions/teamActions";
-import Link from "next/link";
 import { formatDate } from "@/lib/format";
 import { buildAppUrl } from "@/lib/app-url";
+import {
+  inviteTeamMemberAction,
+  removeMemberAction,
+  revokeInvitationAction,
+  toggleMemberStatusAction,
+  updateMemberRoleAction,
+} from "@/app/actions/teamActions";
+import {
+  assignSalesEmployeeProfileAction,
+  getSalesEmployeeProfileMapAction,
+  inviteSalesEmployeeAction,
+  removeSalesEmployeeProfileAction,
+  revokeSalesEmployeeInvitationAction,
+} from "@/app/actions/salesEmployeeTeamActions";
 
 export interface TeamMemberItem {
   id: string;
@@ -36,15 +27,8 @@ export interface TeamMemberItem {
   status: MembershipStatus;
   joinedAt: Date | string;
   createdAt: Date | string;
-  user: {
-    id: string;
-    name: string;
-    email: string;
-    phone?: string | null;
-    createdAt: Date | string;
-  };
+  user: { id: string; name: string; email: string; phone?: string | null; createdAt: Date | string };
 }
-
 export interface PendingInviteItem {
   id: string;
   name?: string | null;
@@ -53,56 +37,20 @@ export interface PendingInviteItem {
   status: string;
   expiresAt: Date | string;
   createdAt: Date | string;
-  invitedBy?: {
-    name?: string | null;
-    email?: string | null;
-  } | null;
+  invitedBy?: { name?: string | null; email?: string | null } | null;
 }
+export interface SeatUsageData { usedSeats: number; activeMembersCount: number; pendingInvitesCount: number; maxSeats: number; remainingSeats: number; canInvite: boolean }
 
-export interface SeatUsageData {
-  usedSeats: number;
-  activeMembersCount: number;
-  pendingInvitesCount: number;
-  maxSeats: number;
-  remainingSeats: number;
-  canInvite: boolean;
-}
-
-const ROLE_DISPLAY: Record<MembershipRole, { label: string; colorClass: string; bgClass: string; borderClass: string }> = {
-  OWNER: {
-    label: "المالك الأساسي",
-    colorClass: "text-purple-800",
-    bgClass: "bg-purple-50",
-    borderClass: "border-purple-200",
-  },
-  ADMIN: {
-    label: "مدير فرع",
-    colorClass: "text-blue-800",
-    bgClass: "bg-blue-50",
-    borderClass: "border-blue-200",
-  },
-  TECHNICIAN: {
-    label: "فني صيانة",
-    colorClass: "text-teal-800",
-    bgClass: "bg-teal-50",
-    borderClass: "border-teal-200",
-  },
-  VIEWER: {
-    label: "مشاهد تقارير",
-    colorClass: "text-slate-800",
-    bgClass: "bg-slate-100",
-    borderClass: "border-slate-300",
-  },
+type AssignableRole = MembershipRole | "SALES_EMPLOYEE";
+const roleLabel: Record<AssignableRole, string> = {
+  OWNER: "المالك الأساسي",
+  ADMIN: "مدير فرع",
+  TECHNICIAN: "فني صيانة",
+  SALES_EMPLOYEE: "موظف مبيعات",
+  VIEWER: "مشاهد تقارير",
 };
 
-export function TeamManagementSection({
-  memberships,
-  pendingInvitations,
-  seatUsage,
-  currentUserId,
-  canManageTeam,
-  canInviteTeam,
-}: {
+export function TeamManagementSection({ memberships, pendingInvitations, seatUsage, currentUserId, canManageTeam, canInviteTeam }: {
   memberships: TeamMemberItem[];
   pendingInvitations: PendingInviteItem[];
   seatUsage: SeatUsageData;
@@ -112,646 +60,119 @@ export function TeamManagementSection({
   canInviteTeam: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [editing, setEditing] = useState<TeamMemberItem | null>(null);
+  const [profileMembers, setProfileMembers] = useState<Set<string>>(new Set());
+  const [profileInvites, setProfileInvites] = useState<Set<string>>(new Set());
+  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
-  // Modal states
-  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
-  const [generatedInviteUrl, setGeneratedInviteUrl] = useState<string | null>(null);
-  const [generatedInviteEmail, setGeneratedInviteEmail] = useState<string>("");
-  const [isCopied, setIsCopied] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
-
-  // Edit Role Modal State
-  const [editingMember, setEditingMember] = useState<TeamMemberItem | null>(null);
-
-  // 1. Submit New Invitation
-  async function handleInviteSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (isPending) return;
-
-    setFormError(null);
-    const form = e.currentTarget;
-    const formData = new FormData(form);
-
-    startTransition(async () => {
-      const result = await inviteTeamMemberAction(formData);
-      if (result.success && result.rawToken) {
-        const fullUrl = buildAppUrl(`/invite/${result.rawToken}`);
-        setGeneratedInviteUrl(fullUrl);
-        setGeneratedInviteEmail(result.email || "");
-      } else {
-        setFormError(result.error || "تعذر إرسال الدعوة");
-      }
-    });
-  }
-
-  // 2. Copy Invite Link
-  async function handleCopyLink() {
-    if (!generatedInviteUrl) return;
+  async function refreshProfiles() {
     try {
-      await navigator.clipboard.writeText(generatedInviteUrl);
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 3000);
-    } catch {
-      // Fallback
-    }
+      const result = await getSalesEmployeeProfileMapAction();
+      setProfileMembers(new Set(result.memberships));
+      setProfileInvites(new Set(result.invitations));
+    } catch { /* authorization is already enforced by the page */ }
   }
+  useEffect(() => { void refreshProfiles(); }, []);
 
-  // 3. Update Member Role
-  async function handleUpdateRole(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (!editingMember || isPending) return;
+  const activeCount = memberships.filter((member) => member.status === MembershipStatus.ACTIVE).length;
+  const roleOf = (member: TeamMemberItem): AssignableRole => profileMembers.has(member.id) ? "SALES_EMPLOYEE" : member.role;
+  const inviteRoleOf = (invite: PendingInviteItem): AssignableRole => profileInvites.has(invite.id) ? "SALES_EMPLOYEE" : invite.role;
 
-    const form = e.currentTarget;
-    const formData = new FormData(form);
-    formData.append("membershipId", editingMember.id);
-
+  function submitInvite(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (isPending) return;
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    const requestedRole = String(data.get("role") || "TECHNICIAN") as AssignableRole;
+    setInviteError(null);
+    setInviteUrl(null);
     startTransition(async () => {
-      const result = await updateMemberRoleAction(formData);
-      if (result.success) {
-        setEditingMember(null);
+      if (requestedRole === "SALES_EMPLOYEE") {
+        const result = await inviteSalesEmployeeAction({}, data);
+        if (result.error) setInviteError(result.error);
+        else if (result.inviteUrl) setInviteUrl(result.inviteUrl);
       } else {
-        alert(result.error || "تعذر تحديث الدور");
+        const result = await inviteTeamMemberAction(data);
+        if (!result.success) setInviteError(result.error || "تعذر إنشاء الدعوة");
+        else if (result.rawToken) setInviteUrl(buildAppUrl(`/invite/${result.rawToken}`));
       }
+      await refreshProfiles();
     });
   }
 
-  // 4. Toggle Status (Active ↔ Suspended)
-  async function handleToggleStatus(member: TeamMemberItem) {
-    if (isPending) return;
-    const newStatus =
-      member.status === MembershipStatus.ACTIVE
-        ? MembershipStatus.SUSPENDED
-        : MembershipStatus.ACTIVE;
-
-    const confirmMsg =
-      newStatus === MembershipStatus.SUSPENDED
-        ? `هل أنت متأكد من تجميد حساب الموظف "${member.user.name}"؟ سيفقد إمكانية الوصول للنظام فورياً.`
-        : `هل ترغب في إعادة تنشيط حساب الموظف "${member.user.name}"؟`;
-
-    if (!window.confirm(confirmMsg)) return;
-
-    const formData = new FormData();
-    formData.append("membershipId", member.id);
-    formData.append("status", newStatus);
-
+  function submitRole(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editing || isPending) return;
+    const data = new FormData(event.currentTarget);
+    data.set("membershipId", editing.id);
+    const nextRole = String(data.get("role")) as AssignableRole;
+    const currentlySales = profileMembers.has(editing.id);
     startTransition(async () => {
-      const result = await toggleMemberStatusAction(formData);
-      if (!result.success) {
-        alert(result.error || "تعذر تغيير الحالة");
-      }
+      try {
+        if (nextRole === "SALES_EMPLOYEE") {
+          await assignSalesEmployeeProfileAction(data);
+        } else {
+          if (currentlySales) await removeSalesEmployeeProfileAction(data);
+          const normalData = new FormData();
+          normalData.set("membershipId", editing.id);
+          normalData.set("role", nextRole);
+          const result = await updateMemberRoleAction(normalData);
+          if (!result.success) throw new Error(result.error || "تعذر تحديث الدور");
+        }
+        setEditing(null);
+        await refreshProfiles();
+      } catch (error) { alert(error instanceof Error ? error.message : "تعذر تحديث الدور"); }
     });
   }
 
-  // 5. Remove Member
-  async function handleRemoveMember(member: TeamMemberItem) {
+  function toggleStatus(member: TeamMemberItem) {
     if (isPending) return;
-    const confirmMsg = `هل أنت متأكد من إزالة الموظف "${member.user.name}" من هذا المتجر نهائياً؟`;
-    if (!window.confirm(confirmMsg)) return;
+    const status = member.status === MembershipStatus.ACTIVE ? MembershipStatus.SUSPENDED : MembershipStatus.ACTIVE;
+    if (!window.confirm(status === MembershipStatus.SUSPENDED ? `تجميد حساب ${member.user.name}؟` : `إعادة تنشيط ${member.user.name}؟`)) return;
+    const data = new FormData(); data.set("membershipId", member.id); data.set("status", status);
+    startTransition(async () => { const result = await toggleMemberStatusAction(data); if (!result.success) alert(result.error); });
+  }
 
-    const formData = new FormData();
-    formData.append("membershipId", member.id);
+  function remove(member: TeamMemberItem) {
+    if (!window.confirm(`إزالة ${member.user.name} من المتجر؟`)) return;
+    const data = new FormData(); data.set("membershipId", member.id);
+    startTransition(async () => { const result = await removeMemberAction(data); if (!result.success) alert(result.error); });
+  }
 
+  function revoke(invite: PendingInviteItem) {
+    if (!window.confirm(`إلغاء دعوة ${invite.email}؟`)) return;
+    const data = new FormData(); data.set("invitationId", invite.id);
     startTransition(async () => {
-      const result = await removeMemberAction(formData);
-      if (!result.success) {
-        alert(result.error || "تعذر إزالة الموظف");
-      }
+      if (profileInvites.has(invite.id)) await revokeSalesEmployeeInvitationAction(data);
+      else { const result = await revokeInvitationAction(data); if (!result.success) alert(result.error); }
+      await refreshProfiles();
     });
   }
 
-  // 6. Revoke Invitation
-  async function handleRevokeInvite(invitation: PendingInviteItem) {
-    if (isPending) return;
-    if (!window.confirm(`هل أنت متأكد من إلغاء دعوة البريد "${invitation.email}"؟`)) return;
-
-    const formData = new FormData();
-    formData.append("invitationId", invitation.id);
-
-    startTransition(async () => {
-      const result = await revokeInvitationAction(formData);
-      if (!result.success) {
-        alert(result.error || "تعذر إلغاء الدعوة");
-      }
-    });
+  async function copyInvite() {
+    if (!inviteUrl) return;
+    await navigator.clipboard.writeText(inviteUrl);
+    setCopied(true); setTimeout(() => setCopied(false), 1800);
   }
 
-  return (
-    <section className="erp-card p-6 space-y-6">
-      {/* Header & Seat Gauge */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-500/10 text-teal-800 ring-1 ring-teal-500/20">
-            <Users className="h-5 w-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="font-bold text-slate-800 text-sm">فريق العمل والموظفون</h3>
-              <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold border border-slate-200">
-                <span className="h-1.5 w-1.5 rounded-full bg-teal-500"></span>
-                المقاعد: {seatUsage.usedSeats} / {seatUsage.maxSeats}
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-400 font-semibold mt-0.5">
-              إدارة الفنيين والمديرين والصلاحيات المرتبطة بهذا الفرع
-            </p>
-          </div>
-        </div>
+  return <section className="erp-card p-6 space-y-6">
+    <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800">
+      <div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-50 text-teal-700"><Users className="h-5 w-5" /></div><div><h3 className="text-sm font-black text-slate-800 dark:text-slate-100">فريق العمل والموظفون</h3><p className="mt-0.5 text-[11px] font-bold text-slate-400">الأدوار: مدير فرع، فني صيانة، موظف مبيعات، ومشاهد تقارير.</p></div></div>
+      <div className="flex items-center gap-2"><span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[10px] font-black text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">المقاعد {seatUsage.usedSeats}/{seatUsage.maxSeats} • نشط {activeCount}</span>{canInviteTeam ? <Button type="button" disabled={!seatUsage.canInvite || isPending} onClick={() => { setInviteOpen(true); setInviteError(null); setInviteUrl(null); }} className="rounded-xl font-black"><UserPlus className="ml-1.5 h-4 w-4" />دعوة موظف</Button> : null}</div>
+    </div>
 
-        {/* Action Button */}
-        {canInviteTeam ? (
-          <Button
-            type="button"
-            onClick={() => {
-              setGeneratedInviteUrl(null);
-              setFormError(null);
-              setIsInviteModalOpen(true);
-            }}
-            disabled={!seatUsage.canInvite || isPending}
-            className="h-10 px-4 rounded-xl bg-teal-800 hover:bg-teal-900 text-white font-bold text-xs shadow-md shadow-teal-800/15"
-          >
-            <UserPlus className="h-4 w-4 ml-1.5" />
-            دعوة موظف جديد
-          </Button>
-        ) : null}
-      </div>
+    <div className="overflow-x-auto rounded-2xl border border-slate-100 dark:border-slate-800"><table className="w-full min-w-[820px] text-right text-xs"><thead className="bg-slate-50 dark:bg-slate-900"><tr><th className="p-3">الموظف</th><th className="p-3">البريد</th><th className="p-3">الدور</th><th className="p-3">الحالة</th><th className="p-3">الانضمام</th>{canManageTeam ? <th className="p-3 text-center">الإجراءات</th> : null}</tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{memberships.map((member) => {
+      const role = roleOf(member); const owner = member.role === MembershipRole.OWNER; const self = member.user.id === currentUserId;
+      return <tr key={member.id}><td className="p-3 font-black">{member.user.name}{self ? <span className="mr-1 text-[9px] text-slate-400">(حسابك)</span> : null}</td><td className="p-3 font-medium text-slate-500" dir="ltr">{member.user.email}</td><td className="p-3"><span className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-[10px] font-black ${role === "SALES_EMPLOYEE" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-50 text-slate-700"}`}><Shield className="h-3 w-3" />{roleLabel[role]}</span></td><td className="p-3"><span className={member.status === MembershipStatus.ACTIVE ? "font-black text-emerald-700" : "font-black text-rose-700"}>{member.status === MembershipStatus.ACTIVE ? "نشط" : "مجمد"}</span></td><td className="p-3 text-slate-500">{formatDate(member.joinedAt || member.createdAt)}</td>{canManageTeam ? <td className="p-3"><div className="flex justify-center gap-1">{owner || self ? <span className="text-[10px] font-bold text-slate-400">محمي</span> : <><Button type="button" variant="outline" size="sm" onClick={() => setEditing(member)}><Edit3 className="ml-1 h-3 w-3" />الدور</Button><Button type="button" variant="outline" size="sm" onClick={() => toggleStatus(member)}>{member.status === MembershipStatus.ACTIVE ? <UserX className="h-3 w-3" /> : <UserCheck className="h-3 w-3" />}</Button><Button type="button" variant="outline" size="sm" onClick={() => remove(member)} className="text-rose-600"><Trash2 className="h-3 w-3" /></Button></>}</div></td> : null}</tr>;
+    })}</tbody></table></div>
 
-      {/* Seat limit warning alert */}
-      {!seatUsage.canInvite && canInviteTeam ? (
-        <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3.5 text-xs text-amber-800 font-bold flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
-            <span>
-              تم استخدام جميع المقاعد المتاحة ({seatUsage.usedSeats} من {seatUsage.maxSeats}).
-            </span>
-          </div>
-          <Button
-            asChild
-            size="sm"
-            variant="outline"
-            className="h-8 rounded-lg border-amber-300 bg-white text-[11px] font-black text-amber-900 hover:bg-amber-100/50 shrink-0 self-start sm:self-center"
-          >
-            <Link href="/support">التواصل مع الدعم</Link>
-          </Button>
-        </div>
-      ) : null}
+    {pendingInvitations.length ? <div className="space-y-2"><h4 className="text-xs font-black text-amber-700">الدعوات المعلقة ({pendingInvitations.length})</h4>{pendingInvitations.map((invite) => <div key={invite.id} className="flex flex-col gap-2 rounded-xl border border-amber-100 bg-amber-50/40 p-3 sm:flex-row sm:items-center sm:justify-between"><div><div className="text-xs font-black">{invite.name || "موظف جديد"} • <span dir="ltr">{invite.email}</span></div><div className="mt-1 text-[10px] font-bold text-slate-500">{roleLabel[inviteRoleOf(invite)]} • {formatDate(invite.createdAt)}</div></div>{canManageTeam ? <Button type="button" variant="ghost" size="sm" onClick={() => revoke(invite)} className="text-rose-600">إلغاء الدعوة</Button> : null}</div>)}</div> : null}
 
-      {/* Active Team Members List */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h4 className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">
-            المستخدمون النشطون ({memberships.length})
-          </h4>
-        </div>
+    {inviteOpen ? <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/55 p-4"><div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-950"><div className="mb-5 flex items-center justify-between"><h3 className="text-sm font-black">دعوة موظف جديد</h3><button type="button" onClick={() => setInviteOpen(false)}><X className="h-5 w-5" /></button></div>{inviteUrl ? <div className="space-y-3"><div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-black text-emerald-800"><Check className="ml-1 inline h-4 w-4" />تم إنشاء الدعوة. أرسل الرابط للموظف.</div><div className="flex gap-2" dir="ltr"><input readOnly value={inviteUrl} className="erp-input flex-1 text-xs" /><Button type="button" variant="outline" onClick={copyInvite}><Copy className="mr-1 h-4 w-4" />{copied ? "تم" : "نسخ"}</Button></div></div> : <form onSubmit={submitInvite} className="space-y-4"><label className="grid gap-1.5 text-xs font-bold">الاسم<input name="name" minLength={2} required className="erp-input" /></label><label className="grid gap-1.5 text-xs font-bold">البريد<input name="email" type="email" required className="erp-input" dir="ltr" /></label><label className="grid gap-1.5 text-xs font-bold">الدور<select name="role" defaultValue="TECHNICIAN" className="erp-input"><option value="ADMIN">مدير فرع</option><option value="TECHNICIAN">فني صيانة</option><option value="SALES_EMPLOYEE">موظف مبيعات — صلاحيات محدودة</option><option value="VIEWER">مشاهد تقارير</option></select></label>{inviteError ? <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-bold text-rose-700">{inviteError}</div> : null}<Button type="submit" disabled={isPending} className="w-full rounded-xl font-black">{isPending ? "جاري إنشاء الدعوة..." : "إنشاء رابط الدعوة"}</Button></form>}</div></div> : null}
 
-        <div className="overflow-x-auto rounded-2xl border border-slate-100">
-          <table className="w-full text-right text-xs">
-            <thead>
-              <tr className="bg-slate-50/60 border-b border-slate-100 text-slate-500 font-extrabold">
-                <th className="py-3 pr-4">الموظف</th>
-                <th className="py-3">البريد الإلكتروني</th>
-                <th className="py-3">الدور / الصلاحية</th>
-                <th className="py-3">الحالة</th>
-                <th className="py-3">تاريخ الانضمام</th>
-                {canManageTeam ? <th className="py-3 pl-4 text-center">الإجراءات</th> : null}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 bg-white">
-              {memberships.map((member) => {
-                const roleConfig = ROLE_DISPLAY[member.role] || ROLE_DISPLAY.TECHNICIAN;
-                const isTargetOwner = member.role === MembershipRole.OWNER;
-                const isSelf = member.user.id === currentUserId;
-
-                return (
-                  <tr key={member.id} className="hover:bg-slate-50/50 transition-colors">
-                    {/* User Profile */}
-                    <td className="py-3.5 pr-4">
-                      <div className="flex items-center gap-2.5">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-slate-100 to-slate-200 text-xs font-black text-slate-700 border border-slate-200/80">
-                          {member.user.name.charAt(0)}
-                        </div>
-                        <div>
-                          <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                            {member.user.name}
-                            {isSelf ? (
-                              <span className="text-[9px] font-extrabold bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded">
-                                (حسابك)
-                              </span>
-                            ) : null}
-                          </div>
-                          {member.user.phone ? (
-                            <span className="text-[10px] text-slate-400 font-numeric block" dir="ltr">
-                              {member.user.phone}
-                            </span>
-                          ) : null}
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Email */}
-                    <td className="py-3.5 font-medium text-slate-600" dir="ltr">
-                      {member.user.email}
-                    </td>
-
-                    {/* Role */}
-                    <td className="py-3.5">
-                      <span
-                        className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-bold border ${roleConfig.bgClass} ${roleConfig.colorClass} ${roleConfig.borderClass}`}
-                      >
-                        <Shield className="h-3 w-3" />
-                        {roleConfig.label}
-                      </span>
-                    </td>
-
-                    {/* Status */}
-                    <td className="py-3.5">
-                      {member.status === MembershipStatus.ACTIVE ? (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-teal-700 bg-teal-50 border border-teal-200/80 px-2 py-0.5 rounded-md">
-                          <span className="h-1.5 w-1.5 rounded-full bg-teal-600 animate-pulse"></span>
-                          نشط
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-200/80 px-2 py-0.5 rounded-md">
-                          <span className="h-1.5 w-1.5 rounded-full bg-rose-600"></span>
-                          مجمد
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Date */}
-                    <td className="py-3.5 font-numeric text-slate-500 text-[11px]">
-                      {formatDate(member.joinedAt || member.createdAt)}
-                    </td>
-
-                    {/* Actions */}
-                    {canManageTeam ? (
-                      <td className="py-3.5 pl-4 text-center">
-                        {isTargetOwner ? (
-                          <span className="text-[10px] font-bold text-slate-400">
-                            مالك رئيسي (محمي)
-                          </span>
-                        ) : isSelf ? (
-                          <span className="text-[10px] font-bold text-slate-400">-</span>
-                        ) : (
-                          <div className="flex items-center justify-center gap-1">
-                            {/* Change Role Button */}
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setEditingMember(member)}
-                              disabled={isPending}
-                              className="h-8 px-2.5 rounded-lg text-[11px] font-bold border-slate-200 hover:bg-slate-100"
-                            >
-                              <Edit3 className="h-3 w-3 ml-1 text-slate-600" />
-                              الدور
-                            </Button>
-
-                            {/* Suspend / Reactivate Button */}
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleToggleStatus(member)}
-                              disabled={isPending}
-                              className={`h-8 px-2.5 rounded-lg text-[11px] font-bold border-slate-200 ${
-                                member.status === MembershipStatus.ACTIVE
-                                  ? "hover:bg-amber-50 text-amber-700"
-                                  : "hover:bg-teal-50 text-teal-700"
-                              }`}
-                            >
-                              {member.status === MembershipStatus.ACTIVE ? (
-                                <>
-                                  <UserX className="h-3 w-3 ml-1" />
-                                  تجميد
-                                </>
-                              ) : (
-                                <>
-                                  <UserCheck className="h-3 w-3 ml-1" />
-                                  تنشيط
-                                </>
-                              )}
-                            </Button>
-
-                            {/* Remove Button */}
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleRemoveMember(member)}
-                              disabled={isPending}
-                              className="h-8 px-2 rounded-lg text-[11px] font-bold text-rose-600 border-rose-200 hover:bg-rose-50"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        )}
-                      </td>
-                    ) : null}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Pending Invitations Section */}
-      {pendingInvitations.length > 0 ? (
-        <div className="space-y-3 pt-2">
-          <div className="flex items-center justify-between">
-            <h4 className="text-xs font-extrabold text-amber-700 uppercase tracking-wider flex items-center gap-1.5">
-              <Clock className="h-3.5 w-3.5" />
-              الدعوات المعلقة بانتظار الانضمام ({pendingInvitations.length})
-            </h4>
-          </div>
-
-          <div className="overflow-x-auto rounded-2xl border border-amber-200/60 bg-amber-50/20">
-            <table className="w-full text-right text-xs">
-              <thead>
-                <tr className="border-b border-amber-100 text-slate-500 font-extrabold">
-                  <th className="py-2.5 pr-4">الموظف المدعو</th>
-                  <th className="py-2.5">الدور المحدد</th>
-                  <th className="py-2.5">تاريخ الدعوة</th>
-                  <th className="py-2.5">الانتهاء</th>
-                  {canManageTeam ? <th className="py-2.5 pl-4 text-center">إلغاء</th> : null}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-amber-100/60">
-                {pendingInvitations.map((inv) => {
-                  const roleConfig = ROLE_DISPLAY[inv.role] || ROLE_DISPLAY.TECHNICIAN;
-                  return (
-                    <tr key={inv.id}>
-                      <td className="py-3 pr-4">
-                        <div className="font-bold text-slate-900">{inv.name || "عضو جديد"}</div>
-                        <div className="text-[11px] text-slate-500 font-medium" dir="ltr">{inv.email}</div>
-                      </td>
-                      <td className="py-3">
-                        <span
-                          className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-bold border ${roleConfig.bgClass} ${roleConfig.colorClass} ${roleConfig.borderClass}`}
-                        >
-                          {roleConfig.label}
-                        </span>
-                      </td>
-                      <td className="py-3 font-numeric text-slate-500 text-[11px]">
-                        {formatDate(inv.createdAt)}
-                      </td>
-                      <td className="py-3 text-[11px] text-amber-700 font-bold font-numeric">
-                        خلال 7 أيام
-                      </td>
-                      {canManageTeam ? (
-                        <td className="py-3 pl-4 text-center">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleRevokeInvite(inv)}
-                            disabled={isPending}
-                            className="h-7 px-2 rounded-lg text-rose-600 hover:bg-rose-100 text-[11px] font-bold"
-                          >
-                            <X className="h-3.5 w-3.5 ml-1" />
-                            إلغاء
-                          </Button>
-                        </td>
-                      ) : null}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ) : null}
-
-      {/* ========================================================================= */}
-      {/* 1. Modal: Invite Team Member */}
-      {/* ========================================================================= */}
-      {isInviteModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4">
-          <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-slate-100 space-y-5 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-teal-50 text-teal-800">
-                  <UserPlus className="h-4 w-4" />
-                </div>
-                <h3 className="font-bold text-slate-900 text-sm">دعوة موظف جديد للمتجر</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsInviteModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            {/* If Link Generated Successfully */}
-            {generatedInviteUrl ? (
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-teal-200 bg-teal-50/70 p-4 text-center space-y-2">
-                  <div className="flex h-10 w-10 mx-auto items-center justify-center rounded-full bg-teal-500 text-white shadow-sm">
-                    <Check className="h-5 w-5" />
-                  </div>
-                  <h4 className="font-bold text-teal-950 text-sm">تم إنشاء رابط الدعوة بنجاح!</h4>
-                  <p className="text-xs text-teal-800 font-medium">
-                    تم تجهيز الدعوة للبريد <span className="font-bold text-teal-950" dir="ltr">{generatedInviteEmail}</span>. انسخ الرابط وأرسله للموظف للانضمام.
-                  </p>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block text-[11px] font-bold text-slate-600">رابط الدعوة المباشر:</label>
-                  <div className="flex items-center gap-2" dir="ltr">
-                    <input
-                      type="text"
-                      readOnly
-                      value={generatedInviteUrl}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 select-all"
-                    />
-                    <Button
-                      type="button"
-                      onClick={handleCopyLink}
-                      className={`h-9 px-3 rounded-xl font-bold text-xs shrink-0 ${
-                        isCopied ? "bg-teal-600 text-white" : "bg-slate-900 text-white hover:bg-slate-800"
-                      }`}
-                    >
-                      {isCopied ? <Check className="h-3.5 w-3.5 mr-1" /> : <Copy className="h-3.5 w-3.5 mr-1" />}
-                      {isCopied ? "تم النسخ" : "نسخ الرابط"}
-                    </Button>
-                  </div>
-                </div>
-
-                {/* WhatsApp Share Option */}
-                <div className="pt-2">
-                  <a
-                    href={`https://wa.me/?text=${encodeURIComponent(
-                      `مرحباً، تفضل رابط الانضمام لفريق العمل في نظام الصيانة:\n${generatedInviteUrl}`
-                    )}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full flex items-center justify-center gap-2 h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs"
-                  >
-                    <Share2 className="h-4 w-4" />
-                    مشاركة الرابط عبر واتساب
-                  </a>
-                </div>
-
-                <div className="flex justify-end pt-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsInviteModalOpen(false)}
-                    className="w-full h-10 rounded-xl font-bold text-xs"
-                  >
-                    إغلاق
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              /* Invitation Input Form */
-              <form onSubmit={handleInviteSubmit} className="space-y-4">
-                {formError ? (
-                  <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-bold text-rose-700 flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4 shrink-0" />
-                    <span>{formError}</span>
-                  </div>
-                ) : null}
-
-                <div>
-                  <label className="block text-xs font-extrabold text-slate-700 mb-1.5">
-                    اسم الموظف الكامل
-                  </label>
-                  <input
-                    type="text"
-                    name="name"
-                    required
-                    minLength={2}
-                    disabled={isPending}
-                    placeholder="مثال: أحمد عبد الله"
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-xs"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-extrabold text-slate-700 mb-1.5">
-                    البريد الإلكتروني للموظف
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    required
-                    disabled={isPending}
-                    placeholder="employee@example.com"
-                    dir="ltr"
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-xs"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-extrabold text-slate-700 mb-1.5">
-                    الدور والصلاحيات
-                  </label>
-                  <select
-                    name="role"
-                    defaultValue={MembershipRole.TECHNICIAN}
-                    disabled={isPending}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-xs"
-                  >
-                    <option value={MembershipRole.TECHNICIAN}>فني صيانة (TECHNICIAN) — إنشاء وتحديث طلبات الصيانة</option>
-                    <option value={MembershipRole.ADMIN}>مدير فرع (ADMIN) — إدارة كاملة للعمليات والمخزون والفريق</option>
-                    <option value={MembershipRole.VIEWER}>مشاهد تقارير (VIEWER) — قراءة فقط دون تعديل أو حذف</option>
-                  </select>
-                </div>
-
-                <div className="rounded-xl bg-slate-50 p-3 border border-slate-100 text-[11px] text-slate-500 font-medium leading-relaxed">
-                  💡 <strong>ملاحظة:</strong> سيتم توليد رابط دعوة فوري يمكنك نسخه وإرساله للموظف عبر الواتساب أو البريد ليقوم بإنشاء حسابه وتعيين كلمة المرور الخاصة به.
-                </div>
-
-                <div className="flex justify-end gap-2 pt-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsInviteModalOpen(false)}
-                    disabled={isPending}
-                    className="h-10 px-4 rounded-xl text-xs font-bold"
-                  >
-                    إلغاء
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={isPending}
-                    className="h-10 px-5 rounded-xl bg-teal-800 hover:bg-teal-900 text-white text-xs font-bold shadow-md shadow-teal-800/15"
-                  >
-                    {isPending ? (
-                      <>
-                        <Loader2 className="h-3.5 w-3.5 ml-1.5 animate-spin" />
-                        جاري الإنشاء...
-                      </>
-                    ) : (
-                      "توليد رابط الدعوة"
-                    )}
-                  </Button>
-                </div>
-              </form>
-            )}
-          </div>
-        </div>
-      ) : null}
-
-      {/* ========================================================================= */}
-      {/* 2. Modal: Edit Member Role */}
-      {/* ========================================================================= */}
-      {editingMember ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4">
-          <div className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl border border-slate-100 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-bold text-slate-900 text-sm">تعديل دور الموظف</h3>
-              <button type="button" onClick={() => setEditingMember(null)} className="text-slate-400 hover:text-slate-600">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleUpdateRole} className="space-y-4">
-              <div>
-                <span className="text-[11px] font-bold text-slate-500 block mb-1">الموظف:</span>
-                <span className="text-xs font-extrabold text-slate-900">{editingMember.user.name}</span>
-                <span className="text-[10px] text-slate-400 block" dir="ltr">{editingMember.user.email}</span>
-              </div>
-
-              <div>
-                <label className="block text-xs font-extrabold text-slate-700 mb-1.5">اختر الدور الجديد:</label>
-                <select
-                  name="role"
-                  defaultValue={editingMember.role}
-                  disabled={isPending}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-900 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-xs"
-                >
-                  <option value={MembershipRole.ADMIN}>مدير فرع (ADMIN)</option>
-                  <option value={MembershipRole.TECHNICIAN}>فني صيانة (TECHNICIAN)</option>
-                  <option value={MembershipRole.VIEWER}>مشاهد تقارير (VIEWER)</option>
-                </select>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setEditingMember(null)}
-                  disabled={isPending}
-                  className="h-9 px-3.5 rounded-xl text-xs font-bold"
-                >
-                  إلغاء
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={isPending}
-                  className="h-9 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold"
-                >
-                  {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "حفظ الدور"}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      ) : null}
-    </section>
-  );
+    {editing ? <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/55 p-4"><div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl dark:bg-slate-950"><div className="mb-5 flex items-center justify-between"><div><h3 className="text-sm font-black">تغيير دور {editing.user.name}</h3><p className="mt-1 text-[10px] font-bold text-slate-400">موظف المبيعات يُنقل لمساحة عمل محدودة ولا يرى الأقسام الحساسة.</p></div><button type="button" onClick={() => setEditing(null)}><X className="h-5 w-5" /></button></div><form onSubmit={submitRole} className="space-y-4"><label className="grid gap-1.5 text-xs font-bold">الدور<select name="role" defaultValue={roleOf(editing)} className="erp-input"><option value="ADMIN">مدير فرع</option><option value="TECHNICIAN">فني صيانة</option><option value="SALES_EMPLOYEE">موظف مبيعات</option><option value="VIEWER">مشاهد تقارير</option></select></label><Button type="submit" disabled={isPending} className="w-full rounded-xl font-black">حفظ الدور</Button></form></div></div> : null}
+  </section>;
 }

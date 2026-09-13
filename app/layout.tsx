@@ -1,4 +1,6 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { Cairo, Outfit } from "next/font/google";
 import { AppShell } from "@/components/app-shell";
 import { AnalyticsIdentity, type AnalyticsIdentityData } from "@/components/analytics/analytics-identity";
@@ -42,25 +44,20 @@ export const metadata: Metadata = { metadataBase: new URL(APP_URL), title: "مس
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   let canSettings = false, canReports = false, canManageSubscription = false, canManageDebts = false, showTutorialBanner = false;
   let subscriptionReadOnly = false;
+  let isSalesEmployee = false;
   let lifetimeBanner: { remaining: number; total: number } | null = null;
-  let maintenanceBanner: {
-    status: "DUE_SOON" | "OVERDUE";
-    amount: number;
-    currencyCode: string;
-    dueAt: Date;
-    daysUntilDue: number;
-  } | null = null;
+  let maintenanceBanner: { status: "DUE_SOON" | "OVERDUE"; amount: number; currencyCode: string; dueAt: Date; daysUntilDue: number } | null = null;
   let analyticsIdentity: AnalyticsIdentityData | null = null;
 
   try {
     const auth = await getAuthContext({ allowRedirect: false });
-    analyticsIdentity = {
-      userId: auth.user.id,
-      shopId: auth.shop.id,
-      countryCode: auth.shop.countryCode,
-      currency: auth.shop.currency,
-      membershipRole: auth.membership.role,
-    };
+    isSalesEmployee = auth.membership.accessProfile === "SALES_EMPLOYEE";
+    if (isSalesEmployee) {
+      const pathname = (await headers()).get("x-massar-pathname");
+      if (pathname && !pathname.startsWith("/employee")) redirect("/employee/pos");
+    }
+
+    analyticsIdentity = { userId: auth.user.id, shopId: auth.shop.id, countryCode: auth.shop.countryCode, currency: auth.shop.currency, membershipRole: auth.membership.role };
     canSettings = can(auth, "shop:settings");
     canReports = can(auth, "reports:read");
     canManageDebts = can(auth, "debts:manage");
@@ -68,75 +65,49 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     try {
       const entitlement = await entitlementService.getEntitlementContext(auth.shop.id);
       subscriptionReadOnly = !entitlement.isOperationallyActive;
-      analyticsIdentity = {
-        ...analyticsIdentity,
-        subscriptionStatus: entitlement.subscription.effectiveStatus,
-        isLifetime: entitlement.subscription.isLifetime,
-        trialDaysRemaining: entitlement.subscription.effectiveStatus === "TRIALING"
-          ? Math.max(0, Math.ceil((entitlement.subscription.trialEndsAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000)))
-          : null,
-      };
+      analyticsIdentity = { ...analyticsIdentity, subscriptionStatus: entitlement.subscription.effectiveStatus, isLifetime: entitlement.subscription.isLifetime, trialDaysRemaining: entitlement.subscription.effectiveStatus === "TRIALING" ? Math.max(0, Math.ceil((entitlement.subscription.trialEndsAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000))) : null };
     } catch (error) {
       console.error("[SubscriptionReadOnly] Failed to resolve operational access", error);
       subscriptionReadOnly = true;
     }
 
-    const tutorialRows = await prisma.$queryRaw<Array<{ tutorialBannerSeenAt: Date | null }>>`
-      SELECT "tutorialBannerSeenAt"
-      FROM "User"
-      WHERE "id" = ${auth.user.id}::uuid AND "deletedAt" IS NULL
-      LIMIT 1
-    `;
-    showTutorialBanner = tutorialRows[0]?.tutorialBannerSeenAt == null;
+    if (!isSalesEmployee) {
+      const tutorialRows = await prisma.$queryRaw<Array<{ tutorialBannerSeenAt: Date | null }>>`SELECT "tutorialBannerSeenAt" FROM "User" WHERE "id" = ${auth.user.id}::uuid AND "deletedAt" IS NULL LIMIT 1`;
+      showTutorialBanner = tutorialRows[0]?.tutorialBannerSeenAt == null;
 
-    const hasSubscriptionPermission = can(auth, "subscription:manage");
-    if (hasSubscriptionPermission) {
-      const rows = await prisma.$queryRaw<Array<{ partnerId: string | null }>>`
-        SELECT "partnerId"
-        FROM "Shop"
-        WHERE "id" = ${auth.shop.id}::uuid AND "deletedAt" IS NULL
-        LIMIT 1
-      `;
-      canManageSubscription = !rows[0]?.partnerId;
-
-      if (canManageSubscription) {
-        try {
-          const activeLifetime = await lifetimeSubscriptionService.getActiveLifetimeForShop(auth.shop.id);
-          if (!activeLifetime) {
-            const offer = await subscriptionOfferService.getOfferSettings();
-            if (offer.isActive && offer.remainingEligible > 0) lifetimeBanner = { remaining: offer.remainingEligible, total: offer.totalEligible };
-          } else if (activeLifetime.annualMaintenanceAmount != null && activeLifetime.maintenanceStartsAt) {
-            const maintenance = await lifetimeSubscriptionService.getMaintenanceAccountForShop(auth.shop.id);
-            if (
-              (maintenance.status === "DUE_SOON" || maintenance.status === "OVERDUE") &&
-              maintenance.annualAmount != null &&
-              maintenance.currencyCode &&
-              maintenance.nextDueAt &&
-              maintenance.daysUntilDue != null
-            ) {
-              maintenanceBanner = {
-                status: maintenance.status,
-                amount: maintenance.annualAmount,
-                currencyCode: maintenance.currencyCode,
-                dueAt: maintenance.nextDueAt,
-                daysUntilDue: maintenance.daysUntilDue,
-              };
+      const hasSubscriptionPermission = can(auth, "subscription:manage");
+      if (hasSubscriptionPermission) {
+        const rows = await prisma.$queryRaw<Array<{ partnerId: string | null }>>`SELECT "partnerId" FROM "Shop" WHERE "id" = ${auth.shop.id}::uuid AND "deletedAt" IS NULL LIMIT 1`;
+        canManageSubscription = !rows[0]?.partnerId;
+        if (canManageSubscription) {
+          try {
+            const activeLifetime = await lifetimeSubscriptionService.getActiveLifetimeForShop(auth.shop.id);
+            if (!activeLifetime) {
+              const offer = await subscriptionOfferService.getOfferSettings();
+              if (offer.isActive && offer.remainingEligible > 0) lifetimeBanner = { remaining: offer.remainingEligible, total: offer.totalEligible };
+            } else if (activeLifetime.annualMaintenanceAmount != null && activeLifetime.maintenanceStartsAt) {
+              const maintenance = await lifetimeSubscriptionService.getMaintenanceAccountForShop(auth.shop.id);
+              if ((maintenance.status === "DUE_SOON" || maintenance.status === "OVERDUE") && maintenance.annualAmount != null && maintenance.currencyCode && maintenance.nextDueAt && maintenance.daysUntilDue != null) {
+                maintenanceBanner = { status: maintenance.status, amount: maintenance.annualAmount, currencyCode: maintenance.currencyCode, dueAt: maintenance.nextDueAt, daysUntilDue: maintenance.daysUntilDue };
+              }
             }
+          } catch (error) {
+            console.error("[LifetimeBanner] Failed to resolve lifetime banner state", error);
+            lifetimeBanner = null;
+            maintenanceBanner = null;
           }
-        } catch (error) {
-          console.error("[LifetimeBanner] Failed to resolve lifetime banner state", error);
-          lifetimeBanner = null;
-          maintenanceBanner = null;
         }
       }
     }
-  } catch {
+  } catch (error) {
+    if (error && typeof error === "object" && "digest" in error) throw error;
     canSettings = false;
     canReports = false;
     canManageSubscription = false;
     canManageDebts = false;
     showTutorialBanner = false;
     subscriptionReadOnly = false;
+    isSalesEmployee = false;
     lifetimeBanner = null;
     maintenanceBanner = null;
     analyticsIdentity = null;
@@ -145,20 +116,17 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const postHogSnippet = getPostHogBrowserSnippet();
 
   return <html lang="ar" dir="rtl" suppressHydrationWarning className={`${cairo.variable} ${outfit.variable} overflow-x-hidden w-full max-w-full`}>
-    <head>
-      <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
-      {postHogSnippet ? <script dangerouslySetInnerHTML={{ __html: postHogSnippet }} /> : null}
-    </head>
+    <head><script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />{postHogSnippet ? <script dangerouslySetInnerHTML={{ __html: postHogSnippet }} /> : null}</head>
     <body className="font-sans antialiased overflow-x-hidden min-h-screen w-full max-w-full">
       <AnalyticsIdentity identity={analyticsIdentity} />
       <AnalyticsPageTracker authenticated={Boolean(analyticsIdentity)} />
       <ThemeRouteSync />
       <DashboardKpiNavigation />
       <PwaInstallPrompt />
-      {maintenanceBanner ? <LifetimeMaintenanceBanner {...maintenanceBanner} /> : null}
-      {lifetimeBanner ? <LifetimeOfferBanner remaining={lifetimeBanner.remaining} total={lifetimeBanner.total} /> : null}
+      {!isSalesEmployee && maintenanceBanner ? <LifetimeMaintenanceBanner {...maintenanceBanner} /> : null}
+      {!isSalesEmployee && lifetimeBanner ? <LifetimeOfferBanner remaining={lifetimeBanner.remaining} total={lifetimeBanner.total} /> : null}
       <AppShell canSettings={canSettings} canReports={canReports} canManageSubscription={canManageSubscription} canManageDebts={canManageDebts} subscriptionReadOnly={subscriptionReadOnly} tutorialInitialShowBanner={showTutorialBanner}>{children}</AppShell>
-      <QuickOperationsLauncher canManageDebts={canManageDebts} readOnly={subscriptionReadOnly} />
+      {!isSalesEmployee ? <QuickOperationsLauncher canManageDebts={canManageDebts} readOnly={subscriptionReadOnly} /> : null}
     </body>
   </html>;
 }
