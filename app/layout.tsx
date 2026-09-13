@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { Cairo, Outfit } from "next/font/google";
 import { AppShell } from "@/components/app-shell";
+import { AccessProfileProvider } from "@/components/access-profile-context";
 import { AnalyticsIdentity, type AnalyticsIdentityData } from "@/components/analytics/analytics-identity";
 import { AnalyticsPageTracker } from "@/components/analytics/analytics-page-tracker";
 import { DashboardKpiNavigation } from "@/components/dashboard/dashboard-kpi-navigation";
@@ -125,7 +126,9 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       <PwaInstallPrompt />
       {!isSalesEmployee && maintenanceBanner ? <LifetimeMaintenanceBanner {...maintenanceBanner} /> : null}
       {!isSalesEmployee && lifetimeBanner ? <LifetimeOfferBanner remaining={lifetimeBanner.remaining} total={lifetimeBanner.total} /> : null}
-      <AppShell canSettings={canSettings} canReports={canReports} canManageSubscription={canManageSubscription} canManageDebts={canManageDebts} subscriptionReadOnly={subscriptionReadOnly} tutorialInitialShowBanner={showTutorialBanner}>{children}</AppShell>
+      <AccessProfileProvider isSalesEmployee={isSalesEmployee}>
+        <AppShell canSettings={canSettings} canReports={canReports} canManageSubscription={canManageSubscription} canManageDebts={canManageDebts} subscriptionReadOnly={subscriptionReadOnly} tutorialInitialShowBanner={showTutorialBanner}>{children}</AppShell>
+      </AccessProfileProvider>
       {!isSalesEmployee ? <QuickOperationsLauncher canManageDebts={canManageDebts} readOnly={subscriptionReadOnly} /> : null}
     </body>
   </html>;
