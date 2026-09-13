@@ -2,6 +2,7 @@
 
 import { Banknote, Landmark, Plus, WalletCards } from "lucide-react";
 import { useMemo, useState } from "react";
+
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/format";
 import { createExpenseAction } from "./actions";
@@ -87,7 +88,7 @@ export function ExpenseForm({ categories, wallets, bankAccounts, currency, today
         <label className="grid gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300">التاريخ<input name="spentAt" className="erp-input font-numeric" type="date" defaultValue={todayInput} required /></label>
       </div>
       <label className="grid gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300">ملاحظات<textarea name="notes" className="erp-textarea" rows={3} placeholder="مثال: دفعة إيجار شهر سبتمبر / اسم الجهة المستلمة / رقم الإيصال" /></label>
-      <Button type="submit" className="h-11 w-full rounded-xl font-black"><Plus className="h-4 w-4 ml-1.5" />حفظ المصروف وسحب المبلغ</Button>
+      <Button type="submit" className="h-11 w-full rounded-xl font-black"><Plus className="ml-1.5 h-4 w-4" />حفظ المصروف وسحب المبلغ</Button>
     </form>
   );
 }

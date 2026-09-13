@@ -4,6 +4,7 @@ import { ExpenseCategory } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+
 import { requirePermission } from "@/lib/auth/context";
 import { expenseMoneyService } from "@/lib/services/expenseMoneyService";
 import { localDateString, timeZoneForCountry, zonedDateTimeToUtc } from "@/lib/timezone";
@@ -49,12 +50,11 @@ export async function createExpenseAction(formData: FormData) {
     fundingWalletId: read(formData, "fundingWalletId"),
     fundingBankAccountId: read(formData, "fundingBankAccountId"),
   });
+
   const auth = await requirePermission("expenses:manage");
   const timeZone = timeZoneForCountry(auth.shop.countryCode);
   const spentAt = localNoonUtc(input.spentAt, timeZone);
-  const movementOccurredAt = input.spentAt === localDateString(new Date(), timeZone)
-    ? undefined
-    : spentAt;
+  const movementOccurredAt = input.spentAt === localDateString(new Date(), timeZone) ? undefined : spentAt;
 
   await expenseMoneyService.createExpense(auth.shop.id, auth.user.id, {
     title: input.title,
@@ -68,11 +68,12 @@ export async function createExpenseAction(formData: FormData) {
     fundingBankAccountId: input.fundingBankAccountId || undefined,
   });
 
+  revalidatePath("/expenses");
   revalidatePath("/reports");
   revalidatePath("/cash-drawer");
   revalidatePath("/transfers");
   revalidatePath("/bank-accounts");
-  redirect("/reports?preset=month&expenseSaved=1");
+  redirect("/expenses?preset=month&expenseSaved=1");
 }
 
 export async function deleteExpenseAction(formData: FormData) {
@@ -80,9 +81,10 @@ export async function deleteExpenseAction(formData: FormData) {
   const auth = await requirePermission("expenses:manage");
   await expenseMoneyService.deleteExpense(auth.shop.id, input.expenseId, auth.user.id);
 
+  revalidatePath("/expenses");
   revalidatePath("/reports");
   revalidatePath("/cash-drawer");
   revalidatePath("/transfers");
   revalidatePath("/bank-accounts");
-  redirect("/reports?preset=month&expenseDeleted=1");
+  redirect("/expenses?preset=month&expenseDeleted=1");
 }
