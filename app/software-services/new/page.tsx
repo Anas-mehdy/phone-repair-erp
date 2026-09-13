@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
-import { getCurrentShopContext } from "@/lib/current-shop";
+import { requirePermission } from "@/lib/auth/context";
 import { bankAccountService } from "@/lib/services/bankAccountService";
 import { financialTransferService } from "@/lib/services/financialTransferService";
 import { softwareServiceService } from "@/lib/services/softwareServiceService";
@@ -14,11 +14,11 @@ type Props = { searchParams: Promise<{ error?: string }> };
 
 export default async function NewSoftwareServicePage({ searchParams }: Props) {
   const query = await searchParams;
-  const context = await getCurrentShopContext();
+  const auth = await requirePermission("sales:create");
   const [catalog, wallets, bankAccounts] = await Promise.all([
-    softwareServiceService.listCatalog(context.shopId),
-    financialTransferService.listWallets(context.shopId),
-    bankAccountService.listAccounts(context.shopId),
+    softwareServiceService.listCatalog(auth.shop.id),
+    financialTransferService.listWallets(auth.shop.id),
+    bankAccountService.listAccounts(auth.shop.id),
   ]);
 
   return (
@@ -47,7 +47,7 @@ export default async function NewSoftwareServicePage({ searchParams }: Props) {
         }))}
         wallets={wallets.map((wallet) => ({ id: wallet.id, name: wallet.name, balance: Number(wallet.currentBalance) }))}
         bankAccounts={bankAccounts.map((account) => ({ id: account.id, name: account.name, bankName: account.bankName, balance: Number(account.currentBalance) }))}
-        currency={context.currency || "SAR"}
+        currency={auth.shop.currency || "SAR"}
       />
     </div>
   );

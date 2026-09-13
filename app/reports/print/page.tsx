@@ -25,9 +25,9 @@ export default async function ReportPrintPage({ searchParams }: PrintPageProps) 
       <style>{`
         @page { size: A4; margin: 12mm; }
         body:has(.massar-report-print) { background: white !important; }
-        .massar-report-print ~ section { display: none !important; }
         @media print {
-          body:has(.massar-report-print) > *:not(.massar-report-print) { display: none !important; }
+          body:has(.massar-report-print) > *:not(:has(.massar-report-print)):not(.massar-report-print) { display: none !important; }
+          .masar-reports > *:not(.massar-report-print) { display: none !important; }
           .massar-report-print { min-height: auto !important; background: white !important; }
           .massar-report-print main { box-shadow: none !important; }
         }

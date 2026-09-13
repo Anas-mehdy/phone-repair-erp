@@ -32,6 +32,9 @@ const commissionLabels = { ADDED: "مضافة", DEDUCTED: "مخصومة", NONE: 
 export default async function TransfersPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const query = await searchParams;
   const context = await getCurrentShopContext();
+  const canManageWallets = context.permissions.includes("expenses:manage");
+  const canExecuteTransfers = context.permissions.includes("sales:create");
+  const canVoidTransfers = context.permissions.includes("sales:cancel");
   const type = Object.prototype.hasOwnProperty.call(transferLabels, query.type ?? "") ? (query.type as FinancialTransferType) : undefined;
   const from = query.from ? dateInputStartUtcForTimeZone(query.from, context.timeZone) : undefined;
   const to = query.to ? dateInputEndUtcForTimeZone(query.to, context.timeZone) : undefined;
@@ -49,6 +52,9 @@ export default async function TransfersPage({ searchParams }: { searchParams: Pr
   const walletPanelItems = wallets.map((wallet) => ({ id: wallet.id, name: wallet.name, balance: Number(wallet.currentBalance), monthlyLimit: wallet.monthlyLimit == null ? null : Number(wallet.monthlyLimit), monthlyUsed: Number(wallet.monthlyUsed), depositCommission: Number(wallet.defaultDepositCommission), withdrawalCommission: Number(wallet.defaultWithdrawalCommission) }));
 
   if (query.onboarding === "1") {
+    if (!canManageWallets) {
+      return <div className="mx-auto max-w-3xl rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm font-bold text-slate-600">هذه الخطوة تتطلب صلاحية إدارة الحسابات المالية.</div>;
+    }
     return (
       <div className="pb-8 pt-1">
         {query.error ? <div className="mx-auto mb-4 max-w-3xl rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-[11px] font-bold leading-5 text-rose-700 dark:border-rose-900/70 dark:bg-rose-950/30 dark:text-rose-200">{query.error}</div> : null}
@@ -86,7 +92,7 @@ export default async function TransfersPage({ searchParams }: { searchParams: Pr
 
     <Feedback query={query} />
     <TransferStatsCards stats={dailyData.stats} wallets={statsWallets} operations={statsOperations} currency={currency} timeZone={context.timeZone} />
-    <WalletsPanel wallets={walletPanelItems} currency={currency} />
+    <WalletsPanel wallets={walletPanelItems} currency={currency} canManage={canManageWallets} />
 
     <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
       <div className="min-w-0 overflow-hidden rounded-[22px] border border-slate-200/80 bg-white shadow-[0_18px_55px_-38px_rgba(15,23,42,0.28)]">
@@ -107,8 +113,8 @@ export default async function TransfersPage({ searchParams }: { searchParams: Pr
           <div className="mt-2 flex justify-end"><Button type="submit" variant="outline" className="h-9 rounded-xl border-teal-200 bg-white px-4 text-[10px] font-black text-teal-700 hover:bg-teal-50">تطبيق الفلاتر</Button></div>
         </form>
 
-        {transfers.length === 0 ? <SmartEmptyState job="WALLETS" icon={Search} title="لا توجد عمليات ضمن النطاق الحالي" description="غيّر الفلاتر أو سجّل عملية جديدة." /> : <div className="overflow-x-auto"><table className="min-w-[1180px] w-full text-right text-xs"><thead className="bg-slate-50/80 text-[10px] font-black text-slate-500"><tr><th className="px-4 py-3">ماهية الحركة</th><th className="px-4 py-3">المحفظة</th><th className="px-4 py-3">العميل</th><th className="px-4 py-3">المبلغ</th><th className="px-4 py-3">العمولة</th><th className="px-4 py-3">الدفع</th><th className="px-4 py-3">الحالة</th><th className="px-4 py-3">التاريخ</th><th className="px-4 py-3">الإجراءات</th></tr></thead><tbody className="divide-y divide-slate-100">{transfers.map((transfer) => {
-          const canVoid = transferCanVoid(transfer.sourceType);
+        {transfers.length === 0 ? <SmartEmptyState job="WALLETS" icon={Search} title="لا توجد عمليات ضمن النطاق الحالي" description={canExecuteTransfers ? "غيّر الفلاتر أو سجّل عملية جديدة." : "غيّر الفلاتر لمراجعة سجل آخر."} /> : <div className="overflow-x-auto"><table className="min-w-[1180px] w-full text-right text-xs"><thead className="bg-slate-50/80 text-[10px] font-black text-slate-500"><tr><th className="px-4 py-3">ماهية الحركة</th><th className="px-4 py-3">المحفظة</th><th className="px-4 py-3">العميل</th><th className="px-4 py-3">المبلغ</th><th className="px-4 py-3">العمولة</th><th className="px-4 py-3">الدفع</th><th className="px-4 py-3">الحالة</th><th className="px-4 py-3">التاريخ</th><th className="px-4 py-3">الإجراءات</th></tr></thead><tbody className="divide-y divide-slate-100">{transfers.map((transfer) => {
+          const canVoid = canVoidTransfers && transferCanVoid(transfer.sourceType);
           const sourceHref = transferSourceHref(transfer);
           return <tr key={transfer.id} className={`transition hover:bg-teal-50/25 ${transfer.status === "VOID" ? "opacity-50" : ""}`}>
           <td className="px-4 py-3"><OperationBadge sourceType={transfer.sourceType} type={transfer.operationType} /><div className="mt-1 max-w-[190px] truncate font-numeric text-[9px] font-bold text-slate-400" title={transfer.sourceReference || transfer.notes || undefined}>{transfer.sourceReference || cleanMovementText(transfer.notes) || "—"}</div></td>
@@ -125,7 +131,7 @@ export default async function TransfersPage({ searchParams }: { searchParams: Pr
 
       <aside className="h-fit overflow-hidden rounded-[22px] border border-teal-100 bg-white shadow-[0_20px_60px_-38px_rgba(13,148,136,0.38)] xl:sticky xl:top-24">
         <div className="border-b border-teal-100 bg-gradient-to-l from-teal-50 via-white to-cyan-50 px-5 py-4"><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-teal-600 to-cyan-600 text-white shadow-md shadow-teal-600/15"><ArrowLeftRight className="h-4 w-4" /></span><div><h2 className="text-sm font-black text-slate-900">عملية جديدة</h2><p className="mt-0.5 text-[10px] font-semibold text-slate-500">سجّل الحركة وحدد العمولة وطريقة التحصيل.</p></div></div></div>
-        <div className="p-4 sm:p-5">{wallets.length === 0 ? <div className="rounded-xl border border-amber-100 bg-amber-50/70 p-4 text-[10px] font-bold leading-5 text-amber-800">أضف محفظة أولاً قبل تسجيل العمليات.</div> : <TransferForm wallets={formWallets} customers={customers} currency={currency} />}</div>
+        <div className="p-4 sm:p-5">{canExecuteTransfers ? (wallets.length === 0 ? <div className="rounded-xl border border-amber-100 bg-amber-50/70 p-4 text-[10px] font-bold leading-5 text-amber-800">أضف محفظة أولاً قبل تسجيل العمليات.</div> : <TransferForm wallets={formWallets} customers={customers} currency={currency} />) : <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-[10px] font-bold leading-5 text-slate-600">عرض للقراءة فقط. تسجيل عملية تحويل جديدة يتطلب صلاحية إنشاء المبيعات.</div>}</div>
       </aside>
     </section>
   </div>;

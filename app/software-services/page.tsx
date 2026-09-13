@@ -18,6 +18,8 @@ type Props = {
 export default async function SoftwareServicesPage({ searchParams }: Props) {
   const query = await searchParams;
   const context = await getCurrentShopContext();
+  const canExecute = context.permissions.includes("sales:create");
+  const canCancel = context.permissions.includes("sales:cancel");
   const [sales, catalog] = await Promise.all([
     softwareServiceService.listSales(context.shopId),
     softwareServiceService.listCatalog(context.shopId),
@@ -37,11 +39,14 @@ export default async function SoftwareServicesPage({ searchParams }: Props) {
           title="خدمات السوفتوير"
           description="بيع خدمات التفليش والتحديث وFRP وغيرها، مع فاتورة موحدة وتكلفة اختيارية وربح محسوب."
         />
-        <Button asChild className="h-11 rounded-xl font-black">
-          <Link href="/software-services/new"><Plus className="ml-1.5 h-4 w-4" />بيع خدمة جديدة</Link>
-        </Button>
+        {canExecute ? (
+          <Button asChild className="h-11 rounded-xl font-black">
+            <Link href="/software-services/new"><Plus className="ml-1.5 h-4 w-4" />بيع خدمة جديدة</Link>
+          </Button>
+        ) : null}
       </div>
 
+      {!canExecute ? <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-600">لديك صلاحية عرض خدمات السوفتوير فقط.</div> : null}
       {query.catalogSaved ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-bold text-emerald-800">تم حفظ الخدمة في الكتالوج.</div> : null}
       {query.cancelled ? <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-bold text-emerald-800">تم إلغاء خدمة السوفتوير وعكس أثرها المالي وإزالتها من التقارير.</div> : null}
       {query.catalogError ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-700">{query.catalogError}</div> : null}
@@ -67,12 +72,14 @@ export default async function SoftwareServicesPage({ searchParams }: Props) {
           <h2 className="text-sm font-black text-slate-900">كتالوج الخدمات</h2>
           <p className="mt-1 text-[11px] font-medium text-slate-500">احفظ الخدمات المتكررة مع سعر وتكلفة افتراضيين اختياريين لتسريع التسجيل.</p>
         </div>
-        <form action={createSoftwareServiceCatalogAction} className="grid gap-3 sm:grid-cols-[1fr_180px_180px_auto]">
-          <input className="h-10 rounded-xl border border-slate-200 px-3 text-xs font-bold" name="name" required placeholder="اسم الخدمة" />
-          <input className="h-10 rounded-xl border border-slate-200 px-3 text-xs font-bold font-numeric" name="defaultPrice" min="0" step="0.01" type="number" placeholder="سعر افتراضي" />
-          <input className="h-10 rounded-xl border border-slate-200 px-3 text-xs font-bold font-numeric" name="defaultCost" min="0" step="0.01" type="number" placeholder="تكلفة اختيارية" />
-          <Button className="h-10 rounded-xl text-xs font-black" type="submit">حفظ</Button>
-        </form>
+        {canExecute ? (
+          <form action={createSoftwareServiceCatalogAction} className="grid gap-3 sm:grid-cols-[1fr_180px_180px_auto]">
+            <input className="h-10 rounded-xl border border-slate-200 px-3 text-xs font-bold" name="name" required placeholder="اسم الخدمة" />
+            <input className="h-10 rounded-xl border border-slate-200 px-3 text-xs font-bold font-numeric" name="defaultPrice" min="0" step="0.01" type="number" placeholder="سعر افتراضي" />
+            <input className="h-10 rounded-xl border border-slate-200 px-3 text-xs font-bold font-numeric" name="defaultCost" min="0" step="0.01" type="number" placeholder="تكلفة اختيارية" />
+            <Button className="h-10 rounded-xl text-xs font-black" type="submit">حفظ</Button>
+          </form>
+        ) : null}
         {catalog.length ? (
           <div className="mt-4 flex flex-wrap gap-2">
             {catalog.map((item) => (
@@ -106,12 +113,14 @@ export default async function SoftwareServicesPage({ searchParams }: Props) {
                     <td>
                       <div className="flex items-center gap-2">
                         <Button asChild size="sm" variant="outline" className="rounded-lg text-xs font-bold"><Link href={`/software-services/${sale.id}`}>فتح</Link></Button>
-                        <form action={cancelSoftwareServiceSaleAction}>
-                          <input type="hidden" name="id" value={sale.id} />
-                          <ConfirmSubmitButton className="h-9 rounded-lg border border-rose-200 bg-white px-3 text-xs font-black text-rose-700 hover:bg-rose-50" message={`إلغاء خدمة ${sale.serviceName}؟ سيتم إلغاء الفاتورة المرتبطة وعكس أي دفعات مسجلة وإزالة الخدمة من التقارير.`}>
-                            <Trash2 className="ml-1 h-3.5 w-3.5" />إلغاء
-                          </ConfirmSubmitButton>
-                        </form>
+                        {canCancel ? (
+                          <form action={cancelSoftwareServiceSaleAction}>
+                            <input type="hidden" name="id" value={sale.id} />
+                            <ConfirmSubmitButton className="h-9 rounded-lg border border-rose-200 bg-white px-3 text-xs font-black text-rose-700 hover:bg-rose-50" message={`إلغاء خدمة ${sale.serviceName}؟ سيتم إلغاء الفاتورة المرتبطة وعكس أي دفعات مسجلة وإزالة الخدمة من التقارير.`}>
+                              <Trash2 className="ml-1 h-3.5 w-3.5" />إلغاء
+                            </ConfirmSubmitButton>
+                          </form>
+                        ) : null}
                       </div>
                     </td>
                   </tr>
