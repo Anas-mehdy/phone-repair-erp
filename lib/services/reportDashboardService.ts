@@ -63,6 +63,7 @@ export async function getReportDashboard(shopId: string, range: FinancialRange):
     expenseAggregate,
     supplierPurchaseAggregate,
     providerTopUpRows,
+    currentDebtRows,
   ] = await Promise.all([
     reportService.getFinancialReport(shopId, range),
     getInventoryDamageReportSummary(shopId, range.start, range.end),
@@ -97,6 +98,31 @@ export async function getReportDashboard(shopId: string, range: FinancialRange):
         AND "createdAt" >= ${range.start}
         AND "createdAt" < ${range.end}
     `,
+    prisma.$queryRaw<Array<{ totalOutstanding: Prisma.Decimal }>>`
+      WITH balances AS (
+        SELECT
+          a."customerId",
+          COALESCE(SUM(
+            CASE
+              WHEN e."isReversed" THEN 0
+              WHEN e."type" IN ('DEBT', 'OPENING_BALANCE', 'ADJUSTMENT_DEBIT') THEN e."amount"
+              WHEN e."type" IN ('PAYMENT', 'ADJUSTMENT_CREDIT') THEN -e."amount"
+              ELSE 0
+            END
+          ), 0) AS balance,
+          COUNT(e."id") FILTER (WHERE e."isReversed" = FALSE) AS "activeEntryCount"
+        FROM "DebtLedgerAccount" a
+        LEFT JOIN "DebtLedgerEntry" e ON e."accountId" = a."id"
+        WHERE a."shopId" = ${shopId}::uuid
+        GROUP BY a."customerId"
+      )
+      SELECT COALESCE(SUM(GREATEST(b.balance, 0)), 0) AS "totalOutstanding"
+      FROM balances b
+      JOIN "Customer" c ON c."id" = b."customerId"
+      WHERE c."deletedAt" IS NULL
+        AND b."activeEntryCount" > 0
+        AND b.balance > 0.005
+    `,
   ]);
 
   const electronic: ReportDepartmentPerformance = {
@@ -112,6 +138,7 @@ export async function getReportDashboard(shopId: string, range: FinancialRange):
   const expenseCount = expenseAggregate._count._all;
   const supplierPurchaseDebt = money(Math.max(0, decimalNumber(supplierPurchaseAggregate._sum.balanceDue)));
   const electronicProviderTopUps = money(decimalNumber(providerTopUpRows[0]?.total));
+  const currentCustomerDebt = money(Math.max(0, decimalNumber(currentDebtRows[0]?.totalOutstanding)));
   const grossProfit = money(baseReport.metrics.grossProfit + departmentRows.transfers.profit);
   const netProfit = money(grossProfit - expenseTotal);
   const profitBase = baseReport.metrics.netRevenueBeforeTax + departmentRows.transfers.profit;
@@ -149,7 +176,7 @@ export async function getReportDashboard(shopId: string, range: FinancialRange):
       inventory: baseReport.metrics.inventoryValue,
     },
     obligations: {
-      debts: baseReport.metrics.outstanding,
+      debts: currentCustomerDebt,
       supplierPurchaseDebt,
       expenses: expenseTotal,
       expenseCount,
