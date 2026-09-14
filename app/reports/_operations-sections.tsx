@@ -1,4 +1,4 @@
-import { Banknote, BookOpenText, CircleDollarSign, Landmark, PackageSearch, ReceiptText, Trash2, WalletCards, Zap } from "lucide-react";
+import { Banknote, BookOpenText, CircleDollarSign, Landmark, PackageSearch, ReceiptText, Trash2, Truck, WalletCards, Zap } from "lucide-react";
 
 import { formatCurrency } from "@/lib/format";
 import type { ReportDashboardData } from "@/lib/services/reportDashboardService";
@@ -26,10 +26,11 @@ export function OperationsSections({ dashboard, currency, query }: { dashboard: 
       </ReportSection>
 
       <ReportSection eyebrow="الديون والتوالف والمصروفات" title="الحركات التي تحتاج متابعة" description="ملخص سريع، والضغط على أي بطاقة يفتح التفاصيل الكاملة.">
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatusCard label="الديون والمستحقات" value={dashboard.obligations.debts} currency={currency} icon={BookOpenText} helper="إجمالي المبالغ المتبقية عند العملاء" href="/debts" tone="amber" />
           <StatusCard label="التوالف" value={dashboard.obligations.damages} currency={currency} icon={Trash2} helper={`${dashboard.obligations.damageCount} حركة تالف ضمن الفترة`} href={withRange("/reports/damages", query)} tone="rose" />
           <StatusCard label="المصروفات" value={dashboard.obligations.expenses} currency={currency} icon={ReceiptText} helper={`${dashboard.obligations.expenseCount} حركة مصروف ضمن الفترة`} href={withRange("/expenses", query)} tone="orange" />
+          <StatusCard label="الديون التي علينا" value={dashboard.obligations.supplierPurchaseDebt} currency={currency} icon={Truck} helper="إجمالي المتبقي من فواتير الشراء المعتمدة" href="/inventory/purchases" tone="indigo" />
         </div>
       </ReportSection>
 

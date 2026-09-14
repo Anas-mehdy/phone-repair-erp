@@ -49,7 +49,7 @@ export function FinancialSections({ dashboard, currency, query, preset }: {
           <PerformanceCard item={dashboard.departments.repairs} currency={currency} icon={Wrench} href="/repair-orders" />
           <PerformanceCard item={dashboard.departments.pos} currency={currency} icon={CreditCard} href="/sales" />
           <PerformanceCard item={dashboard.departments.transfers} currency={currency} icon={ArrowLeftRight} href="/transfers" revenueLabel="القيمة الداخلة" costLabel="القيمة الخارجة" note="أصل مبلغ التحويل لا يدخل ضمن إجمالي المبيعات؛ الربح هو العمولة فقط." />
-          <PerformanceCard item={dashboard.departments.electronic} currency={currency} icon={Zap} href="/electronic-services/reports" />
+          <PerformanceCard item={dashboard.departments.electronic} currency={currency} icon={Zap} href="/electronic-services/reports" revenueLabel="البيع" extraMetric={{ label: "إضافة الرصيد", value: dashboard.electronicProviderTopUps }} />
           <PerformanceCard item={dashboard.departments.software} currency={currency} icon={Smartphone} href="/software-services" />
           <TotalProfitCard grossProfit={dashboard.summary.grossProfit} totalSales={dashboard.summary.sales} directCosts={dashboard.summary.directCosts} expenses={dashboard.obligations.expenses} currency={currency} href={withRange("/reports/details/gross-profit", query)} />
         </div>

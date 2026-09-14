@@ -24,6 +24,7 @@ export type ReportDashboardData = {
     profitMargin: number;
   };
   departments: Record<ReportDepartmentPerformance["key"], ReportDepartmentPerformance>;
+  electronicProviderTopUps: number;
   balances: {
     drawer: number;
     wallets: number;
@@ -34,6 +35,7 @@ export type ReportDashboardData = {
   };
   obligations: {
     debts: number;
+    supplierPurchaseDebt: number;
     expenses: number;
     expenseCount: number;
     damages: number;
@@ -59,6 +61,8 @@ export async function getReportDashboard(shopId: string, range: FinancialRange):
     providerOverview,
     departmentRows,
     expenseAggregate,
+    supplierPurchaseAggregate,
+    providerTopUpRows,
   ] = await Promise.all([
     reportService.getFinancialReport(shopId, range),
     getInventoryDamageReportSummary(shopId, range.start, range.end),
@@ -76,6 +80,23 @@ export async function getReportDashboard(shopId: string, range: FinancialRange):
       _sum: { amount: true },
       _count: { _all: true },
     }),
+    prisma.purchaseInvoice.aggregate({
+      where: {
+        shopId,
+        status: "POSTED",
+        deletedAt: null,
+      },
+      _sum: { balanceDue: true },
+    }),
+    prisma.$queryRaw<Array<{ total: Prisma.Decimal }>>`
+      SELECT COALESCE(SUM("amount"), 0) AS "total"
+      FROM "ElectronicServiceProviderMovement"
+      WHERE "shopId" = ${shopId}::uuid
+        AND "type" = 'TOP_UP'
+        AND "direction" = 'IN'
+        AND "createdAt" >= ${range.start}
+        AND "createdAt" < ${range.end}
+    `,
   ]);
 
   const electronic: ReportDepartmentPerformance = {
@@ -89,6 +110,8 @@ export async function getReportDashboard(shopId: string, range: FinancialRange):
 
   const expenseTotal = money(decimalNumber(expenseAggregate._sum.amount));
   const expenseCount = expenseAggregate._count._all;
+  const supplierPurchaseDebt = money(Math.max(0, decimalNumber(supplierPurchaseAggregate._sum.balanceDue)));
+  const electronicProviderTopUps = money(decimalNumber(providerTopUpRows[0]?.total));
   const grossProfit = money(baseReport.metrics.grossProfit + departmentRows.transfers.profit);
   const netProfit = money(grossProfit - expenseTotal);
   const profitBase = baseReport.metrics.netRevenueBeforeTax + departmentRows.transfers.profit;
@@ -116,6 +139,7 @@ export async function getReportDashboard(shopId: string, range: FinancialRange):
       software: departmentRows.software,
       transfers: departmentRows.transfers,
     },
+    electronicProviderTopUps,
     balances: {
       drawer: drawerBalance,
       wallets: walletBalance,
@@ -126,6 +150,7 @@ export async function getReportDashboard(shopId: string, range: FinancialRange):
     },
     obligations: {
       debts: baseReport.metrics.outstanding,
+      supplierPurchaseDebt,
       expenses: expenseTotal,
       expenseCount,
       damages: damages.totalValue,

@@ -4,19 +4,21 @@ import type { LucideIcon } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import type { ReportDepartmentPerformance } from "@/lib/services/reportDashboardService";
 
-export function PerformanceCard({ item, currency, icon: Icon, href, revenueLabel = "سعر البيع", costLabel = "التكلفة", note }: {
+export function PerformanceCard({ item, currency, icon: Icon, href, revenueLabel = "سعر البيع", costLabel = "التكلفة", extraMetric, note }: {
   item: ReportDepartmentPerformance;
   currency: string;
   icon: LucideIcon;
   href: string;
   revenueLabel?: string;
   costLabel?: string;
+  extraMetric?: { label: string; value: number };
   note?: string;
 }) {
   return (
     <Link href={href} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-950">
       <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-black text-slate-900 dark:text-slate-100">{item.label}</p><p className="mt-1 text-[9px] font-bold text-slate-400">{item.count} عملية ضمن الفترة</p></div><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-300"><Icon className="h-5 w-5" /></span></div>
-      <div className="mt-5 grid grid-cols-3 gap-2">
+      <div className={`mt-5 grid gap-2 ${extraMetric ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"}`}>
+        {extraMetric ? <MiniMetric label={extraMetric.label} value={formatCurrency(extraMetric.value, currency)} /> : null}
         <MiniMetric label={revenueLabel} value={formatCurrency(item.revenue, currency)} />
         <MiniMetric label={costLabel} value={formatCurrency(item.cost, currency)} />
         <MiniMetric label="الربح" value={formatCurrency(item.profit, currency)} />
