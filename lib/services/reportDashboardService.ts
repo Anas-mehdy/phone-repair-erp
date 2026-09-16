@@ -61,7 +61,7 @@ export async function getReportDashboard(shopId: string, range: FinancialRange):
     providerOverview,
     departmentRows,
     expenseAggregate,
-    supplierPurchaseAggregate,
+    supplierDebtRows,
     providerTopUpRows,
     currentDebtRows,
   ] = await Promise.all([
@@ -81,14 +81,57 @@ export async function getReportDashboard(shopId: string, range: FinancialRange):
       _sum: { amount: true },
       _count: { _all: true },
     }),
-    prisma.purchaseInvoice.aggregate({
-      where: {
-        shopId,
-        status: "POSTED",
-        deletedAt: null,
-      },
-      _sum: { balanceDue: true },
-    }),
+    prisma.$queryRaw<Array<{ totalOutstanding: Prisma.Decimal }>>`
+      WITH manual_balances AS (
+        SELECT
+          "supplierId",
+          COALESCE(SUM(CASE
+            WHEN "status" <> 'ACTIVE' THEN 0
+            WHEN "type" IN ('OPENING_BALANCE', 'ADJUSTMENT_DEBIT') THEN "amount"
+            WHEN "type" = 'PAYMENT' THEN -"manualAppliedAmount"
+            WHEN "type" = 'ADJUSTMENT_CREDIT' THEN -"amount"
+            ELSE 0
+          END), 0) AS "manualOutstanding"
+        FROM "SupplierLedgerEntry"
+        WHERE "shopId" = ${shopId}::uuid
+        GROUP BY "supplierId"
+      ),
+      purchase_balances AS (
+        SELECT
+          "supplierId",
+          COALESCE(SUM("balanceDue"), 0) AS "purchaseOutstanding"
+        FROM "PurchaseInvoice"
+        WHERE "shopId" = ${shopId}::uuid
+          AND "status" = 'POSTED'
+          AND "deletedAt" IS NULL
+        GROUP BY "supplierId"
+      ),
+      supplier_credits AS (
+        SELECT
+          "supplierId",
+          COALESCE(SUM("amount"), 0) AS "supplierCredit"
+        FROM "SupplierReturnSettlement"
+        WHERE "shopId" = ${shopId}::uuid
+          AND "type" = 'SUPPLIER_CREDIT'
+        GROUP BY "supplierId"
+      ),
+      supplier_balances AS (
+        SELECT
+          s."id",
+          GREATEST(COALESCE(m."manualOutstanding", 0), 0)
+            + GREATEST(COALESCE(p."purchaseOutstanding", 0), 0)
+            - GREATEST(COALESCE(c."supplierCredit", 0), 0) AS "balance"
+        FROM "Supplier" s
+        LEFT JOIN manual_balances m ON m."supplierId" = s."id"
+        LEFT JOIN purchase_balances p ON p."supplierId" = s."id"
+        LEFT JOIN supplier_credits c ON c."supplierId" = s."id"
+        WHERE s."shopId" = ${shopId}::uuid
+          AND s."deletedAt" IS NULL
+      )
+      SELECT COALESCE(SUM(GREATEST("balance", 0)), 0) AS "totalOutstanding"
+      FROM supplier_balances
+      WHERE "balance" > 0.005
+    `,
     prisma.$queryRaw<Array<{ total: Prisma.Decimal }>>`
       SELECT COALESCE(SUM("amount"), 0) AS "total"
       FROM "ElectronicServiceProviderMovement"
@@ -136,7 +179,7 @@ export async function getReportDashboard(shopId: string, range: FinancialRange):
 
   const expenseTotal = money(decimalNumber(expenseAggregate._sum.amount));
   const expenseCount = expenseAggregate._count._all;
-  const supplierPurchaseDebt = money(Math.max(0, decimalNumber(supplierPurchaseAggregate._sum.balanceDue)));
+  const supplierPurchaseDebt = money(Math.max(0, decimalNumber(supplierDebtRows[0]?.totalOutstanding)));
   const electronicProviderTopUps = money(decimalNumber(providerTopUpRows[0]?.total));
   const currentCustomerDebt = money(Math.max(0, decimalNumber(currentDebtRows[0]?.totalOutstanding)));
   const grossProfit = money(baseReport.metrics.grossProfit + departmentRows.transfers.profit);

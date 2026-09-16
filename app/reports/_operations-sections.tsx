@@ -30,7 +30,7 @@ export function OperationsSections({ dashboard, currency, query }: { dashboard: 
           <StatusCard label="الديون والمستحقات" value={dashboard.obligations.debts} currency={currency} icon={BookOpenText} helper="إجمالي المبالغ المتبقية عند العملاء" href="/debts" tone="amber" />
           <StatusCard label="التوالف" value={dashboard.obligations.damages} currency={currency} icon={Trash2} helper={`${dashboard.obligations.damageCount} حركة تالف ضمن الفترة`} href={withRange("/reports/damages", query)} tone="rose" />
           <StatusCard label="المصروفات" value={dashboard.obligations.expenses} currency={currency} icon={ReceiptText} helper={`${dashboard.obligations.expenseCount} حركة مصروف ضمن الفترة`} href={withRange("/expenses", query)} tone="orange" />
-          <StatusCard label="الديون التي علينا" value={dashboard.obligations.supplierPurchaseDebt} currency={currency} icon={Truck} helper="إجمالي المتبقي من فواتير الشراء المعتمدة" href="/inventory/purchases" tone="indigo" />
+          <StatusCard label="الديون التي علينا" value={dashboard.obligations.supplierPurchaseDebt} currency={currency} icon={Truck} helper="إجمالي صافي المبالغ المستحقة للموردين" href="/suppliers" tone="indigo" />
         </div>
       </ReportSection>
 
