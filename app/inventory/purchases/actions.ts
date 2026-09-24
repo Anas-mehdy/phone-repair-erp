@@ -199,7 +199,9 @@ export async function postPurchaseInvoiceAction(input: {
   initialReceipt?: Array<{ sortOrder: number; quantity: number }>;
 }) {
   try {
-    const auth = await requirePermission("inventory:manage");
+    // Return an actionable error from this server action instead of catching a
+    // Next.js redirect to /login and displaying its internal NEXT_REDIRECT text.
+    const auth = await requirePermission("inventory:manage", { allowRedirect: false });
     const parsed = z.object({
       purchaseId: uuid,
       postingKey: z.string().trim().min(12).max(80),
