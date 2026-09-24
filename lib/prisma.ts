@@ -4,14 +4,27 @@ const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;
 };
 
+// Every Vercel function instance owns its own Prisma pool. Keep one connection per
+// instance so concurrent functions do not exhaust Supavisor's client limit.
+function databaseUrl() {
+  const value = process.env.DATABASE_URL;
+  if (!value || process.env.NODE_ENV !== "production") return value;
+
+  const url = new URL(value);
+  if (url.protocol !== "postgres:" && url.protocol !== "postgresql:") return value;
+  url.searchParams.set("connection_limit", "1");
+  return url.toString();
+}
+
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
+    datasources: { db: { url: databaseUrl() } },
     log:
       process.env.NODE_ENV === "development"
         ? ["error", "warn"]
         : ["error"],
   });
 
-// Keep client warm across all serverless invocations
+// Reuse the pool within the same serverless instance.
 globalForPrisma.prisma = prisma;
