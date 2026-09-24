@@ -2,7 +2,7 @@ import { parseFlexibleNumber, type ImportedPurchaseRowDraft } from "./purchase-i
 
 export const PURCHASE_TEMPLATE_HEADERS = ["اسم الصنف", "الباركود أو SKU", "التصنيف", "الكمية", "تكلفة الوحدة", "سعر البيع"];
 export const PURCHASE_TEMPLATE_SHEET = "البنود";
-export const PURCHASE_EXCEL_MAX_ROWS = 250;
+export const PURCHASE_EXCEL_MAX_ROWS = 300;
 export type TemplatePurchaseRow = ImportedPurchaseRowDraft & { category?: string };
 
 /** Fixed template: typed Excel numbers retain their meaning, identifiers stay text. */
@@ -11,7 +11,7 @@ export function parsePurchaseTemplate(rows: unknown[][]): TemplatePurchaseRow[] 
     throw new Error("عناوين الملف لا تطابق قالب مسار. نزّل القالب واحتفظ بعناوين الأعمدة وترتيبها واسم ورقة البنود.");
   }
   const filled = rows.slice(1).map((cells, i) => ({ cells, rowIndex: i + 2 })).filter(({cells}) => cells.some(v => v != null && String(v).trim() !== ""));
-  if (filled.length > PURCHASE_EXCEL_MAX_ROWS) throw new Error("الحد 250 صنف في الملف الواحد. قسّم البنود على عدة ملفات؛ لا يوجد حد يومي للاستيراد.");
+  if (filled.length > PURCHASE_EXCEL_MAX_ROWS) throw new Error("الحد 300 صنف في الملف الواحد. قسّم البنود على عدة ملفات؛ لا يوجد حد يومي للاستيراد.");
   if (!filled.length) throw new Error("القالب فارغ. عبّئ ورقة البنود، وليس ورقة التعليمات، ثم ارفعه مجدداً.");
   return filled.map(({cells, rowIndex}) => {
     const text = (i: number) => String(cells[i] ?? "").trim();
