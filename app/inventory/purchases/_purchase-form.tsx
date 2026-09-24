@@ -472,7 +472,7 @@ export function PurchaseReceivingForm({
   }
 
   function handleImportedRows(imported: ResolvedImportedPurchaseRow[]) {
-    if (activeLines.length + imported.length > 250) { setPostError("الحد 250 بنداً في الفاتورة الواحدة. قلّل البنود أو أنشئ فاتورة أخرى."); return false; }
+    if (activeLines.length + imported.length > 300) { setPostError("الحد 300 بند في الفاتورة الواحدة. قلّل البنود أو أنشئ فاتورة أخرى."); return false; }
     const newLines = imported.map((row): FormLine => {
       if (row.state === "existing" && row.item) {
         return {
