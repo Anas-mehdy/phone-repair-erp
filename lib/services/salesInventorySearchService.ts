@@ -4,6 +4,7 @@ export type SaleInventorySearchResult = {
   id: string;
   name: string;
   sku: string | null;
+  barcode: string | null;
   category: string | null;
   quantity: number;
   unitPrice: string;
@@ -24,6 +25,7 @@ export async function searchInventoryForSale(
       OR: [
         { name: { contains: query, mode: "insensitive" } },
         { sku: { contains: query, mode: "insensitive" } },
+        { barcode: { contains: query, mode: "insensitive" } },
         { category: { contains: query, mode: "insensitive" } },
       ],
     },
@@ -31,6 +33,7 @@ export async function searchInventoryForSale(
       id: true,
       name: true,
       sku: true,
+      barcode: true,
       category: true,
       quantity: true,
       unitPrice: true,
@@ -43,6 +46,7 @@ export async function searchInventoryForSale(
     id: item.id,
     name: item.name,
     sku: item.sku,
+    barcode: item.barcode,
     category: item.category,
     quantity: item.quantity,
     unitPrice: item.unitPrice.toString(),
