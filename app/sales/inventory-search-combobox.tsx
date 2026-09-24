@@ -9,6 +9,7 @@ export type SaleInventoryOption = {
   id: string;
   name: string;
   sku: string | null;
+  barcode?: string | null;
   category?: string | null;
   quantity: number;
   unitPrice: string;
@@ -19,7 +20,7 @@ export function InventorySearchCombobox({
   selectedLabel,
   initialOptions,
   onSelect,
-  placeholder = "ابحث بالاسم، SKU أو التصنيف...",
+  placeholder = "ابحث بالاسم، الباركود، SKU أو التصنيف...",
   showManualOption = true,
   autoFocus = false,
   refocusAfterSelect = false,
@@ -60,12 +61,13 @@ export function InventorySearchCombobox({
     }
 
     const currentRequest = ++requestId.current;
+    setResults([]);
     const timer = window.setTimeout(() => {
       startTransition(async () => {
         try {
           const matches = await searchInventoryForSaleAction(trimmed);
           if (requestId.current === currentRequest) {
-            setResults(matches);
+            setResults([...matches].sort((a, b) => Number(b.barcode === trimmed || b.sku === trimmed) - Number(a.barcode === trimmed || a.sku === trimmed)));
             setHighlightedIndex(0);
           }
         } catch {
@@ -110,6 +112,7 @@ export function InventorySearchCombobox({
           }}
           onChange={(event) => {
             setQuery(event.target.value);
+            setResults([]);
             setOpen(true);
             setHighlightedIndex(0);
           }}
@@ -188,7 +191,8 @@ export function InventorySearchCombobox({
                 <div className="min-w-0">
                   <div className="truncate text-xs font-black text-slate-800">{item.name}</div>
                   <div className="mt-1 flex flex-wrap gap-x-2 gap-y-1 text-[10px] font-semibold text-slate-400">
-                    {item.sku ? <span className="font-numeric">SKU: {item.sku}</span> : null}
+                    {item.barcode ? <span className="font-numeric" dir="ltr">Barcode: {item.barcode}</span> : null}
+                    {item.sku ? <span className="font-numeric" dir="ltr">SKU: {item.sku}</span> : null}
                     {item.category ? <span>{item.category}</span> : null}
                   </div>
                 </div>
