@@ -97,7 +97,8 @@ export default async function InventoryItemDetailsPage({ params, searchParams }:
             <div className="mb-5 border-b border-slate-100/60 pb-3"><h3 className="text-sm font-bold text-slate-800">تفاصيل قطعة المخزون الحالية</h3></div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <Info label="التصنيف" value={item.category ?? "غير مصنف"} />
-              <Info label="SKU / رمز التتبع" value={<span className="font-numeric">{item.sku ?? "-"}</span>} />
+              <Info label="الباركود" value={<span className="font-numeric" dir="ltr">{item.barcode ?? "-"}</span>} />
+              <Info label="SKU / رمز التتبع" value={<span className="font-numeric" dir="ltr">{item.sku ?? "-"}</span>} />
               <Info label="الكمية المتاحة" value={<span className={cn("font-numeric font-bold", lowStock ? "animate-pulse text-rose-600" : "text-slate-800")}>{item.quantity}</span>} />
               <Info label="حد إعادة الطلب" value={<span className="font-numeric">{item.reorderLevel}</span>} />
               <Info label="تكلفة الشراء" value={<span className="font-numeric">{formatMoney(item.unitCost, currency)}</span>} />
