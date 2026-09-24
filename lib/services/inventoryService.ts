@@ -93,6 +93,7 @@ export async function listInventoryItems(
             OR: [
               { name: { contains: search, mode: "insensitive" } },
               { sku: { contains: search, mode: "insensitive" } },
+              { barcode: { contains: search, mode: "insensitive" } },
               { category: { contains: search, mode: "insensitive" } },
             ],
           }
