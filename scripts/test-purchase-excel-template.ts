@@ -20,7 +20,13 @@ async function main() {
   assert.equal(parsed[0].salePrice,'0');
   assert.deepEqual(parsed.flatMap(row=>row.warnings),[]);
   assert.throws(()=>parsePurchaseTemplate([['خطأ'],...twenty]), /عناوين/);
-  assert.throws(()=>parsePurchaseTemplate([PURCHASE_TEMPLATE_HEADERS,...Array(251).fill(twenty[0])]),/250/);
+  assert.throws(()=>parsePurchaseTemplate([PURCHASE_TEMPLATE_HEADERS,...Array(301).fill(twenty[0])]),/300/);
+  const twoSixtyEight = parsePurchaseTemplate([
+    PURCHASE_TEMPLATE_HEADERS,
+    ...Array.from({length: 268}, (_, i) => ['صنف '+i, String(865995082327623+i), '', 1, 1, '']),
+  ]);
+  assert.equal(twoSixtyEight.length, 268);
+  assert.deepEqual(twoSixtyEight.flatMap(row => row.errors), []);
   const bad = parsePurchaseTemplate([PURCHASE_TEMPLATE_HEADERS,['اسم',123456,'',null,-2,'']]);
   assert.equal(bad[0].barcode, '123456');
   assert.equal(bad[0].errors.length, 2);
