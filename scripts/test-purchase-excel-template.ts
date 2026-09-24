@@ -22,7 +22,19 @@ async function main() {
   assert.throws(()=>parsePurchaseTemplate([['خطأ'],...twenty]), /عناوين/);
   assert.throws(()=>parsePurchaseTemplate([PURCHASE_TEMPLATE_HEADERS,...Array(251).fill(twenty[0])]),/250/);
   const bad = parsePurchaseTemplate([PURCHASE_TEMPLATE_HEADERS,['اسم',123456,'',null,-2,'']]);
-  assert.ok(bad[0].errors.length>=3);
+  assert.equal(bad[0].barcode, '123456');
+  assert.equal(bad[0].errors.length, 2);
+  const numeric = parsePurchaseTemplate([PURCHASE_TEMPLATE_HEADERS,
+    ['هاتف', 865995082327623, 'أجهزة', 1, 0, ''],
+    ['هاتف', 1234567890123456, 'أجهزة', 1, 0, ''],
+    ['هاتف', '0012345678901', 'أجهزة', 1, 0, ''],
+  ]);
+  assert.deepEqual(numeric[0].errors, []);
+  assert.equal(numeric[0].barcode, '865995082327623');
+  assert.match(numeric[0].warnings.join(' '), /أصفار/);
+  assert.match(numeric[1].errors.join(' '), /كنص/);
+  assert.deepEqual(numeric[2].errors, []);
+  assert.deepEqual(numeric[2].warnings, []);
   console.log('PASS actual XLSX template, 20 rows, leading zeros, categories, prices, invalid rows and file limits');
 }
 void main();
