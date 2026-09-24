@@ -552,7 +552,7 @@ export async function lookupInventoryByIdentifier(shopId: string, code: string) 
 }
 
 export async function getInventoryItemsByIds(shopId: string, ids: string[]): Promise<PurchaseInventorySearchItem[]> {
-  const uniqueIds = [...new Set(ids.filter(Boolean))].slice(0, 250);
+  const uniqueIds = [...new Set(ids.filter(Boolean))].slice(0, 300);
   if (!uniqueIds.length) return [];
   const rows = await prisma.$queryRaw<BaseInventoryRow[]>(Prisma.sql`
     SELECT i."id", i."name", i."sku", i."barcode", i."category", i."description", i."quantity", i."unitCost", i."unitPrice",
@@ -772,7 +772,7 @@ export async function saveDraft(shopId: string, userId: string, currency: string
     }
 
     return { id: purchaseId, updatedAt: new Date(), version: nextVersion, totals };
-  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 15_000 });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 30_000 });
 }
 
 export async function deleteDraft(shopId: string, purchaseId: string) {
@@ -1280,7 +1280,7 @@ export async function postPurchaseInvoice(
       WHERE "id"=${purchaseId}::uuid AND "shopId"=${shopId}::uuid AND "status"='DRAFT'
     `;
     return { id: purchaseId, alreadyPosted: false };
-  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 30_000 });
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 60_000 });
 }
 
 export async function recordPurchaseReceipt(shopId: string, userId: string, purchaseId: string, input: RecordPurchaseReceiptInput) {
