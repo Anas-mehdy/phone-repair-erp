@@ -42,8 +42,9 @@ export function SaleForm({ inventoryItems, wallets, bankAccounts, currency = "SA
   const [customerMode, setCustomerMode] = useState<CustomerMode>("CASH");
   const [selectedCustomer, setSelectedCustomer] = useState<SaleCustomerOption | null>(null);
   const [forceSeparateLine, setForceSeparateLine] = useState(false);
+  const [searchedItems, setSearchedItems] = useState<InventoryOption[]>([]);
 
-  const inventoryById = useMemo(() => new Map(inventoryItems.map((item) => [item.id, item])), [inventoryItems]);
+  const inventoryById = useMemo(() => new Map([...inventoryItems, ...searchedItems].map((item) => [item.id, item])), [inventoryItems, searchedItems]);
   const serializedItems = useMemo(
     () => JSON.stringify(lines.map((line) => ({
       inventoryItemId: line.inventoryItemId || null,
@@ -64,6 +65,7 @@ export function SaleForm({ inventoryItems, wallets, bankAccounts, currency = "SA
 
   function addInventoryItem(item: InventoryOption | null) {
     if (!item) return;
+    setSearchedItems((current) => current.some((entry) => entry.id === item.id) ? current : [...current, item]);
     setLines((currentLines) => {
       if (!forceSeparateLine) {
         const existingIndex = currentLines.findIndex((line) => line.inventoryItemId === item.id);
@@ -78,6 +80,7 @@ export function SaleForm({ inventoryItems, wallets, bankAccounts, currency = "SA
   }
 
   function handleInventorySelect(line: SaleLineDraft, item: InventoryOption | null) {
+    if (item) setSearchedItems((current) => current.some((entry) => entry.id === item.id) ? current : [...current, item]);
     updateLine(line.id, {
       inventoryItemId: item?.id ?? "",
       description: item?.name ?? line.description,
@@ -133,7 +136,7 @@ export function SaleForm({ inventoryItems, wallets, bankAccounts, currency = "SA
               selectedLabel=""
               initialOptions={inventoryItems}
               onSelect={addInventoryItem}
-              placeholder="اكتب اسم المنتج أو SKU ثم اضغط Enter..."
+              placeholder="اكتب الاسم أو الباركود أو SKU ثم اضغط Enter..."
               showManualOption={false}
               autoFocus
               refocusAfterSelect
