@@ -49,7 +49,7 @@ const draftSchema = z.object({
   paymentMethod: z.nativeEnum(PaymentMethod).nullable().optional(),
   paymentSourceName: z.string().max(180).nullable().optional(),
   paymentReference: z.string().max(180).nullable().optional(),
-  lines: z.array(lineSchema).max(250),
+  lines: z.array(lineSchema).max(300),
 });
 
 const importMatchRowSchema = z.object({
@@ -113,7 +113,7 @@ export async function matchImportedPurchaseRowsAction(rawRows: Array<{
 }>) {
   try {
     const auth = await requirePermission("inventory:read");
-    const rows = z.array(importMatchRowSchema).min(1).max(250).parse(rawRows);
+    const rows = z.array(importMatchRowSchema).min(1).max(300).parse(rawRows);
     const matches = await purchaseReceivingService.matchImportedRows(auth.shop.id, rows);
     return {
       ok: true as const,
@@ -204,7 +204,7 @@ export async function postPurchaseInvoiceAction(input: {
       purchaseId: uuid,
       postingKey: z.string().trim().min(12).max(80),
       receiptMode: z.enum(["FULL", "PARTIAL"]).optional(),
-      initialReceipt: z.array(z.object({ sortOrder: z.number().int().nonnegative(), quantity: z.number().int().nonnegative() })).max(250).optional(),
+      initialReceipt: z.array(z.object({ sortOrder: z.number().int().nonnegative(), quantity: z.number().int().nonnegative() })).max(300).optional(),
     }).parse(input);
     const result = await purchaseReceivingService.postPurchaseInvoice(
       auth.shop.id,
@@ -253,7 +253,7 @@ export async function recordPurchaseReceiptAction(input: {
       receivedAt: operationDateSchema,
       reference: z.string().trim().max(180).nullable().optional(),
       note: z.string().trim().max(1000).nullable().optional(),
-      lines: z.array(operationLineSchema).min(1).max(250),
+      lines: z.array(operationLineSchema).min(1).max(300),
     }).parse(input);
     const result = await purchaseReceivingService.recordPurchaseReceipt(auth.shop.id, auth.user.id, parsed.purchaseId, parsed);
     revalidatePurchasePaths(parsed.purchaseId);
@@ -316,7 +316,7 @@ export async function recordSupplierReturnAction(input: {
       reason: z.string().trim().min(2, "سبب المرتجع مطلوب").max(1000),
       reference: z.string().trim().max(180).nullable().optional(),
       returnedAt: operationDateSchema,
-      lines: z.array(operationLineSchema).min(1).max(250),
+      lines: z.array(operationLineSchema).min(1).max(300),
       shippingRefundAmount: z.union([moneyString, z.null()]).optional(),
       settlementAdjustmentAmount: z.union([moneyString, z.null()]).optional(),
       settlementAdjustmentReason: z.string().trim().max(1000).nullable().optional(),
