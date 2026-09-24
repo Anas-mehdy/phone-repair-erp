@@ -164,7 +164,7 @@ export function PurchaseImportPanel({ onImport }: { onImport: (rows: ResolvedImp
       if (match.resolution.state === "review") return { ...row, state: "review", item: null, candidates: match.candidates };
       return { ...row, state: "new", item: null, candidates: [] };
     });
-    if (onImport(resolved) === false) { setError("تتجاوز البنود الحد المتاح في الفاتورة (250 بنداً). احتفظ بالملف وقسّم البنود على فواتير."); return; }
+    if (onImport(resolved) === false) { setError("تتجاوز البنود الحد المتاح في الفاتورة (300 بند). احتفظ بالملف وقسّم البنود على فواتير."); return; }
     const invalidOnly = previewRows.filter((row) => row.errors.length > 0);
     setPreviewRows(invalidOnly);
     if (!invalidOnly.length) {
@@ -203,13 +203,13 @@ export function PurchaseImportPanel({ onImport }: { onImport: (rows: ResolvedImp
 
     <div className="mt-3">{templateButtons}</div>
     {fileName && <p role="status" className="mt-2 text-xs font-bold text-teal-700">تمت قراءة {fileName}. راجع البنود قبل إضافتها.</p>}
-    {inputMode === "file" && <p className="mt-3 text-xs leading-6 text-slate-600 dark:text-slate-300">عبّئ ورقة «البنود» في القالب، ثم ارفع الملف لمراجعة البيانات. التصنيف للأصناف الجديدة فقط. حتى 250 بنداً في الفاتورة و4MB لكل ملف، بلا حد يومي وبلا AI.</p>}
+    {inputMode === "file" && <p className="mt-3 text-xs leading-6 text-slate-600 dark:text-slate-300">عبّئ ورقة «البنود» في القالب، ثم ارفع الملف لمراجعة البيانات. التصنيف للأصناف الجديدة فقط. حتى 300 بند في الفاتورة و4MB لكل ملف، بلا حد يومي وبلا AI.</p>}
     {inputMode === "paste" && <>
     <div className="mt-4 rounded-xl bg-slate-50 p-3 text-xs leading-6 text-slate-600 dark:bg-slate-950/50 dark:text-slate-300">
       <p><strong>كيف تجهّز الجدول؟</strong> كل صف يمثل صنفاً. انسخ الخلايا من Excel والصقها هنا؛ ترتيب الأعمدة لا يهم، لأنك تختار وظيفة كل عمود في المعاينة.</p>
       <p>الأعمدة: اسم الصنف، الكمية، تكلفة الوحدة؛ والباركود وسعر البيع اختياريان. يفضّل نسخ صف العناوين أيضاً.</p>
       <div className="my-2 overflow-x-auto"><table className="w-full text-right"><thead><tr>{["اسم الصنف", "الكمية", "تكلفة الوحدة", "سعر البيع"].map(label => <th className="px-2" key={label}>{label}</th>)}</tr></thead><tbody><tr><td className="px-2">شاحن USB-C</td><td className="px-2">10</td><td className="px-2">5</td><td className="px-2">8</td></tr></tbody></table></div>
-      <p>قالب مسار يحتوي عمود التصنيف؛ يطبّق على الأصناف الجديدة فقط. التوافقات تُختار من دليل مسار بعد الاستيراد. الحد 250 صنف و4MB لكل ملف، دون حد يومي.</p>
+      <p>قالب مسار يحتوي عمود التصنيف؛ يطبّق على الأصناف الجديدة فقط. التوافقات تُختار من دليل مسار بعد الاستيراد. الحد 300 صنف و4MB لكل ملف، دون حد يومي.</p>
       <p className="mt-1 font-bold">هذه الأداة لا تستخدم AI ولا تستهلك قراءاتك. الجداول ذات الخلايا المدمجة والعناوين المتعددة تحتاج ترتيباً قبل اللصق. لقراءة مستند، استخدم استيراد صورة أو PDF.</p>
     </div>
     <textarea
