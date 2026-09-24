@@ -18,7 +18,17 @@ export function parsePurchaseTemplate(rows: unknown[][]): TemplatePurchaseRow[] 
     const errors: string[] = [];
     const warnings: string[] = [];
     if (!text(0) && !text(1)) errors.push("اسم الصنف أو الباركود مطلوب.");
-    if (typeof cells[1] === "number") errors.push("اكتب الباركود أو SKU كنص لحفظ الأصفار الأولى والأرقام الطويلة.");
+    // Excel numeric cells can represent short integer identifiers exactly.
+    // Once Excel has removed leading zeros or rounded a long identifier, the
+    // original value cannot be reconstructed from the imported number.
+    if (typeof cells[1] === "number") {
+      const identifier = cells[1];
+      if (!Number.isSafeInteger(identifier) || identifier < 0 || String(identifier).length > 15) {
+        errors.push("الباركود أو SKU طويل أو غير صالح كرقم في Excel. أعد إدخاله من المصدر كنص للتحقق من جميع أرقامه.");
+      } else {
+        warnings.push("الباركود محفوظ كرقم في Excel؛ تحقق من عدم وجود أصفار في بدايته الأصلية.");
+      }
+    }
     if (cells.slice(6).some(v => v != null && v !== "")) errors.push("توجد بيانات خارج أعمدة القالب الستة.");
     const number = (i: number, label: string, required: boolean, integer = false) => {
       const value = cells[i];
