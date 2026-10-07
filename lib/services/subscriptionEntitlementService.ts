@@ -36,6 +36,7 @@ export type SubscriptionSnapshot = {
   trialEndsAt: Date;
   currentPeriodStartedAt: Date | null;
   currentPeriodEndsAt: Date | null;
+  billingInterval: "SIX_MONTHS" | "ANNUAL" | null;
   gracePeriodEndsAt: Date | null;
   isLifetime: boolean;
   lifetimeActivatedAt: Date | null;
@@ -149,6 +150,7 @@ async function getSubscriptionSnapshot(shopId: string, now: Date): Promise<Subsc
       trialEndsAt: now,
       currentPeriodStartedAt: null,
       currentPeriodEndsAt: null,
+      billingInterval: null,
       gracePeriodEndsAt: null,
       isLifetime: false,
       lifetimeActivatedAt: null,
@@ -178,6 +180,7 @@ async function getSubscriptionSnapshot(shopId: string, now: Date): Promise<Subsc
     trialEndsAt: sub.trialEndsAt,
     currentPeriodStartedAt: sub.currentPeriodStartedAt ?? null,
     currentPeriodEndsAt: sub.currentPeriodEndsAt ?? null,
+    billingInterval: sub.billingInterval ?? null,
     gracePeriodEndsAt: sub.gracePeriodEndsAt ?? null,
     isLifetime,
     lifetimeActivatedAt: isLifetime ? lifetime?.activatedAt ?? null : null,

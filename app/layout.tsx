@@ -45,6 +45,7 @@ export const metadata: Metadata = { metadataBase: new URL(APP_URL), title: "مس
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   let canSettings = false, canReports = false, canManageSubscription = false, canManageDebts = false, showTutorialBanner = false;
   let subscriptionReadOnly = false;
+  let hideLifetimeOfferForTermSubscriber = false;
   let isSalesEmployee = false;
   let lifetimeBanner: { remaining: number; total: number } | null = null;
   let maintenanceBanner: { status: "DUE_SOON" | "OVERDUE"; amount: number; currencyCode: string; dueAt: Date; daysUntilDue: number } | null = null;
@@ -76,10 +77,14 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     try {
       const entitlement = await entitlementService.getEntitlementContext(auth.shop.id);
       subscriptionReadOnly = !entitlement.isOperationallyActive;
+      hideLifetimeOfferForTermSubscriber =
+        (entitlement.subscription.effectiveStatus === "ACTIVE" || entitlement.subscription.effectiveStatus === "GRACE_PERIOD") &&
+        (entitlement.subscription.billingInterval === "ANNUAL" || entitlement.subscription.billingInterval === "SIX_MONTHS");
       analyticsIdentity = { ...analyticsIdentity, subscriptionStatus: entitlement.subscription.effectiveStatus, isLifetime: entitlement.subscription.isLifetime, trialDaysRemaining: entitlement.subscription.effectiveStatus === "TRIALING" ? Math.max(0, Math.ceil((entitlement.subscription.trialEndsAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000))) : null };
     } catch (error) {
       console.error("[SubscriptionReadOnly] Failed to resolve operational access", error);
       subscriptionReadOnly = true;
+      hideLifetimeOfferForTermSubscriber = true;
     }
 
     if (!isSalesEmployee) {
@@ -93,7 +98,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         if (canManageSubscription) {
           try {
             const activeLifetime = await lifetimeSubscriptionService.getActiveLifetimeForShop(auth.shop.id);
-            if (!activeLifetime) {
+            if (!activeLifetime && !hideLifetimeOfferForTermSubscriber) {
               const offer = await subscriptionOfferService.getOfferSettings();
               if (offer.isActive && offer.remainingEligible > 0) lifetimeBanner = { remaining: offer.remainingEligible, total: offer.totalEligible };
             } else if (activeLifetime.annualMaintenanceAmount != null && activeLifetime.maintenanceStartsAt) {
