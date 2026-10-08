@@ -8,6 +8,7 @@ import { createRepairOrderAction } from "../actions";
 import { Field, inputClassName, textareaClassName } from "../_components";
 import { SupplierFields, type SupplierOption, type InventoryItemOption } from "../_supplier-fields";
 import { RepairCustomerSearch, type RepairCustomerOption } from "./_customer-search";
+import { IntakePhotoPicker } from "./_intake-photo-picker";
 
 export function CreateRepairOrderForm({
   suppliers,
@@ -30,16 +31,25 @@ export function CreateRepairOrderForm({
   const [selectedCustomer, setSelectedCustomer] = useState<RepairCustomerOption | null>(null);
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [intakePhoto, setIntakePhoto] = useState<File | null>(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (isPending) return;
+    if (isPending || photoBusy) return;
 
     const form = e.currentTarget;
     const formData = new FormData(form);
+    if (intakePhoto) formData.set("intakePhoto", intakePhoto);
+    setSubmitError("");
 
     startTransition(async () => {
-      await createRepairOrderAction(formData);
+      try {
+        await createRepairOrderAction(formData);
+      } catch {
+        setSubmitError("تعذر حفظ تذكرة الصيانة. تحقق من البيانات وحاول مجدداً.");
+      }
     });
   }
 
@@ -164,6 +174,9 @@ export function CreateRepairOrderForm({
             </Field>
           </div>
         </div>
+        <div className="mt-4">
+          <IntakePhotoPicker photo={intakePhoto} onChange={setIntakePhoto} onBusyChange={setPhotoBusy} disabled={isPending} />
+        </div>
       </section>
 
       {technicians.length > 0 ? (
@@ -194,6 +207,7 @@ export function CreateRepairOrderForm({
         <SupplierFields suppliers={suppliers} inventoryItems={inventoryItems} currency={currency} />
       </div>
 
+      {submitError ? <p role="alert" className="text-sm font-bold text-rose-700">{submitError}</p> : null}
       <div className="flex items-center justify-between gap-3 pt-2">
         <Button asChild variant="outline" type="button" disabled={isPending} className="rounded-xl h-12 px-5 font-bold border-slate-300">
           <Link href={cancelHref}>
@@ -202,7 +216,7 @@ export function CreateRepairOrderForm({
           </Link>
         </Button>
 
-        <Button type="submit" disabled={isPending} className="h-12 px-8 rounded-xl bg-teal-800 hover:bg-teal-700 text-white font-bold text-sm shadow-md shadow-teal-900/15 flex items-center justify-center gap-2 min-w-[180px]">
+        <Button type="submit" disabled={isPending || photoBusy} className="h-12 px-8 rounded-xl bg-teal-800 hover:bg-teal-700 text-white font-bold text-sm shadow-md shadow-teal-900/15 flex items-center justify-center gap-2 min-w-[180px]">
           {isPending ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
