@@ -79,7 +79,7 @@ const manageCalls = ['postPurchaseInvoiceAction','recordPurchaseReceiptAction','
 for (const name of manageCalls) {
   const a = actions.indexOf(`export async function ${name}`); assert(a >= 0);
   const snippet = actions.slice(a, a + 1800);
-  assert(snippet.includes('requirePermission("inventory:manage")'), `${name} missing manage permission`);
+  assert(/requirePermission\("inventory:manage"(?:\s*,|\s*\))/.test(snippet), `${name} missing manage permission`);
 }
 
 assert(form.includes('استلمت جزءاً من البضاعة'));
