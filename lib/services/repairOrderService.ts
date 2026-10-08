@@ -3,7 +3,6 @@ import { prisma } from "@/lib/prisma";
 
 const repairOrderInclude = {
   customer: true,
-  intakePhoto: { select: { id: true, mimeType: true, fileSize: true, createdAt: true } },
   supplier: true,
   items: {
     where: {
@@ -49,6 +48,11 @@ const repairOrderInclude = {
       issuedAt: "desc",
     },
   },
+} satisfies Prisma.RepairOrderInclude;
+
+const repairOrderDetailsInclude = {
+  ...repairOrderInclude,
+  intakePhoto: { select: { id: true, mimeType: true, fileSize: true, createdAt: true } },
 } satisfies Prisma.RepairOrderInclude;
 
 export type RepairOrderListFilters = {
@@ -420,7 +424,7 @@ export async function getRepairOrderById(shopId: string, repairOrderId: string) 
       shopId,
       deletedAt: null,
     },
-    include: repairOrderInclude,
+    include: repairOrderDetailsInclude,
   });
 
   if (!repairOrder) {
