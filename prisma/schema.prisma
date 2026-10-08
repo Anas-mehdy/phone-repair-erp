@@ -173,6 +173,7 @@ model Shop {
   customers                 Customer[]
   suppliers                 Supplier[]
   repairOrders              RepairOrder[]
+  repairIntakePhotos        RepairOrderIntakePhoto[]
   repairOrderItems          RepairOrderItem[]
   repairStatusHistories     RepairStatusHistory[]
   repairAssignmentHistories RepairOrderAssignmentHistory[]
@@ -815,6 +816,7 @@ model RepairOrder {
   customer           Customer?                      @relation(fields: [customerId], references: [id], onDelete: SetNull)
   supplier           Supplier?                      @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   items              RepairOrderItem[]
+  intakePhoto        RepairOrderIntakePhoto?
   statusHistory      RepairStatusHistory[]
   assignmentHistory  RepairOrderAssignmentHistory[]
   inventoryMovements InventoryMovement[]
@@ -831,6 +833,23 @@ model RepairOrder {
   @@index([shopId, updatedByUserId])
   @@index([shopId, updatedAt])
   @@index([shopId, deletedAt])
+}
+
+model RepairOrderIntakePhoto {
+  id               String   @id @default(uuid()) @db.Uuid
+  shopId           String   @db.Uuid
+  repairOrderId    String   @unique @db.Uuid
+  fileName         String
+  mimeType         String
+  fileSize         Int
+  fileData         Bytes
+  uploadedByUserId String?  @db.Uuid
+  createdAt        DateTime @default(now())
+
+  shop        Shop        @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  repairOrder RepairOrder @relation(fields: [repairOrderId], references: [id], onDelete: Cascade)
+
+  @@index([shopId, repairOrderId])
 }
 
 model RepairOrderAssignmentHistory {
