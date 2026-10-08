@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 
 const repairOrderInclude = {
   customer: true,
+  intakePhoto: { select: { id: true, mimeType: true, fileSize: true, createdAt: true } },
   supplier: true,
   items: {
     where: {
@@ -90,6 +91,12 @@ export type CreateRepairOrderInput = {
   supplierNotes?: string;
   // New multi-item parts
   items?: RepairOrderItemInput[];
+  intakePhoto?: {
+    fileName: string;
+    mimeType: string;
+    fileSize: number;
+    fileData: Uint8Array;
+  };
 };
 
 export type AssignableTechnician = {
@@ -687,6 +694,20 @@ export async function createRepairOrder(
         dueAt: dateOrNull(input.dueAt),
       },
     });
+
+    if (input.intakePhoto) {
+      await tx.repairOrderIntakePhoto.create({
+        data: {
+          shopId,
+          repairOrderId: repairOrder.id,
+          uploadedByUserId: createdByUserId,
+          fileName: input.intakePhoto.fileName,
+          mimeType: input.intakePhoto.mimeType,
+          fileSize: input.intakePhoto.fileSize,
+          fileData: input.intakePhoto.fileData,
+        },
+      });
+    }
 
     await tx.repairStatusHistory.create({
       data: {
