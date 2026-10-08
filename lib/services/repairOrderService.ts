@@ -704,7 +704,7 @@ export async function createRepairOrder(
           fileName: input.intakePhoto.fileName,
           mimeType: input.intakePhoto.mimeType,
           fileSize: input.intakePhoto.fileSize,
-          fileData: input.intakePhoto.fileData,
+          fileData: new Uint8Array(input.intakePhoto.fileData),
         },
       });
     }
