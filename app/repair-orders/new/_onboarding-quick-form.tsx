@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
+import { IntakePhotoPicker } from "./_intake-photo-picker";
 import { ArrowLeft, Loader2, Save, Smartphone, User, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, inputClassName, textareaClassName } from "../_components";
@@ -9,16 +10,25 @@ import { createRepairOrderAction } from "../actions";
 
 export function RepairOnboardingQuickForm() {
   const [isPending, startTransition] = useTransition();
+  const [intakePhoto, setIntakePhoto] = useState<File | null>(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (isPending) return;
+    if (isPending || photoBusy) return;
 
     const formData = new FormData(event.currentTarget);
     formData.set("onboarding", "1");
+    if (intakePhoto) formData.set("intakePhoto", intakePhoto);
+    setSubmitError("");
 
     startTransition(async () => {
-      await createRepairOrderAction(formData);
+      try {
+        await createRepairOrderAction(formData);
+      } catch {
+        setSubmitError("تعذر تسجيل الجهاز. تحقق من البيانات وحاول مجدداً.");
+      }
     });
   }
 
@@ -102,9 +112,13 @@ export function RepairOnboardingQuickForm() {
               </div>
             </div>
           </div>
+          <div className="mt-5">
+            <IntakePhotoPicker photo={intakePhoto} onChange={setIntakePhoto} onBusyChange={setPhotoBusy} disabled={isPending} />
+          </div>
         </div>
       </section>
 
+      {submitError ? <p role="alert" className="text-sm font-bold text-rose-700">{submitError}</p> : null}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Link
           href="/repair-orders/new?onboarding=1&mode=full"
@@ -116,7 +130,7 @@ export function RepairOnboardingQuickForm() {
 
         <Button
           type="submit"
-          disabled={isPending}
+          disabled={isPending || photoBusy}
           className="h-12 min-w-[190px] rounded-xl bg-gradient-to-l from-teal-700 to-cyan-700 px-6 text-[12px] font-black text-white shadow-lg shadow-teal-700/15 hover:from-teal-600 hover:to-cyan-600"
         >
           {isPending ? (
