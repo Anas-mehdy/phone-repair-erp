@@ -184,6 +184,31 @@ export default async function RepairOrderDetailsPage({
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] min-w-0 max-w-full">
         {/* Main Column */}
         <div className="space-y-6 min-w-0 max-w-full">
+          {repairOrder.intakePhoto ? (
+            <section className="erp-section space-y-3">
+              <div>
+                <h3 className="text-sm font-bold text-slate-800">صورة الجهاز عند الاستلام</h3>
+                <p className="mt-1 text-xs text-slate-500">صورة داخلية محفوظة مع التذكرة لتوثيق حالة الجهاز.</p>
+              </div>
+              <a
+                href={`/api/repair-orders/${repairOrder.id}/intake-photo`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block max-w-lg overflow-hidden rounded-xl border border-slate-200 bg-slate-50"
+                title="فتح صورة الاستلام بالحجم الكامل"
+              >
+                <Image
+                  src={`/api/repair-orders/${repairOrder.id}/intake-photo`}
+                  alt="صورة الجهاز وقت الاستلام"
+                  width={900}
+                  height={680}
+                  unoptimized
+                  className="h-auto max-h-[420px] w-full object-contain"
+                />
+              </a>
+              <p className="text-xs text-teal-800">اضغط على الصورة لفتحها بالحجم الكامل.</p>
+            </section>
+          ) : null}
           {/* General Information Card */}
           <div className="erp-section">
             <div className="border-b border-slate-100/60 pb-3 mb-5 flex flex-wrap items-center justify-between gap-2">

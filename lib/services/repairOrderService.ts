@@ -50,6 +50,11 @@ const repairOrderInclude = {
   },
 } satisfies Prisma.RepairOrderInclude;
 
+const repairOrderDetailsInclude = {
+  ...repairOrderInclude,
+  intakePhoto: { select: { id: true, mimeType: true, fileSize: true, createdAt: true } },
+} satisfies Prisma.RepairOrderInclude;
+
 export type RepairOrderListFilters = {
   status?: RepairStatus | "ALL";
   search?: string;
@@ -90,6 +95,12 @@ export type CreateRepairOrderInput = {
   supplierNotes?: string;
   // New multi-item parts
   items?: RepairOrderItemInput[];
+  intakePhoto?: {
+    fileName: string;
+    mimeType: string;
+    fileSize: number;
+    fileData: Uint8Array;
+  };
 };
 
 export type AssignableTechnician = {
@@ -413,7 +424,7 @@ export async function getRepairOrderById(shopId: string, repairOrderId: string) 
       shopId,
       deletedAt: null,
     },
-    include: repairOrderInclude,
+    include: repairOrderDetailsInclude,
   });
 
   if (!repairOrder) {
@@ -687,6 +698,20 @@ export async function createRepairOrder(
         dueAt: dateOrNull(input.dueAt),
       },
     });
+
+    if (input.intakePhoto) {
+      await tx.repairOrderIntakePhoto.create({
+        data: {
+          shopId,
+          repairOrderId: repairOrder.id,
+          uploadedByUserId: createdByUserId,
+          fileName: input.intakePhoto.fileName,
+          mimeType: input.intakePhoto.mimeType,
+          fileSize: input.intakePhoto.fileSize,
+          fileData: new Uint8Array(input.intakePhoto.fileData),
+        },
+      });
+    }
 
     await tx.repairStatusHistory.create({
       data: {

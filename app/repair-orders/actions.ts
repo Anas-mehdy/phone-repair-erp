@@ -1,6 +1,7 @@
 "use server";
 
 import { RepairStatus } from "@prisma/client";
+import { readRepairIntakePhoto } from "@/lib/repair-intake-photo";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -150,6 +151,7 @@ export async function createRepairOrderAction(formData: FormData) {
   });
 
   const auth = await requirePermission("repairs:create");
+  const intakePhoto = await readRepairIntakePhoto(formData.get("intakePhoto"));
   if (input.assignedToUserId) {
     await requirePermission("repairs:assign");
   }
@@ -162,7 +164,7 @@ export async function createRepairOrderAction(formData: FormData) {
     async () => repairOrderService.createRepairOrder(
       auth.shop.id,
       auth.user.id,
-      input,
+      { ...input, intakePhoto },
     ),
   );
 
