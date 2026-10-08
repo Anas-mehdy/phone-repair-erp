@@ -98,7 +98,9 @@ jobs:
           cp -R prisma/migrations/20260909220000_bank_accounts "$ci_schema_dir/migrations/"
           cp -R prisma/migrations/20260910150000_supplier_ledger_bank_payments "$ci_schema_dir/migrations/"
           cp -R prisma/migrations/20260910153000_purchase_bank_account_constraints "$ci_schema_dir/migrations/"
+          cp -R prisma/migrations/20261008212000_add_repair_intake_photo "$ci_schema_dir/migrations/"
           npx prisma migrate deploy --schema "$ci_schema_dir/schema.prisma"
+          psql -h 127.0.0.1 -U postgres -d massar_purchase_verify -v ON_ERROR_STOP=1 -c \"SELECT count(*) AS intake_photo_columns FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'RepairOrderIntakePhoto' HAVING count(*) = 8\"
 
       - name: TypeScript
         run: npx tsc --noEmit
