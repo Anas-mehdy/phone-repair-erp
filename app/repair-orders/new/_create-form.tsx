@@ -18,6 +18,7 @@ export function CreateRepairOrderForm({
   returnTo,
   cancelHref = "/repair-orders",
   onboardingMode = false,
+  simpleMode = false,
 }: {
   suppliers: SupplierOption[];
   inventoryItems?: InventoryItemOption[];
@@ -26,6 +27,7 @@ export function CreateRepairOrderForm({
   returnTo?: string;
   cancelHref?: string;
   onboardingMode?: boolean;
+  simpleMode?: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
   const [selectedCustomer, setSelectedCustomer] = useState<RepairCustomerOption | null>(null);
@@ -60,6 +62,30 @@ export function CreateRepairOrderForm({
       setCustomerPhone(customer.phone ?? "");
     }
   }
+
+  const technicianPanel = (
+<section className="erp-section repair-new-card repair-new-card-technician border-emerald-200/80 bg-gradient-to-br from-emerald-50/70 via-white to-white shadow-sm shadow-emerald-100/50">
+          <div className="flex items-center gap-2 border-b border-emerald-100/80 pb-3 mb-4">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200/70">
+              <UserRoundCheck className="h-4 w-4" />
+            </div>
+            <div>
+              <h3 className="font-bold text-emerald-950 text-sm">الفني المسؤول</h3>
+              <p className="text-xs text-emerald-700/70 font-medium mt-0.5">
+                يمكنك إسناد التذكرة الآن أو تركها غير مسندة واختيار الفني لاحقاً.
+              </p>
+            </div>
+          </div>
+          <Field label="إسناد التذكرة إلى">
+            <select className={inputClassName} name="assignedToUserId" disabled={isPending} defaultValue="">
+              <option value="">غير مسندة حالياً</option>
+              {technicians.map((technician) => (
+                <option key={technician.id} value={technician.id}>{technician.name}</option>
+              ))}
+            </select>
+          </Field>
+        </section>
+  );
 
   return (
     <form onSubmit={handleSubmit} className="repair-new-form space-y-6">
@@ -122,7 +148,10 @@ export function CreateRepairOrderForm({
               }}
             />
           </Field>
-          <div className="sm:col-span-2">
+          {simpleMode ? (
+            <details className="sm:col-span-2 rounded-xl border border-cyan-100 bg-white/70 p-3">
+              <summary className="cursor-pointer text-xs font-bold text-cyan-800">ملاحظات عن العميل (اختياري)</summary>
+              <div className="pt-3">          <div className="sm:col-span-2">
             <Field label="ملاحظات العميل">
               <textarea
                 className={textareaClassName}
@@ -131,7 +160,18 @@ export function CreateRepairOrderForm({
                 placeholder="أية تفاصيل خاصة بالعميل..."
               />
             </Field>
-          </div>
+          </div></div>
+            </details>
+          ) : (          <div className="sm:col-span-2">
+            <Field label="ملاحظات العميل">
+              <textarea
+                className={textareaClassName}
+                name="customerNotes"
+                disabled={isPending}
+                placeholder="أية تفاصيل خاصة بالعميل..."
+              />
+            </Field>
+          </div>)}
         </div>
       </section>
 
@@ -154,6 +194,15 @@ export function CreateRepairOrderForm({
           <Field label="الموديل">
             <input className={inputClassName} name="deviceModel" disabled={isPending} placeholder="مثال: iPhone 15 Pro" />
           </Field>
+          <div className="sm:col-span-2">
+            <Field label="المشكلة المبلغ عنها">
+              <textarea className={textareaClassName} name="reportedIssue" required disabled={isPending} placeholder="مثال: الشاشة مكسورة، الجهاز لا يشحن..." />
+            </Field>
+          </div>
+          {simpleMode ? (
+            <details className="sm:col-span-2 rounded-xl border border-indigo-200 bg-white/75 shadow-sm">
+              <summary className="cursor-pointer px-4 py-3 text-sm font-bold text-indigo-800">تفاصيل إضافية للجهاز — الرقم التسلسلي، السعر، موعد التسليم، ملاحظات الفني</summary>
+              <div className="grid gap-4 border-t border-indigo-100 p-4 sm:grid-cols-2">
           <Field label="الرقم التسلسلي (SN / IMEI)">
             <input className={`${inputClassName} font-numeric`} name="deviceSerial" disabled={isPending} placeholder="أدخل الرقم التسلسلي لجهاز العميل..." />
           </Field>
@@ -163,16 +212,33 @@ export function CreateRepairOrderForm({
           <Field label="تاريخ التسليم المتوقع">
             <input className={`${inputClassName} font-numeric`} name="dueAt" disabled={isPending} type="date" />
           </Field>
-          <div className="sm:col-span-2">
-            <Field label="المشكلة المبلغ عنها">
-              <textarea className={textareaClassName} name="reportedIssue" required disabled={isPending} placeholder="مثال: الشاشة مكسورة، الجهاز لا يشحن..." />
-            </Field>
-          </div>
+
           <div className="sm:col-span-2">
             <Field label="ملاحظات داخلية للفنيين">
               <textarea className={textareaClassName} name="notes" disabled={isPending} placeholder="ملاحظات تظهر للفنيين فقط ولا تظهر للعميل..." />
             </Field>
           </div>
+              </div>
+            </details>
+          ) : (
+            <div className="contents">
+          <Field label="الرقم التسلسلي (SN / IMEI)">
+            <input className={`${inputClassName} font-numeric`} name="deviceSerial" disabled={isPending} placeholder="أدخل الرقم التسلسلي لجهاز العميل..." />
+          </Field>
+          <Field label="سعر الصيانة المتوقع للعميل (تقديري)">
+            <input className={`${inputClassName} font-numeric`} name="estimatedTotal" disabled={isPending} inputMode="decimal" placeholder="0.00" />
+          </Field>
+          <Field label="تاريخ التسليم المتوقع">
+            <input className={`${inputClassName} font-numeric`} name="dueAt" disabled={isPending} type="date" />
+          </Field>
+
+          <div className="sm:col-span-2">
+            <Field label="ملاحظات داخلية للفنيين">
+              <textarea className={textareaClassName} name="notes" disabled={isPending} placeholder="ملاحظات تظهر للفنيين فقط ولا تظهر للعميل..." />
+            </Field>
+          </div>
+            </div>
+          )}
         </div>
         <div className="mt-4">
           <IntakePhotoPicker photo={intakePhoto} onChange={setIntakePhoto} onBusyChange={setPhotoBusy} disabled={isPending} />
@@ -180,32 +246,24 @@ export function CreateRepairOrderForm({
       </section>
 
       {technicians.length > 0 ? (
-        <section className="erp-section repair-new-card repair-new-card-technician border-emerald-200/80 bg-gradient-to-br from-emerald-50/70 via-white to-white shadow-sm shadow-emerald-100/50">
-          <div className="flex items-center gap-2 border-b border-emerald-100/80 pb-3 mb-4">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200/70">
-              <UserRoundCheck className="h-4 w-4" />
-            </div>
-            <div>
-              <h3 className="font-bold text-emerald-950 text-sm">الفني المسؤول</h3>
-              <p className="text-xs text-emerald-700/70 font-medium mt-0.5">
-                يمكنك إسناد التذكرة الآن أو تركها غير مسندة واختيار الفني لاحقاً.
-              </p>
-            </div>
-          </div>
-          <Field label="إسناد التذكرة إلى">
-            <select className={inputClassName} name="assignedToUserId" disabled={isPending} defaultValue="">
-              <option value="">غير مسندة حالياً</option>
-              {technicians.map((technician) => (
-                <option key={technician.id} value={technician.id}>{technician.name}</option>
-              ))}
-            </select>
-          </Field>
-        </section>
+        simpleMode ? (
+          <details className="rounded-2xl border border-emerald-200 bg-white shadow-sm">
+            <summary className="cursor-pointer px-4 py-3 text-sm font-black text-emerald-800">تعيين الفني المسؤول (اختياري)</summary>
+            <div className="p-2">{technicianPanel}</div>
+          </details>
+        ) : technicianPanel
       ) : null}
 
-      <div className="repair-new-supplier">
+      {simpleMode ? (
+        <details className="rounded-2xl border border-teal-200 bg-white shadow-sm">
+          <summary className="cursor-pointer px-4 py-3 text-sm font-black text-teal-800">قطع غيار أو موردون (أضفها إذا احتجت)</summary>
+          <div className="p-2">      <div className="repair-new-supplier">
         <SupplierFields suppliers={suppliers} inventoryItems={inventoryItems} currency={currency} />
-      </div>
+      </div></div>
+        </details>
+      ) : (      <div className="repair-new-supplier">
+        <SupplierFields suppliers={suppliers} inventoryItems={inventoryItems} currency={currency} />
+      </div>)}
 
       {submitError ? <p role="alert" className="text-sm font-bold text-rose-700">{submitError}</p> : null}
       <div className="flex items-center justify-between gap-3 pt-2">
@@ -225,7 +283,7 @@ export function CreateRepairOrderForm({
           ) : (
             <>
               <Save className="h-4 w-4 ml-1.5" />
-              <span>حفظ طلب الصيانة</span>
+              <span>استلام الجهاز وحفظ التذكرة</span>
             </>
           )}
         </Button>

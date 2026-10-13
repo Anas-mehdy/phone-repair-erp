@@ -27,6 +27,7 @@ export function ElectronicServiceExecutionForm({
   defaultCurrency,
   defaultProviderId,
   returnTo,
+  simpleMode = false,
 }: {
   providers: Provider[];
   templates: Template[];
@@ -36,6 +37,7 @@ export function ElectronicServiceExecutionForm({
   defaultCurrency: string;
   defaultProviderId?: string;
   returnTo?: string;
+  simpleMode?: boolean;
 }) {
   const [mode, setMode] = useState<"TEMPLATE" | "FREE">(templates.length ? "TEMPLATE" : "FREE");
   const [templateId, setTemplateId] = useState(templates[0]?.id ?? "");
@@ -98,8 +100,18 @@ export function ElectronicServiceExecutionForm({
       <label className="mt-3 block"><span className="mb-1.5 block text-[10px] font-black text-slate-600 dark:text-slate-300">العميل {paymentDestination === "DEBT" ? "*" : "(اختياري)"}</span><select name="customerId" value={customerId} onChange={(event) => setCustomerId(event.target.value)} className={inputClass} required={paymentDestination === "DEBT"}><option value="">بدون ربط بعميل</option>{customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}{customer.phone ? ` — ${customer.phone}` : ""}</option>)}</select>{paymentDestination === "DEBT" ? <p className="mt-1 text-[9px] font-semibold text-amber-700 dark:text-amber-300">سيُضاف المبلغ كاملًا إلى دفتر دين هذا العميل، ويمنع مسار إلغاء العملية بعد تحصيل جزء من الدين.</p> : null}</label>
     </section>
 
+    {simpleMode ? (
+      <details className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
+        <summary className="cursor-pointer text-sm font-bold text-slate-700 dark:text-slate-200">رقم الهاتف، مرجع العملية، وملاحظات إضافية (اختياري)</summary>
+        <div className="space-y-3 pt-4">
     <div className="grid gap-3 sm:grid-cols-2"><label className="block"><span className="mb-1.5 block text-[10px] font-black text-slate-600 dark:text-slate-300">رقم الهاتف / الحساب</span><input name="customerPhone" maxLength={80} className={inputClass} placeholder="اختياري" /></label><label className="block"><span className="mb-1.5 block text-[10px] font-black text-slate-600 dark:text-slate-300">مرجع العملية</span><input name="reference" maxLength={160} className={inputClass} placeholder="رقم فاتورة أو مرجع خارجي" /></label></div>
     <label className="block"><span className="mb-1.5 block text-[10px] font-black text-slate-600 dark:text-slate-300">ملاحظات</span><textarea name="notes" maxLength={1000} rows={3} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-800 outline-none transition focus:border-teal-400 focus:ring-4 focus:ring-teal-100/60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100" placeholder="اختياري" /></label>
+        </div>
+      </details>
+    ) : (<>
+    <div className="grid gap-3 sm:grid-cols-2"><label className="block"><span className="mb-1.5 block text-[10px] font-black text-slate-600 dark:text-slate-300">رقم الهاتف / الحساب</span><input name="customerPhone" maxLength={80} className={inputClass} placeholder="اختياري" /></label><label className="block"><span className="mb-1.5 block text-[10px] font-black text-slate-600 dark:text-slate-300">مرجع العملية</span><input name="reference" maxLength={160} className={inputClass} placeholder="رقم فاتورة أو مرجع خارجي" /></label></div>
+    <label className="block"><span className="mb-1.5 block text-[10px] font-black text-slate-600 dark:text-slate-300">ملاحظات</span><textarea name="notes" maxLength={1000} rows={3} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-800 outline-none transition focus:border-teal-400 focus:ring-4 focus:ring-teal-100/60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100" placeholder="اختياري" /></label>
+    </>)}
     <Button type="submit" disabled={insufficient || missingDebtCustomer || missingWallet || (mode === "TEMPLATE" && !selectedTemplate) || (mode === "FREE" && !selectedProvider)} className="h-12 w-full rounded-xl bg-gradient-to-l from-teal-600 to-cyan-600 text-sm font-black text-white shadow-lg shadow-teal-600/20 disabled:cursor-not-allowed disabled:opacity-50"><CheckCircle2 className="ml-2 h-5 w-5" />تنفيذ الخدمة وتسجيل الحركة المالية</Button>
     <p className="flex items-center justify-center gap-1.5 text-center text-[10px] font-semibold leading-5 text-slate-400"><Sparkles className="h-3 w-3" />مسار سيخصم تكلفة الخدمة من رصيد المزود ويسجل التحصيل أو الدين في نفس العملية.</p>
   </form>;

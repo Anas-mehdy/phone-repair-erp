@@ -15,12 +15,14 @@ export function SalePaymentFields({
   bankAccounts,
   currency,
   debtEligible = false,
+  onChooseCustomer,
 }: {
   total: number;
   wallets: SaleWalletOption[];
   bankAccounts: SaleBankAccountOption[];
   currency: string;
   debtEligible?: boolean;
+  onChooseCustomer?: () => void;
 }) {
   const [paymentDestination, setPaymentDestination] = useState<PaymentDestination>("DRAWER");
   const [walletId, setWalletId] = useState("");
@@ -38,26 +40,26 @@ export function SalePaymentFields({
 
   return <div className="mt-5 space-y-4 border-t border-slate-100 pt-4">
     <div>
-      <div className="mb-2 text-xs font-black text-slate-700">طريقة تسوية المبلغ</div>
+      <div className="mb-2 text-xs font-black text-slate-700">كيف دفع العميل؟</div>
       <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
         <label className={`flex cursor-pointer items-center gap-2 rounded-xl border p-3 text-xs font-black transition ${paymentDestination === "DRAWER" ? "border-teal-300 bg-teal-50 text-teal-800" : "border-slate-200 text-slate-500"}`}>
           <input className="sr-only" type="radio" name="paymentDestination" value="DRAWER" checked={paymentDestination === "DRAWER"} onChange={() => setPaymentDestination("DRAWER")} />
-          <Banknote className="h-4 w-4" /> الدرج النقدي
+          <Banknote className="h-4 w-4" /> نقداً
         </label>
         <label className={`flex cursor-pointer items-center gap-2 rounded-xl border p-3 text-xs font-black transition ${paymentDestination === "WALLET" ? "border-indigo-300 bg-indigo-50 text-indigo-800" : "border-slate-200 text-slate-500"}`}>
           <input className="sr-only" type="radio" name="paymentDestination" value="WALLET" checked={paymentDestination === "WALLET"} onChange={() => setPaymentDestination("WALLET")} />
-          <WalletCards className="h-4 w-4" /> محفظة إلكترونية
+          <WalletCards className="h-4 w-4" /> محفظة
         </label>
         <label className={`flex cursor-pointer items-center gap-2 rounded-xl border p-3 text-xs font-black transition ${paymentDestination === "BANK" ? "border-cyan-300 bg-cyan-50 text-cyan-900" : "border-slate-200 text-slate-500"}`}>
           <input className="sr-only" type="radio" name="paymentDestination" value="BANK" checked={paymentDestination === "BANK"} onChange={() => setPaymentDestination("BANK")} />
-          <Landmark className="h-4 w-4" /> حساب بنكي
+          <Landmark className="h-4 w-4" /> تحويل بنكي
         </label>
         <label className={`flex items-center gap-2 rounded-xl border p-3 text-xs font-black transition ${!debtEligible ? "cursor-not-allowed border-slate-100 bg-slate-50 text-slate-300" : paymentDestination === "DEBT" ? "cursor-pointer border-amber-300 bg-amber-50 text-amber-900" : "cursor-pointer border-slate-200 text-slate-500"}`}>
           <input className="sr-only" type="radio" name="paymentDestination" value="DEBT" disabled={!debtEligible} checked={paymentDestination === "DEBT"} onChange={() => setPaymentDestination("DEBT")} />
-          <BookOpenCheck className="h-4 w-4" /> دفتر الديون
+          <BookOpenCheck className="h-4 w-4" /> على الحساب (دين)
         </label>
       </div>
-      {!debtEligible ? <p className="mt-2 text-[10px] font-semibold leading-5 text-slate-400">لترحيل المبلغ إلى دفتر الديون، اختر عميلاً مسجلاً أو أضف عميلاً جديداً أولاً.</p> : null}
+      {!debtEligible ? <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500"><span>البيع بالدين يحتاج ربط العملية بعميل.</span>{onChooseCustomer ? <button type="button" onClick={onChooseCustomer} className="font-black text-teal-700 underline underline-offset-4 dark:text-teal-300">اختر العميل</button> : null}</div> : null}
       {paymentDestination === "WALLET" ? <select name="walletId" required value={walletId} onChange={(e) => setWalletId(e.target.value)} className="erp-input mt-2"><option value="">اختر المحفظة</option>{wallets.map((wallet) => <option key={wallet.id} value={wallet.id}>{wallet.name} — {formatCurrency(wallet.balance, currency)}</option>)}</select> : <input type="hidden" name="walletId" value="" />}
       {paymentDestination === "BANK" ? <><select name="bankAccountId" required value={bankAccountId} onChange={(e) => setBankAccountId(e.target.value)} className="erp-input mt-2"><option value="">اختر الحساب البنكي</option>{bankAccounts.map((account) => <option key={account.id} value={account.id}>{account.name}{account.bankName ? ` — ${account.bankName}` : ""} — {formatCurrency(account.balance, currency)}</option>)}</select>{bankAccounts.length === 0 ? <p className="mt-2 text-[10px] font-bold text-amber-700">لا توجد حسابات بنكية نشطة. أضف حساباً من قسم الحسابات البنكية أولاً.</p> : null}</> : <input type="hidden" name="bankAccountId" value="" />}
     </div>
@@ -75,8 +77,8 @@ export function SalePaymentFields({
       </div>
     </> : <>
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="grid gap-1.5 text-xs font-black text-slate-700">المبلغ المستلم<input name="amountReceived" type="number" min={Math.max(0, total)} step="0.01" value={amountReceived} onChange={(e) => setAmountReceived(e.target.value)} className="erp-input font-numeric" placeholder={total.toFixed(2)} /></label>
-        <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3"><div className="text-[10px] font-black text-slate-400">الباقي للعميل</div><div className={`mt-1 font-numeric text-lg font-black ${change > 0 ? "text-amber-700" : "text-slate-800"}`}>{formatCurrency(change, currency)}</div></div>
+        <label className="grid gap-1.5 text-xs font-black text-slate-700">كم استلمت من العميل؟<input name="amountReceived" type="number" min={Math.max(0, total)} step="0.01" value={amountReceived} onChange={(e) => setAmountReceived(e.target.value)} className="erp-input font-numeric" placeholder={total.toFixed(2)} /></label>
+        <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3"><div className="text-[10px] font-black text-slate-400">الباقي الذي سترجعه</div><div className={`mt-1 font-numeric text-lg font-black ${change > 0 ? "text-amber-700" : "text-slate-800"}`}>{formatCurrency(change, currency)}</div></div>
       </div>
 
       {change > 0 ? <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-3.5">

@@ -1,7 +1,7 @@
 "use client";
 
 import { Banknote, ChevronDown, ChevronUp, PackagePlus, Plus, Save, Trash2, UserPlus, Users } from "lucide-react";
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/format";
 import { createSaleAction, type SaleActionState } from "./actions";
@@ -36,12 +36,13 @@ function createLine(item?: InventoryOption): SaleLineDraft {
   };
 }
 
-export function SaleForm({ inventoryItems, wallets, bankAccounts, currency = "SAR", returnTo }: { inventoryItems: InventoryOption[]; wallets: SaleWalletOption[]; bankAccounts: SaleBankAccountOption[]; currency?: string; returnTo?: string }) {
+export function SaleForm({ inventoryItems, wallets, bankAccounts, currency = "SAR", returnTo, simpleMode = false }: { inventoryItems: InventoryOption[]; wallets: SaleWalletOption[]; bankAccounts: SaleBankAccountOption[]; currency?: string; returnTo?: string; simpleMode?: boolean }) {
   const [state, formAction, isPending] = useActionState(createSaleAction, initialState);
   const [lines, setLines] = useState<SaleLineDraft[]>([]);
   const [customerMode, setCustomerMode] = useState<CustomerMode>("CASH");
   const [selectedCustomer, setSelectedCustomer] = useState<SaleCustomerOption | null>(null);
   const [forceSeparateLine, setForceSeparateLine] = useState(false);
+  const customerDetailsRef = useRef<HTMLDetailsElement>(null);
   const [searchedItems, setSearchedItems] = useState<InventoryOption[]>([]);
 
   const inventoryById = useMemo(() => new Map([...inventoryItems, ...searchedItems].map((item) => [item.id, item])), [inventoryItems, searchedItems]);
@@ -101,6 +102,18 @@ export function SaleForm({ inventoryItems, wallets, bankAccounts, currency = "SA
     if (mode !== "EXISTING") setSelectedCustomer(null);
   }
 
+  const customerPanel = (
+        <section className="erp-section">
+          <div className="border-b border-slate-100/60 pb-3 mb-4"><h3 className="font-bold text-slate-800 text-sm">بيانات العميل</h3><p className="mt-1 text-[11px] font-medium text-slate-400">اربط المبيعة بعميل موجود أو سجل عميلاً جديداً للمرة الأولى.</p></div>
+          <div className="grid grid-cols-3 gap-2 mb-4">
+            <button type="button" onClick={() => changeCustomerMode("EXISTING")} className={`rounded-xl border p-2.5 text-[10px] font-black transition ${customerMode === "EXISTING" ? "border-primary bg-primary/5 text-primary" : "border-slate-200 text-slate-500 hover:bg-slate-50"}`}><Users className="mx-auto mb-1 h-4 w-4" />عميل موجود</button>
+            <button type="button" onClick={() => changeCustomerMode("NEW")} className={`rounded-xl border p-2.5 text-[10px] font-black transition ${customerMode === "NEW" ? "border-primary bg-primary/5 text-primary" : "border-slate-200 text-slate-500 hover:bg-slate-50"}`}><UserPlus className="mx-auto mb-1 h-4 w-4" />عميل جديد</button>
+            <button type="button" onClick={() => changeCustomerMode("CASH")} className={`rounded-xl border p-2.5 text-[10px] font-black transition ${customerMode === "CASH" ? "border-primary bg-primary/5 text-primary" : "border-slate-200 text-slate-500 hover:bg-slate-50"}`}><Banknote className="mx-auto mb-1 h-4 w-4" />بدون تسجيل</button>
+          </div>
+          {customerMode === "EXISTING" ? <div className="grid gap-3"><Field label="اختر العميل"><CustomerSearchCombobox value={selectedCustomer?.id ?? ""} selectedCustomer={selectedCustomer} onSelect={setSelectedCustomer} /></Field>{selectedCustomer ? <div className="rounded-xl border border-emerald-200/60 bg-emerald-50/50 px-3 py-2.5 text-xs"><div className="font-black text-emerald-800">{selectedCustomer.name}</div>{selectedCustomer.phone ? <div className="mt-0.5 font-numeric text-[10px] font-bold text-emerald-600" dir="ltr">{selectedCustomer.phone}</div> : null}</div> : null}</div> : customerMode === "NEW" ? <div className="grid gap-4"><Field label="اسم العميل الجديد"><input className={inputClassName} name="customerName" placeholder="مثال: محمود أحمد" required /></Field><Field label="رقم الهاتف"><input className={`${inputClassName} font-numeric`} name="customerPhone" inputMode="tel" placeholder="05xxxxxxxx" /></Field><p className="text-[10px] leading-5 font-semibold text-slate-400">سيتم حفظ العميل تلقائياً في إدارة العملاء. إذا كان رقم الهاتف مسجلاً مسبقاً، سيطلب منك النظام اختيار العميل الموجود بدلاً من إنشاء نسخة مكررة.</p></div> : <div className="rounded-xl border border-slate-200/70 bg-slate-50/60 px-3 py-3 text-[11px] font-semibold text-slate-500">لن يتم إنشاء سجل عميل لهذه المبيعة.</div>}
+        </section>
+  );
+
   return <form action={formAction} className="space-y-6">
     <input name="items" type="hidden" value={serializedItems} />
     <input name="customerMode" type="hidden" value={customerMode} />
@@ -143,15 +156,28 @@ export function SaleForm({ inventoryItems, wallets, bankAccounts, currency = "SA
             />
 
             <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <label className="flex cursor-pointer items-center gap-2 text-[10px] font-bold text-slate-500">
+              {simpleMode ? (
+                <details className="rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900">
+                  <summary className="cursor-pointer text-xs font-bold text-slate-600 dark:text-slate-300">خيارات إضافة الأصناف</summary>
+                  <div className="pt-3">              <label className="flex cursor-pointer items-center gap-2 text-[10px] font-bold text-slate-500">
                 <input
                   type="checkbox"
                   checked={forceSeparateLine}
                   onChange={(event) => setForceSeparateLine(event.target.checked)}
                   className="h-3.5 w-3.5 rounded border-slate-300 text-primary focus:ring-primary/30"
                 />
-                عند اختيار نفس المنتج مرة أخرى أضفه كسطر منفصل
-              </label>
+                احتفظ بكل إضافة للمنتج كسطر منفصل
+              </label></div>
+                </details>
+              ) : (              <label className="flex cursor-pointer items-center gap-2 text-[10px] font-bold text-slate-500">
+                <input
+                  type="checkbox"
+                  checked={forceSeparateLine}
+                  onChange={(event) => setForceSeparateLine(event.target.checked)}
+                  className="h-3.5 w-3.5 rounded border-slate-300 text-primary focus:ring-primary/30"
+                />
+                احتفظ بكل إضافة للمنتج كسطر منفصل
+              </label>)}
               <Button type="button" variant="outline" size="sm" className="h-8 rounded-lg text-[10px] font-black" onClick={addManualLine}>
                 <Plus className="ml-1 h-3.5 w-3.5" />بند يدوي / خدمة
               </Button>
@@ -285,25 +311,25 @@ export function SaleForm({ inventoryItems, wallets, bankAccounts, currency = "SA
       </div>
 
       <div className="space-y-6">
-        <section className="erp-section">
-          <div className="border-b border-slate-100/60 pb-3 mb-4"><h3 className="font-bold text-slate-800 text-sm">بيانات العميل</h3><p className="mt-1 text-[11px] font-medium text-slate-400">اربط المبيعة بعميل موجود أو سجل عميلاً جديداً للمرة الأولى.</p></div>
-          <div className="grid grid-cols-3 gap-2 mb-4">
-            <button type="button" onClick={() => changeCustomerMode("EXISTING")} className={`rounded-xl border p-2.5 text-[10px] font-black transition ${customerMode === "EXISTING" ? "border-primary bg-primary/5 text-primary" : "border-slate-200 text-slate-500 hover:bg-slate-50"}`}><Users className="mx-auto mb-1 h-4 w-4" />عميل موجود</button>
-            <button type="button" onClick={() => changeCustomerMode("NEW")} className={`rounded-xl border p-2.5 text-[10px] font-black transition ${customerMode === "NEW" ? "border-primary bg-primary/5 text-primary" : "border-slate-200 text-slate-500 hover:bg-slate-50"}`}><UserPlus className="mx-auto mb-1 h-4 w-4" />عميل جديد</button>
-            <button type="button" onClick={() => changeCustomerMode("CASH")} className={`rounded-xl border p-2.5 text-[10px] font-black transition ${customerMode === "CASH" ? "border-primary bg-primary/5 text-primary" : "border-slate-200 text-slate-500 hover:bg-slate-50"}`}><Banknote className="mx-auto mb-1 h-4 w-4" />عميل نقدي</button>
-          </div>
-          {customerMode === "EXISTING" ? <div className="grid gap-3"><Field label="اختر العميل"><CustomerSearchCombobox value={selectedCustomer?.id ?? ""} selectedCustomer={selectedCustomer} onSelect={setSelectedCustomer} /></Field>{selectedCustomer ? <div className="rounded-xl border border-emerald-200/60 bg-emerald-50/50 px-3 py-2.5 text-xs"><div className="font-black text-emerald-800">{selectedCustomer.name}</div>{selectedCustomer.phone ? <div className="mt-0.5 font-numeric text-[10px] font-bold text-emerald-600" dir="ltr">{selectedCustomer.phone}</div> : null}</div> : null}</div> : customerMode === "NEW" ? <div className="grid gap-4"><Field label="اسم العميل الجديد"><input className={inputClassName} name="customerName" placeholder="مثال: محمود أحمد" required /></Field><Field label="رقم الهاتف"><input className={`${inputClassName} font-numeric`} name="customerPhone" inputMode="tel" placeholder="05xxxxxxxx" /></Field><p className="text-[10px] leading-5 font-semibold text-slate-400">سيتم حفظ العميل تلقائياً في إدارة العملاء. إذا كان رقم الهاتف مسجلاً مسبقاً، سيطلب منك النظام اختيار العميل الموجود بدلاً من إنشاء نسخة مكررة.</p></div> : <div className="rounded-xl border border-slate-200/70 bg-slate-50/60 px-3 py-3 text-[11px] font-semibold text-slate-500">لن يتم إنشاء سجل عميل لهذه المبيعة.</div>}
-        </section>
+        {simpleMode ? (
+          <details ref={customerDetailsRef} className="group rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-4 text-sm font-black text-slate-800 dark:text-slate-100 [&::-webkit-details-marker]:hidden">
+              <span className="flex items-center gap-2"><Users className="h-5 w-5 text-teal-600" /> العميل: {customerMode === "CASH" ? "بدون تسجيل" : customerMode === "NEW" ? "عميل جديد" : selectedCustomer?.name || "اختيار عميل"}</span>
+              <span className="flex items-center gap-1 text-xs font-bold text-teal-700 dark:text-teal-300">تغيير <ChevronDown className="h-4 w-4 group-open:rotate-180" /></span>
+            </summary>
+            <div className="border-t border-slate-100 p-2 dark:border-slate-800">{customerPanel}</div>
+          </details>
+        ) : customerPanel}
 
         <section className="erp-section">
-          <div className="border-b border-slate-100/60 pb-3 mb-4"><h3 className="font-bold text-slate-800 text-sm">الحسابات والملخص المالي</h3></div>
+          <div className="border-b border-slate-100/60 pb-3 mb-4"><h3 className="font-bold text-slate-800 text-sm">الإجمالي والدفع</h3></div>
           <div className="space-y-3.5">
-            <div className="flex justify-between text-xs text-slate-500 font-medium"><span>الإجمالي الفرعي:</span><span className="font-numeric font-bold">{formatCurrency(subtotal, currency)}</span></div>
-            <div className="flex justify-between text-xs text-slate-500 font-medium"><span>إجمالي الخصومات:</span><span className="font-numeric text-rose-600 font-bold">{discountTotal > 0 ? formatCurrency(-discountTotal, currency) : formatCurrency(0, currency)}</span></div>
+            {(!simpleMode || discountTotal > 0) ? <div className="flex justify-between text-xs text-slate-500 font-medium"><span>الإجمالي الفرعي:</span><span className="font-numeric font-bold">{formatCurrency(subtotal, currency)}</span></div>
+            <div className="flex justify-between text-xs text-slate-500 font-medium"><span>إجمالي الخصومات:</span><span className="font-numeric text-rose-600 font-bold">{discountTotal > 0 ? formatCurrency(-discountTotal, currency) : formatCurrency(0, currency)}</span></div> : null}
             <div className="flex justify-between text-sm font-bold text-slate-850 pt-3.5 border-t border-slate-200"><span>الإجمالي النهائي:</span><span className="font-numeric text-xl text-primary font-black">{formatCurrency(total, currency)}</span></div>
           </div>
-          <SalePaymentFields total={Math.max(0, total)} wallets={wallets} bankAccounts={bankAccounts} currency={currency} debtEligible={customerMode === "NEW" || (customerMode === "EXISTING" && Boolean(selectedCustomer))} />
-          <div className="mt-6 pt-1"><Button type="submit" disabled={isPending || lines.length === 0} className="w-full font-bold shadow-md h-12 rounded-xl text-xs justify-center"><Save className="h-4.5 w-4.5 ml-1.5" />{isPending ? "جاري تسجيل عملية البيع..." : "إتمام وإصدار عملية البيع"}</Button></div>
+          <SalePaymentFields total={Math.max(0, total)} wallets={wallets} bankAccounts={bankAccounts} currency={currency} debtEligible={customerMode === "NEW" || (customerMode === "EXISTING" && Boolean(selectedCustomer))} onChooseCustomer={simpleMode ? () => { if (customerDetailsRef.current) customerDetailsRef.current.open = true; customerDetailsRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }); } : undefined} />
+          <div className="mt-6 pt-1"><Button type="submit" disabled={isPending || lines.length === 0} className="w-full font-bold shadow-md h-12 rounded-xl text-xs justify-center"><Save className="h-4.5 w-4.5 ml-1.5" />{isPending ? "جاري تسجيل عملية البيع..." : "إتمام البيع وإصدار الفاتورة"}</Button></div>
         </section>
       </div>
     </div>

@@ -23,10 +23,10 @@ type CommissionMode = "DEDUCTED" | "ADDED" | "NONE";
 type SettlementType = "CASH_DRAWER" | "WALLET";
 
 const operationOptions = [
-  { value: "CUSTOMER_DEPOSIT" as const, label: "إيداع للعميل", helper: "تحويل رصيد للعميل", icon: ArrowDownLeft, active: "border-cyan-300 bg-cyan-50 text-cyan-800", iconClass: "bg-cyan-100 text-cyan-700" },
-  { value: "CUSTOMER_WITHDRAWAL" as const, label: "سحب للعميل", helper: "استلام رصيد من العميل", icon: ArrowUpRight, active: "border-indigo-300 bg-indigo-50 text-indigo-800", iconClass: "bg-indigo-100 text-indigo-700" },
-  { value: "WALLET_TOPUP" as const, label: "شحن المحفظة", helper: "إضافة رصيد داخلي", icon: Banknote, active: "border-teal-300 bg-teal-50 text-teal-800", iconClass: "bg-teal-100 text-teal-700" },
-  { value: "WALLET_WITHDRAWAL" as const, label: "سحب من المحفظة", helper: "حركة داخلية من الرصيد", icon: Landmark, active: "border-slate-300 bg-slate-50 text-slate-800", iconClass: "bg-slate-100 text-slate-600" },
+  { value: "CUSTOMER_DEPOSIT" as const, label: "إيداع للعميل", helper: "العميل يدفع ونحوّل له رصيداً", icon: ArrowDownLeft, active: "border-cyan-300 bg-cyan-50 text-cyan-800", iconClass: "bg-cyan-100 text-cyan-700" },
+  { value: "CUSTOMER_WITHDRAWAL" as const, label: "سحب للعميل", helper: "نستلم رصيداً ونعطي العميل المقابل", icon: ArrowUpRight, active: "border-indigo-300 bg-indigo-50 text-indigo-800", iconClass: "bg-indigo-100 text-indigo-700" },
+  { value: "WALLET_TOPUP" as const, label: "شحن المحفظة", helper: "شحن رصيد المحل نفسه", icon: Banknote, active: "border-teal-300 bg-teal-50 text-teal-800", iconClass: "bg-teal-100 text-teal-700" },
+  { value: "WALLET_WITHDRAWAL" as const, label: "سحب من المحفظة", helper: "سحب من رصيد المحل", icon: Landmark, active: "border-slate-300 bg-slate-50 text-slate-800", iconClass: "bg-slate-100 text-slate-600" },
 ];
 
 export function TransferForm({ wallets, customers, currency, returnTo }: { wallets: WalletOption[]; customers: CustomerOption[]; currency: string; returnTo?: string }) {
@@ -115,7 +115,7 @@ export function TransferForm({ wallets, customers, currency, returnTo }: { walle
     {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
 
     <div>
-      <Label>نوع العملية</Label>
+      <Label>شو نوع حركة الرصيد؟</Label>
       <input type="hidden" name="operationType" value={operationType} />
       <div className="grid grid-cols-2 gap-2">
         {operationOptions.map((option) => {
