@@ -324,8 +324,8 @@ export function SaleForm({ inventoryItems, wallets, bankAccounts, currency = "SA
         <section className="erp-section">
           <div className="border-b border-slate-100/60 pb-3 mb-4"><h3 className="font-bold text-slate-800 text-sm">الإجمالي والدفع</h3></div>
           <div className="space-y-3.5">
-            {(!simpleMode || discountTotal > 0) ? <div className="flex justify-between text-xs text-slate-500 font-medium"><span>الإجمالي الفرعي:</span><span className="font-numeric font-bold">{formatCurrency(subtotal, currency)}</span></div>
-            <div className="flex justify-between text-xs text-slate-500 font-medium"><span>إجمالي الخصومات:</span><span className="font-numeric text-rose-600 font-bold">{discountTotal > 0 ? formatCurrency(-discountTotal, currency) : formatCurrency(0, currency)}</span></div> : null}
+            {(!simpleMode || discountTotal > 0) ? <><div className="flex justify-between text-xs text-slate-500 font-medium"><span>الإجمالي الفرعي:</span><span className="font-numeric font-bold">{formatCurrency(subtotal, currency)}</span></div>
+            <div className="flex justify-between text-xs text-slate-500 font-medium"><span>إجمالي الخصومات:</span><span className="font-numeric text-rose-600 font-bold">{discountTotal > 0 ? formatCurrency(-discountTotal, currency) : formatCurrency(0, currency)}</span></div></> : null}
             <div className="flex justify-between text-sm font-bold text-slate-850 pt-3.5 border-t border-slate-200"><span>الإجمالي النهائي:</span><span className="font-numeric text-xl text-primary font-black">{formatCurrency(total, currency)}</span></div>
           </div>
           <SalePaymentFields total={Math.max(0, total)} wallets={wallets} bankAccounts={bankAccounts} currency={currency} debtEligible={customerMode === "NEW" || (customerMode === "EXISTING" && Boolean(selectedCustomer))} onChooseCustomer={simpleMode ? () => { if (customerDetailsRef.current) customerDetailsRef.current.open = true; customerDetailsRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }); } : undefined} />
