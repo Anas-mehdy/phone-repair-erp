@@ -45,13 +45,13 @@ export default async function EmployeeSaleDetailsPage({ params, searchParams }: 
 
       <section className="erp-section">
         <div className="mb-4 border-b border-slate-100 pb-3 dark:border-slate-800"><h2 className="text-sm font-black">بنود المبيعة</h2></div>
-        <div className="overflow-x-auto"><table className="erp-table min-w-[680px]"><thead><tr><th>الصنف</th><th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th></tr></thead><tbody>{sale.items.map((item) => <tr key={item.id}><td className="font-black">{item.description}</td><td className="font-numeric font-bold">{item.quantity}</td><td className="font-numeric">{formatCurrency(Number(item.unitPriceSnapshot), currency)}</td><td className="font-numeric font-black">{formatCurrency(Number(item.lineTotal), currency)}</td></tr>)}</tbody></table></div>
+        <div className="overflow-x-auto"><table className="erp-table min-w-[680px]"><thead><tr><th>الصنف</th><th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th></tr></thead><tbody>{sale.items.map((item) => <tr key={item.id}><td className="font-black">{item.description}{item.isGift ? <span className="mr-2 rounded border border-violet-200 px-1.5 py-0.5 text-[10px] font-bold text-violet-700">هدية</span> : null}</td><td className="font-numeric font-bold">{item.quantity}</td><td className="font-numeric">{formatCurrency(Number(item.unitPriceSnapshot), currency)}</td><td className="font-numeric font-black">{formatCurrency(Number(item.lineTotal), currency)}</td></tr>)}</tbody></table></div>
       </section>
 
       {editable ? (
         <section className="erp-section space-y-5">
           <div className="flex items-center gap-2 border-b border-slate-100 pb-3 dark:border-slate-800"><PencilLine className="h-4 w-4 text-primary" /><div><h2 className="text-sm font-black">تعديل مبيعتي</h2><p className="mt-1 text-[10px] font-bold text-slate-400">مسموح بتعديل الكميات فقط. الأسعار والخصومات لا يمكن تغييرها.</p></div></div>
-          <EmployeeSaleEditForm saleId={sale.id} currency={currency} items={sale.items.map((item) => ({ id: item.id, description: item.description, quantity: item.quantity, unitPrice: Number(item.unitPriceSnapshot) }))} />
+          <EmployeeSaleEditForm saleId={sale.id} currency={currency} items={sale.items.map((item) => ({ id: item.id, description: item.isGift ? `${item.description} — هدية` : item.description, quantity: item.quantity, unitPrice: Number(item.unitPriceSnapshot) }))} />
           <form action={cancelSalesEmployeeSaleAction} className="border-t border-slate-100 pt-4 dark:border-slate-800">
             <input type="hidden" name="saleId" value={sale.id} />
             <ConfirmSubmitButton type="submit" variant="destructive" className="rounded-xl font-black" message="سيتم إلغاء المبيعة وإرجاع الكميات للمخزون. هل تريد المتابعة؟"><Ban className="ml-1.5 h-4 w-4" />إلغاء مبيعتي</ConfirmSubmitButton>

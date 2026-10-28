@@ -94,6 +94,8 @@ export default async function NewPurchasePage({ searchParams }: NewPurchasePageP
           compatibilityGroupIds: item.compatibilityGroupIds,
           compatibilityReviewNeeded: item.compatibilityReviewNeeded,
           updateSalePrice: item.updateSalePrice,
+          giftAllowed: item.giftAllowed,
+          inventoryGiftAllowed: item.inventoryGiftAllowed,
           orderedQuantity: item.orderedQuantity,
           unitCost: item.unitCost.toString(),
           manualExtraCostAllocation: item.manualExtraCostAllocation?.toString() ?? null,

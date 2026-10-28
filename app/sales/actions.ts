@@ -16,6 +16,7 @@ export type SaleActionState = { error?: string };
 
 const rawLineItemSchema = z.object({
   inventoryItemId: z.string().uuid().nullable().optional(),
+  isGift: z.boolean().default(false),
   description: z.string().trim().optional(),
   quantity: z.coerce.number().int().positive("الكمية يجب أن تكون أكبر من صفر"),
   unitPrice: z.coerce.number().nonnegative("سعر الوحدة يجب أن يكون صفراً أو أكثر"),
@@ -84,7 +85,7 @@ export async function createSaleAction(_state: SaleActionState, formData: FormDa
 
     if (onboardingMode) {
       const onboardingTotal = parsed.items.reduce((sum, item) => sum + (Number(item.unitPrice) * item.quantity) - Number(item.discountTotal || 0), 0);
-      if (!Number.isFinite(onboardingTotal) || onboardingTotal <= 0) return { error: "أدخل سعراً أكبر من صفر حتى تكون أول عملية بيع حقيقية." };
+      if (!Number.isFinite(onboardingTotal) || (onboardingTotal <= 0 && !parsed.items.some((item) => item.isGift))) return { error: "أدخل سعراً أكبر من صفر حتى تكون أول عملية بيع حقيقية." };
     }
 
     const auth = await requirePermission("sales:create");
@@ -95,7 +96,7 @@ export async function createSaleAction(_state: SaleActionState, formData: FormDa
       customerId: parsed.customerMode === "EXISTING" ? parsed.customerId || undefined : undefined,
       customerName: parsed.customerMode === "NEW" ? parsed.customerName : undefined,
       customerPhone: parsed.customerMode === "NEW" ? parsed.customerPhone : undefined,
-      items: parsed.items.map((item) => ({ inventoryItemId: item.inventoryItemId, description: item.description ?? "", quantity: item.quantity, unitPrice: String(item.unitPrice), discountTotal: String(item.discountTotal) })),
+      items: parsed.items.map((item) => ({ inventoryItemId: item.inventoryItemId, isGift: item.isGift, description: item.description ?? "", quantity: item.quantity, unitPrice: String(item.unitPrice), discountTotal: String(item.discountTotal) })),
       paymentDestination: parsed.paymentDestination,
       walletId: parsed.walletId || undefined,
       bankAccountId: parsed.bankAccountId || undefined,

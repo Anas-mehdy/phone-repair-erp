@@ -7,7 +7,7 @@ import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { captureClientEvent } from "@/lib/analytics/client";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/format";
-import { saleCostWarning } from "@/lib/sale-cost-warning";
+import { saleCostWarning, saleGiftWarning } from "@/lib/sale-cost-warning";
 import { createSaleAction, type SaleActionState } from "@/app/sales/actions";
 import { InventorySearchCombobox, type SaleInventoryOption } from "@/app/sales/inventory-search-combobox";
 
@@ -25,6 +25,7 @@ export function SaleOnboardingQuickForm({
   const [description, setDescription] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [unitPrice, setUnitPrice] = useState("");
+  const [isGift, setIsGift] = useState(false);
   const startedRef = useRef(false);
 
   useEffect(() => {
@@ -48,29 +49,31 @@ export function SaleOnboardingQuickForm({
   function selectInventory(item: SaleInventoryOption | null) {
     markStarted();
     setSelectedInventory(item);
+    setIsGift(false);
     if (!item) return;
     setDescription(item.name);
     setUnitPrice(item.unitPrice);
     setQuantity(1);
   }
 
-  const numericPrice = Number(unitPrice || 0);
+  const numericPrice = isGift ? 0 : Number(unitPrice || 0);
   const total = Math.max(0, numericPrice * Math.max(0, quantity));
   const stockInsufficient = Boolean(selectedInventory && quantity > selectedInventory.quantity);
-  const costWarning = selectedInventory ? saleCostWarning(selectedInventory.unitCost, quantity, unitPrice) : null;
-  const canSubmit = description.trim().length > 0 && quantity > 0 && numericPrice > 0 && !stockInsufficient && !costWarning;
+  const costWarning = selectedInventory ? isGift ? saleGiftWarning(selectedInventory.giftAllowed, selectedInventory.unitCost) : saleCostWarning(selectedInventory.unitCost, quantity, unitPrice) : null;
+  const canSubmit = description.trim().length > 0 && quantity > 0 && (isGift || numericPrice > 0) && !stockInsufficient && !costWarning;
 
   const serializedItems = useMemo(
     () => JSON.stringify([
       {
         inventoryItemId: selectedInventory?.id ?? null,
+        isGift,
         description: description.trim(),
         quantity,
-        unitPrice: unitPrice || "0",
+        unitPrice: isGift ? "0" : unitPrice || "0",
         discountTotal: "0",
       },
     ]),
-    [description, quantity, selectedInventory?.id, unitPrice],
+    [description, quantity, selectedInventory?.id, unitPrice, isGift],
   );
 
   return (
@@ -160,9 +163,10 @@ export function SaleOnboardingQuickForm({
                   <input
                     className="erp-input font-numeric"
                     type="number"
-                    min="0.01"
+                    disabled={isGift}
+                    min={isGift ? "0" : "0.01"}
                     step="0.01"
-                    value={unitPrice}
+                    value={isGift ? "0" : unitPrice}
                     onChange={(event) => {
                       markStarted();
                       setUnitPrice(event.target.value);
@@ -172,6 +176,7 @@ export function SaleOnboardingQuickForm({
                 </label>
               </div>
 
+              {selectedInventory ? <label className="flex cursor-pointer items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-300"><input type="checkbox" checked={isGift} onChange={(event) => setIsGift(event.target.checked)} />هدية</label> : null}
               {costWarning ? <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-bold text-rose-700">{costWarning}</div> : null}
               {selectedInventory ? (
                 <div className={`rounded-xl border px-3 py-2 text-[10px] font-bold ${stockInsufficient ? "border-rose-200 bg-rose-50 text-rose-700" : "border-emerald-200 bg-emerald-50 text-emerald-700"}`}>

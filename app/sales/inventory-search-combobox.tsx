@@ -14,6 +14,7 @@ export type SaleInventoryOption = {
   quantity: number;
   unitPrice: string;
   unitCost: string | null;
+  giftAllowed: boolean;
 };
 
 export function InventorySearchCombobox({

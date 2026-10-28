@@ -60,6 +60,7 @@ type FormLine = {
   compatibilitySelections: CompatibilitySelection[];
   compatibilityReviewNeeded: boolean;
   updateSalePrice: boolean;
+  giftAllowed: boolean | null;
   quantity: string;
   unitCost: string;
   manualExtraCostAllocation: string;
@@ -94,6 +95,7 @@ type InitialDraft = {
     inventoryItemCategory: string | null;
     inventoryItemDescription: string | null;
     inventoryCurrentSalePrice: string | null;
+    inventoryGiftAllowed: boolean | null;
     lastPurchaseCost: string | null;
     lastPurchaseAt: string | null;
     lastPurchaseSupplierName: string | null;
@@ -111,6 +113,7 @@ type InitialDraft = {
     compatibilityGroupIds: string[];
     compatibilityReviewNeeded: boolean;
     updateSalePrice: boolean;
+    giftAllowed: boolean | null;
     orderedQuantity: number;
     unitCost: string;
     manualExtraCostAllocation: string | null;
@@ -126,7 +129,7 @@ function blankLine(): FormLine {
     key: freshKey(), inventoryItemId: null, itemLabel: "", existingItem: null,
     newItemName: "", newItemSku: "", newItemBarcode: "", newItemCategoryId: "", newItemCategory: "", newItemDescription: "",
     importedSourceText: "", importSourceId: "", importRowKey: "", importedPurchaseUnit: "", matchReviewRequired: false, matchCandidates: [], compatibilitySelections: [], compatibilityReviewNeeded: true,
-    updateSalePrice: false, quantity: "1", unitCost: "", manualExtraCostAllocation: "", salePrice: "", mode: "existing", selected: false,
+    updateSalePrice: false, giftAllowed: null, quantity: "1", unitCost: "", manualExtraCostAllocation: "", salePrice: "", mode: "existing", selected: false,
   };
 }
 function num(value: string) {
@@ -162,6 +165,7 @@ function existingPatch(item: InventoryResult, options: { unitCost?: string; sale
     unitCost: options.unitCost ?? suggestedCost(item),
     salePrice: options.salePrice || item.unitPrice,
     updateSalePrice: false,
+    giftAllowed: null,
     importedSourceText: options.importedSourceText ?? "",
   };
 }
@@ -214,6 +218,7 @@ export function PurchaseReceivingForm({
         unitCost: line.lastPurchaseCost,
         unitPrice: line.inventoryCurrentSalePrice ?? line.salePriceSnapshot ?? "0",
         compatibilityCount: 0,
+        giftAllowed: line.inventoryGiftAllowed ?? false,
         lastPurchaseCost: line.lastPurchaseCost,
         lastPurchaseAt: line.lastPurchaseAt,
         lastPurchaseSupplierName: line.lastPurchaseSupplierName,
@@ -238,6 +243,7 @@ export function PurchaseReceivingForm({
         compatibilitySelections: (line.compatibilityGroupIds ?? []).map((groupId) => ({ groupId, deviceName: "توافق محفوظ في المسودة", dataset: "" })),
         compatibilityReviewNeeded: line.compatibilityReviewNeeded,
         updateSalePrice: line.updateSalePrice,
+        giftAllowed: line.giftAllowed,
         quantity: String(line.orderedQuantity),
         unitCost: line.unitCost,
         manualExtraCostAllocation: line.manualExtraCostAllocation ?? "",
@@ -355,6 +361,7 @@ export function PurchaseReceivingForm({
       compatibilityGroupIds: line.mode === "new" ? line.compatibilitySelections.map((selection) => selection.groupId) : [],
       compatibilityReviewNeeded: line.mode === "new" ? line.compatibilityReviewNeeded : false,
       updateSalePrice: line.mode === "existing" ? line.updateSalePrice : false,
+      giftAllowed: line.giftAllowed,
       quantity: Math.max(1, Math.trunc(num(line.quantity) || 1)),
       unitCost: line.unitCost || "0",
       manualExtraCostAllocation: line.manualExtraCostAllocation.trim() ? line.manualExtraCostAllocation : null,
@@ -838,6 +845,7 @@ function PurchaseLineCard({ line, index, currency, categories, showManualExtraAl
       <div className="grid gap-1.5"><label className="grid gap-1 text-xs font-black text-slate-600 dark:text-slate-300"><span>سعر البيع <span className="font-semibold text-slate-400">(اختياري)</span></span><input data-purchase-field type="number" min="0" step="0.01" value={line.salePrice} onKeyDown={onEnterNext} onChange={(e) => onPatch({ salePrice: e.target.value })} className="erp-input font-numeric" /></label>{line.mode === "existing" && !line.matchReviewRequired && <label className="flex items-start gap-1.5 text-[9px] font-bold text-slate-500 dark:text-slate-400"><input className="mt-0.5" type="checkbox" checked={line.updateSalePrice} onChange={(event) => onPatch({ updateSalePrice: event.target.checked })} /><span>تحديث سعر بيع الصنف عند الاعتماد</span></label>}</div>
       <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900"><div className="text-[10px] font-bold text-slate-400">إجمالي السطر</div><div className="mt-1 font-numeric text-sm font-black text-slate-900 dark:text-slate-100">{money(total, currency)}</div></div>
     </div>
+    {!isBlank && !line.matchReviewRequired ? <label className="mt-3 grid max-w-xs gap-1.5 text-xs font-black text-slate-600 dark:text-slate-300"><span>هدية</span><select data-purchase-field className="erp-input" value={String(line.giftAllowed ?? line.existingItem?.giftAllowed ?? false)} onChange={(event) => onPatch({ giftAllowed: event.target.value === "true" })}><option value="false">لا يسمح</option><option value="true">يسمح</option></select><span className="text-[10px] font-semibold text-slate-400">يُحفظ السماح بتقديم الصنف كهدية عند اعتماد الفاتورة.</span></label> : null}
     {showManualExtraAllocation && !isBlank && <label className="mt-3 grid max-w-xs gap-1 text-[10px] font-black text-amber-800 dark:text-amber-200">توزيع الشحن/مصاريف الشراء على هذا البند<input type="number" min="0" step="0.01" value={line.manualExtraCostAllocation} onChange={(e) => onPatch({ manualExtraCostAllocation: e.target.value })} className="erp-input h-9 font-numeric" /><span className="font-semibold text-amber-600 dark:text-amber-300">مطلوب لأن أساس التوزيع النسبي يساوي صفراً.</span></label>}
     {line.mode === "existing" && line.existingItem && !line.matchReviewRequired && <PricingContext item={line.existingItem} newCost={line.unitCost} currency={currency} updateSalePrice={line.updateSalePrice} />}
     {line.importedSourceText && <details className="mt-3 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2 text-[10px] dark:border-slate-700 dark:bg-slate-900/60"><summary className="cursor-pointer font-black text-slate-500">النص الأصلي المستورد</summary><div dir="auto" className="mt-2 whitespace-pre-wrap break-words font-mono text-slate-600 dark:text-slate-300">{line.importedSourceText}</div></details>}

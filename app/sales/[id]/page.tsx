@@ -142,7 +142,7 @@ export default async function SaleDetailsPage({
                   <tbody>
                     {sale.items.map((item) => (
                       <tr key={item.id} className="align-middle">
-                        <td className="font-bold text-slate-800">{item.description}</td>
+                        <td className="font-bold text-slate-800">{item.description}{item.isGift ? <span className="mr-2 rounded border border-violet-200 px-1.5 py-0.5 text-[10px] font-bold text-violet-700">هدية</span> : null}</td>
                         <td className="font-semibold text-slate-500">{item.inventoryItem?.name ?? "خدمة خارجية"}</td>
                         <td className="text-center font-extrabold font-numeric text-slate-755">{item.quantity}</td>
                         <td className="font-numeric text-slate-700 font-medium">{formatMoney(item.unitPriceSnapshot, currency)}</td>

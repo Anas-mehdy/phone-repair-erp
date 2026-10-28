@@ -14,10 +14,21 @@ export function calculateSaleLine(unitPrice: Prisma.Decimal.Value, quantity: num
   return { unitPrice: price, subtotal, discountTotal, lineTotal };
 }
 
-export function assertSaleCoversCost(name: string, unitCost: Prisma.Decimal | null, quantity: number, lineTotal: Prisma.Decimal) {
+function assertKnownCost(name: string, unitCost: Prisma.Decimal | null): asserts unitCost is Prisma.Decimal {
   if (unitCost === null) throw new Error(`تكلفة الصنف «${name}» غير مسجلة. سجّل تكلفة الوحدة في المخزون قبل البيع.`);
   if (!unitCost.isFinite() || unitCost.lt(0)) throw new Error(`تكلفة الصنف «${name}» غير صالحة. صحّحها في المخزون قبل البيع.`);
+}
+
+export function assertSaleCoversCost(name: string, unitCost: Prisma.Decimal | null, quantity: number, lineTotal: Prisma.Decimal) {
+  assertKnownCost(name, unitCost);
   if (lineTotal.lt(unitCost.mul(quantity))) {
     throw new Error(`لا يمكن بيع الصنف «${name}» بأقل من التكلفة بعد الخصم. ارفع السعر أو خفّض الخصم.`);
   }
+}
+
+export function assertInventorySalePricing(item: { name: string; unitCost: Prisma.Decimal | null; giftAllowed: boolean }, quantity: number, lineTotal: Prisma.Decimal, isGift = false) {
+  if (!isGift) return assertSaleCoversCost(item.name, item.unitCost, quantity, lineTotal);
+  if (!item.giftAllowed) throw new Error(`الصنف «${item.name}» غير مسموح تقديمه كهدية. لا يمكن إتمام البيع.`);
+  assertKnownCost(item.name, item.unitCost);
+  if (!lineTotal.eq(0)) throw new Error("قيمة الهدية يجب أن تكون صفراً.");
 }

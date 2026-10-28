@@ -41,6 +41,7 @@ export type PurchaseDraftLineInput = {
   compatibilityGroupIds?: string[];
   compatibilityReviewNeeded?: boolean;
   updateSalePrice?: boolean;
+  giftAllowed?: boolean | null;
   quantity: number;
   unitCost: string | number;
   manualExtraCostAllocation?: string | number | null;
@@ -133,6 +134,7 @@ export type PurchaseInventorySearchItem = {
   quantity: number;
   unitCost: Prisma.Decimal | null;
   unitPrice: Prisma.Decimal;
+  giftAllowed: boolean;
   compatibilityCount: number;
   lastPurchaseCost: Prisma.Decimal | null;
   lastPurchaseAt: Date | null;
@@ -208,6 +210,7 @@ export type PurchaseDetail = {
     inventoryItemCategory: string | null;
     inventoryItemDescription: string | null;
     inventoryCurrentSalePrice: Prisma.Decimal | null;
+    inventoryGiftAllowed: boolean | null;
     inventoryCurrentQuantity: number | null;
     lastPurchaseCost: Prisma.Decimal | null;
     lastPurchaseAt: Date | null;
@@ -226,6 +229,7 @@ export type PurchaseDetail = {
     compatibilityGroupIds: string[];
     compatibilityReviewNeeded: boolean;
     updateSalePrice: boolean;
+    giftAllowed: boolean | null;
     salePriceBeforeSnapshot: Prisma.Decimal | null;
     orderedQuantity: number;
     receivedQuantity: number;
@@ -339,6 +343,7 @@ function cleanLines(lines: PurchaseDraftLineInput[]) {
 function calculate(input: PurchaseDraftInput, strict = true) {
   const lines = cleanLines(input.lines);
   const normalizedLines = lines.map((line) => {
+    if (line.giftAllowed != null && typeof line.giftAllowed !== "boolean") throw new Error("خيار السماح بالهدية غير صالح.");
     const quantity = Number(line.quantity);
     if (!Number.isInteger(quantity) || quantity <= 0) throw new Error("كل كمية يجب أن تكون عدداً صحيحاً أكبر من صفر.");
     const unitCost = inventoryCost(line.unitCost);
@@ -462,6 +467,7 @@ type BaseInventoryRow = {
   quantity: number;
   unitCost: Prisma.Decimal | null;
   unitPrice: Prisma.Decimal;
+  giftAllowed: boolean;
   compatibilityCount: number;
 };
 
@@ -501,7 +507,7 @@ export async function searchInventory(shopId: string, query: string): Promise<Pu
   const q = query.trim();
   if (!q) return [];
   const rows = await prisma.$queryRaw<BaseInventoryRow[]>(Prisma.sql`
-    SELECT i."id", i."name", i."sku", i."barcode", i."category", i."description", i."quantity", i."unitCost", i."unitPrice",
+    SELECT i."id", i."name", i."sku", i."barcode", i."category", i."description", i."quantity", i."unitCost", i."unitPrice", i."giftAllowed",
       COUNT(icg."id")::int AS "compatibilityCount"
     FROM "InventoryItem" i
     LEFT JOIN "InventoryCompatibilityGroup" icg ON icg."inventoryItemId" = i."id"
@@ -523,7 +529,7 @@ async function exactIdentifierCandidates(shopId: string, code: string) {
   const normalized = code.trim().replace(/\s+/g, "");
   if (!normalized) return { barcode: [] as PurchaseInventorySearchItem[], sku: [] as PurchaseInventorySearchItem[] };
   const barcodeRows = await prisma.$queryRaw<BaseInventoryRow[]>(Prisma.sql`
-    SELECT i."id", i."name", i."sku", i."barcode", i."category", i."description", i."quantity", i."unitCost", i."unitPrice",
+    SELECT i."id", i."name", i."sku", i."barcode", i."category", i."description", i."quantity", i."unitCost", i."unitPrice", i."giftAllowed",
       COUNT(icg."id")::int AS "compatibilityCount"
     FROM "InventoryItem" i
     LEFT JOIN "InventoryCompatibilityGroup" icg ON icg."inventoryItemId" = i."id"
@@ -532,7 +538,7 @@ async function exactIdentifierCandidates(shopId: string, code: string) {
   `);
   if (barcodeRows.length) return { barcode: await enrichLastPurchase(shopId, barcodeRows), sku: [] as PurchaseInventorySearchItem[] };
   const skuRows = await prisma.$queryRaw<BaseInventoryRow[]>(Prisma.sql`
-    SELECT i."id", i."name", i."sku", i."barcode", i."category", i."description", i."quantity", i."unitCost", i."unitPrice",
+    SELECT i."id", i."name", i."sku", i."barcode", i."category", i."description", i."quantity", i."unitCost", i."unitPrice", i."giftAllowed",
       COUNT(icg."id")::int AS "compatibilityCount"
     FROM "InventoryItem" i
     LEFT JOIN "InventoryCompatibilityGroup" icg ON icg."inventoryItemId" = i."id"
@@ -555,7 +561,7 @@ export async function getInventoryItemsByIds(shopId: string, ids: string[]): Pro
   const uniqueIds = [...new Set(ids.filter(Boolean))].slice(0, 300);
   if (!uniqueIds.length) return [];
   const rows = await prisma.$queryRaw<BaseInventoryRow[]>(Prisma.sql`
-    SELECT i."id", i."name", i."sku", i."barcode", i."category", i."description", i."quantity", i."unitCost", i."unitPrice",
+    SELECT i."id", i."name", i."sku", i."barcode", i."category", i."description", i."quantity", i."unitCost", i."unitPrice", i."giftAllowed",
       COUNT(icg."id")::int AS "compatibilityCount"
     FROM "InventoryItem" i
     LEFT JOIN "InventoryCompatibilityGroup" icg ON icg."inventoryItemId" = i."id"
@@ -756,7 +762,7 @@ export async function saveDraft(shopId: string, userId: string, currency: string
       await tx.$executeRaw(Prisma.sql`
         INSERT INTO "PurchaseItem" (
           "shopId", "purchaseInvoiceId", "inventoryItemId", "newItemName", "newItemSku", "newItemBarcode", "newItemCategoryId", "newItemCategory",
-          "newItemDescription", "importedSourceText", "importSourceId", "importRowKey", "importedPurchaseUnit", "matchReviewRequired", "compatibilityGroupIds", "compatibilityReviewNeeded", "updateSalePrice",
+          "newItemDescription", "importedSourceText", "importSourceId", "importRowKey", "importedPurchaseUnit", "matchReviewRequired", "compatibilityGroupIds", "compatibilityReviewNeeded", "updateSalePrice", "giftAllowed",
           "orderedQuantity", "receivedQuantity", "unitCost", "manualExtraCostAllocation", "salePriceSnapshot", "lineTotal", "sortOrder"
         ) VALUES (
           ${shopId}::uuid, ${purchaseId}::uuid, ${line.inventoryItemId ?? null}::uuid,
@@ -765,7 +771,7 @@ export async function saveDraft(shopId: string, userId: string, currency: string
           ${line.inventoryItemId ? null : nullableText(line.newItemCategory)}, ${line.inventoryItemId ? null : nullableText(line.newItemDescription)},
           ${nullableText(line.importedSourceText)}, ${line.importSourceId ?? null}::uuid, ${nullableText(line.importRowKey)}, ${nullableText(line.importedPurchaseUnit)},
           ${Boolean(line.matchReviewRequired)}, ${compatibilitySql},
-          ${line.inventoryItemId ? false : Boolean(line.compatibilityReviewNeeded)}, ${line.inventoryItemId ? Boolean(line.updateSalePrice) : false},
+          ${line.inventoryItemId ? false : Boolean(line.compatibilityReviewNeeded)}, ${line.inventoryItemId ? Boolean(line.updateSalePrice) : false}, ${line.giftAllowed ?? null},
           ${line.quantity}, 0, ${line.unitCost}, ${line.manualExtraCostAllocation}, ${line.salePrice}, ${line.lineTotal}, ${line.sortOrder}
         )
       `);
@@ -829,6 +835,7 @@ type LockedPurchaseItem = {
   compatibilityGroupIds: string[];
   compatibilityReviewNeeded: boolean;
   updateSalePrice: boolean;
+  giftAllowed: boolean | null;
   manualExtraCostAllocation: Prisma.Decimal | null;
   discountAllocation: Prisma.Decimal | null;
   netMerchandiseValue: Prisma.Decimal | null;
@@ -1133,7 +1140,7 @@ export async function postPurchaseInvoice(
 
     const lines = await tx.$queryRaw<LockedPurchaseItem[]>`
       SELECT "id", "inventoryItemId", "newItemName", "newItemSku", "newItemBarcode", "newItemCategoryId", "newItemCategory", "newItemDescription",
-        "importedSourceText", "importSourceId", "importRowKey", "importedPurchaseUnit", "matchReviewRequired", "compatibilityGroupIds", "compatibilityReviewNeeded", "updateSalePrice",
+        "importedSourceText", "importSourceId", "importRowKey", "importedPurchaseUnit", "matchReviewRequired", "compatibilityGroupIds", "compatibilityReviewNeeded", "updateSalePrice", "giftAllowed",
         "manualExtraCostAllocation", "discountAllocation", "netMerchandiseValue", "netUnitCost", "extraCostAllocation", "capitalizedLineValue", "capitalizedUnitCost",
         COALESCE("receivedCapitalizedValue",0) AS "receivedCapitalizedValue", COALESCE("receivedNetMerchandiseValue",0) AS "receivedNetMerchandiseValue",
         COALESCE("returnedNetMerchandiseValue",0) AS "returnedNetMerchandiseValue",
@@ -1203,12 +1210,23 @@ export async function postPurchaseInvoice(
     }
     await tx.$executeRaw`UPDATE "PurchaseInvoice" SET "costAllocatedAt"=NOW(), "updatedAt"=NOW() WHERE "id"=${purchaseId}::uuid AND "shopId"=${shopId}::uuid`;
 
+    const giftChoices = new Map<string, boolean>();
+    for (const line of lines) {
+      if (!line.inventoryItemId || line.giftAllowed == null) continue;
+      const previous = giftChoices.get(line.inventoryItemId);
+      if (previous !== undefined && previous !== line.giftAllowed) throw new Error("خيار الهدية متعارض بين سطور الصنف نفسه. وحّد الاختيار قبل الاعتماد.");
+      giftChoices.set(line.inventoryItemId, line.giftAllowed);
+    }
+
     const preparedLines: LockedPurchaseItem[] = [];
     for (const line of lines) {
       let inventoryItemId = line.inventoryItemId;
       if (inventoryItemId) {
         const existing = await tx.inventoryItem.findFirst({ where: { id: inventoryItemId, shopId, deletedAt: null }, select: { id: true, unitPrice: true } });
         if (!existing) throw new Error("أحد أصناف المخزون لم يعد متاحاً.");
+        if (line.giftAllowed != null) {
+          await tx.inventoryItem.update({ where: { id: inventoryItemId }, data: { giftAllowed: line.giftAllowed, version: { increment: 1 } } });
+        }
         if (line.updateSalePrice) {
           if (line.salePriceSnapshot === null) throw new Error("سعر البيع الجديد مفقود في أحد البنود.");
           await tx.$executeRaw`UPDATE "PurchaseItem" SET "salePriceBeforeSnapshot"=${existing.unitPrice}, "updatedAt"=NOW() WHERE "id"=${line.id}::uuid AND "shopId"=${shopId}::uuid`;
@@ -1233,7 +1251,7 @@ export async function postPurchaseInvoice(
         const created = await tx.inventoryItem.create({
           data: {
             shopId, name: newName, sku: nullableText(line.newItemSku), barcode, category: categoryName,
-            description: nullableText(line.newItemDescription), unitCost: null,
+            description: nullableText(line.newItemDescription), unitCost: null, giftAllowed: line.giftAllowed ?? false,
             unitPrice: line.salePriceSnapshot ?? new Prisma.Decimal(0), salePriceConfigured: line.salePriceSnapshot !== null,
             quantity: 0, reorderLevel: 0, compatibilityReviewNeeded: compatibilityGroupIds.length > 0 ? false : Boolean(line.compatibilityReviewNeeded),
           }, select: { id: true },
@@ -1322,7 +1340,7 @@ export async function recordPurchaseReceipt(shopId: string, userId: string, purc
     const ids=[...requested.keys()];
     const lines=await tx.$queryRaw<LockedPurchaseItem[]>(Prisma.sql`
       SELECT "id","inventoryItemId","newItemName","newItemSku","newItemBarcode","newItemCategoryId","newItemCategory","newItemDescription",
-        "importedSourceText","importSourceId","importRowKey","importedPurchaseUnit","matchReviewRequired","compatibilityGroupIds","compatibilityReviewNeeded","updateSalePrice",
+        "importedSourceText","importSourceId","importRowKey","importedPurchaseUnit","matchReviewRequired","compatibilityGroupIds","compatibilityReviewNeeded","updateSalePrice","giftAllowed",
         "manualExtraCostAllocation","discountAllocation","netMerchandiseValue","netUnitCost","extraCostAllocation","capitalizedLineValue","capitalizedUnitCost",
         COALESCE("receivedCapitalizedValue",0) AS "receivedCapitalizedValue",COALESCE("receivedNetMerchandiseValue",0) AS "receivedNetMerchandiseValue",
         COALESCE("returnedNetMerchandiseValue",0) AS "returnedNetMerchandiseValue",
@@ -1440,7 +1458,7 @@ export async function recordSupplierReturn(shopId: string, userId: string, purch
     const ids=[...requested.keys()];
     const lines=await tx.$queryRaw<LockedPurchaseItem[]>(Prisma.sql`
       SELECT "id","inventoryItemId","newItemName","newItemSku","newItemBarcode","newItemCategoryId","newItemCategory","newItemDescription",
-        "importedSourceText","importSourceId","importRowKey","importedPurchaseUnit","matchReviewRequired","compatibilityGroupIds","compatibilityReviewNeeded","updateSalePrice",
+        "importedSourceText","importSourceId","importRowKey","importedPurchaseUnit","matchReviewRequired","compatibilityGroupIds","compatibilityReviewNeeded","updateSalePrice","giftAllowed",
         "manualExtraCostAllocation","discountAllocation","netMerchandiseValue","netUnitCost","extraCostAllocation","capitalizedLineValue","capitalizedUnitCost",
         COALESCE("receivedCapitalizedValue",0) AS "receivedCapitalizedValue",COALESCE("receivedNetMerchandiseValue",0) AS "receivedNetMerchandiseValue",
         COALESCE("returnedNetMerchandiseValue",0) AS "returnedNetMerchandiseValue",
@@ -1636,10 +1654,10 @@ export async function getPurchaseInvoice(shopId: string, purchaseId: string): Pr
 
   const items = await prisma.$queryRaw<Array<Omit<PurchaseDetail["items"][number], "movements">>>(Prisma.sql`
     SELECT pi."id", pi."inventoryItemId", i."name" AS "inventoryItemName", i."sku" AS "inventoryItemSku", i."barcode" AS "inventoryItemBarcode",
-      i."category" AS "inventoryItemCategory", i."description" AS "inventoryItemDescription", i."unitPrice" AS "inventoryCurrentSalePrice",
+      i."category" AS "inventoryItemCategory", i."description" AS "inventoryItemDescription", i."unitPrice" AS "inventoryCurrentSalePrice", i."giftAllowed" AS "inventoryGiftAllowed",
       i."quantity" AS "inventoryCurrentQuantity", hist."lastPurchaseCost", hist."lastPurchaseAt", hist."lastPurchaseSupplierName",
       pi."newItemName", pi."newItemSku", pi."newItemBarcode", pi."newItemCategoryId", pi."newItemCategory", pi."newItemDescription",
-      pi."importedSourceText", pi."importSourceId", pi."importRowKey", pi."importedPurchaseUnit", pi."matchReviewRequired", pi."compatibilityGroupIds", pi."compatibilityReviewNeeded", pi."updateSalePrice", pi."salePriceBeforeSnapshot",
+      pi."importedSourceText", pi."importSourceId", pi."importRowKey", pi."importedPurchaseUnit", pi."matchReviewRequired", pi."compatibilityGroupIds", pi."compatibilityReviewNeeded", pi."updateSalePrice", pi."giftAllowed", pi."salePriceBeforeSnapshot",
       pi."orderedQuantity", pi."receivedQuantity", COALESCE(pi."returnedQuantity", 0) AS "returnedQuantity",
       (pi."orderedQuantity" - pi."receivedQuantity")::int AS "remainingQuantity",
       LEAST(
@@ -1779,6 +1797,7 @@ export async function clonePurchaseToDraft(shopId: string, userId: string, curre
       compatibilityGroupIds: item.inventoryItemId ? [] : item.compatibilityGroupIds,
       compatibilityReviewNeeded: item.inventoryItemId ? false : item.compatibilityReviewNeeded,
       updateSalePrice: false,
+      giftAllowed: item.inventoryItemId ? null : item.giftAllowed,
       quantity: item.orderedQuantity,
       unitCost: item.unitCost.toString(),
       salePrice: item.salePriceSnapshot?.toString() ?? null,

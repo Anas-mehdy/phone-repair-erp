@@ -63,7 +63,7 @@ export default async function SalePrintPage({ params }: SalePrintPageProps) {
           <div className="space-y-1.5">
             {sale.items.map((item) => (
               <div key={item.id} className="text-[11px]">
-                <div className="font-extrabold text-slate-950">{item.description}</div>
+                <div className="font-extrabold text-slate-950">{item.description}{item.isGift ? <span className="mr-2 rounded border border-violet-200 px-1.5 py-0.5 text-[10px] font-bold text-violet-700">هدية</span> : null}</div>
                 <div className="flex justify-between text-slate-600 font-numeric text-[10.5px]"><span>{item.quantity} × {formatCurrency(item.unitPriceSnapshot, currency)}</span><span className="font-bold text-slate-900">{formatCurrency(item.lineTotal, currency)}</span></div>
               </div>
             ))}

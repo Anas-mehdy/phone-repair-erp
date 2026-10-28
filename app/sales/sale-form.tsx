@@ -4,7 +4,7 @@ import { Banknote, ChevronDown, ChevronUp, PackagePlus, Plus, Save, Trash2, User
 import { useActionState, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/format";
-import { saleCostWarning } from "@/lib/sale-cost-warning";
+import { saleCostWarning, saleGiftWarning } from "@/lib/sale-cost-warning";
 import { createSaleAction, type SaleActionState } from "./actions";
 import { Field, inputClassName } from "./_components";
 import { InventorySearchCombobox, type SaleInventoryOption } from "./inventory-search-combobox";
@@ -21,6 +21,7 @@ type SaleLineDraft = {
   unitPrice: string;
   discountTotal: string;
   detailsOpen: boolean;
+  isGift: boolean;
 };
 
 const initialState: SaleActionState = {};
@@ -34,6 +35,7 @@ function createLine(item?: InventoryOption): SaleLineDraft {
     unitPrice: item?.unitPrice ?? "0",
     discountTotal: "0",
     detailsOpen: !item,
+    isGift: false,
   };
 }
 
@@ -50,19 +52,20 @@ export function SaleForm({ inventoryItems, wallets, bankAccounts, currency = "SA
   const serializedItems = useMemo(
     () => JSON.stringify(lines.map((line) => ({
       inventoryItemId: line.inventoryItemId || null,
+      isGift: line.isGift,
       description: line.description,
       quantity: line.quantity,
-      unitPrice: line.unitPrice,
-      discountTotal: line.discountTotal || "0",
+      unitPrice: line.isGift ? "0" : line.unitPrice,
+      discountTotal: line.isGift ? "0" : line.discountTotal || "0",
     }))),
     [lines],
   );
-  const subtotal = lines.reduce((sum, line) => sum + Number(line.unitPrice || 0) * Number(line.quantity || 0), 0);
-  const discountTotal = lines.reduce((sum, line) => sum + Number(line.discountTotal || 0), 0);
+  const subtotal = lines.reduce((sum, line) => sum + (line.isGift ? 0 : Number(line.unitPrice || 0) * Number(line.quantity || 0)), 0);
+  const discountTotal = lines.reduce((sum, line) => sum + (line.isGift ? 0 : Number(line.discountTotal || 0)), 0);
   const total = subtotal - discountTotal;
   const costWarnings = new Map(lines.map((line) => {
     const item = inventoryById.get(line.inventoryItemId);
-    return [line.id, item ? saleCostWarning(item.unitCost, line.quantity, line.unitPrice, line.discountTotal) : null];
+    return [line.id, item ? line.isGift ? saleGiftWarning(item.giftAllowed, item.unitCost) : saleCostWarning(item.unitCost, line.quantity, line.unitPrice, line.discountTotal) : null];
   }));
   const hasCostWarning = [...costWarnings.values()].some(Boolean);
 
@@ -75,7 +78,7 @@ export function SaleForm({ inventoryItems, wallets, bankAccounts, currency = "SA
     setSearchedItems((current) => current.some((entry) => entry.id === item.id) ? current : [...current, item]);
     setLines((currentLines) => {
       if (!forceSeparateLine) {
-        const existingIndex = currentLines.findIndex((line) => line.inventoryItemId === item.id);
+        const existingIndex = currentLines.findIndex((line) => line.inventoryItemId === item.id && !line.isGift);
         if (existingIndex >= 0) {
           return currentLines.map((line, index) => index === existingIndex
             ? { ...line, quantity: Math.max(1, Number(line.quantity || 0)) + 1 }
@@ -92,6 +95,7 @@ export function SaleForm({ inventoryItems, wallets, bankAccounts, currency = "SA
       inventoryItemId: item?.id ?? "",
       description: item?.name ?? line.description,
       unitPrice: item?.unitPrice ?? line.unitPrice,
+      isGift: false,
     });
   }
 
@@ -202,8 +206,8 @@ export function SaleForm({ inventoryItems, wallets, bankAccounts, currency = "SA
                 const inventoryItem = line.inventoryItemId ? inventoryById.get(line.inventoryItemId) : undefined;
                 const isInventoryItem = Boolean(inventoryItem);
                 const quantity = Math.max(0, Number(line.quantity || 0));
-                const unitPrice = Math.max(0, Number(line.unitPrice || 0));
-                const lineDiscount = Math.max(0, Number(line.discountTotal || 0));
+                const unitPrice = line.isGift ? 0 : Math.max(0, Number(line.unitPrice || 0));
+                const lineDiscount = line.isGift ? 0 : Math.max(0, Number(line.discountTotal || 0));
                 const lineTotal = Math.max(0, (quantity * unitPrice) - lineDiscount);
                 const exceedsStock = Boolean(inventoryItem && quantity > inventoryItem.quantity);
                 const costWarning = costWarnings.get(line.id);
@@ -217,6 +221,7 @@ export function SaleForm({ inventoryItems, wallets, bankAccounts, currency = "SA
                           <div className="truncate text-xs font-black text-slate-800">{line.description || "بند يدوي جديد"}</div>
                           <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[9px] font-bold">
                             {isInventoryItem ? <span className="text-teal-600">من المخزون</span> : <span className="text-slate-400">بند يدوي / خدمة</span>}
+                            {inventoryItem ? <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 px-2 py-1 text-[10px] font-bold text-slate-700"><input type="checkbox" checked={line.isGift} onChange={(event) => updateLine(line.id, { isGift: event.target.checked })} />هدية</label> : null}
                             {inventoryItem ? <span className={exceedsStock ? "text-amber-700" : "text-slate-400"}>• المتاح: {inventoryItem.quantity}</span> : null}
                           </div>
                         </div>
@@ -240,7 +245,8 @@ export function SaleForm({ inventoryItems, wallets, bankAccounts, currency = "SA
                         min="0"
                         step="0.01"
                         type="number"
-                        value={line.unitPrice}
+                        disabled={line.isGift}
+                        value={line.isGift ? "0" : line.unitPrice}
                         onChange={(event) => updateLine(line.id, { unitPrice: event.target.value })}
                       />
                     </Field>
@@ -306,7 +312,8 @@ export function SaleForm({ inventoryItems, wallets, bankAccounts, currency = "SA
                           min="0"
                           step="0.01"
                           type="number"
-                          value={line.discountTotal}
+                          disabled={line.isGift}
+                          value={line.isGift ? "0" : line.discountTotal}
                           onChange={(event) => updateLine(line.id, { discountTotal: event.target.value })}
                         />
                       </Field>

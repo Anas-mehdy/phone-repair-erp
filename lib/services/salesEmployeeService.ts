@@ -1,6 +1,6 @@
 import { InventoryMovementType, Prisma, SaleStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { assertSaleCoversCost, calculateSaleLine } from "@/lib/sale-pricing";
+import { assertInventorySalePricing, calculateSaleLine } from "@/lib/sale-pricing";
 import { dayUtcBoundsForTimeZone } from "@/lib/timezone";
 import { moneyAccountService } from "@/lib/services/moneyAccountService";
 import { salesService } from "@/lib/services/salesService";
@@ -97,7 +97,7 @@ export async function updateOwnSaleQuantities(shopId: string, userId: string, sa
     if (sale.status !== SaleStatus.COMPLETED) throw new Error("يمكن تعديل المبيعات المكتملة فقط.");
     if (await tx.invoice.count({ where: { shopId, saleId, deletedAt: null, status: { not: "VOID" } } })) throw new Error("لا يمكن تعديل مبيعة تم إصدار فاتورة محاسبية لها. راجع المدير.");
 
-    const items = await tx.saleItem.findMany({ where: { shopId, saleId, deletedAt: null }, select: { id: true, inventoryItemId: true, description: true, quantity: true, unitPriceSnapshot: true, discountTotal: true } });
+    const items = await tx.saleItem.findMany({ where: { shopId, saleId, deletedAt: null }, select: { id: true, inventoryItemId: true, description: true, quantity: true, isGift: true, unitPriceSnapshot: true, discountTotal: true } });
     const requested = new Map(quantities.map((row) => [row.saleItemId, row.quantity]));
     if (requested.size !== items.length || items.some((item) => !requested.has(item.id))) throw new Error("يجب إرسال جميع بنود المبيعة كما هي.");
     for (const quantity of requested.values()) if (!Number.isInteger(quantity) || quantity < 1) throw new Error("الكمية يجب أن تكون عدداً صحيحاً أكبر من صفر.");
@@ -113,12 +113,12 @@ export async function updateOwnSaleQuantities(shopId: string, userId: string, sa
       newSubtotal = newSubtotal.add(lineSubtotal);
       newDiscount = newDiscount.add(lineDiscount);
       if (delta !== 0 && item.inventoryItemId) {
-        const inventoryRows = await tx.$queryRaw<Array<{ id: string; quantity: number; unitCost: Prisma.Decimal | null }>>`
-          SELECT "id", "quantity", "unitCost" FROM "InventoryItem" WHERE "id"=${item.inventoryItemId}::uuid AND "shopId"=${shopId}::uuid AND "deletedAt" IS NULL FOR UPDATE
+        const inventoryRows = await tx.$queryRaw<Array<{ id: string; quantity: number; unitCost: Prisma.Decimal | null; giftAllowed: boolean }>>`
+          SELECT "id", "quantity", "unitCost", "giftAllowed" FROM "InventoryItem" WHERE "id"=${item.inventoryItemId}::uuid AND "shopId"=${shopId}::uuid AND "deletedAt" IS NULL FOR UPDATE
         `;
         const inventory = inventoryRows[0];
         if (!inventory) throw new Error(`قطعة المخزون المرتبطة بالبند «${item.description}» غير موجودة.`);
-        assertSaleCoversCost(item.description, inventory.unitCost, nextQuantity, lineTotal);
+        assertInventorySalePricing({ ...inventory, name: item.description }, nextQuantity, lineTotal, item.isGift);
         const nextStock = inventory.quantity - delta;
         if (nextStock < 0) throw new Error(`الكمية المتاحة من «${item.description}» غير كافية للتعديل.`);
         await tx.inventoryItem.update({ where: { id: inventory.id }, data: { quantity: nextStock, version: { increment: 1 } } });

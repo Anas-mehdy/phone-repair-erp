@@ -5,12 +5,12 @@ import {
   SaleStatus,
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { assertSaleCoversCost, calculateSaleLine } from "@/lib/sale-pricing";
+import { assertInventorySalePricing, calculateSaleLine } from "@/lib/sale-pricing";
 import { moneyAccountService, type MoneyAccountDestination } from "@/lib/services/moneyAccountService";
 import { sourceDebtService } from "@/lib/services/sourceDebtService";
 
 export type SaleFilters = { search?: string; status?: SaleStatus | "ALL" };
-export type CreateSaleLineItemInput = { inventoryItemId?: string | null; description: string; quantity: number; unitPrice: string; discountTotal?: string };
+export type CreateSaleLineItemInput = { inventoryItemId?: string | null; description: string; quantity: number; unitPrice: string; discountTotal?: string; isGift?: boolean };
 export type SalePaymentDestination = Exclude<MoneyAccountDestination, "OTHER"> | "DEBT";
 export type CreateSaleInput = {
   customerId?: string;
@@ -53,7 +53,12 @@ export async function getSaleById(shopId: string, saleId: string) {
 
 export async function createSale(shopId: string, createdByUserId: string | null, input: CreateSaleInput) {
   if (input.items.length === 0) throw new Error("يجب إضافة بند واحد على الأقل.");
-  const pricedItems = input.items.map((item) => ({ ...item, amounts: calculateSaleLine(item.unitPrice, item.quantity, item.discountTotal ?? "0") }));
+  const pricedItems = input.items.map((item) => {
+    if (item.isGift !== undefined && typeof item.isGift !== "boolean") throw new Error("خيار الهدية غير صالح.");
+    const isGift = item.isGift === true;
+    if (isGift && !item.inventoryItemId?.trim()) throw new Error("الهدية يجب أن تكون صنفاً من المخزون مسموحاً بتقديمه كهدية.");
+    return { ...item, isGift, amounts: calculateSaleLine(isGift ? "0" : item.unitPrice, item.quantity, isGift ? "0" : item.discountTotal ?? "0") };
+  });
   const subtotal = pricedItems.reduce((sum, item) => sum.add(item.amounts.subtotal), new Prisma.Decimal(0)); const discountTotal = pricedItems.reduce((sum, item) => sum.add(item.amounts.discountTotal), new Prisma.Decimal(0)); const taxTotal = new Prisma.Decimal(0); const total = subtotal.sub(discountTotal).add(taxTotal); if (total.lt(0)) throw new Error("إجمالي البيع غير صحيح.");
   const paymentDestination = input.paymentDestination ?? "DRAWER";
   const isDebtSale = paymentDestination === "DEBT";
@@ -79,10 +84,10 @@ export async function createSale(shopId: string, createdByUserId: string | null,
       if (inventoryItemId) { inventoryItem = await tx.inventoryItem.findFirst({ where: { id: inventoryItemId, shopId, deletedAt: null } }); if (!inventoryItem) throw new Error("قطعة مخزون غير موجودة أو لا تتبع هذا المتجر."); if (inventoryItem.quantity < itemInput.quantity) throw new Error(`الكمية غير كافية للقطعة: ${inventoryItem.name}`); description = description || inventoryItem.name; }
       if (!description) throw new Error("وصف بند البيع مطلوب.");
       const unitPriceSnapshot = itemInput.amounts.unitPrice;
-      if (inventoryItem && !inventoryItem.salePriceConfigured && unitPriceSnapshot.eq(0)) throw new Error(`سعر بيع القطعة «${inventoryItem.name}» غير محدد. أدخل سعر بيع صريحاً قبل إتمام المبيعة.`); const { discountTotal: lineDiscount, lineTotal } = itemInput.amounts;
-      if (inventoryItem) assertSaleCoversCost(inventoryItem.name, inventoryItem.unitCost, itemInput.quantity, lineTotal);
-      const saleItem = await tx.saleItem.create({ data: { shopId, saleId: sale.id, inventoryItemId, description, quantity: itemInput.quantity, unitPriceSnapshot, discountTotal: lineDiscount, lineTotal } });
-      if (inventoryItem) { const quantityAfter = inventoryItem.quantity - itemInput.quantity; await tx.inventoryItem.update({ where: { id: inventoryItem.id }, data: { quantity: quantityAfter, version: { increment: 1 } } }); await tx.inventoryMovement.create({ data: { shopId, inventoryItemId: inventoryItem.id, saleId: sale.id, saleItemId: saleItem.id, createdByUserId, type: InventoryMovementType.SALE, quantityChange: -itemInput.quantity, quantityAfter, unitCostSnapshot: inventoryItem.unitCost, note: "بيع" } }); }
+      if (inventoryItem && !itemInput.isGift && !inventoryItem.salePriceConfigured && unitPriceSnapshot.eq(0)) throw new Error(`سعر بيع القطعة «${inventoryItem.name}» غير محدد. أدخل سعر بيع صريحاً قبل إتمام المبيعة.`); const { discountTotal: lineDiscount, lineTotal } = itemInput.amounts;
+      if (inventoryItem) assertInventorySalePricing(inventoryItem, itemInput.quantity, lineTotal, itemInput.isGift);
+      const saleItem = await tx.saleItem.create({ data: { shopId, saleId: sale.id, inventoryItemId, description, isGift: itemInput.isGift, quantity: itemInput.quantity, unitPriceSnapshot, discountTotal: lineDiscount, lineTotal } });
+      if (inventoryItem) { const quantityAfter = inventoryItem.quantity - itemInput.quantity; await tx.inventoryItem.update({ where: { id: inventoryItem.id }, data: { quantity: quantityAfter, version: { increment: 1 } } }); await tx.inventoryMovement.create({ data: { shopId, inventoryItemId: inventoryItem.id, saleId: sale.id, saleItemId: saleItem.id, createdByUserId, type: InventoryMovementType.SALE, quantityChange: -itemInput.quantity, quantityAfter, unitCostSnapshot: inventoryItem.unitCost, note: itemInput.isGift ? "هدية مع البيع" : "بيع" } }); }
     }
 
     const sourceBase = { sourceId: sale.id, sourceReference: sale.receiptNumber, customerId: customer?.id ?? null, customerName: customer?.name ?? null, customerPhone: customer?.phone ?? null };

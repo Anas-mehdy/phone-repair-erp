@@ -13,3 +13,9 @@ export function saleCostWarning(unitCost: string | null, quantity: number, unitP
     ? "لا يمكن البيع بأقل من التكلفة بعد الخصم. ارفع السعر أو خفّض الخصم."
     : null;
 }
+
+export function saleGiftWarning(giftAllowed: boolean, unitCost: string | null): string | null {
+  if (!giftAllowed) return "هذا الصنف غير مسموح تقديمه كهدية. لا يمكن إتمام البيع.";
+  if (unitCost === null || !Number.isFinite(Number(unitCost)) || Number(unitCost) < 0) return "سجّل تكلفة صحيحة للصنف في المخزون قبل تقديمه كهدية.";
+  return null;
+}

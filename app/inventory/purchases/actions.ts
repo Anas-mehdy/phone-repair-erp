@@ -27,6 +27,7 @@ const lineSchema = z.object({
   compatibilityGroupIds: z.array(z.string().uuid()).max(5).optional(),
   compatibilityReviewNeeded: z.boolean().optional(),
   updateSalePrice: z.boolean().optional(),
+  giftAllowed: z.boolean().nullable().optional(),
   quantity: z.number().int().positive(),
   unitCost: moneyString,
   manualExtraCostAllocation: z.union([moneyString, z.null()]).optional(),
