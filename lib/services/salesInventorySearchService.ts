@@ -8,6 +8,7 @@ export type SaleInventorySearchResult = {
   category: string | null;
   quantity: number;
   unitPrice: string;
+  unitCost: string | null;
 };
 
 export async function searchInventoryForSale(
@@ -37,6 +38,7 @@ export async function searchInventoryForSale(
       category: true,
       quantity: true,
       unitPrice: true,
+      unitCost: true,
     },
     orderBy: [{ name: "asc" }, { updatedAt: "desc" }],
     take: Math.min(Math.max(limit, 1), 30),
@@ -50,6 +52,7 @@ export async function searchInventoryForSale(
     category: item.category,
     quantity: item.quantity,
     unitPrice: item.unitPrice.toString(),
+    unitCost: item.unitCost?.toString() ?? null,
   }));
 }
 

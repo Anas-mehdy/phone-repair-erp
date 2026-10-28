@@ -1,5 +1,6 @@
 import { InventoryMovementType, Prisma, SaleStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { assertSaleCoversCost, calculateSaleLine } from "@/lib/sale-pricing";
 import { dayUtcBoundsForTimeZone } from "@/lib/timezone";
 import { moneyAccountService } from "@/lib/services/moneyAccountService";
 import { salesService } from "@/lib/services/salesService";
@@ -108,8 +109,7 @@ export async function updateOwnSaleQuantities(shopId: string, userId: string, sa
       const nextQuantity = requested.get(item.id)!;
       const delta = nextQuantity - item.quantity;
       const lineSubtotal = item.unitPriceSnapshot.mul(nextQuantity);
-      const lineDiscount = Prisma.Decimal.min(item.discountTotal, lineSubtotal);
-      const lineTotal = lineSubtotal.sub(lineDiscount);
+      const { discountTotal: lineDiscount, lineTotal } = calculateSaleLine(item.unitPriceSnapshot, nextQuantity, Prisma.Decimal.min(item.discountTotal, lineSubtotal));
       newSubtotal = newSubtotal.add(lineSubtotal);
       newDiscount = newDiscount.add(lineDiscount);
       if (delta !== 0 && item.inventoryItemId) {
@@ -118,12 +118,13 @@ export async function updateOwnSaleQuantities(shopId: string, userId: string, sa
         `;
         const inventory = inventoryRows[0];
         if (!inventory) throw new Error(`قطعة المخزون المرتبطة بالبند «${item.description}» غير موجودة.`);
+        assertSaleCoversCost(item.description, inventory.unitCost, nextQuantity, lineTotal);
         const nextStock = inventory.quantity - delta;
         if (nextStock < 0) throw new Error(`الكمية المتاحة من «${item.description}» غير كافية للتعديل.`);
         await tx.inventoryItem.update({ where: { id: inventory.id }, data: { quantity: nextStock, version: { increment: 1 } } });
         await tx.inventoryMovement.create({ data: { shopId, inventoryItemId: inventory.id, saleId, saleItemId: item.id, createdByUserId: userId, type: delta > 0 ? InventoryMovementType.SALE : InventoryMovementType.RETURN, quantityChange: -delta, quantityAfter: nextStock, unitCostSnapshot: inventory.unitCost, note: delta > 0 ? "زيادة كمية مبيعة بواسطة موظف المبيعات" : "تخفيض كمية مبيعة وإرجاع الفرق للمخزون" } });
       }
-      await tx.saleItem.update({ where: { id: item.id }, data: { quantity: nextQuantity, lineTotal, version: { increment: 1 } } });
+      await tx.saleItem.update({ where: { id: item.id }, data: { quantity: nextQuantity, discountTotal: lineDiscount, lineTotal, version: { increment: 1 } } });
     }
 
     const newTotal = newSubtotal.sub(newDiscount);

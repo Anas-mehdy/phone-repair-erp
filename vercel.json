@@ -8,5 +8,8 @@
       "path": "/api/cron/growth-lifecycle",
       "schedule": "17 8 * * *"
     }
-  ]
+  ],
+  "git": {
+    "deploymentEnabled": false
+  }
 }

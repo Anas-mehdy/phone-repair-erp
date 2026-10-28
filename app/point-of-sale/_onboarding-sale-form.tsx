@@ -7,6 +7,7 @@ import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { captureClientEvent } from "@/lib/analytics/client";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/format";
+import { saleCostWarning } from "@/lib/sale-cost-warning";
 import { createSaleAction, type SaleActionState } from "@/app/sales/actions";
 import { InventorySearchCombobox, type SaleInventoryOption } from "@/app/sales/inventory-search-combobox";
 
@@ -56,7 +57,8 @@ export function SaleOnboardingQuickForm({
   const numericPrice = Number(unitPrice || 0);
   const total = Math.max(0, numericPrice * Math.max(0, quantity));
   const stockInsufficient = Boolean(selectedInventory && quantity > selectedInventory.quantity);
-  const canSubmit = description.trim().length > 0 && quantity > 0 && numericPrice > 0 && !stockInsufficient;
+  const costWarning = selectedInventory ? saleCostWarning(selectedInventory.unitCost, quantity, unitPrice) : null;
+  const canSubmit = description.trim().length > 0 && quantity > 0 && numericPrice > 0 && !stockInsufficient && !costWarning;
 
   const serializedItems = useMemo(
     () => JSON.stringify([
@@ -132,7 +134,6 @@ export function SaleOnboardingQuickForm({
                   onChange={(event) => {
                     markStarted();
                     setDescription(event.target.value);
-                    if (selectedInventory && event.target.value !== selectedInventory.name) setSelectedInventory(null);
                   }}
                   placeholder="مثال: كفر آيفون، شاحن، خدمة تركيب..."
                   autoFocus
@@ -171,6 +172,7 @@ export function SaleOnboardingQuickForm({
                 </label>
               </div>
 
+              {costWarning ? <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-bold text-rose-700">{costWarning}</div> : null}
               {selectedInventory ? (
                 <div className={`rounded-xl border px-3 py-2 text-[10px] font-bold ${stockInsufficient ? "border-rose-200 bg-rose-50 text-rose-700" : "border-emerald-200 bg-emerald-50 text-emerald-700"}`}>
                   المتوفر بالمخزون: <span className="font-numeric font-black">{selectedInventory.quantity}</span>

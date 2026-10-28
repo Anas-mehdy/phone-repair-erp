@@ -13,6 +13,7 @@ export type SaleInventoryOption = {
   category?: string | null;
   quantity: number;
   unitPrice: string;
+  unitCost: string | null;
 };
 
 export function InventorySearchCombobox({

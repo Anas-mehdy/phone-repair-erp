@@ -109,7 +109,7 @@ async function renderSaleForm(context: CurrentShopContext, key: string) {
     <SaleForm
       key={key}
       currency={context.currency}
-      inventoryItems={inventoryItems.map((item) => ({ id: item.id, name: item.name, sku: item.sku, quantity: item.quantity, unitPrice: item.unitPrice.toString() }))}
+      inventoryItems={inventoryItems.map((item) => ({ id: item.id, name: item.name, sku: item.sku, quantity: item.quantity, unitCost: item.unitCost?.toString() ?? null, unitPrice: item.unitPrice.toString() }))}
       wallets={wallets.map((wallet) => ({ id: wallet.id, name: wallet.name, balance: Number(wallet.currentBalance) }))}
       bankAccounts={bankAccounts.map((account) => ({ id: account.id, name: account.name, bankName: account.bankName, balance: Number(account.currentBalance) }))}
       returnTo={pointOfSaleReturnPath("sale")}
@@ -283,6 +283,7 @@ export default async function PointOfSalePage({ searchParams }: Props) {
             id: item.id,
             name: item.name,
             sku: item.sku,
+            unitCost: item.unitCost?.toString() ?? null,
             quantity: item.quantity,
             unitPrice: item.unitPrice.toString(),
           }))}

@@ -4,6 +4,7 @@ import { Banknote, ChevronDown, ChevronUp, PackagePlus, Plus, Save, Trash2, User
 import { useActionState, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/format";
+import { saleCostWarning } from "@/lib/sale-cost-warning";
 import { createSaleAction, type SaleActionState } from "./actions";
 import { Field, inputClassName } from "./_components";
 import { InventorySearchCombobox, type SaleInventoryOption } from "./inventory-search-combobox";
@@ -59,6 +60,11 @@ export function SaleForm({ inventoryItems, wallets, bankAccounts, currency = "SA
   const subtotal = lines.reduce((sum, line) => sum + Number(line.unitPrice || 0) * Number(line.quantity || 0), 0);
   const discountTotal = lines.reduce((sum, line) => sum + Number(line.discountTotal || 0), 0);
   const total = subtotal - discountTotal;
+  const costWarnings = new Map(lines.map((line) => {
+    const item = inventoryById.get(line.inventoryItemId);
+    return [line.id, item ? saleCostWarning(item.unitCost, line.quantity, line.unitPrice, line.discountTotal) : null];
+  }));
+  const hasCostWarning = [...costWarnings.values()].some(Boolean);
 
   function updateLine(id: string, updates: Partial<SaleLineDraft>) {
     setLines((currentLines) => currentLines.map((line) => line.id === id ? { ...line, ...updates } : line));
@@ -200,8 +206,9 @@ export function SaleForm({ inventoryItems, wallets, bankAccounts, currency = "SA
                 const lineDiscount = Math.max(0, Number(line.discountTotal || 0));
                 const lineTotal = Math.max(0, (quantity * unitPrice) - lineDiscount);
                 const exceedsStock = Boolean(inventoryItem && quantity > inventoryItem.quantity);
+                const costWarning = costWarnings.get(line.id);
 
-                return <div key={line.id} className={`overflow-hidden rounded-2xl border bg-white transition ${exceedsStock ? "border-amber-300/80" : "border-slate-200/70"}`}>
+                return <div key={line.id} className={`overflow-hidden rounded-2xl border bg-white transition ${costWarning ? "border-rose-300" : exceedsStock ? "border-amber-300/80" : "border-slate-200/70"}`}>
                   <div className="grid gap-3 p-3.5 sm:grid-cols-[minmax(0,1.5fr)_90px_120px_120px_auto] sm:items-end">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
@@ -267,6 +274,8 @@ export function SaleForm({ inventoryItems, wallets, bankAccounts, currency = "SA
                     </div>
                   </div>
 
+                  {costWarning ? <div role="alert" className="border-t border-rose-200 bg-rose-50 px-4 py-2 text-[11px] font-bold text-rose-700">{costWarning}</div> : null}
+
                   {exceedsStock ? (
                     <div className="border-t border-amber-200/70 bg-amber-50/70 px-4 py-2 text-[10px] font-black text-amber-800">
                       ⚠️ الكمية المطلوبة ({quantity}) أكبر من الكمية المتاحة في المخزون ({inventoryItem?.quantity ?? 0}).
@@ -329,7 +338,8 @@ export function SaleForm({ inventoryItems, wallets, bankAccounts, currency = "SA
             <div className="flex justify-between text-sm font-bold text-slate-850 pt-3.5 border-t border-slate-200"><span>الإجمالي النهائي:</span><span className="font-numeric text-xl text-primary font-black">{formatCurrency(total, currency)}</span></div>
           </div>
           <SalePaymentFields total={Math.max(0, total)} wallets={wallets} bankAccounts={bankAccounts} currency={currency} debtEligible={customerMode === "NEW" || (customerMode === "EXISTING" && Boolean(selectedCustomer))} onChooseCustomer={simpleMode ? () => { if (customerDetailsRef.current) customerDetailsRef.current.open = true; customerDetailsRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }); } : undefined} />
-          <div className="mt-6 pt-1"><Button type="submit" disabled={isPending || lines.length === 0} className="w-full font-bold shadow-md h-12 rounded-xl text-xs justify-center"><Save className="h-4.5 w-4.5 ml-1.5" />{isPending ? "جاري تسجيل عملية البيع..." : "إتمام البيع وإصدار الفاتورة"}</Button></div>
+          {hasCostWarning ? <p role="status" className="mt-4 text-xs font-bold text-rose-700">تعذر إتمام البيع. راجع تنبيه التكلفة في بنود السلة.</p> : null}
+          <div className="mt-6 pt-1"><Button type="submit" disabled={isPending || lines.length === 0 || hasCostWarning} className="w-full font-bold shadow-md h-12 rounded-xl text-xs justify-center"><Save className="h-4.5 w-4.5 ml-1.5" />{isPending ? "جاري تسجيل عملية البيع..." : "إتمام البيع وإصدار الفاتورة"}</Button></div>
         </section>
       </div>
     </div>
