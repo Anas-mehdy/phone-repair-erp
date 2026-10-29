@@ -138,6 +138,7 @@ export async function createInvitation(
 
   const allowedRoles: MembershipRole[] = [
     MembershipRole.ADMIN,
+    MembershipRole.ACCOUNTANT,
     MembershipRole.TECHNICIAN,
     MembershipRole.VIEWER,
   ];
@@ -222,6 +223,7 @@ export async function updateMemberRole(
 
   const allowedRoles: MembershipRole[] = [
     MembershipRole.ADMIN,
+    MembershipRole.ACCOUNTANT,
     MembershipRole.TECHNICIAN,
     MembershipRole.VIEWER,
   ];

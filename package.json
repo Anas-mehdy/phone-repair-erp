@@ -31,7 +31,8 @@
     "purchases:lifecycle-test": "node scripts/test-purchase-receiving-lifecycle.cjs",
     "purchases:phase4-static": "node scripts/test-purchase-receiving-phase4-static.cjs",
     "purchases:document-security": "node scripts/test-purchase-document-security.cjs",
-    "purchases:openai-static": "node scripts/test-purchase-openai-static.cjs"
+    "purchases:openai-static": "node scripts/test-purchase-openai-static.cjs",
+    "stocktakes:test": "node --import tsx scripts/test-stocktakes.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.1.0",

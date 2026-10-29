@@ -47,12 +47,15 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   let subscriptionReadOnly = false;
   let hideLifetimeOfferForTermSubscriber = false;
   let isSalesEmployee = false;
+  let isAccountant = false;
   let lifetimeBanner: { remaining: number; total: number } | null = null;
   let maintenanceBanner: { status: "DUE_SOON" | "OVERDUE"; amount: number; currencyCode: string; dueAt: Date; daysUntilDue: number } | null = null;
   let analyticsIdentity: AnalyticsIdentityData | null = null;
 
   try {
     const auth = await getAuthContext({ allowRedirect: false });
+    isAccountant = auth.membership.role === "ACCOUNTANT" && can(auth, "inventory:stocktake");
+    if (isAccountant) { const pathname = (await headers()).get("x-massar-pathname"); if (pathname === "/" || pathname === "/dashboard") redirect("/stocktakes"); }
     isSalesEmployee = auth.membership.accessProfile === "SALES_EMPLOYEE";
     if (isSalesEmployee) {
       const pathname = (await headers()).get("x-massar-pathname");
@@ -124,6 +127,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     showTutorialBanner = false;
     subscriptionReadOnly = false;
     isSalesEmployee = false;
+    isAccountant = false;
     lifetimeBanner = null;
     maintenanceBanner = null;
     analyticsIdentity = null;
@@ -141,10 +145,10 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       <PwaInstallPrompt />
       {!isSalesEmployee && maintenanceBanner ? <LifetimeMaintenanceBanner {...maintenanceBanner} /> : null}
       {!isSalesEmployee && lifetimeBanner ? <LifetimeOfferBanner remaining={lifetimeBanner.remaining} total={lifetimeBanner.total} /> : null}
-      <AccessProfileProvider isSalesEmployee={isSalesEmployee}>
+      <AccessProfileProvider isSalesEmployee={isSalesEmployee} isAccountant={isAccountant}>
         <AppShell canSettings={canSettings} canReports={canReports} canManageSubscription={canManageSubscription} canManageDebts={canManageDebts} subscriptionReadOnly={subscriptionReadOnly} tutorialInitialShowBanner={showTutorialBanner}>{children}</AppShell>
       </AccessProfileProvider>
-      {!isSalesEmployee ? <QuickOperationsLauncher canManageDebts={canManageDebts} readOnly={subscriptionReadOnly} /> : null}
+      {!isSalesEmployee && !isAccountant ? <QuickOperationsLauncher canManageDebts={canManageDebts} readOnly={subscriptionReadOnly} /> : null}
     </body>
   </html>;
 }

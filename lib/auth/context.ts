@@ -54,7 +54,7 @@ const resolveAuthContextInternal = cache(async (): Promise<AuthContext | null> =
     if (membership.status === MembershipStatus.REMOVED || membership.deletedAt !== null) throw new MembershipInactiveError("تم إلغاء عضويتك من هذا المتجر.");
     if (membership.status !== MembershipStatus.ACTIVE) throw new MembershipInactiveError("عضويتك غير نشطة في هذا المتجر.");
 
-    const accessProfile = await accessProfileService.getMembershipProfile(membership.id);
+    const accessProfile = membership.role === MembershipRole.ACCOUNTANT ? null : await accessProfileService.getMembershipProfile(membership.id);
     const permissions = getPermissionsForAccessProfile(accessProfile) ?? getPermissionsForRole(membership.role);
 
     return {

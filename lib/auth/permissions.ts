@@ -22,6 +22,7 @@ export type AppPermission =
   | "electronic_services:read"
   | "electronic_services:execute"
   | "electronic_services:manage"
+  | "inventory:stocktake"
   | "inventory:read"
   | "inventory:use_parts"
   | "inventory:manage"
@@ -46,7 +47,7 @@ export const ALL_APP_PERMISSIONS: readonly AppPermission[] = [
   "sales:read", "sales:create", "sales:cancel", "sales:create_own", "sales:read_own", "sales:update_own", "sales:cancel_own",
   "purchases:create", "purchases:read_own", "expenses:create", "expenses:read_own",
   "electronic_services:read", "electronic_services:execute", "electronic_services:manage",
-  "inventory:read", "inventory:use_parts", "inventory:manage", "inventory:adjust",
+  "inventory:stocktake", "inventory:read", "inventory:use_parts", "inventory:manage", "inventory:adjust",
   "invoices:read", "invoices:pay", "invoices:void",
   "customers:manage", "customers:delete", "suppliers:manage",
   "reports:read", "expenses:manage", "debts:manage",
@@ -67,7 +68,9 @@ export const SALES_EMPLOYEE_PERMISSIONS: readonly AppPermission[] = [
 ] as const;
 
 export const ROLE_PERMISSIONS_MATRIX: Record<MembershipRole, readonly AppPermission[]> = {
-  OWNER: ALL_APP_PERMISSIONS,
+  // The private stocktake workspace is expressly reserved for accountants.
+  OWNER: ALL_APP_PERMISSIONS.filter((permission) => permission !== "inventory:stocktake"),
+  ACCOUNTANT: ["inventory:stocktake", "inventory:read", "sales:read", "invoices:read", "reports:read"],
   ADMIN: [
     "repairs:read", "repairs:create", "repairs:update", "repairs:update_status", "repairs:assign", "repairs:delete",
     "sales:read", "sales:create", "sales:cancel", "sales:create_own", "sales:read_own", "sales:update_own", "sales:cancel_own",

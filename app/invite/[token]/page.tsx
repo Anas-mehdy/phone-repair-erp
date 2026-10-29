@@ -11,6 +11,7 @@ export const metadata: Metadata = {
 
 const ROLE_LABELS: Record<string, string> = {
   ADMIN: "مدير فرع",
+  ACCOUNTANT: "محاسب",
   TECHNICIAN: "فني صيانة",
   VIEWER: "مشاهد تقارير",
 };
