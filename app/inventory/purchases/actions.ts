@@ -1,5 +1,6 @@
 "use server";
 
+import { deviceInputSchema } from "@/lib/inventory-device";
 import { PaymentMethod } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -28,6 +29,7 @@ const lineSchema = z.object({
   compatibilityReviewNeeded: z.boolean().optional(),
   updateSalePrice: z.boolean().optional(),
   giftAllowed: z.boolean().nullable().optional(),
+  deviceDetails: deviceInputSchema.nullable().optional(),
   quantity: z.number().int().positive(),
   unitCost: moneyString,
   manualExtraCostAllocation: z.union([moneyString, z.null()]).optional(),

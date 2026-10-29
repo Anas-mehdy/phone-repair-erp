@@ -219,6 +219,7 @@ export function SaleForm({ inventoryItems, wallets, bankAccounts, currency = "SA
                         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-[10px] font-black text-slate-500">{index + 1}</span>
                         <div className="min-w-0">
                           <div className="truncate text-xs font-black text-slate-800">{line.description || "بند يدوي جديد"}</div>
+                          {inventoryItem?.deviceSummary ? <div className="mt-1 text-[10px] font-bold text-teal-700">{inventoryItem.deviceSummary}</div> : null}
                           <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[9px] font-bold">
                             {isInventoryItem ? <span className="text-teal-600">من المخزون</span> : <span className="text-slate-400">بند يدوي / خدمة</span>}
                             {inventoryItem ? <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 px-2 py-1 text-[10px] font-bold text-slate-700"><input type="checkbox" checked={line.isGift} onChange={(event) => updateLine(line.id, { isGift: event.target.checked })} />هدية</label> : null}

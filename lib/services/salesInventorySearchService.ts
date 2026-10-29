@@ -1,3 +1,4 @@
+import { inventoryDeviceSummary } from "@/lib/device-summary";
 import { prisma } from "@/lib/prisma";
 
 export type SaleInventorySearchResult = {
@@ -10,6 +11,7 @@ export type SaleInventorySearchResult = {
   unitPrice: string;
   unitCost: string | null;
   giftAllowed: boolean;
+  deviceSummary: string | null;
 };
 
 export async function searchInventoryForSale(
@@ -26,6 +28,7 @@ export async function searchInventoryForSale(
       deletedAt: null,
       OR: [
         { name: { contains: query, mode: "insensitive" } },
+        { deviceModel: { contains: query, mode: "insensitive" } },
         { sku: { contains: query, mode: "insensitive" } },
         { barcode: { contains: query, mode: "insensitive" } },
         { category: { contains: query, mode: "insensitive" } },
@@ -41,6 +44,7 @@ export async function searchInventoryForSale(
       unitPrice: true,
       unitCost: true,
       giftAllowed: true,
+      isDevice: true, deviceModel: true, deviceCondition: true, storageCapacity: true, batteryHealth: true,
     },
     orderBy: [{ name: "asc" }, { updatedAt: "desc" }],
     take: Math.min(Math.max(limit, 1), 30),
@@ -56,6 +60,7 @@ export async function searchInventoryForSale(
     unitPrice: item.unitPrice.toString(),
     unitCost: item.unitCost?.toString() ?? null,
     giftAllowed: item.giftAllowed,
+    deviceSummary: inventoryDeviceSummary(item),
   }));
 }
 

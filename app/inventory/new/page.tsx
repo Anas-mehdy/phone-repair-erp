@@ -1,3 +1,4 @@
+import { InventoryDeviceFields } from "@/app/inventory/_device-fields";
 import { ArrowRight, Save } from "lucide-react";
 import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
@@ -81,6 +82,7 @@ export default async function NewInventoryItemPage({
           <Field label="SKU / رمز المنتج" helper="كود تتبع فريد للمنتج">
             <input className={`${inputClassName} font-numeric`} name="sku" placeholder="مثال: SCR-IPH11P-ORG" />
           </Field>
+          <Field label="الباركود" helper="اتركه فارغاً لتوليد باركود تلقائي للجهاز"><input className={inputClassName} name="barcode" maxLength={160} dir="ltr" /></Field>
           <Field label="تكلفة الشراء (لكل وحدة)">
             <input className={`${inputClassName} font-numeric`} name="unitCost" inputMode="decimal" min="0" step="0.01" type="number" placeholder="0.00" />
           </Field>
@@ -99,6 +101,7 @@ export default async function NewInventoryItemPage({
             </Field>
           </div>
         </div>
+        <div className="mt-6"><InventoryDeviceFields named /></div>
         <div className="mt-6">
           <CompatibilityGroupPicker initialSelection={initialSelection} />
         </div>

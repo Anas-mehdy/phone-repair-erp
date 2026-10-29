@@ -1,4 +1,5 @@
-import { ArrowRight, Save } from "lucide-react";
+import { InventoryDeviceFields } from "@/app/inventory/_device-fields";
+import { ArrowRight, Save, Printer } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -87,7 +88,7 @@ export default async function InventoryItemDetailsPage({ params, searchParams }:
             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-indigo-900 text-white shadow-md shadow-primary/10"><span className="text-xl font-bold font-numeric">📦</span></div>
             <div><div className="flex flex-wrap items-center gap-2"><span className="text-[10px] font-black uppercase tracking-wider text-slate-400">تفاصيل صنف المستودع</span><PlainBadge tone={lowStock ? "red" : "green"} label={lowStock ? "مخزون منخفض" : "متوفر بالرف"} /></div><h2 className="mt-1 flex items-center gap-2 text-2xl font-black text-slate-800">{item.name}</h2><p className="mt-1 text-xs font-medium text-slate-400">رمز الـ SKU: <span className="font-numeric font-semibold text-slate-700">{item.sku ?? "-"}</span></p></div>
           </div>
-          <div className="flex flex-wrap gap-2.5"><Button asChild variant="outline" className="h-11 rounded-xl border-slate-200 px-5 font-bold shadow-sm hover:bg-slate-50"><Link href="/inventory"><ArrowRight className="ml-1.5 h-4 w-4" aria-hidden="true" />رجوع للقائمة</Link></Button></div>
+          <div className="flex flex-wrap gap-2.5">{item.isDevice ? <Button asChild className="h-11 rounded-xl font-bold"><Link href={`/inventory/${item.id}/label`}><Printer className="ml-2 h-4 w-4" />طباعة ليبل الجهاز</Link></Button> : null}<Button asChild variant="outline" className="h-11 rounded-xl border-slate-200 px-5 font-bold shadow-sm hover:bg-slate-50"><Link href="/inventory"><ArrowRight className="ml-1.5 h-4 w-4" aria-hidden="true" />رجوع للقائمة</Link></Button></div>
         </div>
       </div>
 
@@ -107,6 +108,7 @@ export default async function InventoryItemDetailsPage({ params, searchParams }:
               <Info label="حالة المخزون" value={<PlainBadge tone={lowStock ? "red" : "green"} label={lowStock ? "مخزون منخفض" : "طبيعي"} />} />
               <Info label="دليل التوافق" value={linkedGroup ? <span className="text-violet-700">مرتبط مع {linkedGroup.members.map((member) => member.rawModelName).join("، ")}</span> : <span className="text-slate-400">غير مرتبط</span>} />
             </div>
+            {item.isDevice ? <div className="mt-4 rounded-xl border border-teal-200 bg-teal-50 p-4 text-xs font-bold text-teal-900 dark:border-teal-900 dark:bg-teal-950 dark:text-teal-200"><span>{item.deviceModel} • {item.storageCapacity} • {item.deviceCondition === "NEW" ? "جديد" : item.deviceCondition === "USED" ? "مستعمل" : "مجدد"}</span>{item.batteryHealth !== null ? <span className="mr-3">Battery Health: {item.batteryHealth}%</span> : null}{item.deviceIdentifier ? <div className="mt-2 font-numeric" dir="ltr">IMEI / Serial: {item.deviceIdentifier}</div> : null}</div> : null}
             {item.description ? <div className="mt-5 border-t border-slate-100/60 pt-4"><Info label="الوصف والتفاصيل" value={<p className="text-xs font-medium leading-relaxed text-slate-600">{item.description}</p>} /></div> : null}
           </div>
 
@@ -117,12 +119,14 @@ export default async function InventoryItemDetailsPage({ params, searchParams }:
               <Field label="اسم القطعة"><input className={inputClassName} name="name" required defaultValue={item.name} /></Field>
               <Field label="التصنيف"><InventoryCategoryField categories={categories} defaultCategoryId={item.categoryId} /></Field>
               <Field label="SKU / رمز التتبع"><input className={`${inputClassName} font-numeric`} name="sku" defaultValue={item.sku ?? ""} /></Field>
+              <Field label="الباركود"><input className={inputClassName} name="barcode" maxLength={160} defaultValue={item.barcode ?? ""} dir="ltr" /></Field>
               <Field label="تكلفة الشراء"><input className={`${inputClassName} font-numeric`} name="unitCost" defaultValue={item.unitCost?.toString() ?? ""} inputMode="decimal" min="0" step="0.01" type="number" /></Field>
               <Field label="سعر البيع"><input className={`${inputClassName} font-numeric`} name="unitPrice" defaultValue={item.unitPrice.toString()} inputMode="decimal" min="0" required step="0.01" type="number" /></Field>
               <Field label="حد إعادة الطلب"><input className={`${inputClassName} font-numeric`} name="reorderLevel" defaultValue={String(item.reorderLevel)} min="0" step="1" type="number" /></Field>
               <div className="sm:col-span-2"><Field label="الوصف والتفاصيل"><textarea className={textareaClassName} name="description" defaultValue={item.description ?? ""} /></Field></div>
             </div>
-            <div className="mt-6"><CompatibilityGroupPicker initialSelection={initialCompatibilitySelection} /></div>
+            <div className="mt-6"><InventoryDeviceFields named initialValue={{ isDevice: item.isDevice, deviceModel: item.deviceModel, deviceCondition: item.deviceCondition as "NEW" | "USED" | "REFURBISHED" | null, batteryHealth: item.batteryHealth, storageCapacity: item.storageCapacity, deviceIdentifier: item.deviceIdentifier }} />
+            <CompatibilityGroupPicker initialSelection={initialCompatibilitySelection} /></div>
             <div className="mt-6 flex justify-end"><Button type="submit" className="h-11 rounded-xl px-6 font-bold shadow-sm"><Save className="ml-1.5 h-4.5 w-4.5" />حفظ بيانات القطعة المحدثة</Button></div>
           </form>
 

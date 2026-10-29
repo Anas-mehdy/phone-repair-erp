@@ -8,7 +8,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
-import { saveDraft, postPurchaseInvoice, type PurchaseDraftLineInput } from "../lib/services/purchaseReceivingService";
+import { createInventoryItem, addStock, adjustStock } from "../lib/services/inventoryService";
+import { normalizeDeviceDetails } from "../lib/inventory-device";
+import { makeDeviceLabel } from "../lib/device-label";
+import { saveDraft, postPurchaseInvoice, lookupInventoryByIdentifier, type PurchaseDraftLineInput } from "../lib/services/purchaseReceivingService";
 
 type Row = Record<string, unknown>;
 type Database = {
@@ -29,7 +32,7 @@ async function main() {
   const supplier = "00000000-0000-4000-8000-000000000003";
   const item = "00000000-0000-4000-8000-000000000004";
   try {
-    const baseline = readFileSync("prisma/schema.prisma", "utf8").replace(/^\s+giftAllowed\s+.*\n/gm, "").replace(/^\s+isGift\s+.*\n/gm, "");
+    const baseline = readFileSync("prisma/schema.prisma", "utf8").replace(/^\s+giftAllowed\s+.*\n/gm, "").replace(/^\s+isGift\s+.*\n/gm, "").replace(/^\s+(?:isDevice|deviceModel|deviceCondition|batteryHealth|storageCapacity|deviceIdentifier|deviceDetails)\s+.*\n/gm, "");
     const schema = join(temporary, "schema.prisma");
     writeFileSync(schema, baseline);
     const sql = execFileSync(process.execPath, ["node_modules/prisma/build/index.js", "migrate", "diff", "--from-empty", "--to-schema-datamodel", schema, "--script"], { encoding: "utf8", env: { ...process.env, DATABASE_URL: "postgresql://unused:unused@127.0.0.1:1/unused" } });
@@ -49,24 +52,46 @@ async function main() {
     await pg.query('INSERT INTO "Supplier" (id,name,"shopId") VALUES ($1,$2,$3)', [supplier, "Supplier", shop]);
     await pg.query('INSERT INTO "InventoryItem" (id,"shopId",name,"unitCost","unitPrice",quantity) VALUES ($1,$2,$3,100,120,10)', [item, shop, "Existing product"]);
     await pg.exec(readFileSync("prisma/migrations/20261028200000_sale_gifts/migration.sql", "utf8"));
+    await pg.exec(readFileSync("prisma/migrations/20261029190000_device_labels/migration.sql", "utf8"));
     assert.equal((await pg.query('SELECT "giftAllowed" FROM "InventoryItem" WHERE id=$1', [item])).rows[0].giftAllowed, false);
 
     const raw = (db: Database) => async (query: Prisma.Sql | TemplateStringsArray, ...values: unknown[]) => {
       const statement = Array.isArray(query) ? Prisma.sql(query as unknown as TemplateStringsArray, ...values) : query as Prisma.Sql;
       return db.query(statement.text, statement.values.map((value) => Prisma.Decimal.isDecimal(value) ? value.toString() : value));
     };
+    const insert = async (db: Database, table: string, data: Row) => {
+      const entries = Object.entries(data).filter(([, value]) => value !== undefined);
+      return (await db.query(`INSERT INTO "${table}" (${entries.map(([key]) => `"${key}"`).join(",")}) VALUES (${entries.map((_, index) => `$${index + 1}`).join(",")}) RETURNING *`, entries.map(([, value]) => Prisma.Decimal.isDecimal(value) ? value.toString() : value))).rows[0];
+    };
     const bridge = (db: Database) => ({
+      inventoryMovement: { create: async ({ data }: { data: Row }) => insert(db, "InventoryMovement", data) },
       $queryRaw: async (query: Prisma.Sql | TemplateStringsArray, ...values: unknown[]) => (await raw(db)(query, ...values)).rows,
       $executeRaw: async (query: Prisma.Sql | TemplateStringsArray, ...values: unknown[]) => (await raw(db)(query, ...values)).affectedRows ?? 0,
       supplier: { findFirst: async () => ({ id: supplier, name: "Supplier" }) },
       inventoryItem: {
-        findFirst: async ({ where }: { where: { id: string } }) => (await db.query('SELECT * FROM "InventoryItem" WHERE id=$1 AND "shopId"=$2', [where.id, shop])).rows[0],
+        findFirst: async ({ where }: { where: { id?: string | { not: string }; shopId?: string; barcode?: string; deviceIdentifier?: string } }) => {
+          const params: unknown[] = [where.shopId ?? shop];
+          const clauses = ['"shopId"=$1', '"deletedAt" IS NULL'];
+          for (const key of ["id", "barcode", "deviceIdentifier"] as const) {
+            const value = where[key]; if (value === undefined) continue;
+            params.push(typeof value === "object" ? value.not : value);
+            clauses.push(`"${key}" ${typeof value === "object" ? "<>" : "="} $${params.length}`);
+          }
+          return (await db.query(`SELECT * FROM "InventoryItem" WHERE ${clauses.join(" AND ")}`, params)).rows[0];
+        },
         create: async ({ data }: { data: Row }) => {
           const entries = Object.entries(data).filter(([, value]) => value !== undefined);
           return (await db.query(`INSERT INTO "InventoryItem" (${entries.map(([key]) => `"${key}"`).join(",")}) VALUES (${entries.map((_, index) => `$${index + 1}`).join(",")}) RETURNING *`, entries.map(([, value]) => Prisma.Decimal.isDecimal(value) ? value.toString() : value))).rows[0];
         },
-        update: async ({ where, data }: { where: { id: string }; data: { giftAllowed: boolean } }) => {
-          return (await db.query('UPDATE "InventoryItem" SET "giftAllowed"=$1,version=version+1 WHERE id=$2 AND "shopId"=$3 RETURNING *', [data.giftAllowed, where.id, shop])).rows[0];
+        update: async ({ where, data }: { where: { id: string }; data: Row }) => {
+          const values: unknown[] = [];
+          const setters = Object.entries(data).map(([key, value]) => {
+            const increment = value && typeof value === "object" && "increment" in value ? (value as { increment: number }).increment : null;
+            values.push(increment === null ? value : increment);
+            return `"${key}"=${increment === null ? "" : `"${key}"+`}$${values.length}`;
+          });
+          values.push(where.id, shop);
+          return (await db.query(`UPDATE "InventoryItem" SET ${setters.join(",")} WHERE id=$${values.length - 1} AND "shopId"=$${values.length} RETURNING *`, values)).rows[0];
         },
       },
     });
@@ -110,6 +135,45 @@ async function main() {
     await pg.query('INSERT INTO "Sale" (id,"shopId",subtotal,total) VALUES ($1,$2,0,0)', [saleId, shop]);
     await assert.rejects(() => pg.query('INSERT INTO "SaleItem" ("shopId","saleId",description,quantity,"unitPriceSnapshot","lineTotal","isGift") VALUES ($1,$2,$3,1,10,10,TRUE)', [shop, saleId, "Invalid gift"]), /gift_zero_amounts/);
     await pg.query('INSERT INTO "SaleItem" ("shopId","saleId",description,quantity,"unitPriceSnapshot","lineTotal","isGift") VALUES ($1,$2,$3,1,0,0,TRUE)', [shop, saleId, "Gift"]);
+    const deviceDetails = normalizeDeviceDetails({ isDevice: true, deviceModel: "iPhone 17 Pro Max", deviceCondition: "USED", batteryHealth: 87, storageCapacity: "256 gb", deviceIdentifier: "123456789012345" });
+    const deviceDraft = await draft([{ newItemName: "Phone 1", quantity: 1, unitCost: "100", salePrice: "120", deviceDetails }]);
+    const snapshot = (await pg.query('SELECT "deviceDetails" FROM "PurchaseItem" WHERE "purchaseInvoiceId"=$1', [deviceDraft.id])).rows[0].deviceDetails as Record<string, unknown>;
+    assert.equal(snapshot.batteryHealth, 87);
+    await post(deviceDraft.id);
+    const phone = (await pg.query('SELECT * FROM "InventoryItem" WHERE name=$1', ["Phone 1"])).rows[0];
+    assert.equal(phone.isDevice, true); assert.equal(phone.quantity, 0);
+    assert.equal(phone.storageCapacity, "256 GB"); assert.match(String(phone.barcode), /^20\d{10}$/);
+    const label = makeDeviceLabel({ ...normalizeDeviceDetails(phone), barcode: String(phone.barcode), unitPrice: { toString: () => "120" } }, "Test Shop", "SAR");
+    assert.equal(label.batteryHealth, 87); assert.equal(label.condition, "Used");
+    assert.ok(label.barcodeDataUrl.startsWith("data:image/svg+xml;base64,"));
+    assert.ok(!JSON.stringify(label).includes("123456789012345"), "private IMEI must not appear in printable label data");
+    await assert.rejects(() => draft([{ newItemName: "Duplicate units", quantity: 2, unitCost: "100", deviceDetails }]), /كمية واحدة/);
+    const duplicateSerial = await draft([{ newItemName: "Duplicate serial", quantity: 1, unitCost: "100", deviceDetails }]);
+    await assert.rejects(() => post(duplicateSerial.id), /IMEI \/ Serial/);
+    const duplicateBarcode = await draft([{ newItemName: "Duplicate barcode", newItemBarcode: String(phone.barcode), quantity: 1, unitCost: "100", deviceDetails: { ...deviceDetails, deviceIdentifier: null } }]);
+    await assert.rejects(() => post(duplicateBarcode.id), /الباركود/);
+    await assert.rejects(() => pg.query('UPDATE "InventoryItem" SET quantity=2 WHERE id=$1', [phone.id]), /device_metadata/);
+    await assert.rejects(() => pg.query('UPDATE "InventoryItem" SET "batteryHealth"=101 WHERE id=$1', [phone.id]), /device_metadata/);
+    await assert.rejects(() => pg.query('INSERT INTO "InventoryItem" ("shopId",name,"unitPrice","isDevice","deviceModel","deviceCondition","storageCapacity",barcode) VALUES ($1,$2,120,TRUE,$3,$4,$5,$6)', [shop, "Duplicate DB", "Phone", "NEW", "256 GB", phone.barcode]), /device_barcode/);
+    const receivedDraft = await draft([{ newItemName: "Received phone", newItemBarcode: "PHONE-00042", quantity: 1, unitCost: "100", salePrice: "120", deviceDetails: { ...deviceDetails, deviceIdentifier: "123456789012346" } }]);
+    await postPurchaseInvoice(shop, user, receivedDraft.id, `receive-${receivedDraft.id}`, { receiptMode: "FULL" });
+    const received = (await pg.query('SELECT * FROM "InventoryItem" WHERE name=$1', ["Received phone"])).rows[0];
+    assert.equal(received.quantity, 1); assert.equal(String(received.unitCost), "100");
+    const match = await lookupInventoryByIdentifier(shop, "PHONE-00042");
+    assert.equal(match.item?.id, received.id); assert.equal(match.item?.isDevice, true);
+    const repeatedDevice = await draft([{ inventoryItemId: String(received.id), quantity: 1, unitCost: "100" }, { inventoryItemId: String(received.id), quantity: 1, unitCost: "100" }]);
+    await assert.rejects(() => post(repeatedDevice.id), /كمية واحدة/);
+    const extraReceipt = await draft([{ inventoryItemId: String(received.id), quantity: 1, unitCost: "100" }]);
+    await assert.rejects(() => postPurchaseInvoice(shop, user, extraReceipt.id, `receive-${extraReceipt.id}`, { receiptMode: "FULL" }), /كمية واحدة/);
+    assert.equal((await pg.query('SELECT quantity FROM "InventoryItem" WHERE id=$1', [received.id])).rows[0].quantity, 1);
+    assert.equal((await pg.query('SELECT status FROM "PurchaseInvoice" WHERE id=$1', [extraReceipt.id])).rows[0].status, "DRAFT");
+    const direct = await createInventoryItem(shop, user, { name: "Direct device", unitPrice: "120", unitCost: "100", quantity: "1", deviceDetails: { ...deviceDetails, deviceIdentifier: null } });
+    assert.equal(direct.quantity, 1); assert.equal(direct.isDevice, true);
+    await assert.rejects(() => addStock(shop, direct.id, user, { quantity: "1" }), /كمية واحدة/);
+    await assert.rejects(() => adjustStock(shop, direct.id, user, { newQuantity: "2" }), /كمية واحدة/);
+    await adjustStock(shop, direct.id, user, { newQuantity: "0" });
+    assert.equal((await addStock(shop, direct.id, user, { quantity: "1" })).quantity, 1);
+    console.log("PASS device PostgreSQL: additive migration, persisted purchase metadata, approval, automatic barcode, printable data, private serial exclusion, duplicate serial/barcode and quantity/battery constraints.");
     console.log("PASS isolated PostgreSQL: gift migration, existing-product default, persisted draft, approval, replay, omitted setting, revocation, new products, conflicting settings with rollback, and gift zero-value constraint.");
   } finally {
     prisma.$transaction = original.transaction; prisma.$queryRaw = original.queryRaw;

@@ -547,6 +547,7 @@ model PurchaseItem {
   compatibilityReviewNeeded  Boolean   @default(false)
   updateSalePrice            Boolean   @default(false)
   giftAllowed                Boolean?
+  deviceDetails              Json?
   orderedQuantity            Int
   receivedQuantity           Int       @default(0)
   returnedQuantity           Int       @default(0)
@@ -940,6 +941,12 @@ model InventoryItem {
   unitPrice          Decimal   @db.Decimal(12, 2)
   salePriceConfigured Boolean  @default(true)
   giftAllowed       Boolean   @default(false)
+  isDevice          Boolean   @default(false)
+  deviceModel       String?   @db.VarChar(80)
+  deviceCondition   String?   @db.VarChar(16)
+  batteryHealth     Int?
+  storageCapacity   String?   @db.VarChar(24)
+  deviceIdentifier  String?   @db.VarChar(40)
   quantity          Int       @default(0)
   reorderLevel      Int       @default(0)
   compatibilityReviewNeeded Boolean @default(false)

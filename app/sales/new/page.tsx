@@ -1,3 +1,4 @@
+import { inventoryDeviceSummary } from "@/lib/device-summary";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { DatabaseUnavailable } from "@/components/database-unavailable";
@@ -35,7 +36,7 @@ export default async function NewSalePage() {
     <PageHeader title="عملية بيع جديدة" description="أضف بنود بيع من المخزون أو بنوداً يدوية للخدمات والرسوم" actions={<Button asChild variant="outline"><Link href="/sales"><ArrowRight className="h-4 w-4" aria-hidden="true" />رجوع</Link></Button>} />
     <SaleForm
       currency={currency}
-      inventoryItems={inventoryItems.map((item) => ({ id: item.id, name: item.name, sku: item.sku, quantity: item.quantity, unitCost: item.unitCost?.toString() ?? null, giftAllowed: item.giftAllowed, unitPrice: item.unitPrice.toString() }))}
+      inventoryItems={inventoryItems.map((item) => ({ id: item.id, name: item.name, sku: item.sku, quantity: item.quantity, unitCost: item.unitCost?.toString() ?? null, giftAllowed: item.giftAllowed, deviceSummary: inventoryDeviceSummary(item), unitPrice: item.unitPrice.toString() }))}
       wallets={wallets.map((wallet) => ({ id: wallet.id, name: wallet.name, balance: Number(wallet.currentBalance) }))}
       bankAccounts={bankAccounts.map((account) => ({ id: account.id, name: account.name, bankName: account.bankName, balance: Number(account.currentBalance) }))}
     />

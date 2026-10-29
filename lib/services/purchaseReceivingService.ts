@@ -6,6 +6,8 @@ import {
   Prisma,
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { normalizeDeviceDetails, assertDeviceQuantity, type DeviceDetails } from "@/lib/inventory-device";
+import { prepareDeviceIdentityTx } from "./inventoryDeviceService";
 import {
   allocatePurchaseCosts,
   allocatedPartialValue,
@@ -42,6 +44,7 @@ export type PurchaseDraftLineInput = {
   compatibilityReviewNeeded?: boolean;
   updateSalePrice?: boolean;
   giftAllowed?: boolean | null;
+  deviceDetails?: DeviceDetails | null;
   quantity: number;
   unitCost: string | number;
   manualExtraCostAllocation?: string | number | null;
@@ -124,7 +127,7 @@ export type SettleSupplierReturnInput = {
   note?: string | null;
 };
 
-export type PurchaseInventorySearchItem = {
+export type PurchaseInventorySearchItem = DeviceDetails & {
   id: string;
   name: string;
   sku: string | null;
@@ -230,6 +233,8 @@ export type PurchaseDetail = {
     compatibilityReviewNeeded: boolean;
     updateSalePrice: boolean;
     giftAllowed: boolean | null;
+    deviceDetails: DeviceDetails | null;
+    inventoryDeviceDetails: DeviceDetails | null;
     salePriceBeforeSnapshot: Prisma.Decimal | null;
     orderedQuantity: number;
     receivedQuantity: number;
@@ -345,6 +350,8 @@ function calculate(input: PurchaseDraftInput, strict = true) {
   const normalizedLines = lines.map((line) => {
     if (line.giftAllowed != null && typeof line.giftAllowed !== "boolean") throw new Error("خيار السماح بالهدية غير صالح.");
     const quantity = Number(line.quantity);
+    const deviceDetails = line.inventoryItemId ? null : normalizeDeviceDetails(line.deviceDetails);
+    if (deviceDetails) assertDeviceQuantity(deviceDetails.isDevice, quantity);
     if (!Number.isInteger(quantity) || quantity <= 0) throw new Error("كل كمية يجب أن تكون عدداً صحيحاً أكبر من صفر.");
     const unitCost = inventoryCost(line.unitCost);
     if (!unitCost) throw new Error("تكلفة شراء الصنف مطلوبة ولا يمكن اعتبارها صفراً ضمنياً.");
@@ -361,6 +368,7 @@ function calculate(input: PurchaseDraftInput, strict = true) {
     if (manualExtraCostAllocation?.lt(0)) throw new Error("توزيع مصاريف الشراء اليدوي لا يمكن أن يكون سالباً.");
     return {
       ...line,
+      deviceDetails,
       newItemBarcode: normalizedBarcode(line.newItemBarcode),
       compatibilityGroupIds: uniqueUuids(line.compatibilityGroupIds),
       quantity,
@@ -457,7 +465,7 @@ async function validateCompatibilityGroups(tx: Prisma.TransactionClient, ids: st
   return groupIds;
 }
 
-type BaseInventoryRow = {
+type BaseInventoryRow = DeviceDetails & {
   id: string;
   name: string;
   sku: string | null;
@@ -507,13 +515,13 @@ export async function searchInventory(shopId: string, query: string): Promise<Pu
   const q = query.trim();
   if (!q) return [];
   const rows = await prisma.$queryRaw<BaseInventoryRow[]>(Prisma.sql`
-    SELECT i."id", i."name", i."sku", i."barcode", i."category", i."description", i."quantity", i."unitCost", i."unitPrice", i."giftAllowed",
+    SELECT i."id", i."name", i."sku", i."barcode", i."category", i."description", i."quantity", i."unitCost", i."unitPrice", i."giftAllowed", i."isDevice", i."deviceModel", i."deviceCondition", i."batteryHealth", i."storageCapacity", i."deviceIdentifier",
       COUNT(icg."id")::int AS "compatibilityCount"
     FROM "InventoryItem" i
     LEFT JOIN "InventoryCompatibilityGroup" icg ON icg."inventoryItemId" = i."id"
     WHERE i."shopId" = ${shopId}::uuid AND i."deletedAt" IS NULL
       AND (
-        i."name" ILIKE ${`%${q}%`} OR COALESCE(i."sku", '') ILIKE ${`%${q}%`}
+        i."name" ILIKE ${`%${q}%`} OR COALESCE(i."deviceModel", '') ILIKE ${`%${q}%`} OR COALESCE(i."sku", '') ILIKE ${`%${q}%`}
         OR COALESCE(i."barcode", '') = ${q.replace(/\s+/g, "")}
         OR COALESCE(i."category", '') ILIKE ${`%${q}%`} OR COALESCE(i."description", '') ILIKE ${`%${q}%`}
       )
@@ -529,7 +537,7 @@ async function exactIdentifierCandidates(shopId: string, code: string) {
   const normalized = code.trim().replace(/\s+/g, "");
   if (!normalized) return { barcode: [] as PurchaseInventorySearchItem[], sku: [] as PurchaseInventorySearchItem[] };
   const barcodeRows = await prisma.$queryRaw<BaseInventoryRow[]>(Prisma.sql`
-    SELECT i."id", i."name", i."sku", i."barcode", i."category", i."description", i."quantity", i."unitCost", i."unitPrice", i."giftAllowed",
+    SELECT i."id", i."name", i."sku", i."barcode", i."category", i."description", i."quantity", i."unitCost", i."unitPrice", i."giftAllowed", i."isDevice", i."deviceModel", i."deviceCondition", i."batteryHealth", i."storageCapacity", i."deviceIdentifier",
       COUNT(icg."id")::int AS "compatibilityCount"
     FROM "InventoryItem" i
     LEFT JOIN "InventoryCompatibilityGroup" icg ON icg."inventoryItemId" = i."id"
@@ -538,7 +546,7 @@ async function exactIdentifierCandidates(shopId: string, code: string) {
   `);
   if (barcodeRows.length) return { barcode: await enrichLastPurchase(shopId, barcodeRows), sku: [] as PurchaseInventorySearchItem[] };
   const skuRows = await prisma.$queryRaw<BaseInventoryRow[]>(Prisma.sql`
-    SELECT i."id", i."name", i."sku", i."barcode", i."category", i."description", i."quantity", i."unitCost", i."unitPrice", i."giftAllowed",
+    SELECT i."id", i."name", i."sku", i."barcode", i."category", i."description", i."quantity", i."unitCost", i."unitPrice", i."giftAllowed", i."isDevice", i."deviceModel", i."deviceCondition", i."batteryHealth", i."storageCapacity", i."deviceIdentifier",
       COUNT(icg."id")::int AS "compatibilityCount"
     FROM "InventoryItem" i
     LEFT JOIN "InventoryCompatibilityGroup" icg ON icg."inventoryItemId" = i."id"
@@ -561,7 +569,7 @@ export async function getInventoryItemsByIds(shopId: string, ids: string[]): Pro
   const uniqueIds = [...new Set(ids.filter(Boolean))].slice(0, 300);
   if (!uniqueIds.length) return [];
   const rows = await prisma.$queryRaw<BaseInventoryRow[]>(Prisma.sql`
-    SELECT i."id", i."name", i."sku", i."barcode", i."category", i."description", i."quantity", i."unitCost", i."unitPrice", i."giftAllowed",
+    SELECT i."id", i."name", i."sku", i."barcode", i."category", i."description", i."quantity", i."unitCost", i."unitPrice", i."giftAllowed", i."isDevice", i."deviceModel", i."deviceCondition", i."batteryHealth", i."storageCapacity", i."deviceIdentifier",
       COUNT(icg."id")::int AS "compatibilityCount"
     FROM "InventoryItem" i
     LEFT JOIN "InventoryCompatibilityGroup" icg ON icg."inventoryItemId" = i."id"
@@ -762,7 +770,7 @@ export async function saveDraft(shopId: string, userId: string, currency: string
       await tx.$executeRaw(Prisma.sql`
         INSERT INTO "PurchaseItem" (
           "shopId", "purchaseInvoiceId", "inventoryItemId", "newItemName", "newItemSku", "newItemBarcode", "newItemCategoryId", "newItemCategory",
-          "newItemDescription", "importedSourceText", "importSourceId", "importRowKey", "importedPurchaseUnit", "matchReviewRequired", "compatibilityGroupIds", "compatibilityReviewNeeded", "updateSalePrice", "giftAllowed",
+          "newItemDescription", "importedSourceText", "importSourceId", "importRowKey", "importedPurchaseUnit", "matchReviewRequired", "compatibilityGroupIds", "compatibilityReviewNeeded", "updateSalePrice", "giftAllowed", "deviceDetails",
           "orderedQuantity", "receivedQuantity", "unitCost", "manualExtraCostAllocation", "salePriceSnapshot", "lineTotal", "sortOrder"
         ) VALUES (
           ${shopId}::uuid, ${purchaseId}::uuid, ${line.inventoryItemId ?? null}::uuid,
@@ -771,7 +779,7 @@ export async function saveDraft(shopId: string, userId: string, currency: string
           ${line.inventoryItemId ? null : nullableText(line.newItemCategory)}, ${line.inventoryItemId ? null : nullableText(line.newItemDescription)},
           ${nullableText(line.importedSourceText)}, ${line.importSourceId ?? null}::uuid, ${nullableText(line.importRowKey)}, ${nullableText(line.importedPurchaseUnit)},
           ${Boolean(line.matchReviewRequired)}, ${compatibilitySql},
-          ${line.inventoryItemId ? false : Boolean(line.compatibilityReviewNeeded)}, ${line.inventoryItemId ? Boolean(line.updateSalePrice) : false}, ${line.giftAllowed ?? null},
+          ${line.inventoryItemId ? false : Boolean(line.compatibilityReviewNeeded)}, ${line.inventoryItemId ? Boolean(line.updateSalePrice) : false}, ${line.giftAllowed ?? null}, ${line.deviceDetails ? JSON.stringify(line.deviceDetails) : null}::jsonb,
           ${line.quantity}, 0, ${line.unitCost}, ${line.manualExtraCostAllocation}, ${line.salePrice}, ${line.lineTotal}, ${line.sortOrder}
         )
       `);
@@ -836,6 +844,7 @@ type LockedPurchaseItem = {
   compatibilityReviewNeeded: boolean;
   updateSalePrice: boolean;
   giftAllowed: boolean | null;
+  deviceDetails: DeviceDetails | null;
   manualExtraCostAllocation: Prisma.Decimal | null;
   discountAllocation: Prisma.Decimal | null;
   netMerchandiseValue: Prisma.Decimal | null;
@@ -1023,8 +1032,8 @@ async function createReceiptTx(
 
     // Lock the inventory row itself so receipts for the same item from different
     // purchase invoices cannot race and calculate two averages from the same base.
-    const inventoryRows = await tx.$queryRaw<Array<{ id: string; quantity: number; unitCost: Prisma.Decimal | null }>>`
-      SELECT "id", "quantity", "unitCost" FROM "InventoryItem"
+    const inventoryRows = await tx.$queryRaw<Array<{ id: string; quantity: number; isDevice: boolean; unitCost: Prisma.Decimal | null }>>`
+      SELECT "id", "quantity", "isDevice", "unitCost" FROM "InventoryItem"
       WHERE "id"=${line.inventoryItemId}::uuid AND "shopId"=${input.shopId}::uuid AND "deletedAt" IS NULL
       FOR UPDATE
     `;
@@ -1054,6 +1063,7 @@ async function createReceiptTx(
       receivedCapitalizedValue: capitalizedValue,
     });
     const quantityAfter = inventory.quantity + line.quantity;
+    assertDeviceQuantity(inventory.isDevice, quantityAfter);
 
     await tx.$executeRaw`
       UPDATE "InventoryItem" SET "quantity"=${quantityAfter}, "unitCost"=${newAverage}, "version"="version"+1, "updatedAt"=NOW()
@@ -1140,7 +1150,7 @@ export async function postPurchaseInvoice(
 
     const lines = await tx.$queryRaw<LockedPurchaseItem[]>`
       SELECT "id", "inventoryItemId", "newItemName", "newItemSku", "newItemBarcode", "newItemCategoryId", "newItemCategory", "newItemDescription",
-        "importedSourceText", "importSourceId", "importRowKey", "importedPurchaseUnit", "matchReviewRequired", "compatibilityGroupIds", "compatibilityReviewNeeded", "updateSalePrice", "giftAllowed",
+        "importedSourceText", "importSourceId", "importRowKey", "importedPurchaseUnit", "matchReviewRequired", "compatibilityGroupIds", "compatibilityReviewNeeded", "updateSalePrice", "giftAllowed", "deviceDetails",
         "manualExtraCostAllocation", "discountAllocation", "netMerchandiseValue", "netUnitCost", "extraCostAllocation", "capitalizedLineValue", "capitalizedUnitCost",
         COALESCE("receivedCapitalizedValue",0) AS "receivedCapitalizedValue", COALESCE("receivedNetMerchandiseValue",0) AS "receivedNetMerchandiseValue",
         COALESCE("returnedNetMerchandiseValue",0) AS "returnedNetMerchandiseValue",
@@ -1218,12 +1228,15 @@ export async function postPurchaseInvoice(
       giftChoices.set(line.inventoryItemId, line.giftAllowed);
     }
 
+    const orderedByInventory = new Map<string, number>();
+    for (const line of lines) if (line.inventoryItemId) orderedByInventory.set(line.inventoryItemId, (orderedByInventory.get(line.inventoryItemId) ?? 0) + line.orderedQuantity);
     const preparedLines: LockedPurchaseItem[] = [];
     for (const line of lines) {
       let inventoryItemId = line.inventoryItemId;
       if (inventoryItemId) {
-        const existing = await tx.inventoryItem.findFirst({ where: { id: inventoryItemId, shopId, deletedAt: null }, select: { id: true, unitPrice: true } });
+        const existing = await tx.inventoryItem.findFirst({ where: { id: inventoryItemId, shopId, deletedAt: null }, select: { id: true, unitPrice: true, isDevice: true } });
         if (!existing) throw new Error("أحد أصناف المخزون لم يعد متاحاً.");
+        assertDeviceQuantity(existing.isDevice, orderedByInventory.get(inventoryItemId) ?? line.orderedQuantity);
         if (line.giftAllowed != null) {
           await tx.inventoryItem.update({ where: { id: inventoryItemId }, data: { giftAllowed: line.giftAllowed, version: { increment: 1 } } });
         }
@@ -1235,7 +1248,9 @@ export async function postPurchaseInvoice(
       } else {
         const newName = nullableText(line.newItemName);
         if (!newName) throw new Error("اسم الصنف الجديد مطلوب.");
-        const barcode = normalizedBarcode(line.newItemBarcode);
+        const device = normalizeDeviceDetails(line.deviceDetails);
+        assertDeviceQuantity(device.isDevice, line.orderedQuantity);
+        const barcode = await prepareDeviceIdentityTx(tx, shopId, device, normalizedBarcode(line.newItemBarcode));
         if (barcode) {
           const existingBarcode = await tx.$queryRaw<Array<{ id: string; name: string }>>`SELECT "id","name" FROM "InventoryItem" WHERE "shopId"=${shopId}::uuid AND "deletedAt" IS NULL AND "barcode"=${barcode} LIMIT 1`;
           if (existingBarcode[0]) throw new Error(`الباركود ${barcode} مرتبط مسبقاً بالصنف “${existingBarcode[0].name}”. راجع المطابقة بدلاً من إنشاء صنف جديد.`);
@@ -1250,6 +1265,7 @@ export async function postPurchaseInvoice(
         // Quantity and average cost are intentionally untouched until actual receipt.
         const created = await tx.inventoryItem.create({
           data: {
+            ...device,
             shopId, name: newName, sku: nullableText(line.newItemSku), barcode, category: categoryName,
             description: nullableText(line.newItemDescription), unitCost: null, giftAllowed: line.giftAllowed ?? false,
             unitPrice: line.salePriceSnapshot ?? new Prisma.Decimal(0), salePriceConfigured: line.salePriceSnapshot !== null,
@@ -1340,7 +1356,7 @@ export async function recordPurchaseReceipt(shopId: string, userId: string, purc
     const ids=[...requested.keys()];
     const lines=await tx.$queryRaw<LockedPurchaseItem[]>(Prisma.sql`
       SELECT "id","inventoryItemId","newItemName","newItemSku","newItemBarcode","newItemCategoryId","newItemCategory","newItemDescription",
-        "importedSourceText","importSourceId","importRowKey","importedPurchaseUnit","matchReviewRequired","compatibilityGroupIds","compatibilityReviewNeeded","updateSalePrice","giftAllowed",
+        "importedSourceText","importSourceId","importRowKey","importedPurchaseUnit","matchReviewRequired","compatibilityGroupIds","compatibilityReviewNeeded","updateSalePrice","giftAllowed","deviceDetails",
         "manualExtraCostAllocation","discountAllocation","netMerchandiseValue","netUnitCost","extraCostAllocation","capitalizedLineValue","capitalizedUnitCost",
         COALESCE("receivedCapitalizedValue",0) AS "receivedCapitalizedValue",COALESCE("receivedNetMerchandiseValue",0) AS "receivedNetMerchandiseValue",
         COALESCE("returnedNetMerchandiseValue",0) AS "returnedNetMerchandiseValue",
@@ -1458,7 +1474,7 @@ export async function recordSupplierReturn(shopId: string, userId: string, purch
     const ids=[...requested.keys()];
     const lines=await tx.$queryRaw<LockedPurchaseItem[]>(Prisma.sql`
       SELECT "id","inventoryItemId","newItemName","newItemSku","newItemBarcode","newItemCategoryId","newItemCategory","newItemDescription",
-        "importedSourceText","importSourceId","importRowKey","importedPurchaseUnit","matchReviewRequired","compatibilityGroupIds","compatibilityReviewNeeded","updateSalePrice","giftAllowed",
+        "importedSourceText","importSourceId","importRowKey","importedPurchaseUnit","matchReviewRequired","compatibilityGroupIds","compatibilityReviewNeeded","updateSalePrice","giftAllowed","deviceDetails",
         "manualExtraCostAllocation","discountAllocation","netMerchandiseValue","netUnitCost","extraCostAllocation","capitalizedLineValue","capitalizedUnitCost",
         COALESCE("receivedCapitalizedValue",0) AS "receivedCapitalizedValue",COALESCE("receivedNetMerchandiseValue",0) AS "receivedNetMerchandiseValue",
         COALESCE("returnedNetMerchandiseValue",0) AS "returnedNetMerchandiseValue",
@@ -1657,7 +1673,8 @@ export async function getPurchaseInvoice(shopId: string, purchaseId: string): Pr
       i."category" AS "inventoryItemCategory", i."description" AS "inventoryItemDescription", i."unitPrice" AS "inventoryCurrentSalePrice", i."giftAllowed" AS "inventoryGiftAllowed",
       i."quantity" AS "inventoryCurrentQuantity", hist."lastPurchaseCost", hist."lastPurchaseAt", hist."lastPurchaseSupplierName",
       pi."newItemName", pi."newItemSku", pi."newItemBarcode", pi."newItemCategoryId", pi."newItemCategory", pi."newItemDescription",
-      pi."importedSourceText", pi."importSourceId", pi."importRowKey", pi."importedPurchaseUnit", pi."matchReviewRequired", pi."compatibilityGroupIds", pi."compatibilityReviewNeeded", pi."updateSalePrice", pi."giftAllowed", pi."salePriceBeforeSnapshot",
+      pi."importedSourceText", pi."importSourceId", pi."importRowKey", pi."importedPurchaseUnit", pi."matchReviewRequired", pi."compatibilityGroupIds", pi."compatibilityReviewNeeded", pi."updateSalePrice", pi."giftAllowed", pi."deviceDetails", pi."salePriceBeforeSnapshot",
+      CASE WHEN i."id" IS NULL THEN NULL ELSE jsonb_build_object('isDevice', i."isDevice", 'deviceModel', i."deviceModel", 'deviceCondition', i."deviceCondition", 'batteryHealth', i."batteryHealth", 'storageCapacity', i."storageCapacity", 'deviceIdentifier', i."deviceIdentifier") END AS "inventoryDeviceDetails",
       pi."orderedQuantity", pi."receivedQuantity", COALESCE(pi."returnedQuantity", 0) AS "returnedQuantity",
       (pi."orderedQuantity" - pi."receivedQuantity")::int AS "remainingQuantity",
       LEAST(
@@ -1798,6 +1815,7 @@ export async function clonePurchaseToDraft(shopId: string, userId: string, curre
       compatibilityReviewNeeded: item.inventoryItemId ? false : item.compatibilityReviewNeeded,
       updateSalePrice: false,
       giftAllowed: item.inventoryItemId ? null : item.giftAllowed,
+      deviceDetails: item.inventoryItemId ? null : item.deviceDetails,
       quantity: item.orderedQuantity,
       unitCost: item.unitCost.toString(),
       salePrice: item.salePriceSnapshot?.toString() ?? null,

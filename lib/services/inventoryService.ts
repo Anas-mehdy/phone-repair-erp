@@ -5,6 +5,8 @@ import {
   Prisma,
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { normalizeDeviceDetails, assertDeviceQuantity } from "@/lib/inventory-device";
+import { prepareDeviceIdentityTx } from "./inventoryDeviceService";
 import { inventoryCategoryService } from "./inventoryCategoryService";
 
 export type InventoryItemFilters = {
@@ -16,6 +18,8 @@ export type InventoryItemFilters = {
 
 export type CreateInventoryItemInput = {
   name: string;
+  barcode?: string;
+  deviceDetails?: unknown;
   categoryId?: string;
   newCategoryName?: string;
   sku?: string;
@@ -29,6 +33,8 @@ export type CreateInventoryItemInput = {
 
 export type UpdateInventoryItemDetailsInput = {
   name: string;
+  barcode?: string;
+  deviceDetails?: unknown;
   categoryId?: string;
   newCategoryName?: string;
   sku?: string;
@@ -94,6 +100,8 @@ export async function listInventoryItems(
               { name: { contains: search, mode: "insensitive" } },
               { sku: { contains: search, mode: "insensitive" } },
               { barcode: { contains: search, mode: "insensitive" } },
+              { deviceModel: { contains: search, mode: "insensitive" } },
+              { deviceIdentifier: { contains: search, mode: "insensitive" } },
               { category: { contains: search, mode: "insensitive" } },
             ],
           }
@@ -231,13 +239,18 @@ export async function createInventoryItem(
   input: CreateInventoryItemInput,
 ) {
   const initialQuantity = integerOrZero(input.quantity);
+  const device = normalizeDeviceDetails(input.deviceDetails);
+  assertDeviceQuantity(device.isDevice, initialQuantity);
   const category = await inventoryCategoryService.resolveInventoryCategory(shopId, input);
 
   return prisma.$transaction(async (tx) => {
     const compatibilityGroupIds = await validateCompatibilityGroups(tx, input.compatibilityGroupIds);
+    const barcode = await prepareDeviceIdentityTx(tx, shopId, device, input.barcode);
     const item = await tx.inventoryItem.create({
       data: {
         shopId,
+        ...device,
+        barcode,
         name: input.name.trim(),
         category: category?.name ?? null,
         sku: emptyToNull(input.sku),
@@ -292,10 +305,18 @@ export async function updateInventoryItemDetails(
   const category = await inventoryCategoryService.resolveInventoryCategory(shopId, input);
 
   return prisma.$transaction(async (tx) => {
+    const rows = await tx.$queryRaw<Array<{ quantity: number; barcode: string | null }>>`SELECT * FROM "InventoryItem" WHERE "id"=${inventoryItemId}::uuid AND "shopId"=${shopId}::uuid AND "deletedAt" IS NULL FOR UPDATE`;
+    if (!rows[0]) throw new Error("صنف المخزون غير موجود.");
+    const device = normalizeDeviceDetails(input.deviceDetails ?? rows[0]);
+    assertDeviceQuantity(device.isDevice, rows[0].quantity);
+    const requestedBarcode = input.barcode === undefined ? rows[0].barcode : input.barcode.trim() || null;
+    const barcode = !device.isDevice && requestedBarcode === rows[0].barcode ? requestedBarcode : await prepareDeviceIdentityTx(tx, shopId, device, requestedBarcode, inventoryItemId);
     const compatibilityGroupIds = await validateCompatibilityGroups(tx, input.compatibilityGroupIds);
     const item = await tx.inventoryItem.update({
       where: { id: inventoryItemId },
       data: {
+        ...device,
+        barcode,
         name: input.name.trim(),
         category: category?.name ?? null,
         sku: emptyToNull(input.sku),
@@ -341,8 +362,8 @@ export async function addStock(
   if (quantityToAdd <= 0) throw new Error("الكمية يجب أن تكون أكبر من صفر.");
 
   return prisma.$transaction(async (tx) => {
-    const rows = await tx.$queryRaw<Array<{ id: string; quantity: number; unitCost: Prisma.Decimal | null }>>`
-      SELECT "id","quantity","unitCost" FROM "InventoryItem"
+    const rows = await tx.$queryRaw<Array<{ id: string; quantity: number; isDevice: boolean; unitCost: Prisma.Decimal | null }>>`
+      SELECT "id","quantity","isDevice","unitCost" FROM "InventoryItem"
       WHERE "id"=${inventoryItemId}::uuid AND "shopId"=${shopId}::uuid AND "deletedAt" IS NULL FOR UPDATE
     `;
     const item=rows[0];
@@ -351,6 +372,7 @@ export async function addStock(
     // This legacy quick-add flow carries no purchase cost. Preserve the current
     // average as-is (including NULL) rather than inventing a zero cost.
 
+    assertDeviceQuantity(item.isDevice, item.quantity + quantityToAdd);
     const supplierId=emptyToNull(input.supplierId);
     if(supplierId){
       const supplier=await tx.supplier.findFirst({where:{id:supplierId,shopId,deletedAt:null},select:{id:true}});
@@ -372,12 +394,13 @@ export async function adjustStock(
   const newQuantity = integerOrZero(input.newQuantity);
   if(newQuantity<0) throw new Error("المخزون السالب غير مسموح.");
   return prisma.$transaction(async(tx)=>{
-    const rows=await tx.$queryRaw<Array<{id:string;quantity:number;unitCost:Prisma.Decimal|null}>>`
-      SELECT "id","quantity","unitCost" FROM "InventoryItem" WHERE "id"=${inventoryItemId}::uuid AND "shopId"=${shopId}::uuid AND "deletedAt" IS NULL FOR UPDATE
+    const rows=await tx.$queryRaw<Array<{id:string;quantity:number;isDevice:boolean;unitCost:Prisma.Decimal|null}>>`
+      SELECT "id","quantity","isDevice","unitCost" FROM "InventoryItem" WHERE "id"=${inventoryItemId}::uuid AND "shopId"=${shopId}::uuid AND "deletedAt" IS NULL FOR UPDATE
     `;
     const item=rows[0];
     if(!item) throw new Error("قطعة المخزون غير موجودة.");
     if(item.quantity<0) throw new Error("الرصيد الحالي سالب. صححه بمسار مخصص قبل أي حركة أخرى.");
+    assertDeviceQuantity(item.isDevice, newQuantity);
     const quantityChange=newQuantity-item.quantity;
     if(quantityChange===0) return tx.inventoryItem.findUniqueOrThrow({where:{id:inventoryItemId}});
     const updatedItem=await tx.inventoryItem.update({where:{id:inventoryItemId},data:{quantity:newQuantity,version:{increment:1}}});

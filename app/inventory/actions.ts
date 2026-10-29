@@ -1,5 +1,7 @@
 "use server";
 
+import { deviceInputSchema } from "@/lib/inventory-device";
+
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -64,6 +66,8 @@ const createInventoryItemSchema = z.object({
   categoryId: optionalPostgresUuidSchema,
   newCategoryName: categoryNameSchema,
   sku: z.string().optional(),
+  barcode: z.string().trim().max(160).optional(),
+  deviceDetails: z.preprocess((value) => { if (typeof value !== "string") return value; try { return JSON.parse(value); } catch { return null; } }, deviceInputSchema.optional()),
   description: z.string().optional(),
   unitCost: optionalMoneySchema,
   unitPrice: requiredMoneySchema,
@@ -78,6 +82,8 @@ const updateInventoryItemDetailsSchema = z.object({
   categoryId: optionalPostgresUuidSchema,
   newCategoryName: categoryNameSchema,
   sku: z.string().optional(),
+  barcode: z.string().trim().max(160).optional(),
+  deviceDetails: z.preprocess((value) => { if (typeof value !== "string") return value; try { return JSON.parse(value); } catch { return null; } }, deviceInputSchema.optional()),
   description: z.string().optional(),
   unitCost: optionalMoneySchema,
   unitPrice: requiredMoneySchema,
@@ -138,6 +144,8 @@ export async function createInventoryItemAction(formData: FormData) {
     categoryId: readString(formData, "categoryId"),
     newCategoryName: readString(formData, "newCategoryName"),
     sku: readString(formData, "sku"),
+    barcode: formData.has("barcode") ? readString(formData, "barcode") : undefined,
+    deviceDetails: formData.has("deviceDetails") ? readString(formData, "deviceDetails") : undefined,
     description: readString(formData, "description"),
     unitCost: readString(formData, "unitCost"),
     unitPrice: readString(formData, "unitPrice"),
@@ -201,6 +209,8 @@ export async function updateInventoryItemDetailsAction(formData: FormData) {
     categoryId: readString(formData, "categoryId"),
     newCategoryName: readString(formData, "newCategoryName"),
     sku: readString(formData, "sku"),
+    barcode: formData.has("barcode") ? readString(formData, "barcode") : undefined,
+    deviceDetails: formData.has("deviceDetails") ? readString(formData, "deviceDetails") : undefined,
     description: readString(formData, "description"),
     unitCost: readString(formData, "unitCost"),
     unitPrice: readString(formData, "unitPrice"),

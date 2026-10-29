@@ -21,6 +21,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent }
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { pricingSuggestion, suggestedCompatibilityDataset } from "@/lib/purchase-import";
+import { InventoryDeviceFields } from "../_device-fields";
+import { EMPTY_DEVICE_DETAILS, type DeviceDetails } from "@/lib/inventory-device";
 import { PurchaseBarcodeScanner, type ResolvedBarcodeScan } from "./_barcode-scanner";
 import { PurchaseImportPanel, type ResolvedImportedPurchaseRow } from "./_purchase-import-panel";
 import { PurchaseDocumentImportPanel, type ResolvedDocumentPurchaseRow } from "./_document-import-panel";
@@ -61,6 +63,7 @@ type FormLine = {
   compatibilityReviewNeeded: boolean;
   updateSalePrice: boolean;
   giftAllowed: boolean | null;
+  deviceDetails: DeviceDetails;
   quantity: string;
   unitCost: string;
   manualExtraCostAllocation: string;
@@ -114,6 +117,8 @@ type InitialDraft = {
     compatibilityReviewNeeded: boolean;
     updateSalePrice: boolean;
     giftAllowed: boolean | null;
+    deviceDetails: DeviceDetails | null;
+    inventoryDeviceDetails: DeviceDetails | null;
     orderedQuantity: number;
     unitCost: string;
     manualExtraCostAllocation: string | null;
@@ -129,7 +134,7 @@ function blankLine(): FormLine {
     key: freshKey(), inventoryItemId: null, itemLabel: "", existingItem: null,
     newItemName: "", newItemSku: "", newItemBarcode: "", newItemCategoryId: "", newItemCategory: "", newItemDescription: "",
     importedSourceText: "", importSourceId: "", importRowKey: "", importedPurchaseUnit: "", matchReviewRequired: false, matchCandidates: [], compatibilitySelections: [], compatibilityReviewNeeded: true,
-    updateSalePrice: false, giftAllowed: null, quantity: "1", unitCost: "", manualExtraCostAllocation: "", salePrice: "", mode: "existing", selected: false,
+    updateSalePrice: false, giftAllowed: null, deviceDetails: { ...EMPTY_DEVICE_DETAILS }, quantity: "1", unitCost: "", manualExtraCostAllocation: "", salePrice: "", mode: "existing", selected: false,
   };
 }
 function num(value: string) {
@@ -166,6 +171,7 @@ function existingPatch(item: InventoryResult, options: { unitCost?: string; sale
     salePrice: options.salePrice || item.unitPrice,
     updateSalePrice: false,
     giftAllowed: null,
+    deviceDetails: { ...EMPTY_DEVICE_DETAILS },
     importedSourceText: options.importedSourceText ?? "",
   };
 }
@@ -208,6 +214,7 @@ export function PurchaseReceivingForm({
   const [lines, setLines] = useState<FormLine[]>(() => {
     const loaded = (initialDraft?.lines ?? []).map((line) => {
       const existingItem: InventoryResult | null = line.inventoryItemId ? {
+        ...(line.inventoryDeviceDetails ?? EMPTY_DEVICE_DETAILS),
         id: line.inventoryItemId,
         name: line.inventoryItemName ?? "صنف مخزون",
         sku: line.inventoryItemSku,
@@ -244,6 +251,7 @@ export function PurchaseReceivingForm({
         compatibilityReviewNeeded: line.compatibilityReviewNeeded,
         updateSalePrice: line.updateSalePrice,
         giftAllowed: line.giftAllowed,
+        deviceDetails: line.deviceDetails ?? { ...EMPTY_DEVICE_DETAILS },
         quantity: String(line.orderedQuantity),
         unitCost: line.unitCost,
         manualExtraCostAllocation: line.manualExtraCostAllocation ?? "",
@@ -362,6 +370,7 @@ export function PurchaseReceivingForm({
       compatibilityReviewNeeded: line.mode === "new" ? line.compatibilityReviewNeeded : false,
       updateSalePrice: line.mode === "existing" ? line.updateSalePrice : false,
       giftAllowed: line.giftAllowed,
+      deviceDetails: line.mode === "new" ? line.deviceDetails : null,
       quantity: Math.max(1, Math.trunc(num(line.quantity) || 1)),
       unitCost: line.unitCost || "0",
       manualExtraCostAllocation: line.manualExtraCostAllocation.trim() ? line.manualExtraCostAllocation : null,
@@ -845,6 +854,8 @@ function PurchaseLineCard({ line, index, currency, categories, showManualExtraAl
       <div className="grid gap-1.5"><label className="grid gap-1 text-xs font-black text-slate-600 dark:text-slate-300"><span>سعر البيع <span className="font-semibold text-slate-400">(اختياري)</span></span><input data-purchase-field type="number" min="0" step="0.01" value={line.salePrice} onKeyDown={onEnterNext} onChange={(e) => onPatch({ salePrice: e.target.value })} className="erp-input font-numeric" /></label>{line.mode === "existing" && !line.matchReviewRequired && <label className="flex items-start gap-1.5 text-[9px] font-bold text-slate-500 dark:text-slate-400"><input className="mt-0.5" type="checkbox" checked={line.updateSalePrice} onChange={(event) => onPatch({ updateSalePrice: event.target.checked })} /><span>تحديث سعر بيع الصنف عند الاعتماد</span></label>}</div>
       <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900"><div className="text-[10px] font-bold text-slate-400">إجمالي السطر</div><div className="mt-1 font-numeric text-sm font-black text-slate-900 dark:text-slate-100">{money(total, currency)}</div></div>
     </div>
+    {!isBlank && line.mode === "new" && !line.matchReviewRequired ? <div className="mt-3"><InventoryDeviceFields value={line.deviceDetails} onChange={(deviceDetails) => onPatch({ deviceDetails, ...(deviceDetails.isDevice ? { quantity: "1", compatibilityReviewNeeded: false } : {}) })} /></div> : null}
+    {line.existingItem?.isDevice ? <div className="mt-3 rounded-xl bg-teal-50 px-3 py-2 text-xs font-bold text-teal-800 dark:bg-teal-950 dark:text-teal-200">جهاز مستقل: {line.existingItem.deviceModel} • {line.existingItem.storageCapacity} • كمية واحدة فقط. بيانات الجهاز وطباعة الليبل متاحة من المخزون.</div> : null}
     {!isBlank && !line.matchReviewRequired ? <label className="mt-3 grid max-w-xs gap-1.5 text-xs font-black text-slate-600 dark:text-slate-300"><span>هدية</span><select data-purchase-field className="erp-input" value={String(line.giftAllowed ?? line.existingItem?.giftAllowed ?? false)} onChange={(event) => onPatch({ giftAllowed: event.target.value === "true" })}><option value="false">لا يسمح</option><option value="true">يسمح</option></select><span className="text-[10px] font-semibold text-slate-400">يُحفظ السماح بتقديم الصنف كهدية عند اعتماد الفاتورة.</span></label> : null}
     {showManualExtraAllocation && !isBlank && <label className="mt-3 grid max-w-xs gap-1 text-[10px] font-black text-amber-800 dark:text-amber-200">توزيع الشحن/مصاريف الشراء على هذا البند<input type="number" min="0" step="0.01" value={line.manualExtraCostAllocation} onChange={(e) => onPatch({ manualExtraCostAllocation: e.target.value })} className="erp-input h-9 font-numeric" /><span className="font-semibold text-amber-600 dark:text-amber-300">مطلوب لأن أساس التوزيع النسبي يساوي صفراً.</span></label>}
     {line.mode === "existing" && line.existingItem && !line.matchReviewRequired && <PricingContext item={line.existingItem} newCost={line.unitCost} currency={currency} updateSalePrice={line.updateSalePrice} />}

@@ -15,6 +15,7 @@ export type SaleInventoryOption = {
   unitPrice: string;
   unitCost: string | null;
   giftAllowed: boolean;
+  deviceSummary?: string | null;
 };
 
 export function InventorySearchCombobox({
@@ -192,6 +193,7 @@ export function InventorySearchCombobox({
               >
                 <div className="min-w-0">
                   <div className="truncate text-xs font-black text-slate-800">{item.name}</div>
+                  {item.deviceSummary ? <div className="mt-1 text-[10px] font-bold text-teal-700">{item.deviceSummary}</div> : null}
                   <div className="mt-1 flex flex-wrap gap-x-2 gap-y-1 text-[10px] font-semibold text-slate-400">
                     {item.barcode ? <span className="font-numeric" dir="ltr">Barcode: {item.barcode}</span> : null}
                     {item.sku ? <span className="font-numeric" dir="ltr">SKU: {item.sku}</span> : null}
