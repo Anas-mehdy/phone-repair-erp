@@ -110,6 +110,18 @@ ALTER TABLE "StocktakeSession" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "StocktakeLine" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "StocktakeScan" ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON "StocktakeSession", "StocktakeLine", "StocktakeScan" FROM PUBLIC;
+-- Supabase may give these roles explicit privileges through default grants.
+-- Keep these accountant-only tables reachable exclusively through server code.
+DO $$
+DECLARE api_role text;
+BEGIN
+  FOREACH api_role IN ARRAY ARRAY['anon', 'authenticated'] LOOP
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = api_role) THEN
+      EXECUTE format('REVOKE ALL ON "StocktakeSession", "StocktakeLine", "StocktakeScan" FROM %I', api_role);
+    END IF;
+  END LOOP;
+END $$;
+
 ALTER TABLE "StocktakeSession" ALTER COLUMN "id" SET DEFAULT gen_random_uuid();
 ALTER TABLE "StocktakeLine" ALTER COLUMN "id" SET DEFAULT gen_random_uuid();
 ALTER TABLE "StocktakeScan" ALTER COLUMN "id" SET DEFAULT gen_random_uuid();

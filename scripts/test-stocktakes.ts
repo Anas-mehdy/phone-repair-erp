@@ -80,6 +80,11 @@ async function main() {
       },
     );
     await pg.exec(sql);
+    // Match Supabase projects that automatically grant new public tables to API roles.
+    await pg.exec(
+      "CREATE ROLE anon; CREATE ROLE authenticated; ALTER DEFAULT PRIVILEGES GRANT ALL ON TABLES TO anon, authenticated;",
+    );
+
     await pg.exec(
       readFileSync(
         "prisma/migrations/20261029210000_accountant_stocktakes/migration.sql",
@@ -306,6 +311,20 @@ async function main() {
     assert.match(xml, /=cmd&lt;bad&gt;&amp;/);
     assert.doesNotMatch(xml, /ss:Formula=/);
     assert.equal((await listStocktakes(actor)).length, 1);
+
+    for (const role of ["anon", "authenticated"]) {
+      const privilege = (
+        await pg.query(
+          `SELECT has_table_privilege($1, 'public."StocktakeSession"', 'SELECT') AS allowed`,
+          [role],
+        )
+      ).rows[0];
+      assert.equal(
+        privilege.allowed,
+        false,
+        "explicit API grants must be revoked",
+      );
+    }
     // Membership revocation is checked afresh inside the service.
     await pg.query(
       'UPDATE "Membership" SET status=\'SUSPENDED\' WHERE "userId"=$1',

@@ -12,7 +12,9 @@ Closing freezes classifications and prices. A closed session cannot be rescanned
 
 ## Release preparation
 
-Apply `prisma/migrations/20261029210000_accountant_stocktakes/migration.sql` through the normal reviewed migration process **before** releasing code that uses the new role/tables. It adds an enum value, three session/audit tables, constraints, indexes and server-only RLS. No runtime schema creation is used for this feature. The migration is prepared in GitHub; it has not been applied to the live database. Vercel Git deployment remains disabled; publishing requires the user's explicit instruction.
+Apply `prisma/migrations/20261029210000_accountant_stocktakes/migration.sql` through the normal reviewed migration process **before** releasing code that uses the new role/tables. It adds an enum value, three session/audit tables, constraints, indexes and server-only RLS. No runtime schema creation is used for this feature. On 2026-10-29, after the user explicitly requested database preparation, the `sale_gifts`, `device_labels`, and `accountant_stocktakes` migrations were applied to the connected Supabase project `phone repair erp` (`bddwacwqsfjlboiwfrhn`). The Vercel project currently shares its `DATABASE_URL` between preview and production, so these additive schema changes apply to both environments. Existing stock quantities, prices, sales totals, and membership assignments were verified unchanged. The stocktake migration revokes explicit `anon`/`authenticated` grants as well as PUBLIC privileges, and enables default-deny RLS on all three new tables.
+
+The code is deployed to Preview at commit `5674cbdeb6d836b63aa61be62803758422b703a2`. No production code deployment or additional preview build was performed for the database preparation. Vercel Git deployment remains disabled; publishing requires the user's explicit instruction.
 
 ## Verification
 
