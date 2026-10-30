@@ -295,6 +295,18 @@ export async function createInventoryItem(
   });
 }
 
+/** Update eligibility independently of purchases, prices and stock movements. */
+export async function updateInventoryGiftPolicy(shopId: string, inventoryItemId: string, giftAllowed: boolean) {
+  if (typeof giftAllowed !== "boolean") throw new Error("إعداد الهدية غير صالح.");
+  return prisma.$transaction(async (tx) => {
+    const changed = await tx.$executeRaw`
+      UPDATE "InventoryItem" SET "giftAllowed"=${giftAllowed}, "updatedAt"=NOW(), "version"="version"+1
+      WHERE "id"=${inventoryItemId}::uuid AND "shopId"=${shopId}::uuid AND "deletedAt" IS NULL
+    `;
+    if (!changed) throw new Error("صنف المخزون غير موجود في هذا المتجر أو تم حذفه.");
+  });
+}
+
 export async function updateInventoryItemDetails(
   shopId: string,
   inventoryItemId: string,
@@ -424,6 +436,7 @@ export const inventoryService = {
   getInventoryItemById,
   createInventoryItem,
   updateInventoryItemDetails,
+  updateInventoryGiftPolicy,
   addStock,
   adjustStock,
   softDeleteInventoryItem,

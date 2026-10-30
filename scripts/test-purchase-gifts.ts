@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
-import { createInventoryItem, addStock, adjustStock } from "../lib/services/inventoryService";
+import { createInventoryItem, addStock, adjustStock, updateInventoryGiftPolicy } from "../lib/services/inventoryService";
 import { normalizeDeviceDetails } from "../lib/inventory-device";
 import { makeDeviceLabel } from "../lib/device-label";
 import { saveDraft, postPurchaseInvoice, lookupInventoryByIdentifier, type PurchaseDraftLineInput } from "../lib/services/purchaseReceivingService";
@@ -107,6 +107,23 @@ async function main() {
       // No stock receipt or payment is needed to test approval of product policy.
       return postPurchaseInvoice(shop, user, id, `gift-test-${id}`, { receiptMode: "PARTIAL", initialReceipt: [] });
     }
+
+    // Direct policy changes preserve inventory, pricing and all other metadata.
+    const before = (await pg.query('SELECT * FROM "InventoryItem" WHERE id=$1', [item])).rows[0];
+    const movementCount = (await pg.query('SELECT count(*)::int AS n FROM "InventoryMovement"')).rows[0].n;
+    await updateInventoryGiftPolicy(shop, item, true);
+    const after = (await pg.query('SELECT * FROM "InventoryItem" WHERE id=$1', [item])).rows[0];
+    assert.equal(after.giftAllowed, true);
+    for (const key of Object.keys(before)) if (!["giftAllowed", "version", "updatedAt"].includes(key)) assert.deepEqual(after[key], before[key], `gift policy must preserve ${key}`);
+    await updateInventoryGiftPolicy(shop, item, false);
+    assert.equal((await pg.query('SELECT "giftAllowed" FROM "InventoryItem" WHERE id=$1', [item])).rows[0].giftAllowed, false);
+    await assert.rejects(() => updateInventoryGiftPolicy("00000000-0000-4000-8000-000000000099", item, true), /غير موجود/);
+    await assert.rejects(() => updateInventoryGiftPolicy(shop, item, "false" as unknown as boolean), /غير صالح/);
+    await pg.query('UPDATE "InventoryItem" SET "deletedAt"=NOW() WHERE id=$1', [item]);
+    await assert.rejects(() => updateInventoryGiftPolicy(shop, item, true), /غير موجود/);
+    await pg.query('UPDATE "InventoryItem" SET "deletedAt"=NULL WHERE id=$1', [item]);
+    assert.equal((await pg.query('SELECT count(*)::int AS n FROM "InventoryMovement"')).rows[0].n, movementCount);
+    console.log("PASS direct gift policy: allow/revoke, unchanged prices/quantity/metadata, no movements, tenant/deleted-item boundaries, strict booleans.");
     const existing = { inventoryItemId: item, quantity: 1, unitCost: "100" };
     const allowed = await draft([{ ...existing, giftAllowed: true }]);
     assert.equal((await pg.query('SELECT "giftAllowed" FROM "PurchaseItem" WHERE "purchaseInvoiceId"=$1', [allowed.id])).rows[0].giftAllowed, true);
@@ -144,7 +161,7 @@ async function main() {
     assert.equal(phone.isDevice, true); assert.equal(phone.quantity, 0);
     assert.equal(phone.storageCapacity, "256 GB"); assert.match(String(phone.barcode), /^20\d{10}$/);
     const label = makeDeviceLabel({ ...normalizeDeviceDetails(phone), barcode: String(phone.barcode), unitPrice: { toString: () => "120" } }, "Test Shop", "SAR");
-    assert.equal(label.batteryHealth, 87); assert.equal(label.condition, "Used");
+    assert.equal(label.batteryHealth, 87); assert.equal(label.condition, "مستعمل");
     assert.ok(label.barcodeDataUrl.startsWith("data:image/svg+xml;base64,"));
     assert.ok(!JSON.stringify(label).includes("123456789012345"), "private IMEI must not appear in printable label data");
     await assert.rejects(() => draft([{ newItemName: "Duplicate units", quantity: 2, unitCost: "100", deviceDetails }]), /كمية واحدة/);

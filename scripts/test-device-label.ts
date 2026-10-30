@@ -19,13 +19,16 @@ assert.equal(normalizeDeviceBarcode(" 201234567890 "), "201234567890");
 assert.throws(() => normalizeDeviceBarcode("هاتف"), /بالإنكليزية/);
 assert.throws(() => normalizeDeviceBarcode("x".repeat(25)), /24/);
 const label = makeDeviceLabel({ ...device, barcode: "201234567890", unitPrice: { toString: () => "9300" } }, "متجر مسار", "SAR");
-assert.equal(label.condition, "Used");
+assert.equal(label.condition, "مستعمل");
+for (const [condition, expected] of [["NEW", "جديد"], ["REFURBISHED", "مجدد"]] as const) {
+  assert.equal(makeDeviceLabel({ ...device, deviceCondition: condition, barcode: "201234567890", unitPrice: { toString: () => "100" } }, "متجر", "SAR").condition, expected);
+}
 assert.equal(makeDeviceLabel({ ...device, barcode: "201234567890", unitPrice: { toString: () => "0" }, salePriceConfigured: false }, "Shop", "SAR").priceConfigured, false);
 assert.equal(label.price, "9300");
 assert.ok(label.minimumBarcodeWidthMm < 46);
 assert.equal(label.batteryHealth, 70);
 assert.ok(!JSON.stringify(label).includes("123456789012345"));
-assert.ok(Buffer.from(label.barcodeDataUrl.split(",")[1], "base64").toString().includes("<svg"));
+assert.ok(Buffer.from(label.barcodeDataUrl.split(",")[1], "base64").toString().includes('preserveAspectRatio="none"'));
 assert.ok(inventoryDeviceSummary(device)?.includes("Battery 70%"));
 assert.equal(inventoryDeviceSummary(EMPTY_DEVICE_DETAILS), null);
 assert.throws(() => makeDeviceLabel({ ...device, barcode: null, unitPrice: { toString: () => "9300" } }, "Shop", "SAR"), /باركوده/);

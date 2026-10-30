@@ -202,6 +202,22 @@ export async function createInventoryItemAction(formData: FormData) {
   redirect(onboardingMode ? `/inventory/${item.id}?onboarding=1` : `/inventory/${item.id}`);
 }
 
+export async function updateInventoryGiftPolicyAction(formData: FormData) {
+  const auth = await requirePermission("inventory:manage");
+  const parsed = z.object({ inventoryItemId: z.string().uuid(), giftAllowed: z.enum(["true", "false"]) }).safeParse({
+    inventoryItemId: readString(formData, "inventoryItemId"), giftAllowed: readString(formData, "giftAllowed"),
+  });
+  if (!parsed.success) redirect("/inventory?error=" + encodeURIComponent("بيانات إعداد الهدية غير صالحة."));
+  const { inventoryItemId, giftAllowed } = parsed.data;
+  try { await inventoryService.updateInventoryGiftPolicy(auth.shop.id, inventoryItemId, giftAllowed === "true"); }
+  catch (error) { redirect(`/inventory/${inventoryItemId}?error=${encodeURIComponent(errorMessage(error))}`); }
+  revalidatePath("/inventory");
+  revalidatePath(`/inventory/${inventoryItemId}`);
+  revalidatePath("/sales/new");
+  revalidatePath("/point-of-sale");
+  redirect(`/inventory/${inventoryItemId}?giftUpdated=1#gift-policy`);
+}
+
 export async function updateInventoryItemDetailsAction(formData: FormData) {
   const parsed = updateInventoryItemDetailsSchema.safeParse({
     inventoryItemId: readString(formData, "inventoryItemId"),

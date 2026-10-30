@@ -16,14 +16,14 @@ import { datasetKeyForSourceCategory } from "@/lib/services/compatibility/compat
 import { Field, formatDate, formatMoney, inputClassName, isLowStock, textareaClassName } from "../_components";
 import { CompatibilityGroupPicker } from "../_compatibility-group-picker";
 import { InventoryCategoryField } from "../_category-field";
-import { addStockAction, adjustStockAction, recordDamagedStockAction, updateInventoryItemDetailsAction } from "../actions";
+import { addStockAction, adjustStockAction, recordDamagedStockAction, updateInventoryItemDetailsAction, updateInventoryGiftPolicyAction } from "../actions";
 import { InventoryActivationSuccess } from "./_activation-success";
 
 export const dynamic = "force-dynamic";
 
 type InventoryItemDetailsPageProps = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string; damaged?: string; stockAdded?: string; onboarding?: string }>;
+  searchParams: Promise<{ error?: string; damaged?: string; stockAdded?: string; onboarding?: string; giftUpdated?: string }>;
 };
 
 export default async function InventoryItemDetailsPage({ params, searchParams }: InventoryItemDetailsPageProps) {
@@ -33,11 +33,13 @@ export default async function InventoryItemDetailsPage({ params, searchParams }:
   let categories: Awaited<ReturnType<typeof inventoryCategoryService.listInventoryCategories>> = [];
   let suppliers: Awaited<ReturnType<typeof supplierService.listSuppliers>> = [];
   let attachments: Awaited<ReturnType<typeof supplierInvoiceAttachmentService.listAttachmentsForInventoryItem>> = [];
+  let canManage = false;
   let currency = "SAR";
   let timeZone = "UTC";
 
   try {
     const context = await getCurrentShopContext();
+    canManage = context.permissions.includes("inventory:manage");
     currency = context.currency;
     timeZone = context.timeZone;
     [item, movements, categories, suppliers, attachments] = await Promise.all([
@@ -69,6 +71,7 @@ export default async function InventoryItemDetailsPage({ params, searchParams }:
   return (
     <div className="space-y-6">
       {query.error ? <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-700">{query.error}</div> : null}
+      {query.giftUpdated === "1" ? <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-700">تم حفظ إعداد الهدية بنجاح.</div> : null}
       {query.damaged ? <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-700">تم تسجيل التالف وخصم الكمية من المخزون بنجاح.</div> : null}
       {query.stockAdded ? <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-700">تم تسجيل التوريد وإضافة الكمية إلى المخزون بنجاح.</div> : null}
 
@@ -104,6 +107,7 @@ export default async function InventoryItemDetailsPage({ params, searchParams }:
               <Info label="حد إعادة الطلب" value={<span className="font-numeric">{item.reorderLevel}</span>} />
               <Info label="تكلفة الشراء" value={<span className="font-numeric">{formatMoney(item.unitCost, currency)}</span>} />
               <Info label="سعر البيع للعميل" value={<span className="font-numeric">{formatMoney(item.unitPrice, currency)}</span>} />
+              <Info label="تقديمه كهدية" value={<PlainBadge tone={item.giftAllowed ? "green" : "red"} label={item.giftAllowed ? "مسموح" : "غير مسموح"} />} />
               <Info label="آخر تحديث" value={<span className="font-numeric">{formatDate(item.updatedAt, timeZone)}</span>} />
               <Info label="حالة المخزون" value={<PlainBadge tone={lowStock ? "red" : "green"} label={lowStock ? "مخزون منخفض" : "طبيعي"} />} />
               <Info label="دليل التوافق" value={linkedGroup ? <span className="text-violet-700">مرتبط مع {linkedGroup.members.map((member) => member.rawModelName).join("، ")}</span> : <span className="text-slate-400">غير مرتبط</span>} />
@@ -111,6 +115,16 @@ export default async function InventoryItemDetailsPage({ params, searchParams }:
             {item.isDevice ? <div className="mt-4 rounded-xl border border-teal-200 bg-teal-50 p-4 text-xs font-bold text-teal-900 dark:border-teal-900 dark:bg-teal-950 dark:text-teal-200"><span>{item.deviceModel} • {item.storageCapacity} • {item.deviceCondition === "NEW" ? "جديد" : item.deviceCondition === "USED" ? "مستعمل" : "مجدد"}</span>{item.batteryHealth !== null ? <span className="mr-3">Battery Health: {item.batteryHealth}%</span> : null}{item.deviceIdentifier ? <div className="mt-2 font-numeric" dir="ltr">IMEI / Serial: {item.deviceIdentifier}</div> : null}</div> : null}
             {item.description ? <div className="mt-5 border-t border-slate-100/60 pt-4"><Info label="الوصف والتفاصيل" value={<p className="text-xs font-medium leading-relaxed text-slate-600">{item.description}</p>} /></div> : null}
           </div>
+
+          {canManage ? <form id="gift-policy" action={updateInventoryGiftPolicyAction} className="erp-section scroll-mt-6">
+            <input type="hidden" name="inventoryItemId" value={item.id} />
+            <h3 className="text-sm font-bold text-slate-800">إعداد الهدية</h3>
+            <p className="mt-2 text-xs leading-6 text-slate-500">اسمح بتقديم هذا الصنف كهدية أو ألغِ السماح مباشرة، دون فاتورة مشتريات. ينطبق الإعداد على عمليات البيع القادمة.</p>
+            <div className="mt-4 flex flex-wrap items-end gap-4">
+              <Field label="السماح بتقديمه كهدية"><select name="giftAllowed" defaultValue={String(item.giftAllowed)} className={inputClassName}><option value="false">لا يسمح</option><option value="true">يسمح</option></select></Field>
+              <Button type="submit" className="h-11 rounded-xl px-5 font-bold"><Save className="ml-1.5 h-4 w-4" />حفظ إعداد الهدية</Button>
+            </div>
+          </form> : null}
 
           <form id="edit-inventory" action={updateInventoryItemDetailsAction} className="erp-section scroll-mt-6">
             <input type="hidden" name="inventoryItemId" value={item.id} />
