@@ -10,6 +10,7 @@ import { CompatibilityGroupPicker } from "../_compatibility-group-picker";
 import { InventoryCategoryField } from "../_category-field";
 import { getCompatibilityGroupSelection } from "@/lib/services/compatibility/compatibility-directory.service";
 import { datasetKeyForSourceCategory } from "@/lib/services/compatibility/compatibility-datasets";
+import { InventoryPhoneProvider, InventoryNameAndPhoneFields, InventoryOpeningQuantity } from "./_used-phone-fields";
 import { OnboardingInventoryItemForm } from "./_onboarding-inventory-form";
 
 export default async function NewInventoryItemPage({
@@ -63,7 +64,7 @@ export default async function NewInventoryItemPage({
         </div>
       ) : null}
 
-      <form action={createInventoryItemAction} className="erp-section">
+      <InventoryPhoneProvider><form action={createInventoryItemAction} className="erp-section">
         {params.onboarding === "1" ? <input type="hidden" name="onboarding" value="1" /> : null}
         <div className="mb-5 border-b border-slate-100/60 pb-3">
           <h3 className="text-sm font-bold text-slate-800">بيانات قطعة الغيار / المنتج</h3>
@@ -72,9 +73,7 @@ export default async function NewInventoryItemPage({
           </p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="اسم القطعة">
-            <input className={inputClassName} name="name" required placeholder="مثال: شاشة آيفون 11 برو الأصلية" defaultValue={params.name || ""} />
-          </Field>
+          <InventoryNameAndPhoneFields defaultName={params.name || ""} />
           <Field label="التصنيف">
             <InventoryCategoryField categories={categories} defaultCategoryId={params.categoryId} />
           </Field>
@@ -88,9 +87,7 @@ export default async function NewInventoryItemPage({
           <Field label="سعر البيع (للعميل)">
             <input className={`${inputClassName} font-numeric`} name="unitPrice" inputMode="decimal" min="0" required step="0.01" type="number" placeholder="0.00" />
           </Field>
-          <Field label="الكمية الافتتاحية">
-            <input className={`${inputClassName} font-numeric`} name="quantity" defaultValue="0" min="0" step="1" type="number" />
-          </Field>
+          <InventoryOpeningQuantity />
           <Field label="حد إعادة الطلب (تنبيه نقص المخزون)">
             <input className={`${inputClassName} font-numeric`} name="reorderLevel" defaultValue="0" min="0" step="1" type="number" />
           </Field>
@@ -110,7 +107,7 @@ export default async function NewInventoryItemPage({
             حفظ القطعة بالمخزون
           </Button>
         </div>
-      </form>
+      </form></InventoryPhoneProvider>
     </div>
   );
 }

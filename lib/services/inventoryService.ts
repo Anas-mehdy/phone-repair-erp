@@ -5,7 +5,7 @@ import {
   Prisma,
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { normalizeDeviceDetails, assertDeviceQuantity } from "@/lib/inventory-device";
+import { normalizeInventoryDeviceDetails, assertDeviceQuantity } from "@/lib/inventory-device";
 import { prepareDeviceIdentityTx } from "./inventoryDeviceService";
 import { inventoryCategoryService } from "./inventoryCategoryService";
 
@@ -239,8 +239,9 @@ export async function createInventoryItem(
   input: CreateInventoryItemInput,
 ) {
   const initialQuantity = integerOrZero(input.quantity);
-  const device = normalizeDeviceDetails(input.deviceDetails);
+  const device = normalizeInventoryDeviceDetails(input.name, input.deviceDetails);
   assertDeviceQuantity(device.isDevice, initialQuantity);
+  if (device.isDevice && device.deviceCondition === "USED" && initialQuantity !== 1) throw new Error("أضف الهاتف المستعمل بكمية واحدة لكل سجل.");
   const category = await inventoryCategoryService.resolveInventoryCategory(shopId, input);
 
   return prisma.$transaction(async (tx) => {
@@ -319,7 +320,7 @@ export async function updateInventoryItemDetails(
   return prisma.$transaction(async (tx) => {
     const rows = await tx.$queryRaw<Array<{ quantity: number; barcode: string | null }>>`SELECT * FROM "InventoryItem" WHERE "id"=${inventoryItemId}::uuid AND "shopId"=${shopId}::uuid AND "deletedAt" IS NULL FOR UPDATE`;
     if (!rows[0]) throw new Error("صنف المخزون غير موجود.");
-    const device = normalizeDeviceDetails(input.deviceDetails ?? rows[0]);
+    const device = normalizeInventoryDeviceDetails(input.name, input.deviceDetails ?? rows[0]);
     assertDeviceQuantity(device.isDevice, rows[0].quantity);
     const requestedBarcode = input.barcode === undefined ? rows[0].barcode : input.barcode.trim() || null;
     const barcode = !device.isDevice && requestedBarcode && requestedBarcode === rows[0].barcode ? requestedBarcode : await prepareDeviceIdentityTx(tx, shopId, device, requestedBarcode, inventoryItemId);

@@ -1,10 +1,23 @@
 import assert from "node:assert/strict";
-import { normalizeDeviceDetails, normalizeDeviceBarcode, assertDeviceQuantity, EMPTY_DEVICE_DETAILS } from "../lib/inventory-device";
+import { normalizeDeviceDetails, normalizeInventoryDeviceDetails, normalizeDeviceBarcode, assertDeviceQuantity, EMPTY_DEVICE_DETAILS } from "../lib/inventory-device";
 import { makeDeviceLabel } from "../lib/device-label";
 import { inventoryDeviceSummary } from "../lib/device-summary";
 
 const raw = { isDevice: true, deviceModel: "  iPhone 17 Pro Max  ", deviceCondition: "USED", batteryHealth: 70, storageCapacity: "256 gb", deviceIdentifier: " 123456789012345 " };
 const device = normalizeDeviceDetails(raw);
+const usedPhone = normalizeInventoryDeviceDetails("iPhone 13 Pro", { ...raw, deviceModel: "ignored client model", deviceColor: " أسود ", deviceNotes: " خدش بسيط على الإطار " });
+assert.equal(usedPhone.deviceModel, "iPhone 13 Pro");
+assert.equal(usedPhone.deviceColor, "أسود");
+assert.equal(usedPhone.deviceNotes, "خدش بسيط على الإطار");
+assert.equal(normalizeInventoryDeviceDetails("Phone", { ...raw, batteryHealth: null }).batteryHealth, null);
+assert.throws(() => normalizeInventoryDeviceDetails("Phone", { ...raw, deviceColor: "x".repeat(61) }));
+assert.throws(() => normalizeInventoryDeviceDetails("Phone", { ...raw, deviceNotes: "x".repeat(2001) }));
+const privateLabel = makeDeviceLabel({ ...usedPhone, barcode: "201234567899", unitPrice: { toString: () => "100" } }, "متجر", "SAR");
+assert.equal(privateLabel.storage, "256 GB");
+assert.equal(privateLabel.batteryHealth, 70);
+assert.equal(privateLabel.condition, "مستعمل");
+assert.ok(!JSON.stringify(privateLabel).includes(usedPhone.deviceIdentifier!));
+assert.ok(!JSON.stringify(privateLabel).includes(usedPhone.deviceNotes!));
 assert.equal(device.deviceModel, "iPhone 17 Pro Max");
 assert.equal(device.storageCapacity, "256 GB");
 assert.deepEqual(normalizeDeviceDetails({ ...raw, isDevice: false }), EMPTY_DEVICE_DETAILS);

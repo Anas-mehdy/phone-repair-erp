@@ -960,6 +960,8 @@ model InventoryItem {
   batteryHealth     Int?
   storageCapacity   String?   @db.VarChar(24)
   deviceIdentifier  String?   @db.VarChar(40)
+  deviceColor       String?   @db.VarChar(60)
+  deviceNotes       String?   @db.VarChar(2000)
   quantity          Int       @default(0)
   reorderLevel      Int       @default(0)
   compatibilityReviewNeeded Boolean @default(false)

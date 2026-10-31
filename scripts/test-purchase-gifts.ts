@@ -8,7 +8,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
-import { createInventoryItem, addStock, adjustStock, updateInventoryGiftPolicy } from "../lib/services/inventoryService";
+import { createInventoryItem, addStock, adjustStock, updateInventoryGiftPolicy, updateInventoryItemDetails } from "../lib/services/inventoryService";
 import { normalizeDeviceDetails } from "../lib/inventory-device";
 import { makeDeviceLabel } from "../lib/device-label";
 import { ensureInventoryLabelBarcode } from "../lib/services/inventoryDeviceService";
@@ -27,13 +27,13 @@ async function main() {
   const { PGlite } = await import(modulePath);
   const pg: Database = await PGlite.create({ parsers: { 1700: (value: string) => new Prisma.Decimal(value) } });
   const temporary = mkdtempSync(join(tmpdir(), "masar-gift-test-"));
-  const original = { transaction: prisma.$transaction, queryRaw: prisma.$queryRaw, count: prisma.inventoryItem.count, supplier: prisma.supplier.findFirst };
+  const original = { transaction: prisma.$transaction, queryRaw: prisma.$queryRaw, count: prisma.inventoryItem.count, findFirst: prisma.inventoryItem.findFirst, supplier: prisma.supplier.findFirst };
   const shop = "00000000-0000-4000-8000-000000000001";
   const user = "00000000-0000-4000-8000-000000000002";
   const supplier = "00000000-0000-4000-8000-000000000003";
   const item = "00000000-0000-4000-8000-000000000004";
   try {
-    const baseline = readFileSync("prisma/schema.prisma", "utf8").replace(/^\s+giftAllowed\s+.*\n/gm, "").replace(/^\s+isGift\s+.*\n/gm, "").replace(/^\s+(?:isDevice|deviceModel|deviceCondition|batteryHealth|storageCapacity|deviceIdentifier|deviceDetails)\s+.*\n/gm, "");
+    const baseline = readFileSync("prisma/schema.prisma", "utf8").replace(/^\s+giftAllowed\s+.*\n/gm, "").replace(/^\s+isGift\s+.*\n/gm, "").replace(/^\s+(?:isDevice|deviceModel|deviceCondition|batteryHealth|storageCapacity|deviceIdentifier|deviceColor|deviceNotes|deviceDetails)\s+.*\n/gm, "");
     const schema = join(temporary, "schema.prisma");
     writeFileSync(schema, baseline);
     const sql = execFileSync(process.execPath, ["node_modules/prisma/build/index.js", "migrate", "diff", "--from-empty", "--to-schema-datamodel", schema, "--script"], { encoding: "utf8", env: { ...process.env, DATABASE_URL: "postgresql://unused:unused@127.0.0.1:1/unused" } });
@@ -54,6 +54,9 @@ async function main() {
     await pg.query('INSERT INTO "InventoryItem" (id,"shopId",name,"unitCost","unitPrice",quantity) VALUES ($1,$2,$3,100,120,10)', [item, shop, "Existing product"]);
     await pg.exec(readFileSync("prisma/migrations/20261028200000_sale_gifts/migration.sql", "utf8"));
     await pg.exec(readFileSync("prisma/migrations/20261029190000_device_labels/migration.sql", "utf8"));
+    await pg.exec(readFileSync("prisma/migrations/20261031205012_inventory_used_phone_details/migration.sql", "utf8"));
+    await pg.exec('CREATE ROLE anon; CREATE ROLE authenticated;');
+    await pg.exec(readFileSync("prisma/migrations/20260831003500_add_inventory_categories_phase1/migration.sql", "utf8"));
     assert.equal((await pg.query('SELECT "giftAllowed" FROM "InventoryItem" WHERE id=$1', [item])).rows[0].giftAllowed, false);
 
     const raw = (db: Database) => async (query: Prisma.Sql | TemplateStringsArray, ...values: unknown[]) => {
@@ -65,6 +68,7 @@ async function main() {
       return (await db.query(`INSERT INTO "${table}" (${entries.map(([key]) => `"${key}"`).join(",")}) VALUES (${entries.map((_, index) => `$${index + 1}`).join(",")}) RETURNING *`, entries.map(([, value]) => Prisma.Decimal.isDecimal(value) ? value.toString() : value))).rows[0];
     };
     const bridge = (db: Database) => ({
+      inventoryCompatibilityGroup: { deleteMany: async ({ where }: { where: { inventoryItemId: string } }) => db.query('DELETE FROM "InventoryCompatibilityGroup" WHERE "inventoryItemId"=$1', [where.inventoryItemId]) },
       inventoryMovement: { create: async ({ data }: { data: Row }) => insert(db, "InventoryMovement", data) },
       $queryRaw: async (query: Prisma.Sql | TemplateStringsArray, ...values: unknown[]) => (await raw(db)(query, ...values)).rows,
       $executeRaw: async (query: Prisma.Sql | TemplateStringsArray, ...values: unknown[]) => (await raw(db)(query, ...values)).affectedRows ?? 0,
@@ -97,6 +101,7 @@ async function main() {
       },
     });
     prisma.$queryRaw = bridge(pg).$queryRaw as typeof prisma.$queryRaw;
+    prisma.inventoryItem.findFirst = bridge(pg).inventoryItem.findFirst as unknown as typeof prisma.inventoryItem.findFirst;
     prisma.inventoryItem.count = (async () => 1) as typeof prisma.inventoryItem.count;
     prisma.supplier.findFirst = (async () => ({ id: supplier, name: "Supplier" })) as unknown as typeof prisma.supplier.findFirst;
     prisma.$transaction = (async (run: (tx: unknown) => Promise<unknown>) => pg.transaction((db) => run(bridge(db)))) as typeof prisma.$transaction;
@@ -210,10 +215,22 @@ async function main() {
     assert.equal(await ensureInventoryLabelBarcode(shop, item), null);
     assert.equal((await pg.query('SELECT count(*)::int AS n FROM "InventoryMovement"')).rows[0].n, movementsBeforeLabel);
     console.log("PASS all-inventory labels: multi-unit manual item, purchase item barcode, legacy backfill/idempotency, tenant/deleted boundaries, unchanged prices/stock/device type and no movements.");
+    const usedInput = { name: "iPhone 13 Pro", unitPrice: "400", unitCost: "300", quantity: "1", deviceDetails: { ...deviceDetails, deviceModel: "ignored browser value", deviceIdentifier: "PHONE-USED-001", batteryHealth: null, deviceColor: "أسود", deviceNotes: "شاشة مستبدلة؛ شاحن متوفر" } };
+    const used = await createInventoryItem(shop, user, usedInput);
+    assert.equal(used.deviceModel, usedInput.name); assert.equal(used.deviceCondition, "USED"); assert.equal(used.quantity, 1);
+    assert.equal(used.deviceColor, "أسود"); assert.equal(used.deviceNotes, usedInput.deviceDetails.deviceNotes); assert.equal(used.batteryHealth, null);
+    await assert.rejects(() => createInventoryItem(shop, user, { ...usedInput, quantity: "2" }), /كمية واحدة/);
+    await assert.rejects(() => createInventoryItem(shop, user, { ...usedInput, quantity: "0" }), /كمية واحدة/);
+    await assert.rejects(() => createInventoryItem(shop, user, usedInput), /IMEI \/ Serial/);
+    const edited = await updateInventoryItemDetails(shop, used.id, { name: "iPhone 13 Pro - أسود", unitPrice: "410", unitCost: "300", deviceDetails: { ...usedInput.deviceDetails, batteryHealth: 88, deviceNotes: "تم فحص البطارية" } });
+    assert.equal(edited.deviceModel, "iPhone 13 Pro - أسود"); assert.equal(edited.batteryHealth, 88);
+    assert.equal(edited.deviceNotes, "تم فحص البطارية"); assert.equal(edited.deviceColor, "أسود"); assert.equal(edited.barcode, used.barcode); assert.equal(edited.quantity, 1);
+    console.log("PASS used phones: name-backed model, nullable battery, persistent color/condition notes, editing, serial uniqueness and one-device quantity enforced on server.");
     console.log("PASS device PostgreSQL: additive migration, persisted purchase metadata, approval, automatic barcode, printable data, private serial exclusion, duplicate serial/barcode and quantity/battery constraints.");
     console.log("PASS isolated PostgreSQL: gift migration, existing-product default, persisted draft, approval, replay, omitted setting, revocation, new products, conflicting settings with rollback, and gift zero-value constraint.");
   } finally {
     prisma.$transaction = original.transaction; prisma.$queryRaw = original.queryRaw;
+    prisma.inventoryItem.findFirst = original.findFirst;
     prisma.inventoryItem.count = original.count; prisma.supplier.findFirst = original.supplier;
     await pg.close(); await prisma.$disconnect(); rmSync(temporary, { recursive: true, force: true });
   }

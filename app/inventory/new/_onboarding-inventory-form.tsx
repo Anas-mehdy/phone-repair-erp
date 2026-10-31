@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, Boxes, PackagePlus, Save, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createInventoryItemAction } from "../actions";
+import { InventoryPhoneProvider, InventoryNameAndPhoneFields, InventoryOpeningQuantity } from "./_used-phone-fields";
 import { Field, inputClassName } from "../_components";
 
 export function OnboardingInventoryItemForm({ currency }: { currency: string }) {
@@ -17,20 +18,16 @@ export function OnboardingInventoryItemForm({ currency }: { currency: string }) 
           </div>
         </div>
 
-        <form action={createInventoryItemAction} className="p-5 sm:p-6">
+        <InventoryPhoneProvider><form action={createInventoryItemAction} className="p-5 sm:p-6">
           <input type="hidden" name="onboarding" value="1" />
           <input type="hidden" name="reorderLevel" value="0" />
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
-              <Field label="اسم الصنف *">
-                <input className={inputClassName} name="name" required autoFocus placeholder="مثال: شاشة iPhone 11 أو شاحن Type-C" />
-              </Field>
+              <InventoryNameAndPhoneFields />
             </div>
 
-            <Field label="الكمية الموجودة الآن *" helper="حتى نسجل أول حركة مخزون فعلية">
-              <input className={`${inputClassName} font-numeric`} name="quantity" type="number" min="1" step="1" required defaultValue="1" inputMode="numeric" />
-            </Field>
+            <InventoryOpeningQuantity initial="1" minimum={1} />
 
             <Field label={`تكلفة الوحدة (${currency})`} helper="اختياري — يفيد بحساب الربح لاحقاً">
               <input className={`${inputClassName} font-numeric`} name="unitCost" type="number" min="0" step="0.01" inputMode="decimal" placeholder="0.00" />
@@ -52,7 +49,7 @@ export function OnboardingInventoryItemForm({ currency }: { currency: string }) 
             <Link href="/inventory/new?onboarding=1&full=1" className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 text-[10px] font-black text-slate-500 transition hover:border-amber-300 hover:bg-amber-50 hover:text-amber-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"><ArrowLeft className="h-3.5 w-3.5" />أحتاج كل تفاصيل الصنف الآن</Link>
             <Button type="submit" className="h-11 rounded-xl bg-amber-500 px-6 text-xs font-black text-white shadow-md shadow-amber-500/20 hover:bg-amber-600"><Save className="ml-1.5 h-4 w-4" />حفظ أول صنف</Button>
           </div>
-        </form>
+        </form></InventoryPhoneProvider>
       </section>
     </div>
   );
