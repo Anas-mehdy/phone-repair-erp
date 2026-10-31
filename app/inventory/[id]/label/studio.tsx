@@ -140,7 +140,7 @@ export function DeviceLabelCard({
         >
           {data.model}
         </div>
-        <div
+        {data.condition || data.storage ? <div
           className="device-label-specs"
           style={{
             display: "flex",
@@ -155,7 +155,7 @@ export function DeviceLabelCard({
             {data.condition}
           </span>
           <span dir="ltr">{data.storage}</span>
-        </div>
+        </div> : null}
         {priceVisible || data.batteryHealth !== null ? (
           <div
             style={{
@@ -336,20 +336,20 @@ export function DeviceLabelStudio({
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="text-xs font-black text-teal-700 dark:text-teal-300">
-            المخزون / الأجهزة
+            المخزون / طباعة الليبل
           </p>
           <h1 className="mt-2 text-2xl font-black text-slate-900 dark:text-white">
-            ليبل الجهاز
+            ليبل الصنف
           </h1>
           <p className="mt-2 text-sm text-slate-500">
-            معلومات واضحة على ظهر الجهاز، وباركود يفتح نفس الصنف عند مسحه بنقطة
+            ملصق واضح للصنف، وباركود يفتح نفس الصنف عند مسحه بنقطة
             البيع.
           </p>
         </div>
         <Button asChild variant="outline">
           <Link href={`/inventory/${inventoryItemId}`}>
             <ArrowRight className="ml-2 h-4 w-4" />
-            تفاصيل الجهاز
+            تفاصيل الصنف
           </Link>
         </Button>
       </div>
@@ -383,8 +383,8 @@ export function DeviceLabelStudio({
           <div className="flex items-start gap-2 border-t border-slate-100 p-5 text-xs leading-6 text-slate-500 dark:border-slate-800">
             <ScanBarcode className="mt-1 h-4 w-4 shrink-0 text-teal-600" />
             <span>
-              باركود Code 128 واضح للطباعة الحرارية. الموديل والحالة والسعة
-              والبطارية تأتي من بيانات الجهاز المحفوظة.
+              باركود Code 128 للطباعة الحرارية. يظهر اسم الصنف وسعره عند اختياره،
+              وتظهر مواصفات الجهاز إذا كانت مسجلة.
             </span>
           </div>
         </section>
@@ -417,7 +417,7 @@ export function DeviceLabelStudio({
           </label>
           {!data.priceConfigured ? (
             <p className="text-xs leading-6 text-amber-700">
-              سعر البيع غير محدد. احفظ سعر البيع من تفاصيل الجهاز قبل إظهاره على
+              سعر البيع غير محدد. احفظ سعر البيع من تفاصيل الصنف قبل إظهاره على
               الليبل.
             </p>
           ) : null}
@@ -444,7 +444,7 @@ export function DeviceLabelStudio({
               className="text-xs font-bold leading-6 text-rose-600"
             >
               الباركود كثيف لهذا المقاس. اختر مقاساً أكبر أو استخدم باركوداً
-              رقمياً أقصر من بيانات الجهاز.
+              رقمياً أقصر من بيانات الصنف.
             </p>
           ) : null}
           {!fit ? (

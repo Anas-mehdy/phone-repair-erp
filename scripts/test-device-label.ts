@@ -19,6 +19,13 @@ assert.equal(normalizeDeviceBarcode(" 201234567890 "), "201234567890");
 assert.throws(() => normalizeDeviceBarcode("هاتف"), /بالإنكليزية/);
 assert.throws(() => normalizeDeviceBarcode("x".repeat(25)), /24/);
 const label = makeDeviceLabel({ ...device, barcode: "201234567890", unitPrice: { toString: () => "9300" } }, "متجر مسار", "SAR");
+const ordinary = makeDeviceLabel({ ...EMPTY_DEVICE_DETAILS, name: "شاشة سامسونج A15", barcode: "201234567891", unitPrice: { toString: () => "150" } }, "متجر مسار", "SAR");
+assert.equal(ordinary.model, "شاشة سامسونج A15");
+assert.equal(ordinary.condition, "");
+assert.equal(ordinary.storage, "");
+assert.equal(ordinary.batteryHealth, null);
+assert.ok(ordinary.barcodeDataUrl.startsWith("data:image/svg+xml;base64,"));
+assert.equal(ordinary.price, "150");
 assert.equal(label.condition, "مستعمل");
 for (const [condition, expected] of [["NEW", "جديد"], ["REFURBISHED", "مجدد"]] as const) {
   assert.equal(makeDeviceLabel({ ...device, deviceCondition: condition, barcode: "201234567890", unitPrice: { toString: () => "100" } }, "متجر", "SAR").condition, expected);

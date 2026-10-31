@@ -21,6 +21,7 @@ export type DeviceLabelData = {
 };
 export function makeDeviceLabel(
   item: DeviceDetails & {
+    name?: string;
     barcode: string | null;
     unitPrice: { toString(): string };
     salePriceConfigured?: boolean;
@@ -29,12 +30,10 @@ export function makeDeviceLabel(
   currency: string,
 ): DeviceLabelData {
   const device = normalizeDeviceDetails(item);
-  if (!device.isDevice)
-    throw new Error("طباعة ليبل الجهاز متاحة للأصناف المسجلة كأجهزة مستقلة.");
   const barcode = normalizeDeviceBarcode(item.barcode);
   if (!barcode)
     throw new Error(
-      "احفظ بيانات الجهاز في المخزون لتوليد باركوده قبل الطباعة.",
+      "احفظ بيانات الصنف في المخزون لتوليد باركوده قبل الطباعة.",
     );
   const svg = bwipjs.toSVG({
     bcid: "code128",
@@ -52,9 +51,9 @@ export function makeDeviceLabel(
   const svgWidth = Number(/viewBox="0 0 ([0-9.]+) /.exec(svg)?.[1]);
   if (!Number.isFinite(svgWidth)) throw new Error("تعذر تجهيز أبعاد الباركود.");
   return {
-    model: device.deviceModel!,
-    condition: DEVICE_CONDITIONS[device.deviceCondition!],
-    storage: device.storageCapacity!,
+    model: (device.isDevice ? device.deviceModel : item.name)?.trim() || "صنف مخزون",
+    condition: device.deviceCondition ? DEVICE_CONDITIONS[device.deviceCondition] : "",
+    storage: device.storageCapacity ?? "",
     batteryHealth: device.batteryHealth,
     barcode,
     barcodeDataUrl: `data:image/svg+xml;base64,${Buffer.from(printableSvg).toString("base64")}`,

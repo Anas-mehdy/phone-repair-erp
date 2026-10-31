@@ -11,6 +11,7 @@ import { prisma } from "../lib/prisma";
 import { createInventoryItem, addStock, adjustStock, updateInventoryGiftPolicy } from "../lib/services/inventoryService";
 import { normalizeDeviceDetails } from "../lib/inventory-device";
 import { makeDeviceLabel } from "../lib/device-label";
+import { ensureInventoryLabelBarcode } from "../lib/services/inventoryDeviceService";
 import { saveDraft, postPurchaseInvoice, lookupInventoryByIdentifier, type PurchaseDraftLineInput } from "../lib/services/purchaseReceivingService";
 
 type Row = Record<string, unknown>;
@@ -144,6 +145,9 @@ async function main() {
     const newDefault = await draft([{ newItemName: "Default product", quantity: 1, unitCost: "10" }]);
     await post(newDefault.id);
     assert.equal((await pg.query('SELECT "giftAllowed" FROM "InventoryItem" WHERE name=$1', ["Default product"])).rows[0].giftAllowed, false);
+    const ordinaryPurchase = (await pg.query('SELECT * FROM "InventoryItem" WHERE name=$1', ["Default product"])).rows[0];
+    assert.equal(ordinaryPurchase.isDevice, false);
+    assert.match(String(ordinaryPurchase.barcode), /^20\d{10}$/);
     const conflict = await draft([{ ...existing, giftAllowed: true }, { ...existing, giftAllowed: false }]);
     await assert.rejects(() => post(conflict.id), /متعارض/);
     assert.equal((await pg.query('SELECT "giftAllowed" FROM "InventoryItem" WHERE id=$1', [item])).rows[0].giftAllowed, false);
@@ -190,6 +194,22 @@ async function main() {
     await assert.rejects(() => adjustStock(shop, direct.id, user, { newQuantity: "2" }), /كمية واحدة/);
     await adjustStock(shop, direct.id, user, { newQuantity: "0" });
     assert.equal((await addStock(shop, direct.id, user, { quantity: "1" })).quantity, 1);
+    const regular = await createInventoryItem(shop, user, { name: "Regular screen", unitPrice: "25", unitCost: "10", quantity: "12" });
+    assert.equal(regular.isDevice, false); assert.equal(regular.quantity, 12);
+    assert.match(String(regular.barcode), /^20\d{10}$/);
+    const legacyBefore = (await pg.query('SELECT * FROM "InventoryItem" WHERE id=$1', [item])).rows[0];
+    const movementsBeforeLabel = (await pg.query('SELECT count(*)::int AS n FROM "InventoryMovement"')).rows[0].n;
+    assert.equal(await ensureInventoryLabelBarcode("00000000-0000-4000-8000-000000000099", item), null);
+    const legacyBarcode = await ensureInventoryLabelBarcode(shop, item);
+    assert.match(legacyBarcode!, /^20\d{10}$/);
+    const legacyAfter = (await pg.query('SELECT * FROM "InventoryItem" WHERE id=$1', [item])).rows[0];
+    for (const key of Object.keys(legacyBefore)) if (!["barcode", "version", "updatedAt"].includes(key)) assert.deepEqual(legacyAfter[key], legacyBefore[key], `label must preserve ${key}`);
+    assert.equal(await ensureInventoryLabelBarcode(shop, item), legacyBarcode);
+    assert.deepEqual((await pg.query('SELECT * FROM "InventoryItem" WHERE id=$1', [item])).rows[0], legacyAfter, "repeated label does not rewrite identity");
+    await pg.query('UPDATE "InventoryItem" SET "deletedAt"=NOW() WHERE id=$1', [item]);
+    assert.equal(await ensureInventoryLabelBarcode(shop, item), null);
+    assert.equal((await pg.query('SELECT count(*)::int AS n FROM "InventoryMovement"')).rows[0].n, movementsBeforeLabel);
+    console.log("PASS all-inventory labels: multi-unit manual item, purchase item barcode, legacy backfill/idempotency, tenant/deleted boundaries, unchanged prices/stock/device type and no movements.");
     console.log("PASS device PostgreSQL: additive migration, persisted purchase metadata, approval, automatic barcode, printable data, private serial exclusion, duplicate serial/barcode and quantity/battery constraints.");
     console.log("PASS isolated PostgreSQL: gift migration, existing-product default, persisted draft, approval, replay, omitted setting, revocation, new products, conflicting settings with rollback, and gift zero-value constraint.");
   } finally {

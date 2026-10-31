@@ -91,7 +91,7 @@ export default async function InventoryItemDetailsPage({ params, searchParams }:
             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-indigo-900 text-white shadow-md shadow-primary/10"><span className="text-xl font-bold font-numeric">📦</span></div>
             <div><div className="flex flex-wrap items-center gap-2"><span className="text-[10px] font-black uppercase tracking-wider text-slate-400">تفاصيل صنف المستودع</span><PlainBadge tone={lowStock ? "red" : "green"} label={lowStock ? "مخزون منخفض" : "متوفر بالرف"} /></div><h2 className="mt-1 flex items-center gap-2 text-2xl font-black text-slate-800">{item.name}</h2><p className="mt-1 text-xs font-medium text-slate-400">رمز الـ SKU: <span className="font-numeric font-semibold text-slate-700">{item.sku ?? "-"}</span></p></div>
           </div>
-          <div className="flex flex-wrap gap-2.5">{item.isDevice ? <Button asChild className="h-11 rounded-xl font-bold"><Link href={`/inventory/${item.id}/label`}><Printer className="ml-2 h-4 w-4" />طباعة ليبل الجهاز</Link></Button> : null}<Button asChild variant="outline" className="h-11 rounded-xl border-slate-200 px-5 font-bold shadow-sm hover:bg-slate-50"><Link href="/inventory"><ArrowRight className="ml-1.5 h-4 w-4" aria-hidden="true" />رجوع للقائمة</Link></Button></div>
+          <div className="flex flex-wrap gap-2.5"><Button asChild className="h-11 rounded-xl font-bold"><Link href={`/inventory/${item.id}/label`}><Printer className="ml-2 h-4 w-4" />طباعة ليبل الصنف</Link></Button><Button asChild variant="outline" className="h-11 rounded-xl border-slate-200 px-5 font-bold shadow-sm hover:bg-slate-50"><Link href="/inventory"><ArrowRight className="ml-1.5 h-4 w-4" aria-hidden="true" />رجوع للقائمة</Link></Button></div>
         </div>
       </div>
 
@@ -139,7 +139,7 @@ export default async function InventoryItemDetailsPage({ params, searchParams }:
               <Field label="حد إعادة الطلب"><input className={`${inputClassName} font-numeric`} name="reorderLevel" defaultValue={String(item.reorderLevel)} min="0" step="1" type="number" /></Field>
               <div className="sm:col-span-2"><Field label="الوصف والتفاصيل"><textarea className={textareaClassName} name="description" defaultValue={item.description ?? ""} /></Field></div>
             </div>
-            <div className="mt-6"><InventoryDeviceFields named initialValue={{ isDevice: item.isDevice, deviceModel: item.deviceModel, deviceCondition: item.deviceCondition as "NEW" | "USED" | "REFURBISHED" | null, batteryHealth: item.batteryHealth, storageCapacity: item.storageCapacity, deviceIdentifier: item.deviceIdentifier }} />
+            <div className="mt-6">{item.isDevice ? <InventoryDeviceFields named initialValue={{ isDevice: item.isDevice, deviceModel: item.deviceModel, deviceCondition: item.deviceCondition as "NEW" | "USED" | "REFURBISHED" | null, batteryHealth: item.batteryHealth, storageCapacity: item.storageCapacity, deviceIdentifier: item.deviceIdentifier }} /> : null}
             <CompatibilityGroupPicker initialSelection={initialCompatibilitySelection} /></div>
             <div className="mt-6 flex justify-end"><Button type="submit" className="h-11 rounded-xl px-6 font-bold shadow-sm"><Save className="ml-1.5 h-4.5 w-4.5" />حفظ بيانات القطعة المحدثة</Button></div>
           </form>

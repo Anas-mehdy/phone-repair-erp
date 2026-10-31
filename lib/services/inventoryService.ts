@@ -322,7 +322,7 @@ export async function updateInventoryItemDetails(
     const device = normalizeDeviceDetails(input.deviceDetails ?? rows[0]);
     assertDeviceQuantity(device.isDevice, rows[0].quantity);
     const requestedBarcode = input.barcode === undefined ? rows[0].barcode : input.barcode.trim() || null;
-    const barcode = !device.isDevice && requestedBarcode === rows[0].barcode ? requestedBarcode : await prepareDeviceIdentityTx(tx, shopId, device, requestedBarcode, inventoryItemId);
+    const barcode = !device.isDevice && requestedBarcode && requestedBarcode === rows[0].barcode ? requestedBarcode : await prepareDeviceIdentityTx(tx, shopId, device, requestedBarcode, inventoryItemId);
     const compatibilityGroupIds = await validateCompatibilityGroups(tx, input.compatibilityGroupIds);
     const item = await tx.inventoryItem.update({
       where: { id: inventoryItemId },
