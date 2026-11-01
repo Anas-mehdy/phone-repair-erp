@@ -6,7 +6,7 @@ import {
   Prisma,
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { normalizeDeviceDetails, assertDeviceQuantity, type DeviceDetails } from "@/lib/inventory-device";
+import { normalizePurchaseDeviceDetails, assertDeviceQuantity, type DeviceDetails } from "@/lib/inventory-device";
 import { prepareDeviceIdentityTx } from "./inventoryDeviceService";
 import {
   allocatePurchaseCosts,
@@ -350,7 +350,7 @@ function calculate(input: PurchaseDraftInput, strict = true) {
   const normalizedLines = lines.map((line) => {
     if (line.giftAllowed != null && typeof line.giftAllowed !== "boolean") throw new Error("خيار السماح بالهدية غير صالح.");
     const quantity = Number(line.quantity);
-    const deviceDetails = line.inventoryItemId ? null : normalizeDeviceDetails(line.deviceDetails);
+    const deviceDetails = line.inventoryItemId ? null : normalizePurchaseDeviceDetails(line.newItemName, line.deviceDetails);
     if (deviceDetails) assertDeviceQuantity(deviceDetails.isDevice, quantity);
     if (!Number.isInteger(quantity) || quantity <= 0) throw new Error("كل كمية يجب أن تكون عدداً صحيحاً أكبر من صفر.");
     const unitCost = inventoryCost(line.unitCost);
@@ -1248,7 +1248,7 @@ export async function postPurchaseInvoice(
       } else {
         const newName = nullableText(line.newItemName);
         if (!newName) throw new Error("اسم الصنف الجديد مطلوب.");
-        const device = normalizeDeviceDetails(line.deviceDetails);
+        const device = normalizePurchaseDeviceDetails(line.newItemName, line.deviceDetails);
         assertDeviceQuantity(device.isDevice, line.orderedQuantity);
         const barcode = await prepareDeviceIdentityTx(tx, shopId, device, normalizedBarcode(line.newItemBarcode));
         if (barcode) {

@@ -21,7 +21,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent }
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { pricingSuggestion, suggestedCompatibilityDataset } from "@/lib/purchase-import";
-import { EMPTY_DEVICE_DETAILS, type DeviceDetails } from "@/lib/inventory-device";
+import { PurchasePhoneFields } from "./_purchase-phone-fields";
+import { EMPTY_DEVICE_DETAILS, normalizePurchaseDeviceDetails, type DeviceDetails } from "@/lib/inventory-device";
 import { PurchaseBarcodeScanner, type ResolvedBarcodeScan } from "./_barcode-scanner";
 import { PurchaseImportPanel, type ResolvedImportedPurchaseRow } from "./_purchase-import-panel";
 import { PurchaseDocumentImportPanel, type ResolvedDocumentPurchaseRow } from "./_document-import-panel";
@@ -128,12 +129,12 @@ type InitialDraft = {
 function freshKey() {
   return typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
 }
-function blankLine(): FormLine {
+function blankLine(manual = false): FormLine {
   return {
     key: freshKey(), inventoryItemId: null, itemLabel: "", existingItem: null,
     newItemName: "", newItemSku: "", newItemBarcode: "", newItemCategoryId: "", newItemCategory: "", newItemDescription: "",
     importedSourceText: "", importSourceId: "", importRowKey: "", importedPurchaseUnit: "", matchReviewRequired: false, matchCandidates: [], compatibilitySelections: [], compatibilityReviewNeeded: true,
-    updateSalePrice: false, giftAllowed: null, deviceDetails: { ...EMPTY_DEVICE_DETAILS }, quantity: "1", unitCost: "", manualExtraCostAllocation: "", salePrice: "", mode: "existing", selected: false,
+    updateSalePrice: false, giftAllowed: null, deviceDetails: { ...EMPTY_DEVICE_DETAILS }, quantity: "1", unitCost: "", manualExtraCostAllocation: "", salePrice: "", mode: manual ? "new" : "existing", selected: false,
   };
 }
 function num(value: string) {
@@ -158,6 +159,7 @@ function suggestedCost(item: InventoryResult) {
 function existingPatch(item: InventoryResult, options: { unitCost?: string; salePrice?: string; importedSourceText?: string } = {}): Partial<FormLine> {
   return {
     inventoryItemId: item.id,
+    ...(item.isDevice ? { quantity: "1" } : {}),
     itemLabel: [item.name, item.barcode ? `#${item.barcode}` : item.sku].filter(Boolean).join(" — "),
     existingItem: item,
     mode: "existing",
@@ -210,6 +212,7 @@ export function PurchaseReceivingForm({
   const paymentMethod: PaymentMethodValue = paymentAccountType === "DRAWER" ? "CASH" : paymentAccountType === "BANK" ? "BANK_TRANSFER" : paymentAccountType === "WALLET" ? "OTHER" : "OTHER";
   const paymentSourceName = paymentAccountType === "DRAWER" ? "الدرج النقدي" : paymentAccountType === "WALLET" ? wallets.find(wallet => wallet.id === paymentWalletId)?.name ?? "" : paymentAccountType === "BANK" ? bankAccounts.find(account => account.id === paymentBankAccountId)?.name ?? "" : "دفع خارج النظام";
   const [paymentReference, setPaymentReference] = useState(initialDraft?.paymentReference ?? "");
+  const [manualEntry, setManualEntry] = useState(false);
   const [lines, setLines] = useState<FormLine[]>(() => {
     const loaded = (initialDraft?.lines ?? []).map((line) => {
       const existingItem: InventoryResult | null = line.inventoryItemId ? {
@@ -317,6 +320,12 @@ export function PurchaseReceivingForm({
     if (num(amountPaid) > finalTotal + 0.009) errors.amountPaid = "المدفوع لا يمكن أن يتجاوز إجمالي الفاتورة.";
     if (supplierRequired && !supplierId) errors.supplier = "اختر المورد أو أضفه من زر + عند وجود دين أو دفع غير نقدي.";
     const invalidLine = activeLines.find((line) => Math.trunc(num(line.quantity)) <= 0 || num(line.unitCost) < 0 || (!line.inventoryItemId && !line.newItemName.trim()));
+    const invalidPhone = activeLines.some((line) => {
+      if (line.mode === "existing") return line.existingItem?.isDevice && Number(line.quantity) !== 1;
+      if (!line.deviceDetails.isDevice) return false;
+      try { normalizePurchaseDeviceDetails(line.newItemName, line.deviceDetails); return Number(line.quantity) !== 1; } catch { return true; }
+    });
+    if (invalidPhone) errors.lines = "تحقق من اسم الهاتف والسعة ونسبة البطارية. كل هاتف يحتاج سطراً مستقلاً بكمية واحدة.";
     if (invalidLine) errors.lines = "تحقق من الاسم والكمية وتكلفة الوحدة في البنود.";
     if (activeLines.some((line) => line.matchReviewRequired)) errors.matching = "يوجد بند مستورد يحتاج مراجعة المطابقة قبل الاعتماد.";
     if (subtotal <= 0.009 && num(extraCostsTotal) > 0) {
@@ -435,9 +444,14 @@ export function PurchaseReceivingForm({
 
   function patchLine(key: string, patch: Partial<FormLine>) {
     setLines((current) => {
-      const next = current.map((line) => line.key === key ? { ...line, ...patch } : line);
+      const next = current.map((line) => {
+        if (line.key !== key) return line;
+        const updated = { ...line, ...patch };
+        if (updated.mode === "new" && updated.deviceDetails.isDevice) updated.deviceDetails = { ...updated.deviceDetails, deviceModel: updated.newItemName };
+        return updated;
+      });
       const last = next[next.length - 1];
-      if (last && (last.inventoryItemId || last.newItemName.trim() || last.newItemBarcode.trim())) next.push(blankLine());
+      if (last && (last.inventoryItemId || last.newItemName.trim() || last.newItemBarcode.trim())) next.push(blankLine(manualEntry));
       return next;
     });
     markDirty();
@@ -448,7 +462,7 @@ export function PurchaseReceivingForm({
       const withoutTrailingBlank = current.length && !current[current.length - 1].inventoryItemId && !current[current.length - 1].newItemName.trim() && !current[current.length - 1].newItemBarcode.trim()
         ? current.slice(0, -1)
         : current;
-      return [...withoutTrailingBlank, line, blankLine()];
+      return [...withoutTrailingBlank, line, blankLine(manualEntry)];
     });
     markDirty();
   }
@@ -456,7 +470,7 @@ export function PurchaseReceivingForm({
   function removeLine(key: string) {
     setLines((current) => {
       const next = current.filter((line) => line.key !== key);
-      return next.length ? next : [blankLine()];
+      return next.length ? next : [blankLine(manualEntry)];
     });
     markDirty();
   }
@@ -509,7 +523,7 @@ export function PurchaseReceivingForm({
     });
     setLines((current) => {
       const trimmed = current.length && !current[current.length - 1].inventoryItemId && !current[current.length - 1].newItemName.trim() && !current[current.length - 1].newItemBarcode.trim() ? current.slice(0, -1) : current;
-      return [...trimmed, ...newLines, blankLine()];
+      return [...trimmed, ...newLines, blankLine(manualEntry)];
     });
     markDirty();
   }
@@ -539,7 +553,7 @@ export function PurchaseReceivingForm({
     });
     setLines((current) => {
       const trimmed = current.length && !current[current.length - 1].inventoryItemId && !current[current.length - 1].newItemName.trim() && !current[current.length - 1].newItemBarcode.trim() ? current.slice(0, -1) : current;
-      return [...trimmed, ...newLines, blankLine()];
+      return [...trimmed, ...newLines, blankLine(manualEntry)];
     });
     markDirty();
   }
@@ -731,6 +745,7 @@ export function PurchaseReceivingForm({
       <label className="mt-4 grid gap-1.5 text-xs font-black text-slate-600 dark:text-slate-300"><span>ملاحظات الفاتورة <span className="font-semibold text-slate-400">(اختياري)</span></span><textarea rows={2} value={notes} onChange={(e) => { setNotes(e.target.value); markDirty(); }} className="erp-input min-h-14 resize-y" /></label>
     </section>
 
+    {!manualEntry ? <>
     <PurchaseBarcodeScanner onScan={handleBarcodeScan} />
     <PurchaseDocumentImportPanel
       currency={currency}
@@ -742,12 +757,23 @@ export function PurchaseReceivingForm({
       onApplyHeader={applyDocumentHeader}
     />
     <PurchaseImportPanel onImport={handleImportedRows} />
+    </> : null}
 
     {scanConflict && <section className="rounded-2xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/30"><div className="flex items-start gap-2"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" /><div><h3 className="text-sm font-black text-amber-900 dark:text-amber-100">الصنف موجود في الفاتورة بتكلفة مختلفة</h3><p className="mt-1 text-xs font-semibold text-amber-800 dark:text-amber-200">مسحت {scanConflict.item.name}. لن ندمج الكمية بصمت. اختر السطر الذي تريد زيادة كميته، أو أضف سطراً جديداً لمراجعة تكلفة هذه الدفعة.</p></div></div><div className="mt-3 flex flex-wrap gap-2">{scanConflict.lineKeys.map((key) => { const line = lines.find((item) => item.key === key); return line ? <Button key={key} type="button" variant="outline" onClick={() => resolveScanConflict(key)} className="font-bold">زيادة سطر تكلفة {money(num(line.unitCost), currency)}</Button> : null; })}<Button type="button" onClick={() => resolveScanConflict()} className="font-black">إضافة سطر جديد</Button><Button type="button" variant="ghost" onClick={() => setScanConflict(null)}>إلغاء</Button></div></section>}
 
     <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 dark:border-slate-800 dark:bg-slate-900">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-black text-slate-900 dark:text-slate-100">بنود الاستلام</h2><p className="mt-1 text-xs font-semibold leading-6 text-slate-500 dark:text-slate-400">السطر التالي يظهر تلقائياً. المطابقة الدقيقة بالباركود/SKU فقط يمكن اعتمادها تلقائياً؛ اقتراحات الاسم تبقى للمراجعة.</p></div><div className="flex items-center gap-2"><Button type="button" size="sm" variant="outline" onClick={toggleAllSelected} className="font-bold">{selectedLines.length === activeLines.length && activeLines.length ? "إلغاء تحديد الكل" : "تحديد الكل"}</Button><span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300">{activeLines.length} بند</span></div></div>
       {(validation.lines || validation.matching) && <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-bold text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-200">{validation.lines && <p>{validation.lines}</p>}{reviewLines.length > 0 && <div className={validation.lines ? "mt-2" : ""}><p>بنود تحتاج مراجعة المطابقة: {reviewLines.map((item) => item.number).join("، ")}</p><div className="mt-2 flex flex-wrap gap-2">{reviewLines.map((item) => <button key={item.key} type="button" onClick={() => goToReviewLine(item.key)} className="rounded-lg border border-rose-300 bg-white px-2.5 py-1 font-black text-rose-700 hover:bg-rose-100 dark:border-rose-800 dark:bg-rose-950" aria-label={`الانتقال إلى البند ${item.number}`}>البند {item.number}</button>)}</div></div>}</div>}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-cyan-200 bg-cyan-50/40 p-3 dark:border-cyan-900 dark:bg-cyan-950/20">
+        <div><button type="button" role="switch" aria-checked={manualEntry} onClick={() => {
+          const enabled = !manualEntry; setManualEntry(enabled);
+          setLines((current) => current.map((line) => !line.inventoryItemId && !line.newItemName.trim() && !line.newItemBarcode.trim() && !line.matchReviewRequired ? { ...line, mode: enabled ? "new" : "existing" } : line));
+        }} className="inline-flex items-center gap-3 rounded-lg px-2 py-1 text-sm font-black text-cyan-900 dark:text-cyan-100"><span aria-hidden="true" className={`flex h-6 w-11 items-center rounded-full p-1 ${manualEntry ? "justify-end bg-teal-600" : "justify-start bg-slate-300"}`}><span className="h-4 w-4 rounded-full bg-white" /></span>إدخال البنود يدوياً</button><p className="mt-1 text-xs leading-6 text-slate-500 dark:text-slate-400">{manualEntry ? "اكتب المنتجات بنداً بنداً. يمكنك تحديد الهاتف الجديد أو المستعمل لكل بند، أو البحث عن صنف موجود. البنود المحفوظة تبقى عند تبديل الطريقة." : "استورد فاتورة أو ملفاً، أو فعّل الإدخال اليدوي لكتابة البنود مباشرة. التبديل لا يحذف بنودك."}</p></div>
+        {manualEntry ? <Button type="button" variant="outline" onClick={() => {
+          setLines((current) => current.some((line) => !line.inventoryItemId && !line.newItemName.trim() && !line.newItemBarcode.trim() && !line.matchReviewRequired) ? current.map((line) => !line.inventoryItemId && !line.newItemName.trim() && !line.newItemBarcode.trim() && !line.matchReviewRequired ? { ...line, mode: "new" } : line) : [...current, blankLine(true)]);
+          requestAnimationFrame(() => { const fields = document.querySelectorAll<HTMLInputElement>('input[placeholder="اسم الصنف الجديد *"]'); fields[fields.length - 1]?.focus(); });
+        }}><Plus className="ml-1 h-4 w-4" />إضافة بند يدوي</Button> : null}
+      </div>
       <div className="space-y-3">{lines.map((line, index) => <PurchaseLineCard key={line.key} line={line} index={index} currency={currency} categories={categoryOptions} showManualExtraAllocation={subtotal <= 0.009 && num(extraCostsTotal) > 0} duplicate={Boolean(line.inventoryItemId && duplicateInventoryIds.has(line.inventoryItemId))} duplicateBarcode={Boolean(line.mode === "new" && line.newItemBarcode && duplicateNewBarcodes.has(line.newItemBarcode))} onPatch={(patch) => patchLine(line.key, patch)} onRemove={() => removeLine(line.key)} onEnterNext={enterToNext} />)}</div>
       <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50/60 p-3 text-xs font-semibold leading-6 text-indigo-800 dark:border-indigo-900/70 dark:bg-indigo-950/25 dark:text-indigo-200">الصنف الموجود لا تتغير توافقاته بسبب فاتورة شراء. الصنف الجديد لا يُنشأ قبل الاعتماد. التوافقات المقترحة تأتي من دليل مسار الموجود ولا تُربط إلا بتأكيدك.</div>
     </section>
@@ -834,7 +860,7 @@ function PurchaseLineCard({ line, index, currency, categories, showManualExtraAl
   return <article id={`purchase-line-${line.key}`} tabIndex={-1} className={`purchase-line-card scroll-mt-24 rounded-2xl border p-3 sm:p-4 ${line.matchReviewRequired ? "border-amber-300 bg-amber-50/40 dark:border-amber-800 dark:bg-amber-950/20" : isBlank ? "border-dashed border-slate-300 bg-slate-50/50 dark:border-slate-700 dark:bg-slate-950/30" : "border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950/35"}`}>
     <div className="mb-3 flex items-center justify-between gap-3"><div className="flex min-w-0 items-center gap-2"><input type="checkbox" checked={line.selected} disabled={isBlank} onChange={(event) => onPatch({ selected: event.target.checked })} /><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300">{index + 1}</span><span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${isBlank ? "bg-slate-100 text-slate-500 dark:bg-slate-800" : stateTone}`}>{isBlank ? "السطر التالي جاهز" : stateLabel}</span>{line.importedSourceText && <span className="truncate text-[10px] font-bold text-slate-400">مستورد</span>}</div>{!isBlank && <button type="button" onClick={onRemove} className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/40"><Trash2 className="h-4 w-4" /></button>}</div>
     <div className="grid gap-3 lg:grid-cols-[minmax(260px,2fr)_100px_135px_155px_145px] lg:items-start">
-      <div><div className="mb-1.5 flex items-center justify-between"><span className="text-xs font-black text-slate-600 dark:text-slate-300">الصنف</span>{!isBlank && !line.matchReviewRequired && <button type="button" onClick={() => onPatch({
+      <div><div className="mb-1.5 flex items-center justify-between"><span className="text-xs font-black text-slate-600 dark:text-slate-300">الصنف</span>{!line.matchReviewRequired && <button type="button" onClick={() => onPatch({
           ...blankLine(),
           key: line.key,
           mode: line.mode === "new" ? "existing" : "new",
@@ -848,11 +874,12 @@ function PurchaseLineCard({ line, index, currency, categories, showManualExtraAl
         {line.matchReviewRequired ? <MatchReview line={line} onPatch={onPatch} /> : line.mode === "existing" ? <InventoryLookup value={line.itemLabel} onClear={() => onPatch({ inventoryItemId: null, itemLabel: "", existingItem: null })} onSelect={(item) => onPatch(existingPatch(item, { unitCost: line.unitCost || undefined, importedSourceText: line.importedSourceText }))} onNew={(name) => onPatch({ mode: "new", inventoryItemId: null, existingItem: null, itemLabel: "", newItemName: name, compatibilityReviewNeeded: true })} /> : <NewItemFields line={line} categories={categories} onPatch={onPatch} onEnterNext={onEnterNext} />}
         {duplicate && <div className="mt-2 rounded-lg bg-amber-50 px-2 py-1.5 text-[10px] font-bold text-amber-800 dark:bg-amber-950/30 dark:text-amber-200">هذا الصنف مكرر. السطور تبقى منفصلة، خصوصاً عند اختلاف التكلفة.</div>}{duplicateBarcode && <div className="mt-2 rounded-lg bg-rose-50 px-2 py-1.5 text-[10px] font-bold text-rose-700 dark:bg-rose-950/30 dark:text-rose-200">الباركود مكرر بين أصناف جديدة. يجب حل المطابقة قبل الاعتماد.</div>}
       </div>
-      <label className="grid gap-1.5 text-xs font-black text-slate-600 dark:text-slate-300">الكمية<input data-purchase-field type="number" min="1" step="1" value={line.quantity} onKeyDown={onEnterNext} onChange={(e) => onPatch({ quantity: e.target.value })} className="erp-input font-numeric" /></label>
+      <label className="grid gap-1.5 text-xs font-black text-slate-600 dark:text-slate-300">الكمية<input data-purchase-field type="number" min="1" max={line.deviceDetails.isDevice || line.existingItem?.isDevice ? 1 : undefined} readOnly={line.deviceDetails.isDevice || Boolean(line.existingItem?.isDevice)} step="1" value={line.quantity} onKeyDown={onEnterNext} onChange={(e) => onPatch({ quantity: e.target.value })} className="erp-input font-numeric" /></label>
       <label className="grid gap-1.5 text-xs font-black text-slate-600 dark:text-slate-300">تكلفة الوحدة<input data-purchase-field type="number" min="0" step="0.01" value={line.unitCost} onKeyDown={onEnterNext} onChange={(e) => onPatch({ unitCost: e.target.value })} className="erp-input font-numeric" /></label>
       <div className="grid gap-1.5"><label className="grid gap-1 text-xs font-black text-slate-600 dark:text-slate-300"><span>سعر البيع <span className="font-semibold text-slate-400">(اختياري)</span></span><input data-purchase-field type="number" min="0" step="0.01" value={line.salePrice} onKeyDown={onEnterNext} onChange={(e) => onPatch({ salePrice: e.target.value })} className="erp-input font-numeric" /></label>{line.mode === "existing" && !line.matchReviewRequired && <label className="flex items-start gap-1.5 text-[9px] font-bold text-slate-500 dark:text-slate-400"><input className="mt-0.5" type="checkbox" checked={line.updateSalePrice} onChange={(event) => onPatch({ updateSalePrice: event.target.checked })} /><span>تحديث سعر بيع الصنف عند الاعتماد</span></label>}</div>
       <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900"><div className="text-[10px] font-bold text-slate-400">إجمالي السطر</div><div className="mt-1 font-numeric text-sm font-black text-slate-900 dark:text-slate-100">{money(total, currency)}</div></div>
     </div>
+    {line.mode === "new" && !line.matchReviewRequired ? <PurchasePhoneFields name={line.newItemName} value={line.deviceDetails} onChange={(deviceDetails) => onPatch({ deviceDetails, ...(deviceDetails.isDevice ? { quantity: "1", compatibilityReviewNeeded: false, compatibilitySelections: [] } : {}) })} /> : null}
     {line.existingItem?.isDevice ? <div className="mt-3 rounded-xl bg-teal-50 px-3 py-2 text-xs font-bold text-teal-800 dark:bg-teal-950 dark:text-teal-200">جهاز مستقل: {line.existingItem.deviceModel} • {line.existingItem.storageCapacity} • كمية واحدة فقط. بيانات الجهاز وطباعة الليبل متاحة من المخزون.</div> : null}
     {!isBlank && !line.matchReviewRequired ? <label className="mt-3 grid max-w-xs gap-1.5 text-xs font-black text-slate-600 dark:text-slate-300"><span>هدية</span><select data-purchase-field className="erp-input" value={String(line.giftAllowed ?? line.existingItem?.giftAllowed ?? false)} onChange={(event) => onPatch({ giftAllowed: event.target.value === "true" })}><option value="false">لا يسمح</option><option value="true">يسمح</option></select><span className="text-[10px] font-semibold text-slate-400">يُحفظ السماح بتقديم الصنف كهدية عند اعتماد الفاتورة.</span></label> : null}
     {showManualExtraAllocation && !isBlank && <label className="mt-3 grid max-w-xs gap-1 text-[10px] font-black text-amber-800 dark:text-amber-200">توزيع الشحن/مصاريف الشراء على هذا البند<input type="number" min="0" step="0.01" value={line.manualExtraCostAllocation} onChange={(e) => onPatch({ manualExtraCostAllocation: e.target.value })} className="erp-input h-9 font-numeric" /><span className="font-semibold text-amber-600 dark:text-amber-300">مطلوب لأن أساس التوزيع النسبي يساوي صفراً.</span></label>}

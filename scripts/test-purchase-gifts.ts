@@ -12,6 +12,7 @@ import { createInventoryItem, addStock, adjustStock, updateInventoryGiftPolicy, 
 import { normalizeDeviceDetails } from "../lib/inventory-device";
 import { makeDeviceLabel } from "../lib/device-label";
 import { ensureInventoryLabelBarcode } from "../lib/services/inventoryDeviceService";
+import { isLowStock, inventoryStockLabel } from "../lib/inventory-stock";
 import { saveDraft, postPurchaseInvoice, lookupInventoryByIdentifier, type PurchaseDraftLineInput } from "../lib/services/purchaseReceivingService";
 
 type Row = Record<string, unknown>;
@@ -169,6 +170,19 @@ async function main() {
     const phone = (await pg.query('SELECT * FROM "InventoryItem" WHERE name=$1', ["Phone 1"])).rows[0];
     assert.equal(phone.isDevice, true); assert.equal(phone.quantity, 0);
     assert.equal(phone.storageCapacity, "256 GB"); assert.match(String(phone.barcode), /^20\d{10}$/);
+    assert.equal(phone.deviceModel, "Phone 1", "purchase name supplies the model");
+    assert.equal(isLowStock(Number(phone.quantity), 5, Boolean(phone.isDevice)), false);
+    const newPhoneDraft = await draft([{ newItemName: "Galaxy S26", quantity: 1, unitCost: "200", salePrice: "250", deviceDetails: { ...deviceDetails, deviceCondition: "NEW", deviceIdentifier: "NEW-PHONE-0001", batteryHealth: 87, deviceColor: "أزرق", deviceNotes: "علبة مغلقة" } }]);
+    await post(newPhoneDraft.id);
+    const newPhone = (await pg.query('SELECT * FROM "InventoryItem" WHERE name=$1', ["Galaxy S26"])).rows[0];
+    assert.equal(newPhone.deviceCondition, "NEW"); assert.equal(newPhone.batteryHealth, null);
+    assert.equal(newPhone.deviceModel, "Galaxy S26"); assert.equal(newPhone.deviceColor, "أزرق");
+    assert.equal(newPhone.deviceNotes, "علبة مغلقة"); assert.match(String(newPhone.barcode), /^20\d{10}$/);
+    assert.equal(isLowStock(1, 5, true), false); assert.equal(isLowStock(0, 5, true), false);
+    assert.equal(inventoryStockLabel(0, 5, true), "غير متوفر");
+    assert.equal(isLowStock(1, 5, false), true); assert.equal(isLowStock(10, 5, false), false);
+    await assert.rejects(() => draft([{ newItemName: "Two new phones", quantity: 2, unitCost: "200", deviceDetails: { ...deviceDetails, deviceCondition: "NEW", deviceIdentifier: null } }]), /كمية واحدة/);
+    console.log("PASS manual receipt phone metadata: name, NEW without battery, color/notes/barcode, single quantity, phone low-stock exemption and ordinary low-stock retained.");
     const label = makeDeviceLabel({ ...normalizeDeviceDetails(phone), barcode: String(phone.barcode), unitPrice: { toString: () => "120" } }, "Test Shop", "SAR");
     assert.equal(label.batteryHealth, 87); assert.equal(label.condition, "مستعمل");
     assert.ok(label.barcodeDataUrl.startsWith("data:image/svg+xml;base64,"));

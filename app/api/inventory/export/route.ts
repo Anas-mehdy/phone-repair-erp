@@ -1,3 +1,4 @@
+import { inventoryStockLabel } from "@/lib/inventory-stock";
 import { AuthenticationError, AuthorizationError, requirePermission } from "@/lib/auth/context";
 import { prisma } from "@/lib/prisma";
 import { timeZoneForCountry } from "@/lib/timezone";
@@ -52,6 +53,7 @@ export async function GET() {
         category: true,
         description: true,
         quantity: true,
+        isDevice: true,
         reorderLevel: true,
         unitCost: true,
         unitPrice: true,
@@ -113,7 +115,7 @@ export async function GET() {
       const unitPrice = Number(item.unitPrice);
       const stockCostValue = unitCost === null ? null : unitCost * item.quantity;
       const stockSaleValue = unitPrice * item.quantity;
-      const stockStatus = item.quantity <= item.reorderLevel ? "مخزون منخفض" : "متوفر";
+      const stockStatus = inventoryStockLabel(item.quantity, item.reorderLevel, item.isDevice);
       const compatibleModels = [
         ...new Set(
           item.compatibilityGroupLinks.flatMap((link) =>

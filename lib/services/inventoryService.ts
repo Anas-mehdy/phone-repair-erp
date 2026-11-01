@@ -1,3 +1,4 @@
+import { isLowStock } from "@/lib/inventory-stock";
 import {
   CompatibilityCandidateStatus,
   CompatibilityImportStatus,
@@ -93,6 +94,7 @@ export async function listInventoryItems(
     where: {
       shopId,
       deletedAt: null,
+      ...(filters.lowStockOnly ? { isDevice: false } : {}),
       ...(scopedIds ? { id: { in: scopedIds } } : {}),
       ...(search
         ? {
@@ -115,7 +117,7 @@ export async function listInventoryItems(
   });
 
   return filters.lowStockOnly
-    ? items.filter((item) => item.quantity <= item.reorderLevel)
+    ? items.filter((item) => isLowStock(item.quantity, item.reorderLevel, item.isDevice))
     : items;
 }
 

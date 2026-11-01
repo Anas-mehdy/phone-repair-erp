@@ -1,3 +1,4 @@
+import { inventoryStockLabel } from "@/lib/inventory-stock";
 import { Download, Eye, FolderOpen, PackagePlus, Pencil, Plus, ReceiptText, Search, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -41,7 +42,7 @@ function inventoryHref(input: { categoryId?: string; uncategorized?: boolean }) 
 export default async function InventoryPage({ searchParams }: InventoryPageProps) {
   const params = await searchParams;
   const search = params.search ?? "";
-  const lowStockOnly = params.lowStockOnly === "on";
+  const lowStockOnly = ["on", "true"].includes(params.lowStockOnly ?? "");
   const uncategorizedOnly = params.uncategorized === "1";
   const categoryId = uncategorizedOnly ? undefined : params.categoryId;
 
@@ -112,10 +113,10 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
           <SmartEmptyState job="INVENTORY" icon={PackagePlus} title="لا توجد منتجات ضمن هذا العرض" description="جرّب تصنيفاً آخر أو أضف أول قطعة لهذا التصنيف." actionHref={categoryId ? `/inventory/new?categoryId=${categoryId}` : "/inventory/new"} actionLabel="إضافة قطعة جديدة" />
         ) : (
           <div className="overflow-x-auto"><table className="erp-table min-w-[1080px]"><thead><tr><th>الاسم</th><th>التصنيف</th><th>الباركود</th><th>SKU</th><th className="text-center">الكمية</th><th className="text-center">حد الطلب</th><th>تكلفة الشراء</th><th>سعر البيع</th><th>الحالة</th><th>آخر تحديث</th><th className="w-64 text-center">الإجراءات</th></tr></thead><tbody>{items.map((item) => {
-            const lowStock = isLowStock(item.quantity, item.reorderLevel);
+            const lowStock = isLowStock(item.quantity, item.reorderLevel, item.isDevice);
             return <tr key={item.id} className={cn("align-middle", lowStock ? "bg-rose-50/40 hover:bg-rose-50/60" : "")}>
               <td className="font-black text-slate-900">{item.name}{item._count.compatibilityGroupLinks > 0 && <div className="mt-1 inline-flex rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[9px] font-black text-violet-700">مرتبط بالتوافقات</div>}</td>
-              <td className="font-semibold text-slate-600">{item.category ?? "غير مصنف"}</td><td className="font-numeric font-medium text-slate-600" dir="ltr">{item.barcode ?? "-"}</td><td className="font-numeric font-medium text-slate-600" dir="ltr">{item.sku ?? "-"}</td><td className={cn("text-center font-numeric text-base font-black", lowStock ? "text-rose-700" : "text-slate-900")}>{item.quantity}</td><td className="text-center font-numeric font-bold text-slate-600">{item.reorderLevel}</td><td className="font-numeric font-medium text-slate-700">{formatMoney(item.unitCost, currency)}</td><td className="font-numeric font-black text-slate-900">{formatMoney(item.unitPrice, currency)}</td><td><PlainBadge tone={lowStock ? "red" : "green"} label={lowStock ? "مخزون منخفض" : "متوفر"} /></td><td className="font-numeric font-medium text-slate-600">{formatDate(item.updatedAt, timeZone)}</td>
+              <td className="font-semibold text-slate-600">{item.category ?? "غير مصنف"}</td><td className="font-numeric font-medium text-slate-600" dir="ltr">{item.barcode ?? "-"}</td><td className="font-numeric font-medium text-slate-600" dir="ltr">{item.sku ?? "-"}</td><td className={cn("text-center font-numeric text-base font-black", lowStock ? "text-rose-700" : "text-slate-900")}>{item.quantity}</td><td className="text-center font-numeric font-bold text-slate-600">{item.reorderLevel}</td><td className="font-numeric font-medium text-slate-700">{formatMoney(item.unitCost, currency)}</td><td className="font-numeric font-black text-slate-900">{formatMoney(item.unitPrice, currency)}</td><td><PlainBadge tone={lowStock ? "red" : "green"} label={inventoryStockLabel(item.quantity, item.reorderLevel, item.isDevice)} /></td><td className="font-numeric font-medium text-slate-600">{formatDate(item.updatedAt, timeZone)}</td>
               <td><div className="flex items-center justify-center gap-1.5"><Button asChild variant="outline" size="sm" title="عرض" className="rounded-lg border-slate-300 font-bold shadow-xs hover:border-primary/30 hover:bg-primary/10 hover:text-primary"><Link href={`/inventory/${item.id}`}><Eye className="h-3.5 w-3.5" /></Link></Button>{canManage && <Button asChild variant="outline" size="sm" className="font-bold text-indigo-700"><Link href={`/inventory/${item.id}#edit-inventory`}><Pencil className="ml-1 h-3.5 w-3.5" />تعديل</Link></Button>}{canManage && <form action={deleteInventoryItemAction}><input type="hidden" name="inventoryItemId" value={item.id} /><ConfirmSubmitButton type="submit" variant="outline" size="sm" className="border-rose-200 font-bold text-rose-700 hover:bg-rose-50" message={`هل تريد حذف ${item.name} من المخزون؟ ستبقى حركاته القديمة محفوظة.`}><Trash2 className="ml-1 h-3.5 w-3.5" />حذف</ConfirmSubmitButton></form>}</div></td>
             </tr>;
           })}</tbody></table></div>

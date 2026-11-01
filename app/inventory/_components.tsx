@@ -40,6 +40,4 @@ export function getMovementTypeLabel(type: InventoryMovementType) {
   return inventoryMovementTypeLabels[type];
 }
 
-export function isLowStock(quantity: number, reorderLevel: number) {
-  return quantity <= reorderLevel;
-}
+export { isLowStock } from "@/lib/inventory-stock";

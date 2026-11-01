@@ -1,3 +1,4 @@
+import { isLowStock } from "@/lib/inventory-stock";
 import { InvoiceStatus, RepairStatus, SaleStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { softwareServiceService } from "@/lib/services/softwareServiceService";
@@ -15,7 +16,7 @@ export async function getDashboardMetrics(shopId: string) {
     prisma.sale.aggregate({ where: { shopId, deletedAt: null, status: SaleStatus.COMPLETED, soldAt: { gte: startOfToday, lt: startOfTomorrow } }, _sum: { total: true } }),
     softwareServiceService.getFinancialRows(shopId, startOfToday, startOfTomorrow).catch(() => []),
     prisma.invoice.aggregate({ where: { shopId, deletedAt: null, status: { in: [InvoiceStatus.UNPAID, InvoiceStatus.PARTIALLY_PAID] } }, _count: { id: true }, _sum: { balanceDue: true } }),
-    prisma.inventoryItem.findMany({ where: { shopId, deletedAt: null }, select: { quantity: true, reorderLevel: true } }),
+    prisma.inventoryItem.findMany({ where: { shopId, deletedAt: null }, select: { quantity: true, reorderLevel: true, isDevice: true } }),
     prisma.$queryRaw<Array<{ totalOutstanding: Prisma.Decimal | number | string }>>`
       WITH balances AS (
         SELECT a."customerId", COALESCE(SUM(CASE WHEN e."isReversed" THEN 0 WHEN e."type" IN ('DEBT','OPENING_BALANCE','ADJUSTMENT_DEBIT') THEN e."amount" WHEN e."type" IN ('PAYMENT','ADJUSTMENT_CREDIT') THEN -e."amount" ELSE 0 END), 0) AS balance
@@ -35,7 +36,7 @@ export async function getDashboardMetrics(shopId: string) {
     unpaidInvoicesCount: unpaidInvoicesAggregate._count.id ?? 0,
     unpaidBalanceTotal: unpaidInvoicesAggregate._sum.balanceDue ?? 0,
     totalDebtOutstanding: Number(debtRows[0]?.totalOutstanding ?? 0),
-    lowStockItemsCount: inventoryItems.filter((item) => item.quantity <= item.reorderLevel).length,
+    lowStockItemsCount: inventoryItems.filter((item) => isLowStock(item.quantity, item.reorderLevel, item.isDevice)).length,
   };
 }
 

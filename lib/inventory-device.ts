@@ -54,3 +54,11 @@ export function normalizeDeviceBarcode(raw?: string | null) {
   if (barcode && !/^[\x21-\x7e]{1,24}$/.test(barcode)) throw new Error("باركود الجهاز يجب أن يكون من 1 إلى 24 حرفاً أو رقماً بالإنكليزية وبدون فراغات، ليُطبع ويُقرأ بوضوح.");
   return barcode;
 }
+
+/** Purchase rows use their name as model; new phones never carry battery health. */
+export function normalizePurchaseDeviceDetails(name: string | null | undefined, raw?: unknown): DeviceDetails {
+  if (raw && typeof raw === "object" && "isDevice" in raw && raw.isDevice === true) {
+    return normalizeDeviceDetails({ ...raw, deviceModel: name, ...("deviceCondition" in raw && raw.deviceCondition === "NEW" ? { batteryHealth: null } : {}) });
+  }
+  return normalizeDeviceDetails(raw);
+}
