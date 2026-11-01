@@ -38,6 +38,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
             <p className="mt-1 text-[10px] font-bold text-slate-400">من {formatDate(range.start, timeZone)} إلى {formatDate(rangeLastInstant, timeZone)}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <Button asChild size="sm" variant="outline" className="rounded-xl text-xs font-bold"><Link href={`/reports/print?${query}`} target="_blank" rel="noopener"><Printer className="ml-1.5 h-4 w-4" />{range.preset === "today" ? "PDF الجرد اليومي" : "PDF الجرد"}</Link></Button>
             <details className="group relative">
               <summary className="inline-flex h-9 cursor-pointer list-none items-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900">
                 <Download className="ml-1.5 h-4 w-4" />تصدير الجرد
