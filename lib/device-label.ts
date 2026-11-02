@@ -9,8 +9,10 @@ import {
 export type DeviceLabelData = {
   model: string;
   condition: string;
+  conditionCode: DeviceDetails["deviceCondition"];
   storage: string;
   batteryHealth: number | null;
+  batteryCycles: number | null;
   barcode: string;
   barcodeDataUrl: string;
   minimumBarcodeWidthMm: number;
@@ -53,8 +55,10 @@ export function makeDeviceLabel(
   return {
     model: (device.isDevice ? device.deviceModel : item.name)?.trim() || "صنف مخزون",
     condition: device.deviceCondition ? DEVICE_CONDITIONS[device.deviceCondition] : "",
+    conditionCode: device.deviceCondition,
     storage: device.storageCapacity ?? "",
     batteryHealth: device.batteryHealth,
+    batteryCycles: device.batteryCycles ?? null,
     barcode,
     barcodeDataUrl: `data:image/svg+xml;base64,${Buffer.from(printableSvg).toString("base64")}`,
     minimumBarcodeWidthMm: (svgWidth / 2) * 0.25,

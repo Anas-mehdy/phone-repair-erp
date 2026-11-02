@@ -8,18 +8,20 @@ export type DeviceDetails = {
   deviceModel: string | null;
   deviceCondition: keyof typeof DEVICE_CONDITIONS | null;
   batteryHealth: number | null;
+  batteryCycles?: number | null;
   storageCapacity: string | null;
   deviceIdentifier: string | null;
   deviceColor?: string | null;
   deviceNotes?: string | null;
 };
-export const EMPTY_DEVICE_DETAILS: DeviceDetails = { isDevice: false, deviceModel: null, deviceCondition: null, batteryHealth: null, storageCapacity: null, deviceIdentifier: null, deviceColor: null, deviceNotes: null };
+export const EMPTY_DEVICE_DETAILS: DeviceDetails = { isDevice: false, deviceModel: null, deviceCondition: null, batteryHealth: null, batteryCycles: null, storageCapacity: null, deviceIdentifier: null, deviceColor: null, deviceNotes: null };
 const nullableText = z.string().trim().transform((value) => value || null).nullable().optional();
 export const deviceInputSchema = z.object({
   isDevice: z.boolean(),
   deviceModel: nullableText,
   deviceCondition: z.enum(["NEW", "USED", "REFURBISHED"]).nullable().optional(),
   batteryHealth: z.number().int("صحة البطارية يجب أن تكون رقماً صحيحاً.").min(0, "صحة البطارية من 0 إلى 100 بالمئة.").max(100, "صحة البطارية من 0 إلى 100 بالمئة.").nullable().optional(),
+  batteryCycles: z.number().int("عدد دورات الشحن يجب أن يكون عدداً صحيحاً.").min(0, "عدد دورات الشحن لا يمكن أن يكون سالباً.").max(2147483647, "عدد دورات الشحن أكبر من الحد المسموح.").nullable().optional(),
   storageCapacity: nullableText,
   deviceIdentifier: nullableText,
   deviceColor: z.string().trim().max(60, "اللون يجب ألا يتجاوز 60 حرفاً.").nullable().optional(),
@@ -36,7 +38,7 @@ export function normalizeDeviceDetails(raw?: unknown): DeviceDetails {
   if (!parsed.deviceCondition) throw new Error("اختر حالة الجهاز: جديد أو مستعمل أو مجدد.");
   if (!/^\d{1,5}(?:\.\d{1,2})?\s?(?:GB|TB)$/.test(storageCapacity) || Number.parseFloat(storageCapacity) <= 0) throw new Error("أدخل سعة الجهاز مثل 256 GB أو 1 TB.");
   if (deviceIdentifier && !/^[A-Z0-9-]{4,40}$/.test(deviceIdentifier)) throw new Error("رقم IMEI / Serial يجب أن يحتوي من 4 إلى 40 حرفاً أو رقماً بالإنكليزية.");
-  return { isDevice: true, deviceModel, deviceCondition: parsed.deviceCondition, batteryHealth: parsed.batteryHealth ?? null, storageCapacity, deviceIdentifier, deviceColor: parsed.deviceColor || null, deviceNotes: parsed.deviceNotes || null };
+  return { isDevice: true, deviceModel, deviceCondition: parsed.deviceCondition, batteryHealth: parsed.batteryHealth ?? null, batteryCycles: parsed.deviceCondition === "NEW" ? null : parsed.batteryCycles ?? null, storageCapacity, deviceIdentifier, deviceColor: parsed.deviceColor || null, deviceNotes: parsed.deviceNotes || null };
 }
 
 /** The manual used-phone flow uses the inventory name as its model. */
@@ -58,7 +60,7 @@ export function normalizeDeviceBarcode(raw?: string | null) {
 /** Purchase rows use their name as model; new phones never carry battery health. */
 export function normalizePurchaseDeviceDetails(name: string | null | undefined, raw?: unknown): DeviceDetails {
   if (raw && typeof raw === "object" && "isDevice" in raw && raw.isDevice === true) {
-    return normalizeDeviceDetails({ ...raw, deviceModel: name, ...("deviceCondition" in raw && raw.deviceCondition === "NEW" ? { batteryHealth: null } : {}) });
+    return normalizeDeviceDetails({ ...raw, deviceModel: name, ...("deviceCondition" in raw && raw.deviceCondition === "NEW" ? { batteryHealth: null, batteryCycles: null } : {}) });
   }
   return normalizeDeviceDetails(raw);
 }

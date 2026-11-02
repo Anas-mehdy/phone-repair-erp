@@ -958,6 +958,7 @@ model InventoryItem {
   deviceModel       String?   @db.VarChar(80)
   deviceCondition   String?   @db.VarChar(16)
   batteryHealth     Int?
+  batteryCycles     Int?
   storageCapacity   String?   @db.VarChar(24)
   deviceIdentifier  String?   @db.VarChar(40)
   deviceColor       String?   @db.VarChar(60)

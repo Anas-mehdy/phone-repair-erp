@@ -21,12 +21,13 @@ export function InventoryNameAndPhoneFields({ defaultName = "" }: { defaultName?
   const { used, setUsed } = usePhone();
   const [name, setName] = useState(defaultName);
   const [battery, setBattery] = useState("");
+  const [cycles, setCycles] = useState("");
   const [storage, setStorage] = useState("");
   const [color, setColor] = useState("");
   const [identifier, setIdentifier] = useState("");
   const [notes, setNotes] = useState("");
   const panelId = useId();
-  const details = used ? { isDevice: true, deviceModel: name, deviceCondition: "USED", batteryHealth: battery === "" ? null : Number(battery), storageCapacity: storage, deviceIdentifier: identifier || null, deviceColor: color || null, deviceNotes: notes || null } : EMPTY_DEVICE_DETAILS;
+  const details = used ? { isDevice: true, deviceModel: name, deviceCondition: "USED", batteryHealth: battery === "" ? null : Number(battery), batteryCycles: cycles === "" ? null : Number(cycles), storageCapacity: storage, deviceIdentifier: identifier || null, deviceColor: color || null, deviceNotes: notes || null } : EMPTY_DEVICE_DETAILS;
 
   return <div className="space-y-3">
     <Field label="اسم القطعة"><input className={inputClassName} name="name" required maxLength={used ? 80 : undefined} placeholder={used ? "مثال: iPhone 13 Pro" : "مثال: شاشة آيفون 11 برو الأصلية"} value={name} onChange={(event) => setName(event.target.value)} /></Field>
@@ -36,13 +37,14 @@ export function InventoryNameAndPhoneFields({ defaultName = "" }: { defaultName?
       {used ? <div id={panelId} className="mt-4 space-y-4">
         <p className="text-xs leading-6 text-slate-600 dark:text-slate-400">اكتب اسم الهاتف وموديله في اسم القطعة أعلاه. لكل هاتف سجل مستقل بكمية واحدة.</p>
         <div className="grid gap-4 sm:grid-cols-2">
-          <label className="grid gap-1.5 text-xs font-bold"><span>السعة *</span><select dir="ltr" aria-label="السعة" className={inputClassName} required value={storage} onChange={(event) => setStorage(event.target.value)}><option value="">اختر السعة</option>{PHONE_STORAGE_OPTIONS.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
-          <label className="grid gap-1.5 text-xs font-bold"><span>صحة البطارية % (اختياري)</span><input className={inputClassName} type="number" min="0" max="100" step="1" inputMode="numeric" value={battery} placeholder="غير مقاسة" onChange={(event) => setBattery(event.target.value)} /></label>
-          <label className="grid gap-1.5 text-xs font-bold"><span>اللون (اختياري)</span><input className={inputClassName} maxLength={60} value={color} placeholder="مثال: أسود" onChange={(event) => setColor(event.target.value)} /></label>
-          <label className="grid gap-1.5 text-xs font-bold"><span>IMEI / الرقم التسلسلي (اختياري)</span><input className={inputClassName} maxLength={40} dir="ltr" value={identifier} onChange={(event) => setIdentifier(event.target.value)} /></label>
+          <label className="grid gap-1.5 text-xs font-bold"><span>السعة — Storage *</span><select dir="ltr" aria-label="السعة" className={inputClassName} required value={storage} onChange={(event) => setStorage(event.target.value)}><option value="">اختر السعة</option>{PHONE_STORAGE_OPTIONS.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
+          <label className="grid gap-1.5 text-xs font-bold"><span>صحة البطارية — Battery health % (اختياري)</span><input className={inputClassName} type="number" min="0" max="100" step="1" inputMode="numeric" value={battery} placeholder="غير مقاسة" onChange={(event) => setBattery(event.target.value)} /></label>
+          <label className="grid gap-1.5 text-xs font-bold"><span>عدد دورات الشحن — Battery cycles (اختياري)</span><input className={inputClassName} type="number" min="0" max="2147483647" step="1" inputMode="numeric" value={cycles} placeholder="غير معروف" onChange={(event) => setCycles(event.target.value)} /></label>
+          <label className="grid gap-1.5 text-xs font-bold"><span>اللون — Color (اختياري)</span><input className={inputClassName} maxLength={60} value={color} placeholder="مثال: أسود" onChange={(event) => setColor(event.target.value)} /></label>
+          <label className="grid gap-1.5 text-xs font-bold"><span>الرقم التسلسلي — IMEI / Serial (اختياري)</span><input className={inputClassName} maxLength={40} dir="ltr" value={identifier} onChange={(event) => setIdentifier(event.target.value)} /></label>
         </div>
-        <label className="grid gap-1.5 text-xs font-bold"><span>ملاحظات الحالة (اختياري)</span><textarea className={textareaClassName} maxLength={2000} rows={3} value={notes} placeholder="الخدوش، القطع المستبدلة، الملحقات المتوفرة..." onChange={(event) => setNotes(event.target.value)} /></label>
-        <p className="text-[11px] leading-5 text-slate-500">السعة وصحة البطارية تظهران على الليبل. الرقم التسلسلي وملاحظات الحالة تبقى داخل النظام.</p>
+        <label className="grid gap-1.5 text-xs font-bold"><span>ملاحظات الحالة — Condition notes (اختياري)</span><textarea className={textareaClassName} maxLength={2000} rows={3} value={notes} placeholder="الخدوش، القطع المستبدلة، الملحقات المتوفرة..." onChange={(event) => setNotes(event.target.value)} /></label>
+        <p className="text-[11px] leading-5 text-slate-500">السعة وصحة البطارية وعدد دورات الشحن تظهر على الليبل. الرقم التسلسلي وملاحظات الحالة تبقى داخل النظام.</p>
       </div> : null}
     </div>
   </div>;

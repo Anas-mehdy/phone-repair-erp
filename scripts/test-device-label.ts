@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
-import { normalizeDeviceDetails, normalizeInventoryDeviceDetails, normalizeDeviceBarcode, assertDeviceQuantity, EMPTY_DEVICE_DETAILS } from "../lib/inventory-device";
+import { normalizeDeviceDetails, normalizeInventoryDeviceDetails, normalizeDeviceBarcode, normalizePurchaseDeviceDetails, assertDeviceQuantity, EMPTY_DEVICE_DETAILS } from "../lib/inventory-device";
+import { deviceLabelText } from "../lib/device-label-text";
 import { makeDeviceLabel } from "../lib/device-label";
 import { inventoryDeviceSummary } from "../lib/device-summary";
 
-const raw = { isDevice: true, deviceModel: "  iPhone 17 Pro Max  ", deviceCondition: "USED", batteryHealth: 70, storageCapacity: "256 gb", deviceIdentifier: " 123456789012345 " };
+const raw = { isDevice: true, deviceModel: "  iPhone 17 Pro Max  ", deviceCondition: "USED", batteryHealth: 70, batteryCycles: 412, storageCapacity: "256 gb", deviceIdentifier: " 123456789012345 " };
 const device = normalizeDeviceDetails(raw);
 const usedPhone = normalizeInventoryDeviceDetails("iPhone 13 Pro", { ...raw, deviceModel: "ignored client model", deviceColor: " أسود ", deviceNotes: " خدش بسيط على الإطار " });
 assert.equal(usedPhone.deviceModel, "iPhone 13 Pro");
@@ -47,6 +48,15 @@ assert.equal(makeDeviceLabel({ ...device, barcode: "201234567890", unitPrice: { 
 assert.equal(label.price, "9300");
 assert.ok(label.minimumBarcodeWidthMm < 46);
 assert.equal(label.batteryHealth, 70);
+assert.equal(label.batteryCycles, 412);
+assert.equal(deviceLabelText(label, "en").condition, "Used");
+assert.equal(deviceLabelText(label, "ar").condition, "مستعمل");
+assert.equal(normalizeDeviceDetails({ ...raw, batteryCycles: 0 }).batteryCycles, 0);
+assert.equal(normalizeDeviceDetails({ ...raw, batteryCycles: null }).batteryCycles, null);
+assert.equal(normalizeDeviceDetails({ ...raw, batteryCycles: undefined }).batteryCycles, null);
+assert.equal(normalizePurchaseDeviceDetails("Phone", { ...raw, deviceCondition: "NEW" }).batteryCycles, null);
+for (const invalid of [-1, 1.5, 2147483648, Infinity, NaN, "50"]) assert.throws(() => normalizeDeviceDetails({ ...raw, batteryCycles: invalid }));
+assert.equal(deviceLabelText(ordinary, "en").condition, "");
 assert.ok(!JSON.stringify(label).includes("123456789012345"));
 assert.ok(Buffer.from(label.barcodeDataUrl.split(",")[1], "base64").toString().includes('preserveAspectRatio="none"'));
 assert.ok(inventoryDeviceSummary(device)?.includes("Battery 70%"));

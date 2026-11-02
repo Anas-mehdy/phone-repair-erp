@@ -12,6 +12,7 @@ import Link from "next/link";
 import { ArrowRight, Check, Printer, ScanBarcode, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { DeviceLabelData } from "@/lib/device-label";
+import { deviceLabelText, type LabelLanguage } from "@/lib/device-label-text";
 
 // Keep the barcode encoder in the server bundle. This small client handles only
 // preview and printing; it never fetches device data or sends it to a third party.
@@ -70,15 +71,18 @@ export function DeviceLabelCard({
   data,
   showPrice,
   size,
+  language = "ar",
   textScale = 1,
 }: {
   data: DeviceLabelData;
   showPrice: boolean;
   size: SizeKey;
+  language?: LabelLanguage;
   textScale?: number;
 }) {
   const dimensions = PRINT_SIZES[size];
   const layout = LABEL_LAYOUTS[size];
+  const text = deviceLabelText(data, language);
   const font = (points: number) =>
     `calc(${points}pt * var(--label-text-scale, 1))`;
   const priceVisible = showPrice && data.priceConfigured;
@@ -94,11 +98,11 @@ export function DeviceLabelCard({
     display: "flex",
     flexDirection: "column",
     overflow: "hidden",
-    direction: "rtl",
+    direction: language === "en" ? "ltr" : "rtl",
     lineHeight: 1.13,
   } as CSSProperties;
   return (
-    <article className="device-label-card" style={style}>
+    <article className="device-label-card" lang={language} style={style}>
       <div
         className="device-label-details"
         style={{
@@ -151,12 +155,12 @@ export function DeviceLabelCard({
             fontWeight: 800,
           }}
         >
-          <span className="device-label-condition" lang="ar" dir="rtl">
-            {data.condition}
+          <span className="device-label-condition">
+            {text.condition}
           </span>
-          <span dir="ltr">{data.storage}</span>
+          {data.storage ? <span className="device-label-storage">{text.storage}: <bdi dir="ltr">{data.storage}</bdi></span> : null}
         </div> : null}
-        {priceVisible || data.batteryHealth !== null ? (
+        {priceVisible || data.batteryHealth !== null || data.batteryCycles != null ? (
           <div
             style={{
               display: "flex",
@@ -171,7 +175,12 @@ export function DeviceLabelCard({
                 className="device-label-battery"
                 style={{ fontSize: font(layout.battery), fontWeight: 700 }}
               >
-                صحة البطارية: <strong dir="ltr">{data.batteryHealth}%</strong>
+                {text.batteryHealth}: <strong dir="ltr">{data.batteryHealth}%</strong>
+              </div>
+            ) : null}
+            {data.batteryCycles != null ? (
+              <div className="device-label-cycles" style={{ fontSize: font(layout.battery), fontWeight: 700 }}>
+                {text.batteryCycles}: <strong dir="ltr">{data.batteryCycles}</strong>
               </div>
             ) : null}
             {priceVisible ? (
@@ -204,7 +213,7 @@ export function DeviceLabelCard({
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={data.barcodeDataUrl}
-          alt={`باركود ${data.barcode}`}
+          alt={`${text.barcode} ${data.barcode}`}
           style={{
             display: "block",
             width: "100%",
@@ -237,6 +246,7 @@ export function DeviceLabelStudio({
 }) {
   const [size, setSize] = useState<SizeKey>("60x40");
   const [showPrice, setShowPrice] = useState(data.priceConfigured);
+  const [language, setLanguage] = useState<LabelLanguage>("ar");
   const [copies, setCopies] = useState("1");
   const [ready, setReady] = useState(false);
   const [fit, setFit] = useState(true);
@@ -297,7 +307,7 @@ export function DeviceLabelStudio({
       active = false;
       observer.disconnect();
     };
-  }, [size, showPrice, data]);
+  }, [size, showPrice, language, data]);
   async function print() {
     if (!validCount || !fit || !barcodeFits || !ready) return;
     setPrintError(null);
@@ -376,6 +386,7 @@ export function DeviceLabelStudio({
                 data={data}
                 showPrice={showPrice}
                 size={size}
+                language={language}
                 textScale={textScale}
               />
             </div>
@@ -406,6 +417,14 @@ export function DeviceLabelStudio({
               ))}
             </select>
           </label>
+          <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-slate-200 p-3 text-sm font-bold dark:border-slate-700">
+            <span>لغة الليبل — {language === "en" ? "English" : "العربية"}</span>
+            <span className="relative shrink-0" dir="ltr">
+              <input type="checkbox" role="switch" aria-label="عرض معلومات الليبل بالإنجليزية" checked={language === "en"} onChange={(event) => setLanguage(event.target.checked ? "en" : "ar")} className="peer sr-only" />
+              <span aria-hidden="true" className="block h-6 w-11 rounded-full bg-slate-300 transition peer-checked:bg-teal-600 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-teal-600 after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:after:translate-x-5" />
+            </span>
+          </label>
+          <p className="text-xs leading-6 text-slate-500">تبديل العربية والإنجليزية يغيّر تسميات المواصفات والحالة فقط. اسم المحل والصنف يبقيان كما أدخلتهما.</p>
           <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-slate-200 p-3 text-sm font-bold dark:border-slate-700">
             <span>إظهار سعر البيع</span>
             <input
@@ -495,6 +514,7 @@ export function DeviceLabelStudio({
                   data={data}
                   showPrice={showPrice}
                   size={size}
+                  language={language}
                   textScale={textScale}
                 />
               ))}

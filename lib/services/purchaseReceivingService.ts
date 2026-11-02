@@ -515,7 +515,7 @@ export async function searchInventory(shopId: string, query: string): Promise<Pu
   const q = query.trim();
   if (!q) return [];
   const rows = await prisma.$queryRaw<BaseInventoryRow[]>(Prisma.sql`
-    SELECT i."id", i."name", i."sku", i."barcode", i."category", i."description", i."quantity", i."unitCost", i."unitPrice", i."giftAllowed", i."isDevice", i."deviceModel", i."deviceCondition", i."batteryHealth", i."storageCapacity", i."deviceIdentifier",
+    SELECT i."id", i."name", i."sku", i."barcode", i."category", i."description", i."quantity", i."unitCost", i."unitPrice", i."giftAllowed", i."isDevice", i."deviceModel", i."deviceCondition", i."batteryHealth", i."batteryCycles", i."storageCapacity", i."deviceIdentifier",
       COUNT(icg."id")::int AS "compatibilityCount"
     FROM "InventoryItem" i
     LEFT JOIN "InventoryCompatibilityGroup" icg ON icg."inventoryItemId" = i."id"
@@ -537,7 +537,7 @@ async function exactIdentifierCandidates(shopId: string, code: string) {
   const normalized = code.trim().replace(/\s+/g, "");
   if (!normalized) return { barcode: [] as PurchaseInventorySearchItem[], sku: [] as PurchaseInventorySearchItem[] };
   const barcodeRows = await prisma.$queryRaw<BaseInventoryRow[]>(Prisma.sql`
-    SELECT i."id", i."name", i."sku", i."barcode", i."category", i."description", i."quantity", i."unitCost", i."unitPrice", i."giftAllowed", i."isDevice", i."deviceModel", i."deviceCondition", i."batteryHealth", i."storageCapacity", i."deviceIdentifier",
+    SELECT i."id", i."name", i."sku", i."barcode", i."category", i."description", i."quantity", i."unitCost", i."unitPrice", i."giftAllowed", i."isDevice", i."deviceModel", i."deviceCondition", i."batteryHealth", i."batteryCycles", i."storageCapacity", i."deviceIdentifier",
       COUNT(icg."id")::int AS "compatibilityCount"
     FROM "InventoryItem" i
     LEFT JOIN "InventoryCompatibilityGroup" icg ON icg."inventoryItemId" = i."id"
@@ -546,7 +546,7 @@ async function exactIdentifierCandidates(shopId: string, code: string) {
   `);
   if (barcodeRows.length) return { barcode: await enrichLastPurchase(shopId, barcodeRows), sku: [] as PurchaseInventorySearchItem[] };
   const skuRows = await prisma.$queryRaw<BaseInventoryRow[]>(Prisma.sql`
-    SELECT i."id", i."name", i."sku", i."barcode", i."category", i."description", i."quantity", i."unitCost", i."unitPrice", i."giftAllowed", i."isDevice", i."deviceModel", i."deviceCondition", i."batteryHealth", i."storageCapacity", i."deviceIdentifier",
+    SELECT i."id", i."name", i."sku", i."barcode", i."category", i."description", i."quantity", i."unitCost", i."unitPrice", i."giftAllowed", i."isDevice", i."deviceModel", i."deviceCondition", i."batteryHealth", i."batteryCycles", i."storageCapacity", i."deviceIdentifier",
       COUNT(icg."id")::int AS "compatibilityCount"
     FROM "InventoryItem" i
     LEFT JOIN "InventoryCompatibilityGroup" icg ON icg."inventoryItemId" = i."id"
@@ -569,7 +569,7 @@ export async function getInventoryItemsByIds(shopId: string, ids: string[]): Pro
   const uniqueIds = [...new Set(ids.filter(Boolean))].slice(0, 300);
   if (!uniqueIds.length) return [];
   const rows = await prisma.$queryRaw<BaseInventoryRow[]>(Prisma.sql`
-    SELECT i."id", i."name", i."sku", i."barcode", i."category", i."description", i."quantity", i."unitCost", i."unitPrice", i."giftAllowed", i."isDevice", i."deviceModel", i."deviceCondition", i."batteryHealth", i."storageCapacity", i."deviceIdentifier",
+    SELECT i."id", i."name", i."sku", i."barcode", i."category", i."description", i."quantity", i."unitCost", i."unitPrice", i."giftAllowed", i."isDevice", i."deviceModel", i."deviceCondition", i."batteryHealth", i."batteryCycles", i."storageCapacity", i."deviceIdentifier",
       COUNT(icg."id")::int AS "compatibilityCount"
     FROM "InventoryItem" i
     LEFT JOIN "InventoryCompatibilityGroup" icg ON icg."inventoryItemId" = i."id"
@@ -1674,7 +1674,7 @@ export async function getPurchaseInvoice(shopId: string, purchaseId: string): Pr
       i."quantity" AS "inventoryCurrentQuantity", hist."lastPurchaseCost", hist."lastPurchaseAt", hist."lastPurchaseSupplierName",
       pi."newItemName", pi."newItemSku", pi."newItemBarcode", pi."newItemCategoryId", pi."newItemCategory", pi."newItemDescription",
       pi."importedSourceText", pi."importSourceId", pi."importRowKey", pi."importedPurchaseUnit", pi."matchReviewRequired", pi."compatibilityGroupIds", pi."compatibilityReviewNeeded", pi."updateSalePrice", pi."giftAllowed", pi."deviceDetails", pi."salePriceBeforeSnapshot",
-      CASE WHEN i."id" IS NULL THEN NULL ELSE jsonb_build_object('isDevice', i."isDevice", 'deviceModel', i."deviceModel", 'deviceCondition', i."deviceCondition", 'batteryHealth', i."batteryHealth", 'storageCapacity', i."storageCapacity", 'deviceIdentifier', i."deviceIdentifier") END AS "inventoryDeviceDetails",
+      CASE WHEN i."id" IS NULL THEN NULL ELSE jsonb_build_object('isDevice', i."isDevice", 'deviceModel', i."deviceModel", 'deviceCondition', i."deviceCondition", 'batteryHealth', i."batteryHealth", 'batteryCycles', i."batteryCycles", 'deviceColor', i."deviceColor", 'deviceNotes', i."deviceNotes", 'storageCapacity', i."storageCapacity", 'deviceIdentifier', i."deviceIdentifier") END AS "inventoryDeviceDetails",
       pi."orderedQuantity", pi."receivedQuantity", COALESCE(pi."returnedQuantity", 0) AS "returnedQuantity",
       (pi."orderedQuantity" - pi."receivedQuantity")::int AS "remainingQuantity",
       LEAST(

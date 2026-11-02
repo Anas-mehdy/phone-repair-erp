@@ -34,7 +34,7 @@ async function main() {
   const supplier = "00000000-0000-4000-8000-000000000003";
   const item = "00000000-0000-4000-8000-000000000004";
   try {
-    const baseline = readFileSync("prisma/schema.prisma", "utf8").replace(/^\s+giftAllowed\s+.*\n/gm, "").replace(/^\s+isGift\s+.*\n/gm, "").replace(/^\s+(?:isDevice|deviceModel|deviceCondition|batteryHealth|storageCapacity|deviceIdentifier|deviceColor|deviceNotes|deviceDetails)\s+.*\n/gm, "");
+    const baseline = readFileSync("prisma/schema.prisma", "utf8").replace(/^\s+giftAllowed\s+.*\n/gm, "").replace(/^\s+isGift\s+.*\n/gm, "").replace(/^\s+(?:isDevice|deviceModel|deviceCondition|batteryHealth|batteryCycles|storageCapacity|deviceIdentifier|deviceColor|deviceNotes|deviceDetails)\s+.*\n/gm, "");
     const schema = join(temporary, "schema.prisma");
     writeFileSync(schema, baseline);
     const sql = execFileSync(process.execPath, ["node_modules/prisma/build/index.js", "migrate", "diff", "--from-empty", "--to-schema-datamodel", schema, "--script"], { encoding: "utf8", env: { ...process.env, DATABASE_URL: "postgresql://unused:unused@127.0.0.1:1/unused" } });
@@ -56,6 +56,7 @@ async function main() {
     await pg.exec(readFileSync("prisma/migrations/20261028200000_sale_gifts/migration.sql", "utf8"));
     await pg.exec(readFileSync("prisma/migrations/20261029190000_device_labels/migration.sql", "utf8"));
     await pg.exec(readFileSync("prisma/migrations/20261031205012_inventory_used_phone_details/migration.sql", "utf8"));
+    await pg.exec(readFileSync("prisma/migrations/20261102210651_inventory_battery_cycles/migration.sql", "utf8"));
     await pg.exec('CREATE ROLE anon; CREATE ROLE authenticated;');
     await pg.exec(readFileSync("prisma/migrations/20260831003500_add_inventory_categories_phase1/migration.sql", "utf8"));
     assert.equal((await pg.query('SELECT "giftAllowed" FROM "InventoryItem" WHERE id=$1', [item])).rows[0].giftAllowed, false);
@@ -162,10 +163,10 @@ async function main() {
     await pg.query('INSERT INTO "Sale" (id,"shopId",subtotal,total) VALUES ($1,$2,0,0)', [saleId, shop]);
     await assert.rejects(() => pg.query('INSERT INTO "SaleItem" ("shopId","saleId",description,quantity,"unitPriceSnapshot","lineTotal","isGift") VALUES ($1,$2,$3,1,10,10,TRUE)', [shop, saleId, "Invalid gift"]), /gift_zero_amounts/);
     await pg.query('INSERT INTO "SaleItem" ("shopId","saleId",description,quantity,"unitPriceSnapshot","lineTotal","isGift") VALUES ($1,$2,$3,1,0,0,TRUE)', [shop, saleId, "Gift"]);
-    const deviceDetails = normalizeDeviceDetails({ isDevice: true, deviceModel: "iPhone 17 Pro Max", deviceCondition: "USED", batteryHealth: 87, storageCapacity: "256 gb", deviceIdentifier: "123456789012345" });
+    const deviceDetails = normalizeDeviceDetails({ isDevice: true, deviceModel: "iPhone 17 Pro Max", deviceCondition: "USED", batteryHealth: 87, batteryCycles: 412, storageCapacity: "256 gb", deviceIdentifier: "123456789012345" });
     const deviceDraft = await draft([{ newItemName: "Phone 1", quantity: 1, unitCost: "100", salePrice: "120", deviceDetails }]);
     const snapshot = (await pg.query('SELECT "deviceDetails" FROM "PurchaseItem" WHERE "purchaseInvoiceId"=$1', [deviceDraft.id])).rows[0].deviceDetails as Record<string, unknown>;
-    assert.equal(snapshot.batteryHealth, 87);
+    assert.equal(snapshot.batteryHealth, 87); assert.equal(snapshot.batteryCycles, 412);
     await post(deviceDraft.id);
     const phone = (await pg.query('SELECT * FROM "InventoryItem" WHERE name=$1', ["Phone 1"])).rows[0];
     assert.equal(phone.isDevice, true); assert.equal(phone.quantity, 0);
@@ -175,7 +176,7 @@ async function main() {
     const newPhoneDraft = await draft([{ newItemName: "Galaxy S26", quantity: 1, unitCost: "200", salePrice: "250", deviceDetails: { ...deviceDetails, deviceCondition: "NEW", deviceIdentifier: "NEW-PHONE-0001", batteryHealth: 87, deviceColor: "أزرق", deviceNotes: "علبة مغلقة" } }]);
     await post(newPhoneDraft.id);
     const newPhone = (await pg.query('SELECT * FROM "InventoryItem" WHERE name=$1', ["Galaxy S26"])).rows[0];
-    assert.equal(newPhone.deviceCondition, "NEW"); assert.equal(newPhone.batteryHealth, null);
+    assert.equal(newPhone.deviceCondition, "NEW"); assert.equal(newPhone.batteryHealth, null); assert.equal(newPhone.batteryCycles, null);
     assert.equal(newPhone.deviceModel, "Galaxy S26"); assert.equal(newPhone.deviceColor, "أزرق");
     assert.equal(newPhone.deviceNotes, "علبة مغلقة"); assert.match(String(newPhone.barcode), /^20\d{10}$/);
     assert.equal(isLowStock(1, 5, true), false); assert.equal(isLowStock(0, 5, true), false);
@@ -184,7 +185,7 @@ async function main() {
     await assert.rejects(() => draft([{ newItemName: "Two new phones", quantity: 2, unitCost: "200", deviceDetails: { ...deviceDetails, deviceCondition: "NEW", deviceIdentifier: null } }]), /كمية واحدة/);
     console.log("PASS manual receipt phone metadata: name, NEW without battery, color/notes/barcode, single quantity, phone low-stock exemption and ordinary low-stock retained.");
     const label = makeDeviceLabel({ ...normalizeDeviceDetails(phone), barcode: String(phone.barcode), unitPrice: { toString: () => "120" } }, "Test Shop", "SAR");
-    assert.equal(label.batteryHealth, 87); assert.equal(label.condition, "مستعمل");
+    assert.equal(label.batteryHealth, 87); assert.equal(label.batteryCycles, 412); assert.equal(label.condition, "مستعمل");
     assert.ok(label.barcodeDataUrl.startsWith("data:image/svg+xml;base64,"));
     assert.ok(!JSON.stringify(label).includes("123456789012345"), "private IMEI must not appear in printable label data");
     await assert.rejects(() => draft([{ newItemName: "Duplicate units", quantity: 2, unitCost: "100", deviceDetails }]), /كمية واحدة/);
@@ -194,6 +195,7 @@ async function main() {
     await assert.rejects(() => post(duplicateBarcode.id), /الباركود/);
     await assert.rejects(() => pg.query('UPDATE "InventoryItem" SET quantity=2 WHERE id=$1', [phone.id]), /device_metadata/);
     await assert.rejects(() => pg.query('UPDATE "InventoryItem" SET "batteryHealth"=101 WHERE id=$1', [phone.id]), /device_metadata/);
+    await assert.rejects(() => pg.query('UPDATE "InventoryItem" SET "batteryCycles"=-1 WHERE id=$1', [phone.id]), /batteryCycles_nonnegative/);
     await assert.rejects(() => pg.query('INSERT INTO "InventoryItem" ("shopId",name,"unitPrice","isDevice","deviceModel","deviceCondition","storageCapacity",barcode) VALUES ($1,$2,120,TRUE,$3,$4,$5,$6)', [shop, "Duplicate DB", "Phone", "NEW", "256 GB", phone.barcode]), /device_barcode/);
     const receivedDraft = await draft([{ newItemName: "Received phone", newItemBarcode: "PHONE-00042", quantity: 1, unitCost: "100", salePrice: "120", deviceDetails: { ...deviceDetails, deviceIdentifier: "123456789012346" } }]);
     await postPurchaseInvoice(shop, user, receivedDraft.id, `receive-${receivedDraft.id}`, { receiptMode: "FULL" });
@@ -229,15 +231,16 @@ async function main() {
     assert.equal(await ensureInventoryLabelBarcode(shop, item), null);
     assert.equal((await pg.query('SELECT count(*)::int AS n FROM "InventoryMovement"')).rows[0].n, movementsBeforeLabel);
     console.log("PASS all-inventory labels: multi-unit manual item, purchase item barcode, legacy backfill/idempotency, tenant/deleted boundaries, unchanged prices/stock/device type and no movements.");
-    const usedInput = { name: "iPhone 13 Pro", unitPrice: "400", unitCost: "300", quantity: "1", deviceDetails: { ...deviceDetails, deviceModel: "ignored browser value", deviceIdentifier: "PHONE-USED-001", batteryHealth: null, deviceColor: "أسود", deviceNotes: "شاشة مستبدلة؛ شاحن متوفر" } };
+    const usedInput = { name: "iPhone 13 Pro", unitPrice: "400", unitCost: "300", quantity: "1", deviceDetails: { ...deviceDetails, deviceModel: "ignored browser value", deviceIdentifier: "PHONE-USED-001", batteryHealth: null, batteryCycles: 0, deviceColor: "أسود", deviceNotes: "شاشة مستبدلة؛ شاحن متوفر" } };
     const used = await createInventoryItem(shop, user, usedInput);
     assert.equal(used.deviceModel, usedInput.name); assert.equal(used.deviceCondition, "USED"); assert.equal(used.quantity, 1);
-    assert.equal(used.deviceColor, "أسود"); assert.equal(used.deviceNotes, usedInput.deviceDetails.deviceNotes); assert.equal(used.batteryHealth, null);
+    assert.equal(used.batteryCycles, 0); assert.equal(used.deviceColor, "أسود"); assert.equal(used.deviceNotes, usedInput.deviceDetails.deviceNotes); assert.equal(used.batteryHealth, null);
     await assert.rejects(() => createInventoryItem(shop, user, { ...usedInput, quantity: "2" }), /كمية واحدة/);
     await assert.rejects(() => createInventoryItem(shop, user, { ...usedInput, quantity: "0" }), /كمية واحدة/);
     await assert.rejects(() => createInventoryItem(shop, user, usedInput), /IMEI \/ Serial/);
-    const edited = await updateInventoryItemDetails(shop, used.id, { name: "iPhone 13 Pro - أسود", unitPrice: "410", unitCost: "300", deviceDetails: { ...usedInput.deviceDetails, batteryHealth: 88, deviceNotes: "تم فحص البطارية" } });
-    assert.equal(edited.deviceModel, "iPhone 13 Pro - أسود"); assert.equal(edited.batteryHealth, 88);
+    const edited = await updateInventoryItemDetails(shop, used.id, { name: "iPhone 13 Pro - أسود", unitPrice: "410", unitCost: "300", deviceDetails: { ...usedInput.deviceDetails, batteryHealth: 88, batteryCycles: 412, deviceNotes: "تم فحص البطارية" } });
+    assert.equal(edited.deviceModel, "iPhone 13 Pro - أسود"); assert.equal(edited.batteryHealth, 88); assert.equal(edited.batteryCycles, 412);
+    assert.equal(makeDeviceLabel({ ...normalizeDeviceDetails(edited), barcode: edited.barcode, unitPrice: edited.unitPrice }, "Shop", "JOD").batteryCycles, 412);
     assert.equal(edited.deviceNotes, "تم فحص البطارية"); assert.equal(edited.deviceColor, "أسود"); assert.equal(edited.barcode, used.barcode); assert.equal(edited.quantity, 1);
     console.log("PASS used phones: name-backed model, nullable battery, persistent color/condition notes, editing, serial uniqueness and one-device quantity enforced on server.");
     console.log("PASS device PostgreSQL: additive migration, persisted purchase metadata, approval, automatic barcode, printable data, private serial exclusion, duplicate serial/barcode and quantity/battery constraints.");
